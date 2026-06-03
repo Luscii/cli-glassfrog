@@ -86,10 +86,21 @@ func TestListingExcludesBuiltinsAlphabetically(t *testing.T) {
 		t.Fatalf("--help did not render usage/listing: %q", out)
 	}
 	cmds := availableCommands(out)
-	got := strings.Join(cmds, ",")
-	// Assemble wires exactly `roles` and `version`; alphabetical, no built-ins.
-	if got != "roles,version" {
-		t.Fatalf("Available Commands = %v, want [roles version] (alphabetical, no help/completion)", cmds)
+	// Assert the invariants the spec cares about, not the exact command set, so
+	// adding a legitimate command later does not break this test:
+	//   - the framework built-ins are absent from the listing (ADR-2), and
+	//   - known commands appear in alphabetical relative order (ADR-1).
+	for _, builtin := range []string{"help", "completion"} {
+		if containsString(cmds, builtin) {
+			t.Fatalf("listing must not include the built-in %q command; got %v", builtin, cmds)
+		}
+	}
+	ri, vi := indexOf(cmds, "roles"), indexOf(cmds, "version")
+	if ri < 0 || vi < 0 {
+		t.Fatalf("expected `roles` and `version` listed, got %v", cmds)
+	}
+	if ri >= vi {
+		t.Fatalf("`roles` should be listed before `version` (alphabetical), got %v", cmds)
 	}
 }
 
