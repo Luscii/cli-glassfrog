@@ -208,7 +208,7 @@ Feature: No Runnable CLI
   Rule: A group or root invocation surfaces its subcommands
     # In order to discover what a group offers,
     # as an operator,
-    # I want typing the group name alone to surface its available subcommands.
+    # I want to type the group name alone to surface its available subcommands.
 
     # Source: 002-argument-dispatch — Scenario: Bare group surfaces its subcommands
     @wip

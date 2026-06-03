@@ -30,7 +30,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
   - **Scope**: Add `cli.Run(root, args) (Outcome, error)` that executes the assembled cobra tree and returns a code-free `Outcome` category (`Success` / `UsageError`). Rewire `main.go` to dispatch via `cli.Run(cli.Assemble(), …)` instead of calling `Execute` directly. Classification logic itself is T002 — this task establishes the seam and the type.
   - **Acceptance criteria**:
     - `Run` exists with the signature in interface-spec.md and returns the two-value `Outcome` (`Success` / `UsageError`)
-    - `main.go` dispatches through `Run`; the existing commands still work (`glassfrog version`, `glassfrog roles`, `glassfrog roles list|get`) — no regression
+    - `main.go` dispatches through `Run`; the existing commands still work (`glassfrog version`, `glassfrog roles`, `glassfrog roles list`, `glassfrog roles get`) — no regression
     - `go build ./...` and `go vet ./...` clean
   - **Dependencies**: None
   - **Plan reference**: Phase 1 — Dispatch entry + outcome category; ADR-2
@@ -58,7 +58,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
   - **Acceptance criteria**:
     - Every non-`@validation` 002 scenario (route nested / route top-level / prefix-no-resolve / unknown command / unknown subcommand / unexpected-flag rejected / bare group / empty invocation) has an executable, passing path
     - `@wip` removed from those scenarios; the three 002 `@validation` scenarios keep `@wip` (held out for validate)
-    - The two `@validation` documentation-checks (no implementation tech; non-behaviors name owners) confirmed against spec.md text
+    - The three `@validation` scenarios (no routing by abbreviation; no implementation tech; non-behaviors name owners) confirmed against spec.md text
   - **Dependencies**: T002
   - **Plan reference**: Phase 3 — Executable acceptance; Cross-cutting Concerns (testing strategy)
   - **Scenario references**: no-runnable-cli.feature: all 002 Rule-block scenarios

@@ -2,7 +2,7 @@
 
 **Feature**: 002-argument-dispatch
 **Role**: Shaper
-**Inputs**: spec.md (002-argument-dispatch), PROJECT.md, `.score/memory/DECISIONS.md` (4 entries — Go, cobra, guard, explicit wiring), `.score/memory/LEARNINGS.md` (cobra built-ins finding). No SOUL.md.
+**Inputs**: spec.md (002-argument-dispatch), PROJECT.md, `.score/memory/DECISIONS.md` (read at 4 entries — Go, cobra, guard, explicit wiring; this plan's post-step appends two more, bringing it to 6), `.score/memory/LEARNINGS.md` (cobra built-ins finding). No SOUL.md.
 
 ---
 
