@@ -19,6 +19,9 @@ func dispatchTree(ran map[string]bool) *cobra.Command {
 		return &cobra.Command{
 			Use:   name,
 			Short: "the " + name + " command",
+			// Mirror the real leaves: they accept no positional arguments, so an
+			// unexpected one is a usage error rather than silently ignored.
+			Args: cobra.NoArgs,
 			RunE: func(*cobra.Command, []string) error {
 				ran[name] = true
 				return err
@@ -39,6 +42,16 @@ func runQuiet(root *cobra.Command, args ...string) (Outcome, error) {
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
 	return Run(root, args)
+}
+
+// runCapture runs Run and returns the combined stdout+stderr alongside the
+// outcome, for assertions on what the operator actually sees.
+func runCapture(root *cobra.Command, args ...string) (Outcome, error, string) {
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	outcome, err := Run(root, args)
+	return outcome, err, buf.String()
 }
 
 func TestRun_TopLevelLeafRoutes_Success(t *testing.T) {
@@ -163,5 +176,62 @@ func TestRun_RuntimeActionError_IsSuccessCategory(t *testing.T) {
 func TestExactMatch_PrefixMatchingDisabled(t *testing.T) {
 	if cobra.EnablePrefixMatching {
 		t.Fatal("cobra.EnablePrefixMatching must stay false for exact matching")
+	}
+}
+
+// The Invalid-input accord: an unexpected positional argument the resolved
+// command does not accept is a usage error, and the command does not run —
+// never silently ignored.
+func TestRun_UnexpectedPositionalArg_UsageError_CommandDoesNotRun(t *testing.T) {
+	ran := map[string]bool{}
+	outcome, err := runQuiet(dispatchTree(ran), "version", "extra")
+	if outcome != UsageError {
+		t.Fatalf("unexpected positional arg: outcome = %v, want UsageError", outcome)
+	}
+	if err == nil || !strings.Contains(err.Error(), "extra") {
+		t.Fatalf("usage error should name the unexpected argument, got: %v", err)
+	}
+	if ran["version"] {
+		t.Fatal("the command must not run when an unexpected positional arg is rejected")
+	}
+}
+
+// A runtime action error must stay classified Success even though the command
+// also declares an Args validator — the validator passed, so the error is the
+// action's own (RuntimeError deferred to 004).
+func TestRun_RuntimeError_NotMisclassifiedAsArgError(t *testing.T) {
+	ran := map[string]bool{}
+	outcome, err := runQuiet(dispatchTree(ran), "boom")
+	if !ran["boom"] {
+		t.Fatal("boom action did not run")
+	}
+	if outcome != Success {
+		t.Fatalf("runtime error: outcome = %v, want Success", outcome)
+	}
+	if err == nil || !strings.Contains(err.Error(), "kaboom") {
+		t.Fatalf("runtime error should travel via the returned error, got: %v", err)
+	}
+}
+
+// The nested-group unknown-subcommand error is synthesized by dispatch (cobra
+// returned nil), so dispatch must write it to stderr — otherwise the operator
+// sees only the group help and never which token was unrecognized.
+func TestRun_NestedUnknownSubcommand_WritesErrorToStderr(t *testing.T) {
+	outcome, err, output := runCapture(dispatchTree(map[string]bool{}), "roles", "lst")
+	if outcome != UsageError || err == nil {
+		t.Fatalf("nested unknown subcommand: outcome = %v, err = %v; want UsageError + error", outcome, err)
+	}
+	if !strings.Contains(output, "lst") {
+		t.Fatalf("the synthesized error naming %q must reach the operator's output, got: %q", "lst", output)
+	}
+	if !strings.Contains(output, "--help") {
+		t.Fatalf("the synthesized error should point the caller to help, got: %q", output)
+	}
+}
+
+func TestOutcome_String_UnknownPreservesValue(t *testing.T) {
+	got := Outcome(99).String()
+	if got != "Outcome(99)" {
+		t.Fatalf("unknown Outcome should preserve its numeric value, got %q", got)
 	}
 }

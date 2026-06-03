@@ -39,7 +39,10 @@ func (o Outcome) String() string {
 	case UsageError:
 		return "UsageError"
 	default:
-		return "Outcome(unknown)"
+		// Preserve the underlying value for an unexpected Outcome (e.g. a future
+		// enum extension) rather than collapsing it to a constant — keeps logs
+		// and test failures debuggable.
+		return fmt.Sprintf("Outcome(%d)", int(o))
 	}
 }
 
@@ -66,7 +69,15 @@ func (o Outcome) String() string {
 //     positional tokens went unmatched → UsageError naming the first such token.
 //     cobra's default arg validator only rejects unknown subcommands at the
 //     root; a nested group prints help and returns nil, so dispatch surfaces the
-//     swallowed token from the group's leftover positional args itself.
+//     swallowed token from the group's leftover positional args itself. Because
+//     cobra never printed this synthesized error, dispatch writes it (plus a
+//     help pointer) to stderr — matching how cobra reports its own
+//     unknown-command errors, so the operator always sees the unrecognized token.
+//   - an error on a runnable command whose own arg validator rejected the input
+//     (an unexpected positional argument the command does not accept) → the
+//     action never ran, so this is a UsageError. Each command declares what it
+//     accepts via its cobra Args validator; dispatch re-checks it to tell an
+//     arg rejection apart from a runtime failure.
 //   - anything else with an error came from a resolved command's own action →
 //     the error is returned but the category stays Success. Distinguishing that
 //     runtime failure (a future RuntimeError) is deferred to Exit-Code
@@ -97,14 +108,27 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 	case err == nil && executed != nil && !executed.Runnable():
 		// cobra routed a non-runnable group/root to its help output. If
 		// positional tokens were left unmatched, the caller typed an unknown
-		// subcommand that cobra silently swallowed — surface it.
+		// subcommand that cobra silently swallowed — surface it. cobra returned
+		// nil here, so it printed no error of its own; dispatch writes the
+		// synthesized error and a help pointer to stderr, the same way cobra
+		// reports its own unknown-command errors, so the operator sees the
+		// unrecognized token rather than only the group's help.
 		if leftover := executed.Flags().Args(); len(leftover) > 0 {
-			return UsageError, fmt.Errorf("unknown command %q for %q", leftover[0], executed.CommandPath())
+			usageErr := fmt.Errorf("unknown command %q for %q", leftover[0], executed.CommandPath())
+			fmt.Fprintf(executed.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", usageErr, executed.CommandPath())
+			return UsageError, usageErr
 		}
 		return Success, nil
 	default:
-		// A command ran. Its action's error (if any) travels via err; the
-		// category stays Success (RuntimeError deferred to 004).
+		// A command ran, or its arg validator rejected the input before the
+		// action ran. Re-check the resolved command's Args against its parsed
+		// positional args: a non-nil result means the command refused an
+		// unexpected argument (a usage error — the action never ran). Otherwise
+		// the action ran and any error is its own runtime failure, returned
+		// uncategorized (RuntimeError deferred to 004).
+		if err != nil && executed != nil && executed.ValidateArgs(executed.Flags().Args()) != nil {
+			return UsageError, err
+		}
 		return Success, err
 	}
 }
