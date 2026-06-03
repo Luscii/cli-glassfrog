@@ -8,7 +8,7 @@
 
 ## Dependency Graph
 
-Phase 1: Go module + root command skeleton (2 tasks, no dependencies) [Shared]
+Phase 1: Go module + root command skeleton (2 tasks, no phase dependencies; T002 depends on T001) [Shared]
 Phase 2: Registration guard (1 task, depends on Phase 1) [Shared]
 Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 

@@ -2,7 +2,7 @@
 
 **Feature**: 001-command-registration
 **Role**: Shaper
-**Inputs**: spec.md (001-command-registration), PROJECT.md, CONSTITUTION.md (Principle XII referenced), BACKLOG.md / FEATURE-MODEL.md (skeleton context). No SOUL.md, no `.score/memory/` — first planning run.
+**Inputs**: spec.md (001-command-registration), PROJECT.md, CONSTITUTION.md (Principle XII referenced), BACKLOG.md / FEATURE-MODEL.md (skeleton context). No SOUL.md; no `.score/memory/` existed at plan time (this plan's post-step creates `DECISIONS.md`) — first planning run.
 
 ---
 
