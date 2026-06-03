@@ -4,9 +4,11 @@ import "github.com/spf13/cobra"
 
 // configureHelpAndVersion tunes the assembled root's help and version
 // rendering to match the Help & Version accord (003). It is applied once, by
-// Assemble, after the command tree is wired. It registers no command of its
-// own — it configures the framework's standard rendering over the
-// guard-registered command set.
+// Assemble, after the command tree is wired. It registers no guard-registered
+// (domain) command — it configures the framework's standard rendering over the
+// guard-registered set. It does replace cobra's built-in `help` command with a
+// hidden, non-resolvable placeholder (a framework-level command, not a
+// domain one); see the SetHelpCommand call below.
 func configureHelpAndVersion(root *cobra.Command) {
 	// ADR-3 — version unify: the --version flag and the `version` command read
 	// one source of truth (the package-level version var) and emit the same
@@ -17,14 +19,15 @@ func configureHelpAndVersion(root *cobra.Command) {
 	root.SetVersionTemplate("{{.Version}}\n")
 
 	// ADR-2 — hide built-ins: replace cobra's auto `help` command with a hidden
-	// command registered under a non-`help` name so the `help` token no longer
-	// resolves (Hidden:true alone only hides from listings — it does not stop
-	// `glassfrog help` from resolving), and disable the `completion` command.
-	// The --help flag is untouched and stays available everywhere.
-	root.SetHelpCommand(&cobra.Command{
-		Use:    "__help_disabled",
-		Hidden: true,
-	})
+	// placeholder that carries no name (empty Use), and disable the
+	// `completion` command. cobra always attaches *some* help command when the
+	// root has subcommands, and Hidden:true alone only hides it from listings —
+	// it does not stop `glassfrog help` from resolving. A nameless placeholder
+	// occupies that slot without introducing any typeable, resolvable token:
+	// `glassfrog help` is an unknown command, and there is no invented path to
+	// invoke (even a degenerate empty argument is rejected as unknown). The
+	// --help flag is untouched and stays available everywhere.
+	root.SetHelpCommand(&cobra.Command{Hidden: true})
 	root.CompletionOptions.DisableDefaultCmd = true
 
 	// ADR-1 — standard rendering + sorting: no custom help/usage template;
