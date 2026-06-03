@@ -25,7 +25,7 @@ Phase 2: Executable acceptance (1 task, depends on Phase 1) [Shared]
 
 ## Phase 1: Root configuration pass [Shared]
 
-- [ ] **T001** [Shared] Configure the assembled root for help and version
+- [x] **T001** [Shared] Configure the assembled root for help and version — 7 unit tests (parity, placeholder, built-ins hidden + non-resolving, sorting pin, --help renders, precedence)
   - **Scope**: Add a configuration step applied to the assembled root (e.g. `configureHelpAndVersion(root)` called from `Assemble()` after wiring), realizing three cohesive root-level concerns in one reviewable change:
     - **Version unify (ADR-3)**: set `root.Version` and a version template that prints the **bare** version value — the exact line the `version` command prints — overriding cobra's default `Name version X` template; both read the single `version` var in `internal/cli/version.go`.
     - **Hide built-ins (ADR-2)**: replace cobra's auto `help` command with a hidden command under a **non-`help` name** (e.g. `SetHelpCommand(&cobra.Command{Use: "__help_disabled", Hidden: true})`) so `glassfrog help` no longer resolves — `Hidden:true` alone only hides from listings — and disable the `completion` command (`CompletionOptions.DisableDefaultCmd = true`), while keeping the `--help` flag.
