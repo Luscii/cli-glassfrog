@@ -63,7 +63,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 3: Exercise nested registration [Shared]
 
-- [ ] **T004** [Shared] Wire a `version` leaf and a nested sample group through the guard in `main`
+- [x] **T004** [Shared] Wire a `version` leaf and a nested sample group through the guard in `main` — version.go + roles.go (list/get stubs) wired via MustRegister in Assemble; `glassfrog version`/`roles`/`roles list`/`roles get` all resolve; cobra's built-in completion/help are framework-added (outside our guard, expected)
   - **Scope**: Explicit registration assembly (ADR-4): register a `version` leaf and a sample `roles` group with `list`/`get` subcommands via `MustRegister`, proving arbitrary-depth registration and the "add without touching unrelated commands" property. A child group is assembled before being attached.
   - **Acceptance criteria**:
     - `glassfrog version` runs the version leaf's action

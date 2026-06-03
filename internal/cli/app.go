@@ -11,6 +11,9 @@ import "github.com/spf13/cobra"
 // constructor — no existing command is edited.
 func Assemble() *cobra.Command {
 	root := NewRootCommand()
-	// Top-level commands and groups are wired here (T004).
+	// Top-level commands and groups are wired here — one MustRegister line
+	// each. Adding a command does not touch the others.
+	MustRegister(root, newVersionCommand())
+	MustRegister(root, newRolesCommand())
 	return root
 }
