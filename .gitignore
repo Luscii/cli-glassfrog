@@ -3,3 +3,6 @@
 
 # OS / editor noise
 .DS_Store
+
+# Build artifacts
+/glassfrog

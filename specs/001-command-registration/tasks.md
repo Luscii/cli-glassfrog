@@ -26,7 +26,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 1: Go module + root command skeleton [Shared]
 
-- [ ] **T001** [Shared] Initialize the Go module, project layout, and cobra dependency
+- [x] **T001** [Shared] Initialize the Go module, project layout, and cobra dependency — module `github.com/Luscii/cli-glassfrog`, cobra v1.10.2 pinned, `internal/cli/` package home; no scenarios (infra)
   - **Scope**: Create `go.mod` (`go mod init`), add the cobra dependency, and establish the package layout that will host the command tree and guard. No command behavior yet.
   - **Acceptance criteria**:
     - `go.mod` exists with a module path and the cobra dependency pinned in `go.sum`
@@ -35,7 +35,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Dependencies**: None
   - **Plan reference**: Phase 1 — Go module + root command skeleton; ADR-1 (Go standalone binary), ADR-2 (cobra)
 
-- [ ] **T002** [Shared] Create the root command and `main` entrypoint that builds a runnable binary
+- [x] **T002** [Shared] Create the root command and `main` entrypoint that builds a runnable binary — `NewRootCommand` + `Assemble` wiring seam + `main.go`; `glassfrog` prints help, exits 0; no scenarios (infra)
   - **Scope**: Define the cobra root command (the top of the known command set) and the `main` entrypoint that executes it. With no subcommands yet, invoking the binary prints root help.
   - **Acceptance criteria**:
     - `go build -o glassfrog` produces a single self-contained executable (`CGO_ENABLED=0` to avoid cgo where supported)
@@ -47,7 +47,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 2: Registration guard [Shared]
 
-- [ ] **T003** [Shared] Implement the command model and the fail-loud `Register`/`MustRegister` guard
+- [x] **T003** [Shared] Implement the command model and the fail-loud `Register`/`MustRegister` guard — registry.go + 10 unit tests (happy path + 5 rules + MustRegister panic + same-name-different-parent); leaf-without-action and group-without-children collapse to one "neither" rule (indistinguishable at registration), noted in code
   - **Scope**: Define the command definition (name, summary, action for leaves, children for groups) and implement `Register(parent, child) -> error` plus `MustRegister`, enforcing all five registration rules before attaching to the cobra tree. This is the spec's core. Test-first (RED→GREEN) per the constitution.
   - **Acceptance criteria**:
     - `Register` attaches a valid leaf/group under its parent and returns no error
@@ -63,7 +63,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 3: Exercise nested registration [Shared]
 
-- [ ] **T004** [Shared] Wire a `version` leaf and a nested sample group through the guard in `main`
+- [x] **T004** [Shared] Wire a `version` leaf and a nested sample group through the guard in `main` — version.go + roles.go (list/get stubs) wired via MustRegister in Assemble; `glassfrog version`/`roles`/`roles list`/`roles get` all resolve; cobra's built-in completion/help are framework-added (outside our guard, expected)
   - **Scope**: Explicit registration assembly (ADR-4): register a `version` leaf and a sample `roles` group with `list`/`get` subcommands via `MustRegister`, proving arbitrary-depth registration and the "add without touching unrelated commands" property. A child group is assembled before being attached.
   - **Acceptance criteria**:
     - `glassfrog version` runs the version leaf's action
@@ -75,7 +75,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Interface references**: interface-cli.md: invocation table (bare group, nested paths); interface-spec.md: composition example
   - **Scenario references**: no-runnable-cli.feature: "Registering a group exposes its subcommands by path", "A bare group name resolves to the group itself", "Groups nest to arbitrary depth", "A name is unique only within its own group", "Registering a command leaves existing commands untouched"
 
-- [ ] **T005** [Shared] Make the driving scenarios pass as executable acceptance
+- [x] **T005** [Shared] Make the driving scenarios pass as executable acceptance — godog harness (bdd_test.go) runs 12 behavioral scenarios (45 steps), all pass; @wip removed from those 12; the 3 @validation scenarios remain @wip (held out for validate); both doc-check validations confirmed against spec.md text
   - **Scope**: Provide the executable acceptance coverage for `features/no-runnable-cli.feature` against the assembled CLI — registration, nested lookup, bare-group resolution, collision/validation rejection, and the startup-abort behavior. (Step definitions / `@wip` removal are the implement skill's BDD outer loop; this task ensures the scenarios are coverable end-to-end.)
   - **Acceptance criteria**:
     - Every non-`@validation` scenario in no-runnable-cli.feature has an executable path against the built CLI / registry
