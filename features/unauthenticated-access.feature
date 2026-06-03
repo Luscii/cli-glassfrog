@@ -136,4 +136,4 @@ Feature: Unauthenticated Access
       And GLASSFROG_TOKEN was not set
       When the CLI resolves the credential from the current directory
       Then it will use the token from the home file
-      And it will report that file's path as the source
+      And it will report a File source with that file's path

@@ -15,7 +15,7 @@ The parts:
 - **Credentials package** (`internal/auth`) — the new home for token concerns. Credential Discovery contributes the *resolver*; the sibling Credential Storage (006) will contribute the *writer* into the same package, and both share one **file-format reader/writer** so the read and write sides cannot drift. Request Authentication (007) is the consumer — it lives with the API client and calls the resolver.
 - **Resolver** — a single function that, given a starting directory and a home directory, walks the precedence chain (environment variable → nearest `.glassfrogrc` up the directory tree → home `.glassfrogrc`) and returns a **Resolution**: the token plus the *source* it came from, or a "none found" outcome, or a typed error for a file that exists but can't be read or parsed.
 - **File-format reader** — a minimal `key=value` parser shared with Credential Storage. Reads the `token` key out of an `.glassfrogrc` file; ignores blank lines and `#` comments; reports a parse failure rather than guessing.
-- **Resolution outcome** — a small, code-free result (mirroring 002's outcome-category precedent): `Source ∈ {Environment, File(path), None}` plus the token. Discovery classifies *what was found and from where*; it emits no exit code and prints no output (those are the consumer's, Exit-Code Convention's, and — for the operator-facing "acting as" line — Request Authentication's concerns).
+- **Resolution outcome** — a small, code-free result (mirroring 002's outcome-category precedent): `Resolution{Token, Source, Path}`, where `Source` is an enum (`Environment`, `File`, or `None`) and `Path` carries the file path when `Source` is `File` (empty otherwise). Discovery classifies *what was found and from where*; it emits no exit code and prints no output (those are the consumer's, Exit-Code Convention's, and — for the operator-facing "acting as" line — Request Authentication's concerns).
 
 ```
 internal/auth                         (new package; shared by 005/006/007)
@@ -79,11 +79,11 @@ internal/auth                         (new package; shared by 005/006/007)
 **Context**: The consumer (007) needs to tell three things apart: a token was found (and from where), nothing was found anywhere, and a credential file exists but is broken. CONSTITUTION III (Fail Safe, Not Silent) forbids letting a broken credential masquerade as "no credentials". CONSTITUTION II wants the active identity reportable. 002's precedent is "the resolver classifies a code-free outcome; the consumer maps it."
 
 **Options considered**:
-1. **`Resolution{Token, Source}` + `error`**, where `Source: None` is the normal "nothing found" outcome (no error) and `error` is reserved for read/parse failures of a file that *does* exist. Absence stays out of the error channel; broken files fail loud.
+1. **`Resolution{Token, Source, Path}` + `error`**, where `Source: None` is the normal "nothing found" outcome (no error) and `error` is reserved for read/parse failures of a file that *does* exist. Absence stays out of the error channel; broken files fail loud.
 2. **Sentinel `ErrNoCredentials`** for absence. Rejected: absence is an expected, non-exceptional outcome the consumer routinely handles; modelling it as an error blurs it with genuine I/O/format failures and complicates the consumer's branching.
 3. **Return only the bare token string**. Rejected: loses the source (needed for the operator-facing "acting as" line, CONSTITUTION II) and can't distinguish absence from a broken file.
 
-**Decision**: Option 1. `Resolution` carries the token and a `Source` (`Environment`, `File(path)`, or `None`); a read or format failure of an existing file returns a typed error naming the path. The token value is never placed in any error string or log (spec non-behavior; secret hygiene).
+**Decision**: Option 1. `Resolution` carries the `Token`, a `Source` enum (`Environment`, `File`, or `None`), and a `Path` (the file path when `Source` is `File`, empty otherwise); a read or format failure of an existing file returns a typed error naming the path. The token value is never placed in any error string or log (spec non-behavior; secret hygiene).
 
 **Consequences**: 007 gets a clean three-way input (found / none / error) with no exit-code coupling, exactly as 002→004 did for dispatch. `Source` is safe to surface; the token is not. *Precedent-setting: the Resolution shape is the contract 007 consumes.*
 
@@ -105,7 +105,7 @@ internal/auth                         (new package; shared by 005/006/007)
 
 - **Credentials file format (specification boundary, shared with Credential Storage 006)**: `.glassfrogrc`, `key=value` lines, `token` key. Discovery reads it; Storage writes it; the reader is shared so the two cannot diverge. This is the contract the interface step pins and that 006 must conform to.
 - **Environment (input)**: `GLASSFROG_TOKEN`; non-empty value short-circuits the file search. Empty/unset falls through.
-- **Resolution (internal contract, consumed by Request Authentication 007)**: `{Token, Source}` or `None`, plus typed read/format errors. 007 attaches the token as `X-Auth-Token` and reports `Source` (never the token) as the operator-facing active identity.
+- **Resolution (internal contract, consumed by Request Authentication 007)**: `Resolution{Token, Source, Path}` (`Source: None` when nothing is found), plus typed read/format errors. 007 attaches the `Token` as `X-Auth-Token` and reports `Source`/`Path` (never the `Token`) as the operator-facing active identity.
 - **Filesystem (input)**: reads candidate files up the directory tree and at home; tolerates *missing* files (skip), surfaces *unreadable/unparseable* ones (error).
 
 ---

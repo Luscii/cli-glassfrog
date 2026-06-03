@@ -51,7 +51,7 @@ token=gf_live_abc123
 | `Source` | enum | `Environment`, `File`, or `None`. |
 | `Path` | string | When `Source` is `File`, the path the token was read from. Empty otherwise. |
 
-`Source: None` means no credential was found anywhere — a **normal** outcome, not an error. `Path` (or the literal `"environment"`) is the only part of a `Resolution` safe to display; `Token` is a secret and must never be rendered, logged, or placed in an error.
+`Source: None` means no credential was found anywhere — a **normal** outcome, not an error. `Source` and `Path` are the only parts of a `Resolution` safe to display; `Token` is a secret and must never be rendered, logged, or placed in an error.
 
 ---
 
