@@ -2,7 +2,7 @@
 
 **Feature**: 003-help-and-version
 **Role**: Shaper
-**Inputs**: spec.md (003-help-and-version, post-clarify), PROJECT.md, `.score/memory/DECISIONS.md` (6 entries — Go, cobra-is-registry, registration guard, explicit wiring, cobra resolution, outcome classification), `.score/memory/LEARNINGS.md` (cobra injects `help`/`completion` outside the guard — explicitly deferred to this spec). No SOUL.md; no DEPRECATION.md. Existing source: `internal/cli/{root,version,app,registry,roles}.go`, `main.go` (001 implemented; 002 planned but not yet implemented).
+**Inputs**: spec.md (003-help-and-version, post-clarify), PROJECT.md, `.score/memory/DECISIONS.md` (read at 6 entries — Go, cobra-is-registry, registration guard, explicit wiring, cobra resolution, outcome classification; this plan's post-step appends two more, bringing it to 8), `.score/memory/LEARNINGS.md` (cobra injects `help`/`completion` outside the guard — explicitly deferred to this spec). No SOUL.md; no DEPRECATION.md. Existing source: `internal/cli/{root,version,app,registry,roles}.go`, `main.go` (001 implemented; 002 planned but not yet implemented).
 
 ---
 
@@ -49,25 +49,25 @@ In practice: nothing is rendered by hand. `--help` (and dispatch's bare-group/ro
 **Context**: cobra injects a `help` command and a `completion` command that bypass the registration guard and appear in the listing (LEARNINGS.md, deferred here). The spec's non-behaviors forbid a standalone `help` command and require the listing to show only registered commands ("none is invented"). `completion` is outside the skeleton's three surfaces and the deferred-scope (PROJECT.md defers AI-agent/operational extensions, and shell completion is not in scope).
 
 **Options considered**:
-1. **Hide both built-in commands, keep the `--help` flag** — `SetHelpCommand(&cobra.Command{Hidden:true})` removes the `help` command while leaving the flag; `CompletionOptions.DisableDefaultCmd = true` removes `completion`. Listing then shows only guard-registered commands.
+1. **Hide both built-in commands, keep the `--help` flag** — replace cobra's default help command with a hidden command registered under a **non-`help` name** (e.g. `SetHelpCommand(&cobra.Command{Use: "__help_disabled", Hidden: true})`) so the `help` token no longer resolves *and* it stays out of the listing; `Hidden:true` **alone** only hides a command from listings — it does not stop `glassfrog help` from resolving, which is why the renamed-command idiom is required. `CompletionOptions.DisableDefaultCmd = true` removes `completion`. The `--help` flag is unaffected.
 2. **Keep cobra's built-ins** — least code, but a `help` command violates the no-standalone-`help` non-behavior and both appear in the listing as un-guarded "invented" commands.
 3. **Hide `completion` only, keep `help`** — still violates the no-standalone-`help` non-behavior.
 
 **Decision**: Option 1 — hide both commands, retain the `--help` flag. This satisfies "no standalone `help` command" and "listing shows only registered commands" without losing the flag-driven help the spec is built around.
 
-**Consequences**: The listing is faithful to the guarded set. Shell completion is not offered — a deliberate skeleton-scope exclusion; if completion is wanted later, re-enabling is a one-line reversal. Hidden-command configuration lives at the root, applied once in the configuration pass. A test should assert neither `help` nor `completion` appears in the listing and that `--help` still renders. *Precedent-setting: the CLI treats framework built-ins as hidden by default; future specs that want a built-in surfaced must opt in explicitly.*
+**Consequences**: The listing is faithful to the guarded set. Shell completion is not offered — a deliberate skeleton-scope exclusion; if completion is wanted later, re-enabling is a one-line reversal. Hidden-command configuration lives at the root, applied once in the configuration pass. A test should assert that `glassfrog help` and `glassfrog completion` do **not** resolve (unknown command, not merely hidden), that neither appears in the listing, and that the `--help` flag still renders. *Precedent-setting: the CLI treats framework built-ins as hidden by default; future specs that want a built-in surfaced must opt in explicitly.*
 
 ### ADR-3: Unify `--version` and the `version` command on a single version string
 
 **Context**: The spec requires `glassfrog --version` and `glassfrog version` to produce **identical** output. `version.go` already owns the `version` variable and the `version` command; cobra's `--version` flag is enabled by setting `rootCmd.Version`.
 
 **Options considered**:
-1. **Single source of truth** — `rootCmd.Version = version` plus a version template that prints the same string the `version` command prints, both reading the one package-level `version` var. One value, two entry points, guaranteed identical.
+1. **Single source of truth** — `rootCmd.Version = version` plus a version template that prints the same string the `version` command prints (the **bare** value — the template must override cobra's default `Name version X` form), both reading the one package-level `version` var. One value, two entry points, guaranteed identical.
 2. **Independent renderers** — let the flag and the command format separately. Risks drift between the two outputs, directly threatening the "identical output" requirement.
 
 **Decision**: Option 1 — both entry points read the same `version` var and emit the same line. The `version` command stays guard-registered (001 precedent); the flag is configured on the root.
 
-**Consequences**: Identical output is structural, not coincidental. The build-time `-ldflags -X` override flows to both. The `"0.0.0-dev"` default already satisfies the spec's `[ASSUMED]` version-unset fallback (a clear placeholder, never empty). A test asserts the flag output and command output match. *Feature-local — not recorded as cross-spec precedent.*
+**Consequences**: Identical output is structural, not coincidental. The build-time `-ldflags -X` override flows to both. The `"0.0.0-dev"` default already satisfies the spec's `[ASSUMED]` version-unset fallback (a clear placeholder, never empty). A test asserts the flag output and command output match — and specifically that neither carries cobra's default `glassfrog version …` prefix. *Feature-local — not recorded as cross-spec precedent.*
 
 ---
 

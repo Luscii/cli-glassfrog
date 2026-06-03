@@ -16,7 +16,7 @@ This accord defines what the caller observes when they ask the CLI to describe i
 | `glassfrog --help` *(or bare `glassfrog`, routed by dispatch)* | Root **listing**: the program's summary, then top-level commands and groups — each with its one-line summary — in **alphabetical order** by name. |
 | `glassfrog <group> --help` *(or bare `glassfrog <group>`)* | Group **listing**: the group's usage line and summary, then its immediate child commands/subgroups with summaries, alphabetically. Immediate children only — not recursive. |
 | `glassfrog <path> --help` *(leaf)* | Leaf **usage**: the command's usage/invocation line, its one-line summary, and its available flags (framework-standard form). |
-| `glassfrog --version` | The CLI **version string** (e.g. `glassfrog version 1.2.0`). |
+| `glassfrog --version` | The CLI **version string alone** (e.g. `1.2.0`) — the bare value, matching the `version` command's output, **not** cobra's default `glassfrog version 1.2.0` template. |
 | `glassfrog version` | The **same** version string as `--version` — identical output. |
 
 **Flags and commands this accord introduces:**
@@ -33,7 +33,7 @@ This accord defines what the caller observes when they ask the CLI to describe i
 - **Requesting help**: help is reached via the `--help` flag on any command/group/root, or by dispatch (002) routing a bare group or bare root to the listing outcome. There is no standalone `help` command.
 - **Listing order**: commands within any listing are alphabetical by name — stable across runs, so a caller (typically an AI agent) can locate a command by name without reading the whole list.
 - **Group vs leaf**: a leaf's `--help` shows its usage; a group's `--help` shows the listing of its immediate children (a group's "usage" is the set of subcommands it offers).
-- **Version parity**: the `--version` flag and the `version` command read one underlying version value and emit the same line; build tooling sets that value at compile time.
+- **Version parity**: the `--version` flag and the `version` command read one underlying version value and emit the same line — the **bare** version value (e.g. `1.2.0`); build tooling sets that value at compile time. The `--version` template must override cobra's default `Name version X` form so its output stays byte-identical to the `version` command's.
 - **Precedence**: when both `--help` and `--version` are supplied, help is produced (help takes precedence).
 
 ---
