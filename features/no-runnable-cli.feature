@@ -12,7 +12,6 @@ Feature: No Runnable CLI
     # I want to register my command in isolation.
 
     # Source: 001-command-registration — Scenario: Register a top-level leaf command
-    @wip
     Scenario: Registering a leaf command makes it known
       Given the command set was empty
       When a Maintainer registers a "version" leaf with summary "Print the version" and an action
@@ -20,7 +19,6 @@ Feature: No Runnable CLI
       And enumerating the command set will list "version" with its summary
 
     # Source: 001-command-registration — Scenario: Register unrelated commands independently
-    @wip
     Scenario: Registering a command leaves existing commands untouched
       Given the command set already contained a "roles" group
       When a Maintainer registers a "proposals" group
@@ -47,7 +45,6 @@ Feature: No Runnable CLI
     # I want to register commands inside named groups.
 
     # Source: 001-command-registration — Scenario: Register a group with subcommands
-    @wip
     Scenario: Registering a group exposes its subcommands by path
       Given the command set was empty
       When a Maintainer registers a "roles" group containing "list" and "get" subcommands
@@ -56,7 +53,6 @@ Feature: No Runnable CLI
       And enumerating the command set will list the "roles" group and both subcommands
 
     # Source: 001-command-registration — Scenario: Look up a group on its own
-    @wip
     Scenario: A bare group name resolves to the group itself
       Given a "roles" group with "list" and "get" subcommands was registered
       When the command set is queried for "roles" with no further path
@@ -64,7 +60,6 @@ Feature: No Runnable CLI
       And its "list" and "get" subcommands will be reachable through it
 
     # Source: 001-command-registration — Scenario: Same subcommand name under different groups
-    @wip
     Scenario: A name is unique only within its own group
       Given a "roles" group and a "proposals" group were registered
       When a Maintainer registers a "get" subcommand under each group
@@ -72,7 +67,6 @@ Feature: No Runnable CLI
       And "roles get" and "proposals get" will resolve independently
 
     # Source: 001-command-registration — Scenario: A group nested within a group
-    @wip
     Scenario: Groups nest to arbitrary depth
       Given a "proposals" group was registered
       When a Maintainer registers a "changes" subgroup containing an "add" subcommand under it
@@ -93,7 +87,6 @@ Feature: No Runnable CLI
     # I want a duplicate or malformed registration to fail at startup.
 
     # Source: 001-command-registration — Scenario: Duplicate top-level name
-    @wip
     Scenario: Duplicate sibling name is rejected
       Given the name "roles" was already registered at the top level
       When a Maintainer registers another command named "roles" at the top level
@@ -101,35 +94,30 @@ Feature: No Runnable CLI
       And the failure will occur before any user command runs
 
     # Source: 001-command-registration — Scenario: Empty command name
-    @wip
     Scenario: Empty command name is rejected
       Given an otherwise valid registration state
       When a Maintainer registers a command whose name is empty or only whitespace
       Then registration will fail with an error identifying the command
 
     # Source: 001-command-registration — Scenario: Command without a summary
-    @wip
     Scenario: Missing summary is rejected
       Given an otherwise valid registration state
       When a Maintainer registers a command whose summary is empty or only whitespace
       Then registration will fail with an error identifying the command
 
     # Source: 001-command-registration — Scenario: Leaf command without an action
-    @wip
     Scenario: Leaf command without an action is rejected
       Given an otherwise valid registration state
       When a Maintainer registers a leaf command that has no action
       Then registration will fail with an error identifying the command
 
     # Source: 001-command-registration — Scenario: Group with no children
-    @wip
     Scenario: Group without children is rejected
       Given an otherwise valid registration state
       When a Maintainer registers a group that has no children
       Then registration will fail with an error identifying the group
 
     # Source: 001-command-registration — Proposed: Startup aborts on any failed registration (plan: no partial command tree)
-    @wip
     Scenario: One failed registration prevents the whole CLI from running
       Given several commands were registered successfully
       And one further command fails registration

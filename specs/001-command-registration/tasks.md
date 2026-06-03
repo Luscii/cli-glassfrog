@@ -75,7 +75,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Interface references**: interface-cli.md: invocation table (bare group, nested paths); interface-spec.md: composition example
   - **Scenario references**: no-runnable-cli.feature: "Registering a group exposes its subcommands by path", "A bare group name resolves to the group itself", "Groups nest to arbitrary depth", "A name is unique only within its own group", "Registering a command leaves existing commands untouched"
 
-- [ ] **T005** [Shared] Make the driving scenarios pass as executable acceptance
+- [x] **T005** [Shared] Make the driving scenarios pass as executable acceptance — godog harness (bdd_test.go) runs 12 behavioral scenarios (45 steps), all pass; @wip removed from those 12; the 3 @validation scenarios remain @wip (held out for validate); both doc-check validations confirmed against spec.md text
   - **Scope**: Provide the executable acceptance coverage for `features/no-runnable-cli.feature` against the assembled CLI — registration, nested lookup, bare-group resolution, collision/validation rejection, and the startup-abort behavior. (Step definitions / `@wip` removal are the implement skill's BDD outer loop; this task ensures the scenarios are coverable end-to-end.)
   - **Acceptance criteria**:
     - Every non-`@validation` scenario in no-runnable-cli.feature has an executable path against the built CLI / registry
