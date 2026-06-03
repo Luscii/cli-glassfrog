@@ -104,7 +104,7 @@ Three phases, linear.
 - **Classifying usage errors from cobra's untyped errors** (medium likelihood, medium impact): cobra does not expose a typed "command not found", so detecting `UsageError` (unknown command / unknown flag / bad arg) relies on a flag-error hook and resolution-time detection. Mitigation: detect at the seams (resolve before/inside Execute; `SetFlagErrorFunc` sentinel) and pin with tests. A resolved command's own failure is left to the returned error; its distinct categorization is deferred to 004.
 - **Exact-match depends on a package-global** (low likelihood, medium impact): cobra's `EnablePrefixMatching` is process-global; if any future code sets it `true`, the exact-match non-behavior breaks silently. Mitigation: a regression test asserting a prefix (`ro`) does not resolve to `roles`.
 - **cobra built-ins are resolvable** (low likelihood, low impact): `glassfrog help` / `completion` resolve as commands, which interacts with the unknown-command contract. Mitigation: defer the keep/hide decision to Help & Version (003); note it, don't pre-empt.
-- **Classification has no consumer yet** (low likelihood, low impact): building the category before Exit-Code Convention risks the wrong shape. Mitigation: keep it to three code-free values; 004 adapts.
+- **Classification has no consumer yet** (low likelihood, low impact): building the category before Exit-Code Convention risks the wrong shape. Mitigation: keep it to two code-free values (`Success`/`UsageError`); 004 adapts (and is where `RuntimeError` lands).
 
 ---
 
