@@ -50,6 +50,12 @@ type world struct {
 	ran        map[string]bool
 	output     string
 	routed     string
+
+	// Help & Version (003): a per-invocation root factory (so a parity
+	// scenario's two invocations each run against a fresh assembled+configured
+	// root) and the output of every invocation in the scenario, in order.
+	newRoot func() *cobra.Command
+	outputs []string
 }
 
 func (w *world) reset() {
@@ -67,6 +73,13 @@ func (w *world) reset() {
 	w.ran = map[string]bool{}
 	w.output = ""
 	w.routed = ""
+	w.newRoot = nil
+	w.outputs = nil
+	// Restore the build-time version var to its default placeholder so a 003
+	// "built with version X" scenario cannot leak its value into later
+	// scenarios (the var is the single source of truth both --version and the
+	// version command read).
+	version = "0.0.0-dev"
 }
 
 // track records a group as the most-recently-created one, so a later step
@@ -104,6 +117,8 @@ func initializeScenario(sc *godog.ScenarioContext) {
 
 	// Argument Dispatch (002) steps live in dispatch_bdd_test.go.
 	w.registerDispatchSteps(sc)
+	// Help & Version (003) steps live in helpversion_bdd_test.go.
+	w.registerHelpVersionSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

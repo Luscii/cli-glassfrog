@@ -46,7 +46,7 @@ Phase 2: Executable acceptance (1 task, depends on Phase 1) [Shared]
 
 ## Phase 2: Executable acceptance [Shared]
 
-- [ ] **T002** [Shared] Make the 003 driving scenarios pass as executable acceptance
+- [x] **T002** [Shared] Make the 003 driving scenarios pass as executable acceptance — 11 behavioral scenarios un-@wip'd and passing; 3 @validation scenarios held out
   - **Scope**: Add godog step definitions for the three 003 Rule blocks in `features/no-runnable-cli.feature` (Discover the available commands / Read a command's usage before invoking it / Confirm which build of the CLI is running), exercising the assembled root and asserting the rendered output. Remove `@wip` from the passing behavioral scenarios; leave the `@validation` scenarios tagged for validate.
   - **Acceptance criteria**:
     - every non-`@validation` 003 scenario has an executable, passing path: root listing, group listing, empty-set root help, group-immediate-children, alphabetical order, built-ins absent, leaf usage, help-on-unregistered-renders-nothing, help precedence, version parity, version-flag-on-subcommand
