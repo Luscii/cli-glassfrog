@@ -15,3 +15,9 @@ Architectural precedent from the specification pipeline. Each entry records a de
 
 - Wire commands explicitly in main, not via package init() side effects (from 001-command-registration, 2026-06-03)
   Deterministic ordering and a single legible source of truth for the command set (aligns with CONSTITUTION I). Adding a command = one wiring line + its own package; no existing command is edited.
+
+- Route via cobra's built-in resolution; keep matching exact (from 002-argument-dispatch, 2026-06-03)
+  Dispatch relies on cobra's Execute over the assembled tree rather than a hand-rolled matcher: exact match, unknown-command error + best-effort suggestion, and unknown-flag rejection are cobra defaults. cobra's EnablePrefixMatching (a package-global) MUST stay false — prefix/abbreviation matching is a non-behavior; pin it with a regression test.
+
+- Dispatch classifies each outcome into a code-free category for Exit-Code Convention (from 002-argument-dispatch, 2026-06-03)
+  Run returns Success / UsageError (two values, matching what the spec names). A distinct RuntimeError for a resolved command's own failure is deferred to Exit-Code Convention (004), the consumer that needs the distinction — until then a resolved command's error is returned uncategorized. Dispatch must NOT emit exit codes (that's 004); the entrypoint maps the category minimally (0 / non-zero) as a documented placeholder.
