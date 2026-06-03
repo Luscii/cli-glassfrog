@@ -17,6 +17,10 @@ func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the glassfrog version",
+		// version takes no positional arguments; reject any so unexpected input
+		// is a usage error rather than silently ignored (dispatch's Invalid-input
+		// accord, 002).
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), version)
 			return nil
