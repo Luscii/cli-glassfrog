@@ -341,14 +341,12 @@ Feature: No Runnable CLI
     # I want every non-success outcome to exit non-zero.
 
     # Source: 004-exit-code-convention — Scenario: A successful command exits zero
-    @wip
     Scenario: A successful command exits zero
       Given a "version" command is registered at the top level
       When the caller invokes "glassfrog version"
       Then the process will exit with code 0
 
     # Source: 004-exit-code-convention — Scenario: A help/listing outcome exits zero
-    @wip
     Scenario: A help or listing outcome exits zero
       Given a "roles" group with "list" and "get" subcommands is registered
       When the caller invokes "glassfrog roles" with no further token
@@ -358,7 +356,6 @@ Feature: No Runnable CLI
       And the process will exit with code 0
 
     # Source: 004-exit-code-convention — Scenario: An unknown command exits the usage code
-    @wip
     Scenario: An unknown command exits the usage code
       Given no command named "rolez" is registered
       When the caller invokes "glassfrog rolez"
@@ -366,7 +363,6 @@ Feature: No Runnable CLI
       And the process will exit with code 2
 
     # Source: 004-exit-code-convention — Scenario: An unexpected internal failure never exits zero
-    @wip
     Scenario: An unexpected internal failure never exits zero
       Given a "boom" command whose action fails for a reason matching no known category is registered
       When the caller invokes "glassfrog boom"
@@ -403,7 +399,6 @@ Feature: No Runnable CLI
       And not to the general API-error code 3
 
     # Source: 004-exit-code-convention — Proposed: Panic exits 1, not code 2 (plan ADR-4)
-    @wip
     Scenario: An internal panic exits one and never collides with the usage code
       Given a "boom" command whose action panics is registered
       When the caller invokes "glassfrog boom"
