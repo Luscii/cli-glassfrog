@@ -26,7 +26,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Dispatch entry + outcome category [Shared]
 
-- [ ] **T001** [Shared] Introduce the `Run` dispatch entry and the `Outcome` category, and route `main` through it
+- [x] **T001** [Shared] Introduce the `Run` dispatch entry and the `Outcome` category, and route `main` through it — seam + 2-value `Outcome` in `internal/cli/dispatch.go`, `main.go` dispatches via `cli.Run(cli.Assemble(), os.Args[1:])`; existing commands unregressed
   - **Scope**: Add `cli.Run(root, args) (Outcome, error)` that executes the assembled cobra tree and returns a code-free `Outcome` category (`Success` / `UsageError`). Rewire `main.go` to dispatch via `cli.Run(cli.Assemble(), …)` instead of calling `Execute` directly. Classification logic itself is T002 — this task establishes the seam and the type.
   - **Acceptance criteria**:
     - `Run` exists with the signature in interface-spec.md and returns the two-value `Outcome` (`Success` / `UsageError`)
