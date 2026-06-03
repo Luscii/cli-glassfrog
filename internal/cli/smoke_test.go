@@ -12,11 +12,14 @@ import (
 // normal `go test` run, so the package's tests run as usual.
 const smokeModeEnv = "GLASSFROG_SMOKE_MODE"
 
-// TestMain re-executes itself as a subprocess child to observe the real process
-// exit status — the os.Exit(cli.Main()) wiring that in-process tests cannot see.
+// TestMain lets the test binary re-execute itself as a subprocess child so a
+// test can observe a real process exit status — something in-process tests
+// cannot see because os.Exit would terminate the test runner. The child
+// reconstructs the same os.Exit(<exit code>) composition that main.go performs;
+// it does not run main.go itself (the test binary has no access to it).
 //
-//   - mode "real": drive the exact production path, os.Exit(Main()), against the
-//     assembled tree and the forwarded args.
+//   - mode "real": reproduce main.go's one line, os.Exit(Main()), against the
+//     assembled tree and the forwarded args — the closest faithful stand-in.
 //   - mode "fixture": the real tree has no failing or panicking command, so the
 //     RuntimeError→1 and panic→1 paths are exercised through the same production
 //     core (os.Exit(runToExitCode(...))) against the codeTree fixture.
@@ -36,12 +39,14 @@ func TestMain(m *testing.M) {
 	}
 }
 
-// TestSmoke_SubprocessExitCodes confirms the built CLI exits with the mapped
-// code across a real process boundary, including the panic→1 path: a panic must
-// surface as exit 1, never Go's default panic status 2 (which would collide
-// with the usage code). "real" cases run the production Main()/Assemble() path;
-// the failure cases run a fixture tree through the same recover+map core because
-// the assembled tree has no command that fails or panics.
+// TestSmoke_SubprocessExitCodes confirms the os.Exit(Main()) composition exits
+// with the mapped code across a real process boundary, including the panic→1
+// path: a panic must surface as exit 1, never Go's default panic status 2
+// (which would collide with the usage code). The subprocess is the test binary
+// re-executed via TestMain, not the compiled main.go, but it runs the identical
+// os.Exit(Main()) call ("real" cases, exercising Main()/Assemble()); the failure
+// cases run a fixture tree through the same recover+map core because the
+// assembled tree has no command that fails or panics.
 func TestSmoke_SubprocessExitCodes(t *testing.T) {
 	cases := []struct {
 		name string
