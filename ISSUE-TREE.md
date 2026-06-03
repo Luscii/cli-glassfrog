@@ -1,11 +1,18 @@
 # Glassfrog CLI — Issue Tree
 
-Problems for the Glassfrog v5 CLI, decomposed into a shared client foundation and the endpoint commands that are the project's endgoal. Bootstrapped from the 2026-06-03 explore session.
+Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a shared client foundation, and the endpoint commands that are the project's endgoal. Bootstrapped from the 2026-06-03 explore session.
 
 > How can practitioners — and the AI agents acting for them — read and change Glassfrog governance from the command line, faithfully to the v5 API?
 
 ---
 
+* Project Foundation — prerequisites for the CLI to exist and run before any command can be built
+  * No Runnable CLI — no project skeleton or command framework exists to build any command on
+    + affects: Maintainer
+  * Runtime-Dependent Distribution — the CLI can't run without a separately-installed runtime, so it won't run where operators need it
+    + affects: Practitioner
+    + affects: AI agent
+    + affects: Maintainer
 * Client Foundation — cross-cutting concerns every command depends on
   * Unauthenticated Access — the CLI has no way to prove it's acting as a specific org + person, so Glassfrog can't authorize its calls
     + affects: AI agent
