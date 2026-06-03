@@ -7,7 +7,7 @@ Operational patterns discovered during implementation. Each entry records a non-
 ## Findings
 
 ### 2026-06-03 — cobra injects `completion` and `help` commands outside the registration guard
-(Found during [T004](../specs/001-command-registration/tasks.md) implementation)
+(Found during [T004](../../specs/001-command-registration/tasks.md) implementation)
 
 - **Type**: design-issue
 - **Location**: `internal/cli` (cobra root command), surfaces in `glassfrog --help` / command listing

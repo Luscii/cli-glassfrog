@@ -1,6 +1,6 @@
 module github.com/Luscii/cli-glassfrog
 
-go 1.26.2
+go 1.26
 
 require (
 	github.com/cucumber/godog v0.15.1
