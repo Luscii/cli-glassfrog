@@ -35,7 +35,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Dependencies**: None
   - **Plan reference**: Phase 1 — Go module + root command skeleton; ADR-1 (Go standalone binary), ADR-2 (cobra)
 
-- [ ] **T002** [Shared] Create the root command and `main` entrypoint that builds a runnable binary
+- [x] **T002** [Shared] Create the root command and `main` entrypoint that builds a runnable binary — `NewRootCommand` + `Assemble` wiring seam + `main.go`; `glassfrog` prints help, exits 0; no scenarios (infra)
   - **Scope**: Define the cobra root command (the top of the known command set) and the `main` entrypoint that executes it. With no subcommands yet, invoking the binary prints root help.
   - **Acceptance criteria**:
     - `go build -o glassfrog` produces a single self-contained executable (`CGO_ENABLED=0` to avoid cgo where supported)
