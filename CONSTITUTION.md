@@ -98,6 +98,14 @@ This document defines the enforceable principles that govern how the Glassfrog C
 
 *Detection*: Any governance-structure mutation reachable without the explicit opt-in flag — or any default command path that bypasses the `/proposals` flow — is a violation. The opt-in flag's presence on a command is the evidence of deliberate bypass; its absence on any governance-mutating path is a violation.
 
+### XII. Standalone Executable
+
+**The CLI MUST run as a self-contained executable that assumes no pre-installed dependencies on the user's machine — no language runtime or interpreter (e.g. Node), and no other software, services, or libraries that must be installed first. Its only assumed external dependency is network access to the Glassfrog API.**
+
+*Rationale*: The CLI's operators — practitioners and the AI agents acting for them — run in environments we don't control and can't assume carry any particular runtime or supporting software. If running the CLI first requires installing anything beyond the binary itself, it won't run where it's needed and adoption stalls. The Glassfrog API is the tool's reason to exist, so network access to it is intrinsic, not a dependency to assume away.
+
+*Detection*: Running the distributed artifact on a clean environment — host OS plus network only, with no language runtime or extra software installed — succeeds. If it fails without some separately-installed dependency, or the build emits an artifact that requires one, that's a violation.
+
 ---
 
 ## When Principles Conflict
