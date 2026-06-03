@@ -47,7 +47,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 2: Registration guard [Shared]
 
-- [ ] **T003** [Shared] Implement the command model and the fail-loud `Register`/`MustRegister` guard
+- [x] **T003** [Shared] Implement the command model and the fail-loud `Register`/`MustRegister` guard — registry.go + 10 unit tests (happy path + 5 rules + MustRegister panic + same-name-different-parent); leaf-without-action and group-without-children collapse to one "neither" rule (indistinguishable at registration), noted in code
   - **Scope**: Define the command definition (name, summary, action for leaves, children for groups) and implement `Register(parent, child) -> error` plus `MustRegister`, enforcing all five registration rules before attaching to the cobra tree. This is the spec's core. Test-first (RED→GREEN) per the constitution.
   - **Acceptance criteria**:
     - `Register` attaches a valid leaf/group under its parent and returns no error
