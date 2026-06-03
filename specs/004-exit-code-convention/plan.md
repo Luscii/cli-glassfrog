@@ -14,8 +14,12 @@ Three small parts, all in the existing `internal/cli` package:
 
 ```
  main.go
+   └─ os.Exit( cli.Main() )                                     [thin wrapper]
+
+ internal/cli : func Main() int   [NEW — extracted, testable entrypoint]
    ├─ cli.Run(cli.Assemble(), os.Args[1:]) → (Outcome, error)   [002, unchanged shape]
-   └─ os.Exit( cli.ExitCode(outcome) )                          [NEW: 004 owns this]
+   ├─ deferred recover() → returns 1 on panic, writes crash to stderr   [ADR-4]
+   └─ returns cli.ExitCode(outcome)                             [NEW: 004 owns this]
          │
          ▼
  internal/cli/exitcode.go  [NEW — the single canonical registry]
@@ -28,7 +32,7 @@ Three small parts, all in the existing `internal/cli` package:
    • RuntimeError                   (NEW — resolves 002's deferral)
 ```
 
-**Flow**: a producer classifies an outcome into an `Outcome` category (Argument Dispatch labels `Success`/`UsageError`; a resolved command's own action failure becomes `RuntimeError`). `main` asks the registry for the code and exits with it. The registry is a *pure mapper* — it never classifies, renders text, retries, or inspects an `error`. It is the single site where a category is bound to a code.
+**Flow**: a producer classifies an outcome into an `Outcome` category (Argument Dispatch labels `Success`/`UsageError`; a resolved command's own action failure becomes `RuntimeError`). The extracted `cli.Main()` asks the registry for the code and returns it; `main` exits with it. The registry is a *pure mapper* — it never classifies, renders text, retries, or inspects an `error`. It is the single site where a category is bound to a code.
 
 **Forward-looking categories**: the spec's API-facing categories (API error, permission, rate-limit, network-unavailable) have **no producer yet** — no API client exists in the skeleton. Their codes (3–6) are published now as named constants (the frozen convention an agent can rely on), but the live `Outcome` enum grows to include them only when their producer — the future API client — lands and classifies them. This is the extensibility model from the spec's clarification: a new category is added at the one registry site, taking a pre-reserved code, and existing codes are never renumbered.
 
@@ -75,17 +79,17 @@ Three small parts, all in the existing `internal/cli` package:
 
 **Consequences**: A command failure now exits `1` (never `0`), satisfying Fail Safe end-to-end. `Success` regains a single meaning (ran-and-succeeded, or help/listing). Blast radius is contained to the two named tests plus `String()`; the BDD harness gains exit-code steps but its existing `Success`/`UsageError` assertions are unchanged. The arg-rejection arm (UsageError) and flag-failure arm are untouched.
 
-### ADR-4: Recover from panics in `main` and exit `1`, to guarantee the safety net and avoid the Go panic→exit-2 collision
+### ADR-4: Recover from panics at the entrypoint (`cli.Main`) and exit `1`, to guarantee the safety net and avoid the Go panic→exit-2 collision
 
 **Context**: The accord requires that *any* termination matching no known category — including an unanticipated internal failure — exits `1` and never `0`. Go's runtime, however, terminates an **unrecovered panic with exit status `2`** — which collides with our `UsageError = 2`. Without intervention, a nil-deref bug would masquerade to an agent as a usage error.
 
 **Options considered**:
-1. **Top-level `recover()` in `main` that exits `1`** — a deferred recover wraps the dispatch call; on panic it (optionally logs and) `os.Exit(1)`. Guarantees the spec's "unexpected internal failure → 1, never collides with 2."
+1. **Deferred `recover()` in the extracted `cli.Main()` that returns `1`** — the recover wraps the dispatch; on panic it (optionally logs and) returns `codeInternalError`, which `main` passes to `os.Exit`. Guarantees the spec's "unexpected internal failure → 1, never collides with 2", and stays testable in-process.
 2. **Do nothing; accept Go's default panic exit 2** — simplest, but directly violates the accord and silently aliases internal crashes onto the usage code, defeating the finer-grained contract the whole feature exists for.
 
-**Decision**: Option 1. `main` installs a deferred `recover()` that maps an unrecovered panic to `os.Exit(codeInternalError)` (1). The registry's default arm already returns `1` for unmapped categories; this closes the same guarantee for the panic path that bypasses the category system entirely.
+**Decision**: Option 1. The extracted `cli.Main() int` installs a deferred `recover()` that maps an unrecovered panic to a `codeInternalError` (1) return; `main` is the thin `os.Exit(cli.Main())`. The registry's default arm already returns `1` for unmapped categories; this closes the same guarantee for the panic path that bypasses the category system entirely. Returning the code from `Main()` (rather than calling `os.Exit` inside the recover) lets a test observe the `1` without `os.Exit` terminating the test binary; a subprocess smoke test covers the real `os.Exit` wiring end-to-end.
 
-**Consequences**: The `1` safety net is honored on both paths (unmapped category and panic). An agent never sees a crash as a usage error. Downside: a recover at `main` swallows the default Go panic traceback — so the recover handler must still write the panic value (and ideally a stack) to stderr to preserve Action Transparency (CONSTITUTION II); 004 renders no *category* text, but a crash must remain diagnosable.
+**Consequences**: The `1` safety net is honored on both paths (unmapped category and panic). An agent never sees a crash as a usage error. Downside: recovering swallows the default Go panic traceback — so the handler must still write the panic value (and ideally a stack) to stderr to preserve Action Transparency (CONSTITUTION II); 004 renders no *category* text, but a crash must remain diagnosable.
 
 ---
 
@@ -94,9 +98,9 @@ Three small parts, all in the existing `internal/cli` package:
 **Error rendering stays out of 004**: cobra prints usage errors and a resolved command's `RunE` error; dispatch writes the synthesized nested-unknown-subcommand message (002/LEARNINGS). 004 emits only the numeric code — the panic-recover handler (ADR-4) is the one place 004 writes to stderr, and only to keep a crash diagnosable, never to render a category.
 
 **Testing strategy** — mirrors the established "pin the contract with regression tests" convention (002 pinned `EnablePrefixMatching=false`, 003 pinned `EnableCommandSorting=true`):
-- `exitcode_test.go`: each category maps to its expected code; codes are **one-to-one** (no two categories share a code); **no code falls in the shell-reserved range** (126, 127, 128+N); the **values are exactly** `0/1/2/3/4/5/6` (a change-detector pinning the frozen contract, so a future renumber breaks loudly).
+- `exitcode_test.go`: pins the **published code constants** — the **values are exactly** `0/1/2/3/4/5/6` (a change-detector, so a future renumber breaks loudly), their **uniqueness** (no two constants share an integer), and that **none falls in the shell-reserved range** (126, 127, 128+N); plus `ExitCode` **mapping tests for the producer-backed categories only** (Success→0, UsageError→2, RuntimeError→1) and the Fail-Safe default→1. Per ADR-2 the operational categories (codes 3–6) have no `Outcome` value until their producer exists, so a full category↔code one-to-one test waits for that producer — until then those codes are pinned at the constant level.
 - Update the two deferral tests in `dispatch_test.go` to assert `RuntimeError`.
-- BDD: new step bindings asserting the process/`Outcome`→code result for success, usage, and runtime-error scenarios, added to the shared `features/no-runnable-cli.feature`.
+- BDD: exercise the producer-backed scenarios in-process via the extracted `cli.Main()` (success / help / usage / internal-failure), plus a **subprocess smoke test** for the real `os.Exit` wiring and the panic→1 path; the operational-category scenarios (rate-limit / permission / different-classes) stay `@validation` (held out, pinned at the constant level until their producer lands).
 
 **Configuration**: none. Codes are hardcoded constants — they are the contract, not a setting. The Fail-Safe default (`1`) is also hardcoded.
 
@@ -108,10 +112,10 @@ Three small parts, all in the existing `internal/cli` package:
 
 Single phase (the feature is small and the dependency order within it is linear). Suggested ordering for PR-sized decomposition:
 
-1. **Registry** — add `internal/cli/exitcode.go`: the seven `code*` constants (frozen convention) and `ExitCode(Outcome) int` with the Fail-Safe default. Add `exitcode_test.go` (uniqueness, no shell-reserved, exact-values, per-category mapping). RED→GREEN.
+1. **Registry** — add `internal/cli/exitcode.go`: the seven `code*` constants (frozen convention) and `ExitCode(Outcome) int` with the Fail-Safe default. Add `exitcode_test.go` (exact-values, constant uniqueness, no shell-reserved, producer-backed-category mapping). RED→GREEN.
 2. **Category** — extend `Outcome` with `RuntimeError`, update `String()`, and reclassify dispatch's default arm (`Success, err` → `RuntimeError, err` when the action errored). Update the two deferral tests in `dispatch_test.go`. RED first (flip the test expectations), then GREEN.
-3. **Entrypoint** — rewire `main.go` to `os.Exit(cli.ExitCode(outcome))`, add the deferred panic-recover→`os.Exit(1)` with a stderr diagnostic, and replace the placeholder doc comment with the real convention reference.
-4. **Scenarios wiring** — bind the exit-code BDD steps (produced by the scenarios skill) into the harness against `features/no-runnable-cli.feature`.
+3. **Entrypoint** — extract a testable `cli.Main() int` that maps the outcome via `cli.ExitCode` and recovers a panic to return `1` (writing a stderr diagnostic); reduce `main.go` to `os.Exit(cli.Main())` and replace the placeholder doc comment with the real convention reference. Extracting `Main()` rather than inlining in `main` lets the exit-code and panic paths be exercised in-process (step 4), since `os.Exit` would otherwise terminate the test binary.
+4. **Scenarios wiring** — bind the producer-backed exit-code scenarios via `cli.Main()` and add a subprocess smoke test for the `os.Exit`/panic→1 path, against `features/no-runnable-cli.feature`; the operational-category scenarios stay `@validation` until their producer lands.
 
 Steps 1→2 are independent enough to land separately; 3 depends on both (it calls `ExitCode` and relies on `RuntimeError`); 4 depends on 1–3.
 
