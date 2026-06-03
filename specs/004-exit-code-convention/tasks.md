@@ -29,7 +29,7 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
   - **Acceptance criteria**:
     - `ExitCode(Success) == 0` and `ExitCode(UsageError) == 2`
     - The default arm returns `1` for any category without an explicit case
-    - The seven codes are one-to-one (no two categories share a code) — pinned by test
+    - The seven published code constants have distinct integer values (no two share a code) — pinned by test. (Category↔code one-to-one over the full `Outcome` enum is a later concern: categories for codes 3–6 don't exist until their producer lands — see the `@validation` "Codes and categories are one-to-one" scenario.)
     - No assigned code falls in the shell-reserved range (126, 127, 128+N) — pinned by test
     - The exact values `0/1/2/3/4/5/6` are pinned by a change-detector test (a future renumber breaks loudly)
     - `go build ./...` and `go vet ./...` clean; tests written RED-first then GREEN

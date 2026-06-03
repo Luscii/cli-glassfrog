@@ -354,8 +354,8 @@ Feature: No Runnable CLI
     # Source: 004-exit-code-convention — Scenario: A successful command exits zero
     @wip
     Scenario: A successful command exits zero
-      Given a "version" command whose action completes its work is registered
-      When the caller invokes "glassfrog version" and it succeeds
+      Given a "version" command is registered at the top level
+      When the caller invokes "glassfrog version"
       Then the process will exit with code 0
 
     # Source: 004-exit-code-convention — Scenario: A help/listing outcome exits zero
@@ -363,7 +363,8 @@ Feature: No Runnable CLI
     Scenario: A help or listing outcome exits zero
       Given a "roles" group with "list" and "get" subcommands is registered
       When the caller invokes "glassfrog roles" with no further token
-      Then dispatch will route to a help outcome classified as success
+      Then dispatch will route to a help outcome
+      And the outcome will be a success
       And the process will exit with code 0
 
     # Source: 004-exit-code-convention — Scenario: An unknown command exits the usage code
@@ -371,7 +372,7 @@ Feature: No Runnable CLI
     Scenario: An unknown command exits the usage code
       Given no command named "rolez" is registered
       When the caller invokes "glassfrog rolez"
-      Then dispatch will classify the outcome as a usage error
+      Then it will classify the outcome as a usage error
       And the process will exit with code 2
 
     # Source: 004-exit-code-convention — Scenario: An unexpected internal failure never exits zero
@@ -380,7 +381,7 @@ Feature: No Runnable CLI
       Given a "boom" command whose action fails for a reason matching no known category is registered
       When the caller invokes "glassfrog boom"
       Then the process will exit with code 1
-      And it will never exit with code 0
+      And it will not exit with code 0
 
   Rule: Each failure class carries a distinct exit code
     # In order to react correctly to a failure without parsing text,
@@ -417,7 +418,7 @@ Feature: No Runnable CLI
       Given a "boom" command whose action panics is registered
       When the caller invokes "glassfrog boom"
       Then the process will exit with code 1
-      And it will not exit with the runtime default status 2
+      And it will not exit with code 2
 
   Rule: Command outcomes map onto a stable, published code registry
     # In order to add a new command without inventing my own error signalling,
