@@ -13,7 +13,7 @@ Argument Dispatch is realized on the cobra command tree that Command Registratio
 The parts:
 
 - **Dispatch entry** — a single function (`Run`) that takes the assembled root command and the invocation arguments, runs cobra's resolution/execution, and returns a **categorized outcome**. It replaces the bare `Assemble().Execute()` call currently in `main.go`.
-- **Outcome category** — a small, code-free classification (`Success`, `UsageError`, `RuntimeError`) derived from how the invocation resolved. Unknown command, unknown flag, or bad arguments → `UsageError`; a resolved command whose action returns an error → `RuntimeError`; a clean run (including a group/root resolving to help) → `Success`. This is the spec's "classify the outcome" made concrete; it carries no exit codes.
+- **Outcome category** — a small, code-free classification (`Success`, `UsageError`) derived from how the invocation resolved. Unknown command, unknown flag, or bad arguments → `UsageError`; a clean run (including a group/root resolving to help) → `Success`. A resolved command whose own action returns an error is surfaced via the returned error and left uncategorized for now — giving runtime failures a distinct category (a future `RuntimeError`) is **deferred to Exit-Code Convention (004)**, the capability that needs the distinction. This is the spec's "classify the outcome" made concrete (the spec names success and usage error); it carries no exit codes.
 - **Relied-on cobra defaults** — exact matching (cobra's `EnablePrefixMatching` is left at its default of `false`), unknown-flag rejection (cobra's default), and best-effort "did you mean" suggestions (cobra's default) are framework behaviors dispatch relies on rather than re-implements.
 
 ```
@@ -21,7 +21,7 @@ main
  └─ cli.Assemble()            (001: builds the cobra tree via the guard)
  └─ cli.Run(root, args)       (002: this feature)
        ├─ cobra resolve+execute (exact match, reject unknown flags, suggest)
-       └─ classify → Outcome{Success | UsageError | RuntimeError}, err
+       └─ classify → Outcome{Success | UsageError}, err
             ▲
             │ today: main maps minimally (0 / non-zero)
             │ 004: Exit-Code Convention maps category → process code
@@ -50,13 +50,13 @@ In practice: dispatch calls cobra over the root from `Assemble`. **`EnablePrefix
 **Context**: The spec has dispatch *classify* an outcome as success or usage error, while Exit-Code Convention (004) owns the actual process codes. 004 does not exist yet, so dispatch must produce a classification with no consumer in place.
 
 **Options considered**:
-1. **Dispatch returns a typed outcome category** (`Success`/`UsageError`/`RuntimeError`) — code-free; the entrypoint maps it minimally today, and Exit-Code Convention consumes it later.
+1. **Dispatch returns a typed outcome category** (`Success`/`UsageError`) — code-free; the entrypoint maps it minimally today, and Exit-Code Convention consumes it later.
 2. **Defer all classification to Exit-Code Convention** — dispatch returns only cobra's raw error. But dispatch is the only layer that knows *why* a run failed (resolution/usage vs the command's own error); pushing that to 004 would force it to re-derive the category from an untyped error.
 3. **Map straight to exit codes here** — violates the spec's non-behavior (dispatch must not emit codes).
 
-**Decision**: Option 1 — dispatch returns a code-free outcome category. Dispatch is the right owner because it alone distinguishes a resolution/usage failure from a resolved command's runtime error. The category is deliberately minimal (three values) so 004 can adapt it without churn.
+**Decision**: Option 1 — dispatch returns a code-free outcome category. Dispatch is the right owner because it alone distinguishes a resolution/usage failure from a resolved command that ran. The category is deliberately minimal — **two values now** (`Success`/`UsageError`), matching what the spec names; a third (`RuntimeError`, for a resolved command's own failure) is **deferred to 004**, the capability that needs to tell runtime failures apart. 004 can extend the category without churn.
 
-**Consequences**: 004 gets a clean, code-free input. Until 004 lands, the entrypoint maps the category minimally (success → 0, any error → non-zero) — a documented placeholder, not the final convention. Detecting `UsageError` vs `RuntimeError` from cobra requires care (cobra does not expose a typed "command not found"): a flag-error hook marks flag failures, unknown-command is detected at resolution, and a post-resolution action error is `RuntimeError`. *Precedent-setting: the outcome category is the contract Exit-Code Convention builds on.*
+**Consequences**: 004 gets a clean, code-free input. Until 004 lands, the entrypoint maps the category minimally (success → 0, any error → non-zero) — a documented placeholder, not the final convention. Detecting `UsageError` from cobra requires care (cobra does not expose a typed "command not found"): a flag-error hook marks flag failures and unknown-command is detected at resolution. A resolved command's own error is returned as-is for the caller to surface; categorizing it distinctly is deferred to 004. *Precedent-setting: the outcome category is the contract Exit-Code Convention builds on.*
 
 ---
 
@@ -70,7 +70,8 @@ The category is derived, not configured:
 | Group or root resolved with no subcommand (help/listing outcome) | `Success` |
 | Token does not resolve to a registered command | `UsageError` |
 | Unknown flag, or argument the resolved command rejects | `UsageError` |
-| Resolved command's action returns an error | `RuntimeError` |
+
+> A resolved command whose own action errors is **not** given a distinct category yet — the error is returned for the caller to surface, and distinguishing it (a future `RuntimeError`) is deferred to Exit-Code Convention (004).
 
 The category names *what kind* of outcome occurred; it deliberately says nothing about exit codes or messages (those are Exit-Code Convention's and Help & Version's).
 
@@ -78,7 +79,7 @@ The category names *what kind* of outcome occurred; it deliberately says nothing
 
 ## Cross-cutting Concerns
 
-**Error handling**: dispatch never swallows. Usage errors surface cobra's message (unknown command/flag) plus the help pointer; the category travels with the returned error so the caller can act on it. Resolved-command errors pass through as `RuntimeError`.
+**Error handling**: dispatch never swallows. Usage errors surface cobra's message (unknown command/flag) plus the help pointer; the category travels with the returned error so the caller can act on it. A resolved command's own error passes through via the returned error; giving it a distinct category is deferred to 004.
 
 **Testing strategy** (Constitution IV): dispatch is exercised by calling `Run` with argument slices against an assembled tree and asserting `(category, output)`. Each category and the exact-match / bare-group / unknown-command / unexpected-flag behaviors get coverage; the spec's driving scenarios become the BDD outer loop.
 
@@ -93,14 +94,14 @@ The category names *what kind* of outcome occurred; it deliberately says nothing
 Three phases, linear.
 
 - **Phase 1 — Dispatch entry + outcome category**: add `cli.Run(root, args) (Outcome, error)` that executes the assembled tree via cobra and returns a category; rewire `main.go` to use it (replacing bare `Assemble().Execute()`). Confirm prefix matching is off and unknown-flag rejection is on. *Depends on: nothing (001 code is in place).*
-- **Phase 2 — Outcome classification**: implement the success / usage-error / runtime-error derivation (flag-error hook + unknown-command detection + post-resolution error handling) with RED-first unit tests per category. *Depends on: Phase 1.*
+- **Phase 2 — Outcome classification**: implement the success / usage-error derivation (flag-error hook + unknown-command detection) with RED-first unit tests per category. A resolved command's own error is returned uncategorized (RuntimeError deferred to 004). *Depends on: Phase 1.*
 - **Phase 3 — Executable acceptance**: godog step definitions for the 002 driving scenarios (routing, bare group, unknown command, exact-match-no-prefix, unexpected-flag rejection, empty invocation), turning them into executable acceptance. *Depends on: Phase 2.*
 
 ---
 
 ## Risks
 
-- **Usage-vs-runtime classification from cobra's untyped errors** (medium likelihood, medium impact): cobra does not expose a typed "command not found", so distinguishing `UsageError` from `RuntimeError` relies on a flag-error hook, resolution-time detection, and treating post-resolution action errors as runtime. Mitigation: detect at the seams (resolve before/inside Execute; `SetFlagErrorFunc` sentinel) and pin each category with a test.
+- **Classifying usage errors from cobra's untyped errors** (medium likelihood, medium impact): cobra does not expose a typed "command not found", so detecting `UsageError` (unknown command / unknown flag / bad arg) relies on a flag-error hook and resolution-time detection. Mitigation: detect at the seams (resolve before/inside Execute; `SetFlagErrorFunc` sentinel) and pin with tests. A resolved command's own failure is left to the returned error; its distinct categorization is deferred to 004.
 - **Exact-match depends on a package-global** (low likelihood, medium impact): cobra's `EnablePrefixMatching` is process-global; if any future code sets it `true`, the exact-match non-behavior breaks silently. Mitigation: a regression test asserting a prefix (`ro`) does not resolve to `roles`.
 - **cobra built-ins are resolvable** (low likelihood, low impact): `glassfrog help` / `completion` resolve as commands, which interacts with the unknown-command contract. Mitigation: defer the keep/hide decision to Help & Version (003); note it, don't pre-empt.
 - **Classification has no consumer yet** (low likelihood, low impact): building the category before Exit-Code Convention risks the wrong shape. Mitigation: keep it to three code-free values; 004 adapts.

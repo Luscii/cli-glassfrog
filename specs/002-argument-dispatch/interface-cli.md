@@ -45,5 +45,5 @@ Matching is **exact** at every level — no prefix or abbreviation resolves to a
 - **001 (`interface-cli.md`)**: that accord guarantees registered paths are reachable and bare groups self-resolve; this accord defines how a typed invocation is matched against them and what an unmatched token does — the contract 001 explicitly deferred to dispatch.
 - **Sibling (`interface-spec.md`, this spec)**: the outcome category surfaced here is produced by the `Run` entry defined there.
 - **Help & Version (future, 003)**: renders the help/usage text this accord routes to; also owns whether cobra's built-in `help`/`completion` commands are kept or hidden.
-- **Exit-Code Convention (future, 004)**: maps the usage-error / success / runtime-error category to a process exit code.
+- **Exit-Code Convention (future, 004)**: maps the success / usage-error category to a process exit code, and is where a distinct runtime-failure category (`RuntimeError`) is introduced when needed (deferred from this spec).
 - **Assumption**: error messages go to standard error (stderr), separate from command output on stdout — conventional for CLIs and assumed here; not yet fixed in PROJECT.md.

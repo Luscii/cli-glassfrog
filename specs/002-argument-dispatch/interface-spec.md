@@ -19,22 +19,21 @@ The dispatch entry is what the entrypoint calls and what Exit-Code Convention (0
 
 ### Outcome category
 
-A code-free classification with exactly three values:
+A code-free classification with two values:
 
 | Value | Meaning |
 |---|---|
-| `Success` | A command ran cleanly, or a group/root resolved to a help/listing outcome. |
+| `Success` | A command was routed and dispatched (it ran, or a group/root resolved to a help/listing outcome). |
 | `UsageError` | The invocation did not name a valid command, or carried an unknown flag / unexpected argument — nothing ran (or running was refused). |
-| `RuntimeError` | A resolved command's own action returned an error. |
 
-The category names *what kind* of outcome occurred. It carries **no** exit code and **no** rendered message — those belong to Exit-Code Convention and Help & Version respectively.
+A resolved command whose own action returns an error is reported via the returned `error`; giving runtime failures a distinct category (`RuntimeError`) is **deferred to Exit-Code Convention (004)**, the consumer that needs to tell them apart. The category names *what kind* of outcome occurred. It carries **no** exit code and **no** rendered message — those belong to Exit-Code Convention and Help & Version respectively.
 
 ---
 
 ## Interactions
 
 - **Assembly → dispatch → exit**: the entrypoint builds the tree (`Assemble`, 001), passes it to `Run` with the invocation arguments, and acts on the returned `Outcome`.
-- **Category derivation** (how `Run` decides — see plan's Outcome Classification table): unresolved token or unknown flag/arg → `UsageError`; resolved action returns an error → `RuntimeError`; otherwise → `Success`.
+- **Category derivation** (how `Run` decides — see plan's Outcome Classification table): unresolved token or unknown flag/arg → `UsageError`; otherwise → `Success` (a resolved command that runs — even if its own action returns an error, which travels via the returned `error`; categorizing that runtime failure is deferred to 004).
 - **Consumer**: until Exit-Code Convention (004) exists, the entrypoint maps the category minimally (success → 0, any error → non-zero) as a documented placeholder; 004 replaces that mapping.
 
 ---
@@ -42,7 +41,7 @@ The category names *what kind* of outcome occurred. It carries **no** exit code 
 ## Error Communication
 
 - `Run` returns the `Outcome` category alongside any error — it does not swallow errors and does not itself terminate the process.
-- Constraint violations are not applicable here (dispatch does not register anything); the failure modes are the `UsageError` / `RuntimeError` categories above, each accompanied by the underlying error for the caller to surface.
+- Constraint violations are not applicable here (dispatch does not register anything); the failure mode is the `UsageError` category above, accompanied by the underlying error for the caller to surface. A resolved command's own error is also returned (uncategorized for now — see the deferral note above).
 
 ---
 

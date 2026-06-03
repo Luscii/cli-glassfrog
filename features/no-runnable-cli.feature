@@ -198,14 +198,6 @@ Feature: No Runnable CLI
       Then dispatch will report a usage error naming the unexpected "--bogus"
       And the "list" command will not run
 
-    # Source: 002-argument-dispatch — Proposed: A resolved command's own failure is a runtime error, not a usage error (plan: outcome classification)
-    @wip
-    Scenario: A resolved command's failure is classified as a runtime error
-      Given a registered command whose action returns an error
-      When the caller invokes that command with a valid path
-      Then dispatch will classify the outcome as a runtime error
-      And not as a usage error
-
     # Source: 002-argument-dispatch — Scenario: Each excluded concern names its owner
     @validation @wip
     Scenario: Each dispatch non-behavior names its owning capability
