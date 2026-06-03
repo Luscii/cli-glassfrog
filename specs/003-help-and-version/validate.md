@@ -80,7 +80,7 @@ All driving scenarios trace to identifiable code paths in `configureHelpAndVersi
 | `glassfrog <path> --help` → leaf usage | ✓ Conformant | cobra standard usage |
 | `glassfrog --version` → bare version value (not `glassfrog version X`) | ✓ Conformant | `SetVersionTemplate("{{.Version}}\n")` — explicitly overrides cobra's default form |
 | `glassfrog version` → same string | ✓ Conformant | `version.go` `Fprintln(version)`; parity test confirms byte-equality |
-| Built-in `help`/`completion` hidden + non-resolving; `--help` flag kept | ✓ Conformant | `SetHelpCommand({Use:"__help_disabled", Hidden:true})` + `CompletionOptions.DisableDefaultCmd = true` |
+| Built-in `help`/`completion` hidden + non-resolving; `--help` flag kept | ✓ Conformant | `SetHelpCommand(&cobra.Command{Hidden: true})` (empty-`Use` placeholder — no resolvable invented token) + `CompletionOptions.DisableDefaultCmd = true` |
 
 ---
 
