@@ -53,7 +53,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 002 driving scenarios pass as executable acceptance
+- [x] **T003** [Shared] Make the 002 driving scenarios pass as executable acceptance — 8 behavioral scenarios de-`@wip`'d and passing via godog steps in `dispatch_bdd_test.go` (20/20 feature scenarios, 80 steps); 3 `@validation` scenarios kept `@wip` (held out for validate)
   - **Scope**: Add godog step definitions for the Argument Dispatch scenarios in `features/no-runnable-cli.feature` (the three 002 Rule blocks), exercising `Run` against an assembled tree and asserting `(outcome category, output)`. Remove `@wip` from the passing behavioral scenarios.
   - **Acceptance criteria**:
     - Every non-`@validation` 002 scenario (route nested / route top-level / prefix-no-resolve / unknown command / unknown subcommand / unexpected-flag rejected / bare group / empty invocation) has an executable, passing path
