@@ -44,11 +44,11 @@ This capability is the second of the CLI Skeleton (problem: *No Runnable CLI*), 
 
 **In order to** recover quickly from a typo,
 **as an** operator,
-**I want to** an unknown command to tell me which token wasn't recognized and how to get help.
+**I want** an unknown command to tell me which token wasn't recognized and how to get help.
 
 **In order to** discover what a group offers,
 **as an** operator,
-**I want to** typing the group name alone to surface its available subcommands.
+**I want to** type the group name alone to surface its available subcommands.
 
 ---
 
