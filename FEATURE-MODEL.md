@@ -14,3 +14,11 @@ This document captures the solutions and capabilities for the Glassfrog CLI, org
   + depends-on: Command Registration
 - Exit-Code Convention — standardized process exit codes (success / usage error / runtime error) for CI and agent consumption
   + depends-on: Argument Dispatch
+
+## Token Authentication
+> Problem: Unauthenticated Access — the CLI has no way to prove it's acting as a specific org + person, so Glassfrog can't authorize its calls (affects: AI agent, Practitioner)
+
+- Credential Storage — a login-style command that accepts a token and writes it to a credentials file in the home or working directory (npmrc-style)
+- Credential Discovery — locate and read the credentials file at call time, with the working-directory file taking precedence over the home-directory one (nearest-wins)
+- Request Authentication — attach the resolved token as the X-Auth-Token header on outgoing API calls so Glassfrog authorizes them as the specific org + person
+  + depends-on: Credential Discovery
