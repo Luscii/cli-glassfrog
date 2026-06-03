@@ -2,7 +2,7 @@
 
 **Feature**: 004-exit-code-convention
 **Role**: Shaper
-**Inputs**: spec.md (004), PROJECT.md, CONSTITUTION.md (context), DECISIONS.md (8 entries), LEARNINGS.md (3 entries); existing code in `internal/cli/` and `main.go`
+**Inputs**: spec.md (004), PROJECT.md, CONSTITUTION.md (context), DECISIONS.md, LEARNINGS.md; existing code in `internal/cli/` and `main.go`
 
 ---
 
