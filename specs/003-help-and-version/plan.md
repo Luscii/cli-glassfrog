@@ -19,7 +19,7 @@ Assemble()                         (001: builds the guarded cobra tree)
   └─ configureHelpAndVersion(root) (003: this feature)
         ├─ root.Version = version            → enables --version flag
         ├─ root.SetVersionTemplate(…)        → --version prints the same string as `version` cmd
-        ├─ root.SetHelpCommand({Hidden:true})→ removes the `help` *command*, keeps --help flag
+        ├─ root.SetHelpCommand({Use:"__help_disabled",Hidden:true})→ `help` token no longer resolves (renamed, not just hidden); --help flag kept
         └─ root.CompletionOptions.DisableDefaultCmd = true → removes `completion`
    cobra renders: listing / usage (alphabetical, EnableCommandSorting=true) / version
 ```

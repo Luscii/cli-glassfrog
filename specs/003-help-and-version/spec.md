@@ -10,7 +10,7 @@
 
 Help & Version is the presentation surface of the CLI Skeleton (problem: *No Runnable CLI*). Command Registration (001) builds the known command set and stores a required one-line summary for every command and group; Argument Dispatch (002) routes a typed invocation to a command, a group, the root, or an unknown-command error. Both capabilities deliberately refuse to render any text for display — they reserved that concern for this capability. Help & Version owns it: turning the registered set into a **command listing**, turning a single command into its **per-command usage**, and reporting the CLI's **version**.
 
-This is the first capability whose entire job is what the caller *reads*. Its operator is usually an AI agent acting for a practitioner, so its output must be stable and predictable — the same invocation produces the same layout every run, letting an agent discover the command surface and confirm which build it is talking to without guessing. It is a read-only consumer: it never registers commands, resolves invocations, or decides exit codes — those belong to Command Registration, Argument Dispatch, and Exit-Code Convention respectively.
+This is the first capability whose entire job is what the caller *reads*. Its operator is usually an AI agent acting for a practitioner, so its output must be stable and predictable — the same invocation produces the same layout every run, letting an agent discover the command surface and confirm which build it is talking to without guessing. It is a read-only consumer of the governance/domain command set: it registers no domain command via Command Registration (001), resolves no invocations, and decides no exit codes — those belong to Command Registration, Argument Dispatch, and Exit-Code Convention respectively. (It may apply framework-level configuration to the root — e.g. suppressing built-in commands — but adds no guard-registered command of its own.)
 
 ---
 
@@ -20,7 +20,7 @@ This is the first capability whose entire job is what the caller *reads*. Its op
 
 - When help is requested for the root (a bare `glassfrog` invocation routed in by dispatch, or `glassfrog --help`), the system produces a listing of every top-level command and group, each shown with its one-line summary.
 - When help is requested for a group (a bare group invocation routed in by dispatch, or `glassfrog <group> --help`), the system produces the group's own path and summary followed by a listing of its immediate child commands and subgroups, each with its one-line summary.
-- The listing reflects the registered command set faithfully — every registered command at that level appears, none is invented, and the only descriptive text shown is the summary stored at registration.
+- The listing reflects the registered command set faithfully — every registered command at that level appears and none is invented; the command names and summaries shown are drawn from the registered set (the framework's standard rendering may add its own structure, e.g. a flags section, around them).
 - Commands within a listing are presented in alphabetical order by name, so repeated invocations yield identical output and a command can be located by name without reading the whole list.
 
 ### Per-command usage
@@ -63,7 +63,7 @@ This is the first capability whose entire job is what the caller *reads*. Its op
 - The system must not provide a standalone `help` command or subcommand (e.g. `glassfrog help roles`). **Why**: for now the `--help` flag plus dispatch-routed bare group/root listings cover the need; a `help` command is a possible future addition, not part of this slice.
 - The system must not introduce new *required* per-command documentation data beyond the one-line summary registration already stores — no new mandatory long-description, example, or flag-help fields. **Why**: the summary is the only description data Command Registration stores (001); mandating richer documentation as new required data would exceed the skeleton's scope. The framework's standard help rendering may still display a command's existing description and its auto-generated flag list.
 - The system must not emit build metadata (commit hash, build date) in version output. **Why**: a bare version string is the agreed scope now; enriched version output is deferred until there is demand.
-- The system must not register, reorder, or otherwise mutate the command set. **Why**: it is a read-only consumer of Command Registration (001); the registered set is fixed at initialization and must stay the single source of truth.
+- The system must not register, reorder, or otherwise mutate the **guard-registered/domain** command set. **Why**: it is a read-only consumer of Command Registration (001); the registered set is fixed at initialization and must stay the single source of truth. (Framework-level configuration of the root — suppressing cobra's built-in `help`/`completion` commands — is permitted; it does not add, reorder, or remove any guard-registered command.)
 - The system must not fabricate usage for a path that names no registered command. **Why**: an unrecognized path is dispatch's unknown-command error; rendering invented help would mask the error and mislead the caller.
 
 ---

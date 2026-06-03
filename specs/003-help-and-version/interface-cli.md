@@ -20,7 +20,7 @@ This accord defines what the caller observes when they ask the CLI to describe i
 | `glassfrog version` | The **same** version string as `--version` — identical output. |
 
 **Flags and commands this accord introduces:**
-- `--help` (persistent flag, every command) — requests help/usage for the command it is attached to.
+- `--help` (the framework's built-in help flag, automatically available on every command) — requests help/usage for the command it is attached to.
 - `--version` (root flag) — requests the version string.
 - `version` (registered leaf command) — requests the version string; output identical to `--version`.
 
