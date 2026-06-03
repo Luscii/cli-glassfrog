@@ -15,5 +15,10 @@ func Assemble() *cobra.Command {
 	// each. Adding a command does not touch the others.
 	MustRegister(root, newVersionCommand())
 	MustRegister(root, newRolesCommand())
+	// Help & Version (003): tune the assembled root's help/version rendering —
+	// unify --version with the version command, hide framework built-ins, keep
+	// standard alphabetical listing. Applied after wiring so it configures the
+	// final command set.
+	configureHelpAndVersion(root)
 	return root
 }
