@@ -83,25 +83,33 @@ func TestMain_SuccessfulInvocationYieldsZero(t *testing.T) {
 	}
 }
 
-// captureStderr redirects os.Stderr to a pipe for the duration of a test,
-// returning a reader for what was written and a restore func.
+// captureStderr redirects os.Stderr to a temp file for the duration of a test,
+// returning a getter for what was written and a restore func. A temp file
+// (rather than an os.Pipe) is used deliberately: the code under test writes the
+// panic diagnostic synchronously, with no concurrent reader, so a pipe could
+// block and deadlock once a large write filled the OS pipe buffer. A file has
+// no such bound and its descriptor is closed on restore.
 func captureStderr(t *testing.T) (func() string, func()) {
 	t.Helper()
 	orig := os.Stderr
-	r, w, err := os.Pipe()
+	f, err := os.CreateTemp(t.TempDir(), "stderr-*")
 	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
+		t.Fatalf("create temp stderr: %v", err)
 	}
-	os.Stderr = w
-	return func() string {
-			w.Close()
-			os.Stderr = orig
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			return buf.String()
-		}, func() {
-			os.Stderr = orig
+	os.Stderr = f
+	restore := func() {
+		os.Stderr = orig
+		f.Close()
+	}
+	get := func() string {
+		restore()
+		out, err := os.ReadFile(f.Name())
+		if err != nil {
+			t.Fatalf("read captured stderr: %v", err)
 		}
+		return string(out)
+	}
+	return get, restore
 }
 
 // swapArgs replaces os.Args for a test and returns a restore func.

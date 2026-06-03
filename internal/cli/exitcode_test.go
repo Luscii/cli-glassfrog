@@ -16,16 +16,21 @@ var publishedCodes = map[string]int{
 	"network-unavailable": codeNetworkUnavailable,
 }
 
-// ExitCode maps the categories that have producers today. Success→0 and
-// UsageError→2 are the only producer-backed mappings until RuntimeError lands
-// with its producer (T002); the operational categories (codes 3–6) have no
-// Outcome value yet (ADR-2), so they are pinned at the constant level only.
+// ExitCode maps the categories that have producers today: Success→0,
+// UsageError→2, and RuntimeError→1. The operational categories (codes 3–6) have
+// no Outcome value yet (ADR-2), so they are pinned at the constant level only.
+// Asserting RuntimeError→1 directly here keeps this suite the change-detector
+// for the producer-backed category→code arms — independent of the indirect
+// coverage via runToExitCode and the BDD scenarios.
 func TestExitCode_ProducerBackedCategories(t *testing.T) {
 	if got := ExitCode(Success); got != 0 {
 		t.Errorf("ExitCode(Success) = %d, want 0", got)
 	}
 	if got := ExitCode(UsageError); got != 2 {
 		t.Errorf("ExitCode(UsageError) = %d, want 2", got)
+	}
+	if got := ExitCode(RuntimeError); got != 1 {
+		t.Errorf("ExitCode(RuntimeError) = %d, want 1", got)
 	}
 }
 
