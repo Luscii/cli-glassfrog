@@ -29,6 +29,9 @@ func newRolesListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List roles",
+		// No positional arguments today; reject unexpected input as a usage
+		// error rather than ignoring it (dispatch's Invalid-input accord, 002).
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "roles list is not yet implemented")
 			return nil
@@ -40,6 +43,10 @@ func newRolesGetCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get",
 		Short: "Show one role",
+		// No positional arguments today; reject unexpected input as a usage
+		// error rather than ignoring it (dispatch's Invalid-input accord, 002).
+		// The role-id argument arrives with the Governance Reads capability.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "roles get is not yet implemented")
 			return nil

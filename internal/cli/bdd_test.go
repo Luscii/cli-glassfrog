@@ -42,6 +42,14 @@ type world struct {
 	results      []error
 	panicked     bool
 	dispatched   bool
+
+	// Dispatch (002): outcome and observable output of a Run invocation, plus
+	// which leaf actions fired and the command a routing assertion last named.
+	outcome    Outcome
+	outcomeSet bool
+	ran        map[string]bool
+	output     string
+	routed     string
 }
 
 func (w *world) reset() {
@@ -54,6 +62,11 @@ func (w *world) reset() {
 	w.results = nil
 	w.panicked = false
 	w.dispatched = false
+	w.outcome = Success
+	w.outcomeSet = false
+	w.ran = map[string]bool{}
+	w.output = ""
+	w.routed = ""
 }
 
 // track records a group as the most-recently-created one, so a later step
@@ -88,6 +101,9 @@ func initializeScenario(sc *godog.ScenarioContext) {
 		w.reset()
 		return ctx, nil
 	})
+
+	// Argument Dispatch (002) steps live in dispatch_bdd_test.go.
+	w.registerDispatchSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

@@ -9,9 +9,13 @@ import (
 )
 
 func main() {
-	if err := cli.Assemble().Execute(); err != nil {
-		// Non-zero on any execution error. Standardized exit codes are the
-		// Exit-Code Convention capability's concern (a later spec).
+	// Dispatch through cli.Run, which resolves the invocation against the
+	// assembled tree and returns a code-free Outcome category. The category has
+	// no consumer yet: until Exit-Code Convention (a later spec) maps it to a
+	// process code, the entrypoint maps minimally — success → 0, any error →
+	// non-zero. This minimal mapping is a documented placeholder, not the final
+	// convention.
+	if _, err := cli.Run(cli.Assemble(), os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 }

@@ -131,7 +131,6 @@ Feature: No Runnable CLI
     # I want to type its full path and have it routed and executed.
 
     # Source: 002-argument-dispatch — Scenario: Route a nested leaf command
-    @wip
     Scenario: A nested path routes to its leaf command
       Given a "roles" group with a "list" subcommand is registered
       When the caller invokes "glassfrog roles list"
@@ -139,7 +138,6 @@ Feature: No Runnable CLI
       And the "list" command's action will run
 
     # Source: 002-argument-dispatch — Scenario: Route a top-level leaf command
-    @wip
     Scenario: A top-level name routes to its command
       Given a "version" command is registered at the top level
       When the caller invokes "glassfrog version"
@@ -147,7 +145,6 @@ Feature: No Runnable CLI
       And its action will run
 
     # Source: 002-argument-dispatch — Scenario: A prefix does not resolve to a longer command
-    @wip
     Scenario: A prefix does not resolve to a longer command
       Given "roles" is the only registered command beginning with "ro"
       When the caller invokes "glassfrog ro list"
@@ -174,7 +171,6 @@ Feature: No Runnable CLI
     # I want an unknown command to tell me which token wasn't recognized and how to get help.
 
     # Source: 002-argument-dispatch — Scenario: Unknown top-level command
-    @wip
     Scenario: An unknown top-level command fails with guidance
       Given no command named "rolez" is registered
       When the caller invokes "glassfrog rolez"
@@ -183,7 +179,6 @@ Feature: No Runnable CLI
       And it will classify the outcome as a usage error
 
     # Source: 002-argument-dispatch — Scenario: Unknown subcommand under a known group
-    @wip
     Scenario: An unknown subcommand under a known group fails with guidance
       Given a "roles" group with a "list" subcommand is registered
       When the caller invokes "glassfrog roles lst"
@@ -191,7 +186,6 @@ Feature: No Runnable CLI
       And it will classify the outcome as a usage error
 
     # Source: 002-argument-dispatch — Scenario: Unexpected flag is rejected
-    @wip
     Scenario: An unexpected flag is rejected as a usage error
       Given a "roles list" command is registered
       When the caller invokes "glassfrog roles list --bogus"
@@ -211,7 +205,6 @@ Feature: No Runnable CLI
     # I want to type the group name alone to surface its available subcommands.
 
     # Source: 002-argument-dispatch — Scenario: Bare group surfaces its subcommands
-    @wip
     Scenario: A bare group invocation surfaces its subcommands
       Given a "roles" group with "list" and "get" subcommands is registered
       When the caller invokes "glassfrog roles" with no further token
@@ -220,7 +213,6 @@ Feature: No Runnable CLI
       And the outcome will be a success
 
     # Source: 002-argument-dispatch — Scenario: Empty invocation resolves to root help
-    @wip
     Scenario: An empty invocation resolves to root help
       Given any registered command set
       When the caller invokes "glassfrog" with no tokens

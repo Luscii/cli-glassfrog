@@ -26,7 +26,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Dispatch entry + outcome category [Shared]
 
-- [ ] **T001** [Shared] Introduce the `Run` dispatch entry and the `Outcome` category, and route `main` through it
+- [x] **T001** [Shared] Introduce the `Run` dispatch entry and the `Outcome` category, and route `main` through it — seam + 2-value `Outcome` in `internal/cli/dispatch.go`, `main.go` dispatches via `cli.Run(cli.Assemble(), os.Args[1:])`; existing commands unregressed
   - **Scope**: Add `cli.Run(root, args) (Outcome, error)` that executes the assembled cobra tree and returns a code-free `Outcome` category (`Success` / `UsageError`). Rewire `main.go` to dispatch via `cli.Run(cli.Assemble(), …)` instead of calling `Execute` directly. Classification logic itself is T002 — this task establishes the seam and the type.
   - **Acceptance criteria**:
     - `Run` exists with the signature in interface-spec.md and returns the two-value `Outcome` (`Success` / `UsageError`)
@@ -38,7 +38,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Outcome classification [Shared]
 
-- [ ] **T002** [Shared] Derive the outcome category and confirm exact-match + unknown-flag rejection
+- [x] **T002** [Shared] Derive the outcome category and confirm exact-match + unknown-flag rejection — classification at the seams (flag-error hook + non-runnable-node + nested-group-swallow detection) in `dispatch.go`, 10 RED-first unit tests in `dispatch_test.go`; pinned `cobra.EnablePrefixMatching == false`
   - **Scope**: Implement the category derivation — unknown command / unknown flag / unexpected arg → `UsageError`; clean run or group/root help → `Success`. A resolved command's own action error is returned uncategorized (RuntimeError deferred to 004). Confirm cobra's `EnablePrefixMatching` is left `false` (exact match) and unknown-flag rejection is on. Test-first per the constitution.
   - **Acceptance criteria**:
     - Each category is derived correctly from a representative invocation (RED-first unit tests per category)
@@ -53,7 +53,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 002 driving scenarios pass as executable acceptance
+- [x] **T003** [Shared] Make the 002 driving scenarios pass as executable acceptance — 8 behavioral scenarios de-`@wip`'d and passing via godog steps in `dispatch_bdd_test.go` (20/20 feature scenarios, 80 steps); 3 `@validation` scenarios kept `@wip` (held out for validate)
   - **Scope**: Add godog step definitions for the Argument Dispatch scenarios in `features/no-runnable-cli.feature` (the three 002 Rule blocks), exercising `Run` against an assembled tree and asserting `(outcome category, output)`. Remove `@wip` from the passing behavioral scenarios.
   - **Acceptance criteria**:
     - Every non-`@validation` 002 scenario (route nested / route top-level / prefix-no-resolve / unknown command / unknown subcommand / unexpected-flag rejected / bare group / empty invocation) has an executable, passing path
