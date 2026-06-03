@@ -51,7 +51,7 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
   - **Scenario references**: no-runnable-cli.feature: "An unexpected internal failure never exits zero"
   - **Risk**: ⚠️ Reclassifying the default arm can ripple — per LEARNINGS, audit *both* `dispatch_test.go` and the BDD harness for `Success` assertions on the runtime-error path before landing.
 
-- [ ] **T003** [Shared] Rewire the entrypoint — `main.go` exits via `ExitCode`, recovers panics to exit 1, and drops the placeholder doc
+- [x] **T003** [Shared] Rewire the entrypoint — `main.go` exits via `ExitCode`, recovers panics to exit 1, and drops the placeholder doc — 0 scenarios (scenario bindings land in T004); recover+map extracted to `runToExitCode` so in-process tests/BDD drive it without mirroring the recover. Behavior change: usage errors now exit 2 (was 1 under the placeholder)
   - **Scope**: Extract a testable entrypoint `cli.Main() int` that dispatches via `cli.Run`, maps the outcome through `cli.ExitCode`, and recovers a panic to return `1` (writing the panic value/stack to stderr for Action Transparency) — guaranteeing an unrecovered panic yields `1`, not Go's default status `2` (which collides with `UsageError`). `main.go` reduces to `os.Exit(cli.Main())` and drops the placeholder doc comment. Keeping the logic in `Main()` rather than inline in `main` lets T004 exercise the exit-code and panic paths in-process, since `os.Exit` would otherwise terminate the test binary.
   - **Acceptance criteria**:
     - `cli.Main()` returns `cli.ExitCode(outcome)` for every invocation; a successful command yields `0`, an unknown command `2`, a resolved command whose action fails `1`
