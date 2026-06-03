@@ -36,6 +36,7 @@ type world struct {
 	root         *cobra.Command
 	groups       map[string]*cobra.Command
 	orderedGroup []*cobra.Command
+	lastGroup    *cobra.Command
 	found        *cobra.Command
 	lastErr      error
 	results      []error
@@ -47,11 +48,20 @@ func (w *world) reset() {
 	w.root = NewRootCommand()
 	w.groups = map[string]*cobra.Command{}
 	w.orderedGroup = nil
+	w.lastGroup = nil
 	w.found = nil
 	w.lastErr = nil
 	w.results = nil
 	w.panicked = false
 	w.dispatched = false
+}
+
+// track records a group as the most-recently-created one, so a later step
+// (e.g. registering a subgroup "under it") can find its parent deterministically.
+func (w *world) track(name string, g *cobra.Command) *cobra.Command {
+	w.groups[name] = g
+	w.lastGroup = g
+	return g
 }
 
 func noopRun(*cobra.Command, []string) error { return nil }
@@ -126,21 +136,16 @@ func initializeScenario(sc *godog.ScenarioContext) {
 // --- Given implementations ---
 
 func (w *world) givenGroupPresent(name string) error {
-	g := seedGroup(name)
-	w.groups[name] = g
-	return Register(w.root, g)
+	return Register(w.root, w.track(name, seedGroup(name)))
 }
 
 func (w *world) givenGroupWithSubs(name, a, b string) error {
-	g := groupWith(name, a, b)
-	w.groups[name] = g
-	return Register(w.root, g)
+	return Register(w.root, w.track(name, groupWith(name, a, b)))
 }
 
 func (w *world) givenTwoGroups(a, b string) error {
 	for _, name := range []string{a, b} {
-		g := seedGroup(name)
-		w.groups[name] = g
+		g := w.track(name, seedGroup(name))
 		w.orderedGroup = append(w.orderedGroup, g)
 		if err := Register(w.root, g); err != nil {
 			return err
@@ -150,9 +155,7 @@ func (w *world) givenTwoGroups(a, b string) error {
 }
 
 func (w *world) givenGroupSeed(name string) error {
-	g := seedGroup(name)
-	w.groups[name] = g
-	return Register(w.root, g)
+	return Register(w.root, w.track(name, seedGroup(name)))
 }
 
 func (w *world) givenNameAtTopLevel(name string) error {
@@ -185,16 +188,12 @@ func (w *world) whenRegisterLeaf(name, summary string) error {
 }
 
 func (w *world) whenRegisterGroup(name string) error {
-	g := seedGroup(name)
-	w.groups[name] = g
-	w.lastErr = Register(w.root, g)
+	w.lastErr = Register(w.root, w.track(name, seedGroup(name)))
 	return w.lastErr
 }
 
 func (w *world) whenRegisterGroupContaining(name, a, b string) error {
-	g := groupWith(name, a, b)
-	w.groups[name] = g
-	w.lastErr = Register(w.root, g)
+	w.lastErr = Register(w.root, w.track(name, groupWith(name, a, b)))
 	return w.lastErr
 }
 
@@ -408,14 +407,8 @@ func (w *world) thenNoPartialTree() error {
 	return nil
 }
 
+// lastRegisteredGroup returns the most-recently-created group (tracked via
+// w.track), so "register a subgroup under it" has a deterministic parent.
 func (w *world) lastRegisteredGroup() *cobra.Command {
-	var last *cobra.Command
-	for _, g := range w.groups {
-		last = g
-	}
-	// Prefer a deterministic pick: the group most recently seeded by name.
-	if g, ok := w.groups["proposals"]; ok {
-		return g
-	}
-	return last
+	return w.lastGroup
 }
