@@ -38,7 +38,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Outcome classification [Shared]
 
-- [ ] **T002** [Shared] Derive the outcome category and confirm exact-match + unknown-flag rejection
+- [x] **T002** [Shared] Derive the outcome category and confirm exact-match + unknown-flag rejection — classification at the seams (flag-error hook + non-runnable-node + nested-group-swallow detection) in `dispatch.go`, 10 RED-first unit tests in `dispatch_test.go`; pinned `cobra.EnablePrefixMatching == false`
   - **Scope**: Implement the category derivation — unknown command / unknown flag / unexpected arg → `UsageError`; clean run or group/root help → `Success`. A resolved command's own action error is returned uncategorized (RuntimeError deferred to 004). Confirm cobra's `EnablePrefixMatching` is left `false` (exact match) and unknown-flag rejection is on. Test-first per the constitution.
   - **Acceptance criteria**:
     - Each category is derived correctly from a representative invocation (RED-first unit tests per category)
