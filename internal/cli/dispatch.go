@@ -8,27 +8,33 @@ import (
 
 // Outcome is the code-free classification dispatch assigns to an invocation.
 // It names *what kind* of outcome occurred — never a process exit code (that
-// is Exit-Code Convention's concern, a later spec) and never a rendered
-// message (Help & Version's). Exit-Code Convention (004) is the consumer that
-// will map this category to a process code without re-deriving it from an
-// untyped error (ADR-2).
+// is Exit-Code Convention's concern) and never a rendered message (Help &
+// Version's). Exit-Code Convention (004) is the consumer that maps this
+// category to a process code via ExitCode (exitcode.go) without re-deriving it
+// from an untyped error (ADR-1).
 //
-// The category is deliberately minimal — two values now. A third value for a
-// resolved command whose own action fails (a future RuntimeError) is deferred
-// to Exit-Code Convention, the capability that needs to tell runtime failures
-// apart. Until then, a resolved command that ran is Success and its action
-// error, if any, travels via the error returned by Run.
+// The category names only outcomes that have a producer today: Success,
+// UsageError, and RuntimeError. The operational categories the spec reserves
+// (API / permission / rate-limit / network-unavailable, codes 3–6) gain an
+// Outcome value only when their producer — the future API client — lands and
+// classifies them (ADR-2); their codes are already published as constants in
+// exitcode.go.
 type Outcome int
 
 const (
-	// Success means a command was routed and dispatched: it ran (its action
-	// may itself have returned an error, surfaced via Run's error return), or a
-	// group/root resolved to a help/listing outcome.
+	// Success means a command was routed and dispatched: it ran and its action
+	// returned no error, or a group/root resolved to a help/listing outcome.
 	Success Outcome = iota
 	// UsageError means the invocation did not name a valid command, or carried
 	// an unknown flag / unexpected argument — nothing ran, or running was
 	// refused.
 	UsageError
+	// RuntimeError means a resolved command's own action returned an error: the
+	// command ran but did not succeed. Distinct from UsageError (nothing ran)
+	// and from Success (ran cleanly). Exit-Code Convention maps it to the
+	// catch-all internal-error code 1 (ADR-3); the error itself still travels
+	// via Run's error return.
+	RuntimeError
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -38,6 +44,8 @@ func (o Outcome) String() string {
 		return "Success"
 	case UsageError:
 		return "UsageError"
+	case RuntimeError:
+		return "RuntimeError"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs
@@ -79,9 +87,8 @@ func (o Outcome) String() string {
 //     accepts via its cobra Args validator; dispatch re-checks it to tell an
 //     arg rejection apart from a runtime failure.
 //   - anything else with an error came from a resolved command's own action →
-//     the error is returned but the category stays Success. Distinguishing that
-//     runtime failure (a future RuntimeError) is deferred to Exit-Code
-//     Convention (004).
+//     the command ran but failed, so the category is RuntimeError and the error
+//     is returned (Exit-Code Convention maps RuntimeError to code 1, ADR-3).
 func Run(root *cobra.Command, args []string) (Outcome, error) {
 	root.SetArgs(args)
 
@@ -123,12 +130,15 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 		// A command ran, or its arg validator rejected the input before the
 		// action ran. Re-check the resolved command's Args against its parsed
 		// positional args: a non-nil result means the command refused an
-		// unexpected argument (a usage error — the action never ran). Otherwise
-		// the action ran and any error is its own runtime failure, returned
-		// uncategorized (RuntimeError deferred to 004).
+		// unexpected argument (a usage error — the action never ran).
 		if err != nil && executed != nil && executed.ValidateArgs(executed.Flags().Args()) != nil {
 			return UsageError, err
 		}
-		return Success, err
+		// Otherwise the validator passed: an error here is the action's own
+		// runtime failure (RuntimeError → code 1, ADR-3); no error is a clean run.
+		if err != nil {
+			return RuntimeError, err
+		}
+		return Success, nil
 	}
 }

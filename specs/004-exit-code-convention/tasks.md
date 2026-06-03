@@ -38,7 +38,7 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
   - **Interface references**: interface-cli.md — Surface (the category↔code table)
   - **Scenario references**: no-runnable-cli.feature: "Codes and categories are one-to-one", "No shell-reserved code is assigned", "Adding a category never renumbers existing codes", "A rate-limited outcome maps to the rate-limit code", "The most specific category determines the code", "Different failure classes carry different codes"
 
-- [ ] **T002** [Shared] Resolve the deferred `RuntimeError` category — extend `Outcome`, reclassify dispatch's runtime-error arm, map it to code 1, update the two deferral tests
+- [x] **T002** [Shared] Resolve the deferred `RuntimeError` category — extend `Outcome`, reclassify dispatch's runtime-error arm, map it to code 1, update the two deferral tests — 0 scenarios; flipped the two deferral tests RED→GREEN (renamed `…_IsSuccessCategory` → `…_IsRuntimeErrorCategory` to match its new expectation), added a `RuntimeError.String()` pin
   - **Scope**: Add `RuntimeError` to the `Outcome` enum in `dispatch.go` (update `String()`), change `Run`'s default arm so a resolved command whose own action errored returns `RuntimeError, err` instead of `Success, err`, and add the explicit `ExitCode(RuntimeError) == codeInternalError` (1) case to `exitcode.go`. Update the two deferral tests (`TestRun_RuntimeActionError_IsSuccessCategory`, `TestRun_RuntimeError_NotMisclassifiedAsArgError`) to assert `RuntimeError` (error still travels via the return). The arg-rejection (UsageError) and flag-failure arms are untouched.
   - **Acceptance criteria**:
     - `Outcome` includes `RuntimeError`; `String()` renders it; `ExitCode(RuntimeError) == 1`

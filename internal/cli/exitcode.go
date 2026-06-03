@@ -31,15 +31,16 @@ const (
 //
 // The default arm returns codeInternalError (1) so any unmapped or future
 // category can never accidentally exit 0 (Fail Safe, CONSTITUTION III). Only the
-// categories with producers today are mapped explicitly; RuntimeError gains its
-// case when its producer is reclassified (T002), and the operational categories
-// (codes 3–6) gain theirs with the future API client.
+// categories with producers today are mapped explicitly; the operational
+// categories (codes 3–6) gain their cases with the future API client.
 func ExitCode(o Outcome) int {
 	switch o {
 	case Success:
 		return codeSuccess
 	case UsageError:
 		return codeUsageError
+	case RuntimeError:
+		return codeInternalError
 	default:
 		return codeInternalError
 	}
