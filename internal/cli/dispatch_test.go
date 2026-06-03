@@ -10,9 +10,9 @@ import (
 )
 
 // dispatchTree builds a small assembled tree for dispatch tests: a `version`
-// leaf, a `roles` group with a `list` leaf, and (optionally) a `boom` leaf
-// whose action returns a runtime error. ran records which leaf actions fired,
-// so a test can assert a command did or did not run.
+// leaf, a `boom` leaf whose action returns a runtime error, and a `roles` group
+// with a `list` leaf. ran records which leaf actions fired, so a test can assert
+// a command did or did not run.
 func dispatchTree(ran map[string]bool) *cobra.Command {
 	root := NewRootCommand()
 	mark := func(name string, err error) *cobra.Command {

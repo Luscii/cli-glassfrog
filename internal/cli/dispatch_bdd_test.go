@@ -51,6 +51,10 @@ func (w *world) recordingLeaf(name string) *cobra.Command {
 	return &cobra.Command{
 		Use:   name,
 		Short: "the " + name + " command",
+		// Mirror the production leaves and the unit-test tree: leaves accept no
+		// positional arguments, so the BDD harness rejects unexpected tokens the
+		// same way real commands do (002 Invalid-input accord).
+		Args: cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
 			w.ran[name] = true
 			return nil
@@ -77,8 +81,10 @@ func (w *world) givenTopLevelCommand(name string) error {
 }
 
 func (w *world) givenOnlyCommandWithPrefix(name, _ string) error {
-	// A single registered group beginning with the prefix; nothing else shares
-	// it, so a prefix typed by the caller has no longer command to match.
+	// Register the longer command (e.g. "roles") that begins with the typed
+	// prefix (e.g. "ro"); the scenario then asserts the prefix does NOT resolve
+	// to it — exact matching, no abbreviation. (The prefix argument is context
+	// for the reader; resolution is exact, so it is not needed at setup.)
 	return Register(w.root, w.track(name, w.recordingGroup(name, "list")))
 }
 
