@@ -2,4 +2,4 @@
 
 | Spec | Stage | Last Skill | Updated |
 |---|---|---|---|
-| 001-command-registration | Analyzed | analyze | 2026-06-03T10:39:51 |
+| 001-command-registration | Implementing | implement | 2026-06-03T11:55:56 |

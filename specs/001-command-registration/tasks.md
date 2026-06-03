@@ -26,7 +26,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 
 ## Phase 1: Go module + root command skeleton [Shared]
 
-- [ ] **T001** [Shared] Initialize the Go module, project layout, and cobra dependency
+- [x] **T001** [Shared] Initialize the Go module, project layout, and cobra dependency — module `github.com/Luscii/cli-glassfrog`, cobra v1.10.2 pinned, `internal/cli/` package home; no scenarios (infra)
   - **Scope**: Create `go.mod` (`go mod init`), add the cobra dependency, and establish the package layout that will host the command tree and guard. No command behavior yet.
   - **Acceptance criteria**:
     - `go.mod` exists with a module path and the cobra dependency pinned in `go.sum`
