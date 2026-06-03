@@ -85,6 +85,7 @@ Feature: No Runnable CLI
       When a reader registers a "roles" group with a "list" subcommand
       Then they will be able to state that "roles list" resolves to the list command
       And that "roles" alone resolves to the group
+      And that enumerating the set lists the "roles" group
 
   Rule: Malformed registration fails at startup
     # In order to catch mistakes before users hit them,
