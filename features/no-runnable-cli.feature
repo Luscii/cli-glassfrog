@@ -226,7 +226,6 @@ Feature: No Runnable CLI
     # I want to see a listing of every command with its summary.
 
     # Source: 003-help-and-version — Scenario: Root listing shows all top-level commands
-    @wip
     Scenario: Root help lists all top-level commands with summaries
       Given a "version" command and a "roles" group were registered, each with a summary
       When the caller invokes "glassfrog --help"
@@ -234,7 +233,6 @@ Feature: No Runnable CLI
       And each will appear with its one-line summary
 
     # Source: 003-help-and-version — Scenario: Group help lists its subcommands
-    @wip
     Scenario: Group help lists its subcommands with summaries
       Given a "roles" group containing "list" and "get" was registered, each with a summary
       When the caller invokes "glassfrog roles --help"
@@ -242,7 +240,6 @@ Feature: No Runnable CLI
       And it will list "list" and "get", each with its summary
 
     # Source: 003-help-and-version — Scenario: Root help on an empty command set
-    @wip
     Scenario: Root help on an empty command set lists no commands
       Given no commands were registered
       When the caller invokes "glassfrog --help"
@@ -250,7 +247,6 @@ Feature: No Runnable CLI
       And it will not fail
 
     # Source: 003-help-and-version — Scenario: Group help lists only immediate children
-    @wip
     Scenario: Group help lists only immediate children
       Given a "proposals" group whose "changes" subgroup contains "add" was registered
       When the caller invokes "glassfrog proposals --help"
@@ -258,14 +254,12 @@ Feature: No Runnable CLI
       And it will not list the nested "add" command
 
     # Source: 003-help-and-version — Proposed: Alphabetical listing order (plan ADR-1, framework sorting)
-    @wip
     Scenario: Commands are listed in alphabetical order
       Given a "version" command and a "roles" group were registered
       When the caller invokes "glassfrog --help"
       Then "roles" will be listed before "version"
 
     # Source: 003-help-and-version — Proposed: Built-in commands hidden (plan ADR-2, framework built-ins)
-    @wip
     Scenario: Framework built-in commands are absent from the listing
       Given the command set was assembled
       When the caller invokes "glassfrog --help"
@@ -285,7 +279,6 @@ Feature: No Runnable CLI
     # I want to request a command's help and read its path and purpose.
 
     # Source: 003-help-and-version — Scenario: Leaf command usage
-    @wip
     Scenario: Leaf command help shows its path and summary
       Given a "roles get" command with summary "Show one role" was registered
       When the caller invokes "glassfrog roles get --help"
@@ -293,7 +286,6 @@ Feature: No Runnable CLI
       And it will show the summary "Show one role"
 
     # Source: 003-help-and-version — Scenario: Help requested for an unregistered command
-    @wip
     Scenario: Help for an unregistered command renders no usage
       Given no command named "bogus" was registered
       When the caller invokes "glassfrog bogus --help"
@@ -301,7 +293,6 @@ Feature: No Runnable CLI
       And the unknown-command outcome will be left to dispatch
 
     # Source: 003-help-and-version — Scenario: Both help and version requested
-    @wip
     Scenario: Help takes precedence over version
       Given the CLI was built with a version string
       When the caller invokes "glassfrog --help --version"
@@ -322,7 +313,6 @@ Feature: No Runnable CLI
     # I want to request the version and read a single version string.
 
     # Source: 003-help-and-version — Scenario: Version via flag and via command match
-    @wip
     Scenario: Version flag and version command produce identical output
       Given the CLI was built with version "1.2.0"
       When the caller invokes "glassfrog --version"
@@ -331,7 +321,6 @@ Feature: No Runnable CLI
       And the output will contain "1.2.0"
 
     # Source: 003-help-and-version — Scenario: Version flag on a non-root command is not a version request
-    @wip
     Scenario: Version flag on a subcommand is not a version request
       Given a "roles" group without its own version flag was registered
       When the caller invokes "glassfrog roles --version"

@@ -19,7 +19,7 @@ Assemble()                         (001: builds the guarded cobra tree)
   └─ configureHelpAndVersion(root) (003: this feature)
         ├─ root.Version = version            → enables --version flag
         ├─ root.SetVersionTemplate(…)        → --version prints the same string as `version` cmd
-        ├─ root.SetHelpCommand({Use:"__help_disabled",Hidden:true})→ `help` token no longer resolves (renamed, not just hidden); --help flag kept
+        ├─ root.SetHelpCommand({Hidden:true})       → `help` token no longer resolves (empty-Use placeholder, no resolvable token); --help flag kept
         └─ root.CompletionOptions.DisableDefaultCmd = true → removes `completion`
    cobra renders: listing / usage (alphabetical, EnableCommandSorting=true) / version
 ```
@@ -49,7 +49,7 @@ In practice: nothing is rendered by hand. `--help` (and dispatch's bare-group/ro
 **Context**: cobra injects a `help` command and a `completion` command that bypass the registration guard and appear in the listing (LEARNINGS.md, deferred here). The spec's non-behaviors forbid a standalone `help` command and require the listing to show only registered commands ("none is invented"). `completion` is outside the skeleton's three surfaces and the deferred-scope (PROJECT.md defers AI-agent/operational extensions, and shell completion is not in scope).
 
 **Options considered**:
-1. **Hide both built-in commands, keep the `--help` flag** — replace cobra's default help command with a hidden command registered under a **non-`help` name** (e.g. `SetHelpCommand(&cobra.Command{Use: "__help_disabled", Hidden: true})`) so the `help` token no longer resolves *and* it stays out of the listing; `Hidden:true` **alone** only hides a command from listings — it does not stop `glassfrog help` from resolving, which is why the renamed-command idiom is required. `CompletionOptions.DisableDefaultCmd = true` removes `completion`. The `--help` flag is unaffected.
+1. **Hide both built-in commands, keep the `--help` flag** — replace cobra's default help command with a hidden **empty-`Use`** placeholder (`SetHelpCommand(&cobra.Command{Hidden: true})`) so it stays out of the listing *and* introduces no resolvable command token; `Hidden:true` **alone** only hides a command from listings — it does not stop `glassfrog help` from resolving, and a *named* placeholder (e.g. `Use: "__help_disabled"`) would itself become a resolvable invented path, which is why the empty-`Use` form is required. `CompletionOptions.DisableDefaultCmd = true` removes `completion`. The `--help` flag is unaffected.
 2. **Keep cobra's built-ins** — least code, but a `help` command violates the no-standalone-`help` non-behavior and both appear in the listing as un-guarded "invented" commands.
 3. **Hide `completion` only, keep `help`** — still violates the no-standalone-`help` non-behavior.
 

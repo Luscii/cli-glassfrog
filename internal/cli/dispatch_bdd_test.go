@@ -116,6 +116,14 @@ func (w *world) givenAnyCommandSet() error {
 // binary name, and dispatches the remaining tokens through Run with output
 // captured for help/error assertions.
 func (w *world) whenCallerInvokes(invocation string) error {
+	// 003 scenarios supply a root factory so each invocation runs against a
+	// freshly assembled+configured root — a fresh process, conceptually — and
+	// no flag/parse state bleeds between the two invocations of a parity
+	// scenario. 001/002 leave newRoot nil and keep using the incrementally
+	// built w.root.
+	if w.newRoot != nil {
+		w.root = w.newRoot()
+	}
 	fields := strings.Fields(invocation)
 	var args []string
 	if len(fields) > 1 {
@@ -127,6 +135,7 @@ func (w *world) whenCallerInvokes(invocation string) error {
 	w.outcome, w.lastErr = Run(w.root, args)
 	w.outcomeSet = true
 	w.output = buf.String()
+	w.outputs = append(w.outputs, w.output)
 	return nil
 }
 
