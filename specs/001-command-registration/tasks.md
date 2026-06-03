@@ -38,7 +38,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
 - [ ] **T002** [Shared] Create the root command and `main` entrypoint that builds a runnable binary
   - **Scope**: Define the cobra root command (the top of the known command set) and the `main` entrypoint that executes it. With no subcommands yet, invoking the binary prints root help.
   - **Acceptance criteria**:
-    - `go build -o glassfrog` (with `CGO_ENABLED=0`) produces a single static binary
+    - `go build -o glassfrog` produces a single self-contained executable (`CGO_ENABLED=0` to avoid cgo where supported)
     - Running `glassfrog` with no arguments prints root help and exits without error
     - The root command is exposed for later wiring (subcommands can be attached to it)
   - **Dependencies**: T001

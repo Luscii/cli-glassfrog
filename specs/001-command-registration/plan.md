@@ -33,18 +33,18 @@ main (explicit wiring)
 
 ## Architecture Decisions
 
-### ADR-1: Build the CLI in Go as a standalone static binary
+### ADR-1: Build the CLI in Go as a self-contained executable
 
 **Context**: CONSTITUTION Principle XII requires a self-contained executable that assumes no pre-installed runtime or interpreter — only host OS plus network. PROJECT.md names no stack; this is the project's foundational language decision, inherited by every later spec. The CLI is I/O-bound: an HTTP surface over the Glassfrog v5 API with JSON shaping and dual (machine/human) output.
 
 **Options considered**:
-1. **Go** — compiles to a single static binary (`CGO_ENABLED=0`), trivial cross-compilation to every OS/arch, the most mature nested-subcommand CLI ecosystem (cobra). Gentle curve; minor downside is it's a new language for the team.
-2. **Rust** — also a single static binary, excellent CLI library (clap). Strong safety guarantees, but the borrow-checker tax and slower iteration buy little for an I/O-bound API wrapper.
+1. **Go** — compiles to a single self-contained executable, trivial cross-compilation to every OS/arch (with `CGO_ENABLED=0` to avoid cgo where supported), the most mature nested-subcommand CLI ecosystem (cobra). Gentle curve; minor downside is it's a new language for the team.
+2. **Rust** — also a single self-contained executable, excellent CLI library (clap). Strong safety guarantees, but the borrow-checker tax and slower iteration buy little for an I/O-bound API wrapper.
 3. **Compiled TypeScript (Bun/Deno)** — keeps the team in TS; satisfies XII only by bundling a ~50–100MB runtime into the artifact, which is the opposite spirit of "just the binary."
 
 **Decision**: Option 1 — Go. It is the best fit for a standalone, network-bound API-client CLI: native single-binary output is exactly what Principle XII wants, and cobra is the de-facto standard for the nested-command shape this project needs (`kubectl`, `gh`, `docker`).
 
-In practice: `go build` produces `glassfrog`; binaries are cross-compiled per target via `GOOS`/`GOARCH` with `CGO_ENABLED=0` for fully static linking.
+In practice: `go build` produces `glassfrog`; binaries are cross-compiled per target via `GOOS`/`GOARCH`, with `CGO_ENABLED=0` avoiding cgo for portable cross-compilation where supported. The artifact is self-contained — it assumes no pre-installed runtime, satisfying XII; "fully static" linking is a platform-specific outcome (e.g. Linux/musl), not a universal guarantee, so it is not relied on as the criterion.
 
 **Consequences**: Native compliance with Principle XII (the clean-environment detection test passes with a small binary). The team adopts Go (interfaces, goroutines, errors-as-values) — a real but gentle learning step. Rust's deeper guarantees and TS code-sharing are both forgone; revisiting the language later would mean a full rewrite. *Precedent-setting for the whole project.*
 

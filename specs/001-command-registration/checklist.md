@@ -52,10 +52,10 @@ None.
 → **tasks.md § T003, T005**: implementation tasks carry verifiable acceptance criteria with tests. *(See Advisory Notes on the T004/T005 split.)*
 
 **P0** | CONSTITUTION.md XII (Standalone Executable): "self-contained executable … no language runtime"
-→ **plan.md § ADR-1**: Go single static binary chosen specifically to satisfy XII; no runtime assumed.
+→ **plan.md § ADR-1**: Go self-contained executable chosen specifically to satisfy XII; no runtime assumed.
 
 **P0** | CONSTITUTION.md XII: build emits a standalone artifact
-→ **tasks.md § T002**: `go build` with `CGO_ENABLED=0` produces a single static `glassfrog` binary; acceptance criterion confirms a runnable binary on a clean build.
+→ **tasks.md § T002**: `go build` produces a single self-contained `glassfrog` executable (`CGO_ENABLED=0` to avoid cgo where supported); acceptance criterion confirms a runnable binary on a clean build.
 
 ---
 

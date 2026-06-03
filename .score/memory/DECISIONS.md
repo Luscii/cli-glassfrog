@@ -1,11 +1,11 @@
 # Decisions
 
-Architectural precedent from the specification pipeline. Each entry records a decision that future specs should follow or explicitly diverge from. Managed by the plan skill via memory-protocol.md.
+Architectural precedent from the specification pipeline. Each entry records a decision that future specs should follow or explicitly diverge from. Managed by the Score plan skill.
 
 ---
 
-- Build the CLI in Go as a standalone static binary (from 001-command-registration, 2026-06-03)
-  Chosen over Rust and compiled TS to satisfy CONSTITUTION XII natively (single binary, no runtime). Foundational language decision inherited by every later spec; built with CGO_ENABLED=0 and GOOS/GOARCH cross-compilation.
+- Build the CLI in Go as a self-contained executable (from 001-command-registration, 2026-06-03)
+  Chosen over Rust and compiled TS to satisfy CONSTITUTION XII natively (single self-contained binary, no runtime). Foundational language decision inherited by every later spec; built with GOOS/GOARCH cross-compilation and CGO_ENABLED=0 to avoid cgo where supported. ("Fully static" linking is platform-specific and is not the criterion — self-containment is.)
 
 - Adopt cobra as the command framework; its command tree is the command registry (from 001-command-registration, 2026-06-03)
   Sibling capabilities (Argument Dispatch, Help & Version) become thin layers over cobra rather than separate subsystems. Later command specs register into the cobra tree.
