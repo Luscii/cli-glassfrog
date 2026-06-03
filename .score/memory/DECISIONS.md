@@ -36,3 +36,15 @@ Architectural precedent from the specification pipeline. Each entry records a de
 
 - `main` recovers from panics and exits 1 to avoid the Go panic→exit-2 collision (from 004-exit-code-convention, 2026-06-03)
   An unrecovered Go panic terminates with status 2, which collides with `UsageError = 2`. To honor the accord ("unexpected internal failure → 1, never 0/never aliased to usage"), `main` installs a deferred recover that writes the panic value + stack to stderr (Action Transparency) and `os.Exit(1)`. Future entrypoint changes must preserve this recover.
+
+- Token concerns live in a new `internal/auth` package; the credentials-file read and write sides share one format module (from 005-credential-discovery, 2026-06-03)
+  Token Authentication's three capabilities split as: Discovery (005) contributes the resolver + the shared `.glassfrogrc` reader; Credential Storage (006) adds the writer to the same package and MUST round-trip with that reader; Request Authentication (007) consumes the resolved credential (it lives with the API client, not in `internal/auth`). Resolution stays out of `internal/cli` — it registers no command and makes no API call (CONSTITUTION V).
+
+- Credentials file format and env var: `.glassfrogrc` npmrc-style `key=value` with a `token` key, and `GLASSFROG_TOKEN` — both `[ASSUMED]` (from 005-credential-discovery, 2026-06-03)
+  Hand-rolled minimal reader (no INI/dotenv dependency — CONSTITUTION XII), `#`/blank tolerant, unknown keys ignored (forward-compatible), a non-comment line without `=` is a parse error (not silently skipped). File name + env var are centralized constants and `[ASSUMED]` pending reconciliation with Credential Storage (006) — 006 must conform to or jointly revise this contract before both ship.
+
+- Credential Discovery returns a code-free `Resolution{Token, Source, Path}`; absence is a normal outcome, broken files are errors (from 005-credential-discovery, 2026-06-03)
+  Mirrors 002's "resolver classifies, consumer maps" split. `Source` is an enum (`Environment`, `File`, or `None`) with a separate `Path` (the file path when `Source` is `File`, empty otherwise); `None` is a non-error "nothing found"; a read/parse failure of an existing file is a typed error naming the path. The token value never appears in output, logs, or error strings (secret hygiene; CONSTITUTION II). 007 consumes this shape and reports `Source`/`Path` (never the token) as the active identity. No exit codes here.
+
+- Filesystem/env-dependent resolvers inject their start/home roots rather than reading process globals (from 005-credential-discovery, 2026-06-03)
+  The pure resolver takes `startDir`/`homeDir` (and reads the env var through a thin seam); a small production wrapper binds the real `os.Getwd`/`os.UserHomeDir`/`os.Getenv`. Keeps unit tests hermetic and — critically, given the secret — guarantees tests never read the developer's real `~/.glassfrogrc` (CONSTITUTION IV).
