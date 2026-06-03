@@ -38,7 +38,7 @@ func newRolesListCommand() *cobra.Command {
 
 func newRolesGetCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <role-id>",
+		Use:   "get",
 		Short: "Show one role",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "roles get is not yet implemented")

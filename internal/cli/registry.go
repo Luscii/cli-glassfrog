@@ -71,7 +71,7 @@ func Register(parent, child *cobra.Command) error {
 		if existing.Name() == name {
 			return &RegistrationError{
 				Command: name,
-				Reason:  fmt.Sprintf("name %q is already registered under %q", name, parent.Name()),
+				Reason:  fmt.Sprintf("name %q is already registered under %q", name, parent.CommandPath()),
 			}
 		}
 	}
