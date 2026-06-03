@@ -24,7 +24,7 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
 
 ## Phase 1: Exit-Code Convention [Shared]
 
-- [ ] **T001** [Shared] Add the canonical exit-code registry — `internal/cli/exitcode.go` with the frozen 0–6 code constants and `ExitCode(Outcome) int` (Fail-Safe default 1), plus RED-first `exitcode_test.go`
+- [x] **T001** [Shared] Add the canonical exit-code registry — `internal/cli/exitcode.go` with the frozen 0–6 code constants and `ExitCode(Outcome) int` (Fail-Safe default 1), plus RED-first `exitcode_test.go` — 0 scenarios (constant-level pins for the held-out @validation scenarios), RED→GREEN
   - **Scope**: Create `internal/cli/exitcode.go`: named constants pinning the convention (`0` success, `1` internal, `2` usage, `3` API, `4` permission, `5` rate-limit, `6` network-unavailable) and a pure `ExitCode(Outcome) int` mapping the categories that have producers today (Success→0, UsageError→2) with a **default arm returning 1** so any unmapped/future category never yields 0. Operational constants 3–6 are documented as reserved for the future API client. No error inspection. (RuntimeError mapping arrives with its producer in T002.)
   - **Acceptance criteria**:
     - `ExitCode(Success) == 0` and `ExitCode(UsageError) == 2`
