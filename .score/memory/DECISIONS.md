@@ -21,3 +21,9 @@ Architectural precedent from the specification pipeline. Each entry records a de
 
 - Dispatch classifies each outcome into a code-free category for Exit-Code Convention (from 002-argument-dispatch, 2026-06-03)
   Run returns Success / UsageError (two values, matching what the spec names). A distinct RuntimeError for a resolved command's own failure is deferred to Exit-Code Convention (004), the consumer that needs the distinction — until then a resolved command's error is returned uncategorized. Dispatch must NOT emit exit codes (that's 004); the entrypoint maps the category minimally (0 / non-zero) as a documented placeholder.
+
+- Help & Version uses cobra's standard help rendering, not a custom template (from 003-help-and-version, 2026-06-03)
+  Listing, per-command usage, flags section, and alphabetical sorting are cobra defaults; future command specs get standard help for free by setting a non-empty Short summary. Alphabetical order depends on the cobra package-global EnableCommandSorting staying true — pin it with a regression test (mirrors 002's EnablePrefixMatching pin). The spec's original "no flags section / no long description" non-behavior was narrowed (clarify 2026-06-03) to forbid only new *required* documentation data.
+
+- Hide cobra's built-in `help` and `completion` commands; keep the `--help` flag (from 003-help-and-version, 2026-06-03)
+  cobra injects `help` and `completion` outside the registration guard (LEARNINGS finding). Both *commands* are hidden — SetHelpCommand(&cobra.Command{Hidden:true}) and CompletionOptions.DisableDefaultCmd=true — so the listing shows only guard-registered commands; the `--help` *flag* is retained. Future specs that want a framework built-in surfaced must opt in explicitly.
