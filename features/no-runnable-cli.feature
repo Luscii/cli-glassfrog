@@ -352,7 +352,8 @@ Feature: No Runnable CLI
     Scenario: A help or listing outcome exits zero
       Given a "roles" group with "list" and "get" subcommands is registered
       When the caller invokes "glassfrog roles" with no further token
-      Then dispatch will route to a help outcome
+      Then dispatch will resolve to the "roles" group
+      And route to a help outcome listing "list" and "get"
       And the outcome will be a success
       And the process will exit with code 0
 
@@ -378,7 +379,7 @@ Feature: No Runnable CLI
     # I want each failure class to carry a distinct exit code.
 
     # Source: 004-exit-code-convention — Scenario: Different failure classes carry different codes
-    @wip
+    @validation @wip
     Scenario: Different failure classes carry different codes
       Given a usage-error outcome and a rate-limited outcome
       When each outcome is mapped to its exit code
@@ -386,7 +387,7 @@ Feature: No Runnable CLI
       And an agent will tell the two failures apart from the exit status alone
 
     # Source: 004-exit-code-convention — Scenario: A rate-limited request exits the rate-limit code
-    @wip
+    @validation @wip
     Scenario: A rate-limited outcome maps to the rate-limit code
       Given an outcome the producer classifies as rate-limited
       When its exit code is determined
@@ -394,14 +395,14 @@ Feature: No Runnable CLI
       And not to the general API-error code 3
 
     # Source: 004-exit-code-convention — Scenario: The most specific category wins
-    @wip
+    @validation @wip
     Scenario: The most specific category determines the code
       Given an outcome classified as a permission failure that is also a general API error
       When its exit code is determined
       Then the registry will map it to the permission code 4
       And not to the general API-error code 3
 
-    # Source: 004-exit-code-convention — Proposed: Panic exits 1 not the runtime default 2 (plan ADR-4)
+    # Source: 004-exit-code-convention — Proposed: Panic exits 1, not code 2 (plan ADR-4)
     @wip
     Scenario: An internal panic exits one and never collides with the usage code
       Given a "boom" command whose action panics is registered

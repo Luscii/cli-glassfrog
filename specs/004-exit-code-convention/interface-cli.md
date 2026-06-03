@@ -9,7 +9,7 @@
 
 ## Surface
 
-This accord defines the **process exit code** a caller observes in `$?` after any `glassfrog` invocation. It is the sole machine signal this capability emits — there is no stdout/stderr output of its own (error text belongs to cobra and the resolved command; see Error Communication).
+This accord defines the **process exit code** a caller observes in `$?` after any `glassfrog` invocation. The exit code is the only *outcome* signal this capability emits — it produces no error or outcome message of its own (error text belongs to cobra and the resolved command). The one exception is the panic safety net, which writes a crash diagnostic to stderr so an unrecovered crash stays diagnosable (see Error Communication).
 
 The published, frozen convention — the canonical category↔code registry:
 

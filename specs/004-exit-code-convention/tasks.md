@@ -52,11 +52,11 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
   - **Risk**: ⚠️ Reclassifying the default arm can ripple — per LEARNINGS, audit *both* `dispatch_test.go` and the BDD harness for `Success` assertions on the runtime-error path before landing.
 
 - [ ] **T003** [Shared] Rewire the entrypoint — `main.go` exits via `ExitCode`, recovers panics to exit 1, and drops the placeholder doc
-  - **Scope**: Replace `main.go`'s placeholder mapping with `os.Exit(cli.ExitCode(outcome))`. Add a deferred `recover()` that writes the panic value and stack to stderr (Action Transparency) and `os.Exit(1)` — guaranteeing an unrecovered panic exits `1`, not Go's default status `2` (which collides with `UsageError`). Replace the placeholder doc comment with the real convention reference.
+  - **Scope**: Extract a testable entrypoint `cli.Main() int` that dispatches via `cli.Run`, maps the outcome through `cli.ExitCode`, and recovers a panic to return `1` (writing the panic value/stack to stderr for Action Transparency) — guaranteeing an unrecovered panic yields `1`, not Go's default status `2` (which collides with `UsageError`). `main.go` reduces to `os.Exit(cli.Main())` and drops the placeholder doc comment. Keeping the logic in `Main()` rather than inline in `main` lets T004 exercise the exit-code and panic paths in-process, since `os.Exit` would otherwise terminate the test binary.
   - **Acceptance criteria**:
-    - `main` exits with `cli.ExitCode(outcome)` for every invocation; a successful command exits `0`, an unknown command exits `2`, a resolved command whose action fails exits `1`
-    - A panicking command exits `1`, not `2`, and the panic value is written to stderr
-    - The placeholder doc comment is replaced; `go build ./...` and `go vet ./...` clean
+    - `cli.Main()` returns `cli.ExitCode(outcome)` for every invocation; a successful command yields `0`, an unknown command `2`, a resolved command whose action fails `1`
+    - A panic is recovered inside `Main()` and yields `1`, not `2`, with the panic value written to stderr
+    - `main()` is a thin `os.Exit(cli.Main())`; the placeholder doc comment is replaced; `go build ./...` and `go vet ./...` clean
   - **Dependencies**: T002
   - **Plan reference**: Phase 1 step 3 (Entrypoint); ADR-1, ADR-4 (panic-recover → 1)
   - **Interface references**: interface-cli.md — Error Communication (never zero on failure, panic safety net)
@@ -64,12 +64,13 @@ Phase 1: Exit-Code Convention (4 tasks, no phase dependencies) — single-phase 
   - **Risk**: ⚠️ Go's default panic exit status `2` collides with `UsageError = 2` — the recover is load-bearing. ⚠️ `main`'s old placeholder mapped *all* errors to `1`; usage errors now exit `2` (intended behavior change — call it out in the PR).
 
 - [ ] **T004** [Shared] Make the 004 behavioral scenarios pass as executable acceptance — godog steps for the exit-code Rule blocks, de-`@wip` the passing scenarios
-  - **Scope**: Add godog step definitions for the three 004 Rule blocks in `features/no-runnable-cli.feature`, exercising `cli.Run` / `cli.ExitCode` (and the registry directly for the forward-looking category mappings) and asserting the resulting exit code. Remove `@wip` from the passing behavioral scenarios; keep the four `@validation` scenarios `@wip` (held out for validate).
+  - **Scope**: Add godog step definitions for the producer-backed 004 behavioral scenarios in `features/no-runnable-cli.feature`, exercising the extracted `cli.Main()` (and `cli.Run` / `cli.ExitCode`) in-process and asserting the resulting exit code; add a subprocess smoke test that runs the compiled CLI to validate the real `main()` → `os.Exit(cli.Main())` wiring and the panic→1 path end-to-end. Remove `@wip` from the producer-backed behavioral scenarios. The operational-category scenarios stay `@validation @wip`: their `Outcome` values have no producer yet (ADR-2), so they are verified against the published code constants (T001) and exercised behaviorally only when the API-client producer lands.
   - **Acceptance criteria**:
-    - Every non-`@validation` 004 scenario has an executable, passing path: success→0, help→0, unknown→2, internal-failure→1, panic→1-not-2, different-classes-differ, rate-limit→5, most-specific→4
-    - `@wip` removed from those behavioral scenarios; the four 004 `@validation` scenarios (one-to-one, no shell-reserved, never-renumber, no implementation tech) keep `@wip`
+    - Every producer-backed behavioral scenario passes via `cli.Main()`: success→0, help→0, unknown→2, internal-failure→1, panic→1-not-2
+    - A subprocess smoke test confirms the built CLI exits with the mapped code (including panic→1) — validating the `os.Exit(cli.Main())` wiring that in-process tests cannot observe
+    - `@wip` removed from the producer-backed scenarios; the operational-category scenarios (different-classes, rate-limit, most-specific) plus the existing four `@validation` scenarios keep `@wip`
     - The full feature suite still passes (no regression to 001/002/003 scenarios); `go test ./...` clean
   - **Dependencies**: T003
-  - **Plan reference**: Phase 1 step 4 (Scenarios wiring); Cross-cutting Concerns (testing strategy)
-  - **Scenario references**: no-runnable-cli.feature: all 004 Rule-block scenarios
-  - **Risk**: ⚠️ The forward-looking categories (rate-limit, permission) have no command producer yet — their scenarios assert the registry mapping directly, not a full `glassfrog` invocation.
+  - **Plan reference**: Phase 1 step 4 (Scenarios wiring); ADR-2 (operational categories deferred until a producer), ADR-4 (panic→1); Cross-cutting Concerns (testing strategy)
+  - **Scenario references**: no-runnable-cli.feature: the producer-backed 004 scenarios (de-`@wip`'d) plus the `@validation` operational-category and convention scenarios (held out)
+  - **Risk**: ⚠️ The operational categories (API/permission/rate-limit/network) have no producer yet — don't call `ExitCode` with `Outcome` values that don't exist; those scenarios stay `@validation` and are pinned at the constant level by T001. ⚠️ The panic→1 and process-exit paths can't be observed through `cli.Run`/`cli.ExitCode` alone (they live behind `os.Exit`); cover them via the extracted `cli.Main()` plus a subprocess smoke test.
