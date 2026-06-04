@@ -113,6 +113,14 @@ And the credential environment variable holds a non-empty value
 When the token is stored
 Then the system writes that value to the home-directory credentials file.
 
+**Scenario: Interactive prompt for a missing token**
+Given the session is interactive (standard input is a terminal)
+And no token is supplied as an argument, on standard input, or in the environment
+And no credentials file exists in the home directory
+When the token is stored
+Then the system prompts for the token without echoing the typed characters
+And writes the entered token to the home-directory credentials file.
+
 ### Error scenarios
 
 **Scenario: Target location is not writable**
@@ -158,6 +166,14 @@ And no explicit overwrite signal is given
 When a new token is stored
 Then the system reports an error
 And leaves the existing credentials unchanged.
+
+**Scenario: Interactive confirmation chooses the write location**
+Given the session is interactive (standard input is a terminal)
+And a credentials file in the current directory and one in the home directory each hold a token
+And a usable token is supplied
+When the token is stored
+Then the system confirms before changing the existing tokens
+And offers to write the current-directory file, the home file, or both.
 
 ---
 

@@ -52,10 +52,21 @@ Feature: Unauthenticated Access — Credential Storage
     @wip
     Scenario: Re-storing preserves other entries in the file
       Given the home ".glassfrogrc" held the token "gf_old_token" and an unrelated entry
+      And the session was interactive (standard input is a terminal)
       And the operator confirmed replacing the token with "gf_new_token"
       When the CLI stores the credential
       Then it will replace only the token entry with "gf_new_token"
       And it will leave the unrelated entry unchanged
+
+    # Source: 006-credential-storage — Scenario: Interactive prompt for a missing token
+    @wip
+    Scenario: An interactive prompt requests a missing token
+      Given the session was interactive (standard input is a terminal)
+      And no token was supplied as an argument, on standard input, or in GLASSFROG_TOKEN
+      And no ".glassfrogrc" existed in the home directory
+      When the CLI stores the credential
+      Then it will prompt for the token without echoing the typed characters
+      And it will write the entered token to the home ".glassfrogrc"
 
     # Source: 006-credential-storage — Scenario: Stored token round-trips through Discovery
     @validation @wip
@@ -124,3 +135,13 @@ Feature: Unauthenticated Access — Credential Storage
       And the --cwd flag was given
       When the CLI stores the credential
       Then it will write the token "gf_project_token" to the current directory's ".glassfrogrc"
+
+    # Source: 006-credential-storage — Scenario: Interactive confirmation chooses the write location
+    @wip
+    Scenario: An interactive store confirms and chooses the write location
+      Given the session was interactive (standard input is a terminal)
+      And a ".glassfrogrc" in the current directory and one in the home directory each held a token
+      And the operator supplied the token "gf_new_token" as a command argument
+      When the CLI stores the credential
+      Then it will confirm before changing the existing tokens
+      And it will offer to write the current-directory file, the home file, or both
