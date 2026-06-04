@@ -4,7 +4,7 @@
 **Round**: 1 of 3
 **Date**: 2026-06-03
 **Verdict**: Ready
-**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, interface-spec.md, features/no-runnable-cli.feature, PROJECT.md
+**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, interface-spec.md, features/no-runnable-cli/argument-dispatch.feature, PROJECT.md
 **Implementation files**: 4 — `internal/cli/dispatch.go` (Run + Outcome), `main.go` (entrypoint dispatch), `internal/cli/dispatch_test.go` (10 unit tests), `internal/cli/dispatch_bdd_test.go` + `internal/cli/bdd_test.go` (godog steps)
 
 > Note: context-engineering / self-verification / three-tier-boundaries references and `guardian-agent.md` are not deployed in this Score install — applied skill-specific checks only; reduced Guardian-character consistency, not a blocked validation.

@@ -4,7 +4,7 @@
 **Round**: 1 of 3
 **Date**: 2026-06-03
 **Verdict**: Ready
-**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, features/no-runnable-cli.feature, PROJECT.md
+**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, features/no-runnable-cli/exit-code-convention.feature, PROJECT.md
 **Implementation files**: 4 source (`internal/cli/exitcode.go`, `internal/cli/dispatch.go`, `internal/cli/entrypoint.go`, `main.go`) + 6 test files (`exitcode_test.go`, `entrypoint_test.go`, `smoke_test.go`, `exitcode_bdd_test.go`, plus updates to `dispatch_test.go` and `bdd_test.go`)
 
 ---
@@ -34,11 +34,11 @@ The producer-backed driving scenarios trace to clear code paths through the entr
 
 | Scenario | Status | Implementation |
 |---|---|---|
-| A successful command exits zero | ✓ Covered | `dispatch.go:Run` (Success) → `exitcode.go:ExitCode` (→0); BDD `no-runnable-cli.feature:344` |
-| A help/listing outcome exits zero | ✓ Covered | bare group → Success → 0; BDD `:350` |
-| An unknown command exits the usage code | ✓ Covered | `dispatch.go:Run` (UsageError) → `ExitCode` (→2); BDD `:359` |
-| An unexpected internal failure never exits zero | ✓ Covered | `dispatch.go:Run` default arm (RuntimeError) → `ExitCode` (→1); BDD `:366` |
-| An internal panic exits one (never code 2) | ✓ Covered | `entrypoint.go:recoverToCode` (→1); `smoke_test.go` subprocess; BDD `:402` |
+| A successful command exits zero | ✓ Covered | `dispatch.go:Run` (Success) → `exitcode.go:ExitCode` (→0); BDD `no-runnable-cli/exit-code-convention.feature:13` |
+| A help/listing outcome exits zero | ✓ Covered | bare group → Success → 0; BDD `:19` |
+| An unknown command exits the usage code | ✓ Covered | `dispatch.go:Run` (UsageError) → `ExitCode` (→2); BDD `:28` |
+| An unexpected internal failure never exits zero | ✓ Covered | `dispatch.go:Run` default arm (RuntimeError) → `ExitCode` (→1); BDD `:35` |
+| An internal panic exits one (never code 2) | ✓ Covered | `entrypoint.go:recoverToCode` (→1); `smoke_test.go` subprocess; BDD `:71` |
 
 **Deferred by design (not a gap)**: the operational driving scenarios — *Different failure classes carry different codes* (2 vs 5), *A rate-limited request exits the rate-limit code* (5 not 3), *The most specific category wins* (4 not 3) — describe codes 3–6. spec.md § Assumptions states "no domain command exists yet in the skeleton, so the API/permission/rate-limit/network categories are defined as convention and registry now, and first exercised when domain commands arrive," and plan ADR-2 codifies "publish the codes as constants now, grow the live `Outcome` enum only as producers arrive." The codes exist as the frozen, test-pinned constants (`codeAPIError=3 … codeNetworkUnavailable=6` in `exitcode.go`); the category→code *mapping arms* and producers arrive with the future API client. The scenarios are correspondingly held out as `@validation @wip`. The implementation delivers exactly what this iteration's artifacts agreed to build.
 

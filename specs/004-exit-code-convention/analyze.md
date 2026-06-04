@@ -1,7 +1,7 @@
 # Analyze: Exit-Code Convention
 
 **Feature**: 004-exit-code-convention
-**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli/exit-code-convention.feature, tasks.md
 **Checklist context**: loaded — 10/10 pass, 0 failures
 **Checks**: 16 (16 pass, 0 fail)
 **Generated**: 2026-06-03 (re-derived after the crash-diagnostic clarification)
@@ -36,7 +36,7 @@ None.
 - **C3** spec § Non-Behaviors ↔ plan — plan architects none of the excluded *capabilities*: no category classification (producers classify), no retry/backoff (deferred to the API-client per X), no suppress-to-zero, no shell-reserved codes. (The one text-emission nuance is a coherence concern, not a capability the plan wrongly architects — see H3.)
 - **C4** plan § ADRs ↔ interface-cli § Surface — the accord reflects ADR-1 (pure mapper), ADR-2 (published 0–6 with reserved operational codes), ADR-3 (`RuntimeError`→1), and ADR-4 (panic→1) faithfully.
 - **C5** plan § System Architecture ↔ tasks § Scope — T001–T004 map to the registry / category / entrypoint / acceptance parts; no task builds anything the plan omits.
-- **C6** interface-cli ↔ no-runnable-cli.feature steps — every 004 scenario step references only surfaces the accord defines (codes 0–6, the category→code mapping, the never-zero rule).
+- **C6** interface-cli ↔ no-runnable-cli/exit-code-convention.feature steps — every 004 scenario step references only surfaces the accord defines (codes 0–6, the category→code mapping, the never-zero rule).
 
 ## Completeness: 6/6 passed
 

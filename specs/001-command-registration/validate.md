@@ -4,7 +4,7 @@
 **Round**: 1 of 3
 **Date**: 2026-06-03
 **Verdict**: Ready
-**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, interface-cli.md, features/no-runnable-cli.feature, PROJECT.md
+**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, interface-cli.md, features/no-runnable-cli/command-registration.feature, PROJECT.md
 **Implementation files**: 6 (`main.go`; `internal/cli/{doc,root,app,registry,version,roles}.go`) + 2 test files (`registry_test.go`, `bdd_test.go`)
 
 > Independence note: this run is pipeline-mode — the same agent implemented and validated. Structural creator/evaluator separation (Principle 4) is therefore weaker than role-based mode. The @validation scenarios were traced by fresh inspection and are flagged for the developer to weigh accordingly.
