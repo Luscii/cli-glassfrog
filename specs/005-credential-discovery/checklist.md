@@ -31,7 +31,7 @@ None.
 → **tasks.md § T001, T002**: both mandate RED-first unit tests (reader: valid/tokenless/comments/malformed; resolver: each precedence rung + edge cases over temp dirs) before implementation.
 
 **P0** | CONSTITUTION.md IV: "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/unauthenticated-access/credential-discovery.feature § T003**: 10 behavioral `@wip` scenarios (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) exist before implementation; T003 turns them into executable acceptance.
+→ **features/unauthenticated-access/credential-discovery.feature**, **tasks.md § T003**: 10 behavioral `@wip` scenarios (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) exist before implementation; tasks.md § T003 turns them into executable acceptance.
 
 **P0** | CONSTITUTION.md V (Composition over Monolith): "modular, independently-testable parts … adding … MUST NOT require changing unrelated ones"
 → **plan.md § ADR-1 / System Architecture**: resolution lives in a new `internal/auth` package, separate from `internal/cli`; it registers no command and edits no existing command module. The reader/resolver are exercised in isolation via injected roots (ADR-5).
