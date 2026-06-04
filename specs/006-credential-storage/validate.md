@@ -5,7 +5,7 @@
 **Date**: 2026-06-04
 **Verdict**: Ready
 **Artifacts loaded**: spec.md, plan.md (§ System Architecture), tasks.md (5 of 5 tasks complete), interface-cli.md, interface-spec.md, features/unauthenticated-access/credential-storage.feature, PROJECT.md
-**Implementation files**: `internal/auth/{format.go, write.go}` (shared format module + writer), `internal/cli/{authlogin.go, authlogin_seam.go, authcmd.go}` (resolution, seam, command), `internal/cli/dispatch.go` (commandUsageError seam), `internal/cli/app.go` (wiring); tests in `internal/auth/auth_test.go`, `internal/cli/{authlogin_test.go, authlogin_seam_test.go, authcmd_test.go, credstorage_bdd_test.go, dispatch_test.go}`
+**Implementation files**: `internal/auth/{credentials.go, write.go}` (shared format module + writer), `internal/cli/{authlogin.go, authlogin_seam.go, authcmd.go}` (resolution, seam, command), `internal/cli/dispatch.go` (commandUsageError seam), `internal/cli/app.go` (wiring); tests in `internal/auth/auth_test.go`, `internal/cli/{authlogin_test.go, authlogin_seam_test.go, authcmd_test.go, credstorage_bdd_test.go, dispatch_test.go}`
 
 > Note: `agents/guardian-agent.md` is not present in this Score version — validated against SKILL.md alone (reduced character consistency, not a blocked skill).
 
