@@ -2,7 +2,7 @@
 
 **Feature**: 007-request-authentication
 **Role**: Shaper
-**Inputs**: spec.md (007-request-authentication), PROJECT.md, `.score/memory/DECISIONS.md` (16 entries — Go self-contained binary, cobra tree, fail-loud guard, explicit `main` wiring, outcome-category split, `internal/auth` package, `Resolution{Token,Source,Path}` shape, injected resolver roots, "007 lives with the API client not in `internal/auth`", "auth stays command- and network-free"; this plan appends the request-attachment precedent), `.score/memory/LEARNINGS.md` (3 cobra findings — not relevant; 007 registers no command), 005 interface-spec.md (the `Resolution` contract consumed here). No SOUL.md.
+**Inputs**: spec.md (007-request-authentication), PROJECT.md, `.score/memory/DECISIONS.md` (relevant precedent: Go self-contained binary, cobra tree, fail-loud guard, explicit `main` wiring, outcome-category split, `internal/auth` package, `Resolution{Token,Source,Path}` shape, injected resolver roots, "007 lives with the API client not in `internal/auth`", "auth stays command- and network-free"; this plan appends the request-attachment precedent), `.score/memory/LEARNINGS.md` (cobra findings — not relevant; 007 registers no command), 005 interface-spec.md (the `Resolution` contract consumed here). No SOUL.md.
 
 ---
 
@@ -113,7 +113,7 @@ API-client package  (e.g. internal/apiclient — [ASSUMED]; shared with Connecti
 
 **Testing (CONSTITUTION IV)**: RED-first. A fake base `RoundTripper` records whether it was called and with what header; an injected fake resolver supplies canned `Resolution`s and errors. Tests assert: header set verbatim on success; base **never** called on `None`/error; the same identity is applied across multiple requests in one invocation; the token never appears in output or error strings. Hermetic — no real network, and (via the injected resolver) no real home directory.
 
-**Configuration**: the header name `X-Auth-Token` is a centralized constant (`[ASSUMED]`, pinned by the Glassfrog v5 spec). Identity is resolved **once per invocation** (cached on first use): 005 resolution is deterministic, so caching both honours the "single identity per invocation" assumption and avoids repeating the filesystem walk on every call.
+**Configuration**: the header name `X-Auth-Token` is a centralized constant (pinned by the Glassfrog v5 spec — a fixed PROJECT constraint, not provisional). Identity is resolved **once per invocation** (cached on first use): 005 resolution is deterministic, so caching both honours the "single identity per invocation" assumption and avoids repeating the filesystem walk on every call.
 
 **No command surface**: 007 registers no cobra command and prints nothing itself; the command that actually triggers API calls is a future spec. The LEARNINGS cobra findings do not apply.
 
@@ -145,4 +145,4 @@ Three phases, linear. 007 depends on `internal/auth.Resolution` from 005; the bu
 - **Interpreting `401`/`403` responses** — the response-handling / Exit-Code path, not 007 (request-side only).
 - **The exit code for a cannot-authenticate outcome** — the consuming command + Exit-Code Convention (004); 007 surfaces a typed outcome only (ADR-4, flagged behavioral gap).
 - **The command that makes API calls** — a future spec; 007 has no command surface.
-- **Final header name, package name, and the composition seam** — `[ASSUMED]`; reconcile during interface and with the Connection Configuration spec.
+- **Package name and the composition seam** — `[ASSUMED]`; reconcile during interface and with the Connection Configuration spec. (The header name `X-Auth-Token` is already pinned by PROJECT.md, not provisional.)

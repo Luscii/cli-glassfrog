@@ -145,7 +145,7 @@ Then the only source of the attached token is Discovery's output — the capabil
 
 ## Assumptions
 
-- **Header name** `[ASSUMED]`: the authentication header is `X-Auth-Token`, the Glassfrog v5 scheme named in the PROJECT constraints and in Discovery's hand-off. (Pinned by the API contract; not expected to change.)
+- **Header name** (pinned, not assumed): the authentication header is `X-Auth-Token`, the Glassfrog v5 scheme fixed by the PROJECT constraints and Discovery's hand-off. Recorded here for context — it is a fixed contract, not a provisional choice.
 - **Connection Configuration seam** `[ASSUMED]`: Request Authentication attaches the header to the outgoing request that Connection Configuration sends; the precise mechanism of the seam is deferred to planning and must be reconciled with the Connection Configuration spec being modeled in parallel. (Coordination item — flagged so both capabilities agree on one boundary, mirroring the Discovery/Storage file-contract reconciliation.)
 - **Identity established once per invocation**: a single resolved token applies to every API call within one CLI invocation. (Follows the single-org-+-person-per-key PROJECT constraint and Discovery's deterministic resolution.)
 - **Secret handling carried from Discovery**: the token-never-emitted rule and the no-interactive-prompt rule are inherited as shared constraints across the Token Authentication capabilities, not re-derived here.

@@ -7,7 +7,7 @@
 
 ---
 
-This accord pins the contracts the rest of the request path depends on: the **auth round-tripper** Connection Configuration composes into its HTTP client, the **resolver seam** through which 007 consumes Credential Discovery (005), the **`AuthError`** the consuming command discriminates, and the **`X-Auth-Token`** header attached to outgoing calls. There is **no command or shell entry point** — 007 is consumed by composing its `RoundTripper`, not invoked — so the *invocation* and *instructional* surfaces are N/A. The composition seam, the package name, and the header name are `[ASSUMED]`, to be reconciled with the Connection Configuration spec (modelled in parallel) before either ships.
+This accord pins the contracts the rest of the request path depends on: the **auth round-tripper** Connection Configuration composes into its HTTP client, the **resolver seam** through which 007 consumes Credential Discovery (005), the **`AuthError`** the consuming command discriminates, and the **`X-Auth-Token`** header attached to outgoing calls. There is **no command or shell entry point** — 007 is consumed by composing its `RoundTripper`, not invoked — so the *invocation* and *instructional* surfaces are N/A. The composition seam and the package name are `[ASSUMED]`, to be reconciled with the Connection Configuration spec (modelled in parallel) before either ships; the header name (`X-Auth-Token`) is already pinned by PROJECT.md, not provisional.
 
 ---
 
@@ -52,7 +52,7 @@ The typed, code-free failure 007 returns when it cannot authenticate. Carries a 
 
 | Item | Value | Notes |
 |---|---|---|
-| Header name | `X-Auth-Token` | `[ASSUMED]` Centralized constant; pinned by the Glassfrog v5 API scheme (PROJECT constraint). |
+| Header name | `X-Auth-Token` | Centralized constant; pinned by the Glassfrog v5 API scheme (PROJECT constraint) — fixed, not provisional. |
 | Identity lifetime | once per invocation | The resolver is consulted once and the result cached for the invocation; resolution is deterministic (005), so every request in one invocation carries the same identity. |
 
 ---
