@@ -68,10 +68,17 @@ func resolveTokenSource(in tokenInputs) (raw string, source tokenSource) {
 
 // usableToken trims surrounding whitespace from a candidate and reports whether
 // what remains is a usable token. An empty or whitespace-only value is not
-// usable (same rule as 005's reader) — the writer is never invoked for one.
+// usable (same rule as 005's reader). A value containing an embedded line break
+// (\n or \r) is also rejected: writing it would split into multiple
+// .glassfrogrc lines and could inject extra keys, so a multi-line token fails
+// the command rather than corrupting the file. The writer is never invoked for
+// an unusable token.
 func usableToken(raw string) (string, bool) {
 	t := strings.TrimSpace(raw)
-	return t, t != ""
+	if t == "" || strings.ContainsAny(t, "\r\n") {
+		return t, false
+	}
+	return t, true
 }
 
 // targetPath selects the credentials file to write: the home-directory file by

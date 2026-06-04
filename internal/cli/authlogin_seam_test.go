@@ -1,6 +1,38 @@
 package cli
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestReadBoundedStdin_WithinLimit(t *testing.T) {
+	got, err := readBoundedStdin(strings.NewReader("gf_token\n"))
+	if err != nil {
+		t.Fatalf("readBoundedStdin: %v", err)
+	}
+	if got != "gf_token\n" {
+		t.Fatalf("got %q, want %q", got, "gf_token\n")
+	}
+}
+
+func TestReadBoundedStdin_OverLimit_Errors(t *testing.T) {
+	big := strings.Repeat("a", maxPipedTokenBytes+10)
+	_, err := readBoundedStdin(strings.NewReader(big))
+	if err == nil {
+		t.Fatal("expected an error for input exceeding the limit, got nil")
+	}
+}
+
+func TestReadBoundedStdin_AtLimit_OK(t *testing.T) {
+	exact := strings.Repeat("a", maxPipedTokenBytes)
+	got, err := readBoundedStdin(strings.NewReader(exact))
+	if err != nil {
+		t.Fatalf("input exactly at the limit should be accepted, got %v", err)
+	}
+	if len(got) != maxPipedTokenBytes {
+		t.Fatalf("got %d bytes, want %d", len(got), maxPipedTokenBytes)
+	}
+}
 
 // gatherInputsFrom is the pure core of the production input seam; these tests
 // pin its precedence-shaping decisions (when stdin is and is not read) without

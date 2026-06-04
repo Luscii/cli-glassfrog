@@ -48,8 +48,8 @@ func runLogin(cfg loginConfig) (Outcome, error) {
 
 	token, ok := usableToken(raw)
 	if !ok {
-		fmt.Fprintln(cfg.stderr, "the supplied token is empty — supply a non-empty token")
-		return UsageError, errors.New("empty token")
+		fmt.Fprintln(cfg.stderr, "the supplied token is not usable (empty, whitespace-only, or containing line breaks) — supply a single-line, non-empty token")
+		return UsageError, errors.New("unusable token")
 	}
 
 	// 2. Select the target and detect an existing token (a malformed existing

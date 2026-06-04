@@ -65,12 +65,29 @@ func gatherInputsFrom(args []string, env string, isTTY bool, readStdin func() (s
 // os.Stdin / the TTY / os.Getenv / the working and home directories.
 type productionSeam struct{}
 
+// maxPipedTokenBytes caps how much piped stdin the command will read. A token
+// is tiny; this bounds accidental (or hostile) large pipes so the command never
+// slurps an arbitrarily large input into memory.
+const maxPipedTokenBytes = 64 << 10 // 64 KiB
+
 func (productionSeam) gatherInputs(args []string) (tokenInputs, error) {
 	isTTY := term.IsTerminal(int(os.Stdin.Fd()))
 	return gatherInputsFrom(args, os.Getenv(auth.EnvVarToken), isTTY, func() (string, error) {
-		b, err := io.ReadAll(os.Stdin)
-		return string(b), err
+		return readBoundedStdin(os.Stdin)
 	})
+}
+
+// readBoundedStdin reads r up to maxPipedTokenBytes and errors if the input
+// exceeds the cap, rather than reading an unbounded amount into memory.
+func readBoundedStdin(r io.Reader) (string, error) {
+	data, err := io.ReadAll(io.LimitReader(r, maxPipedTokenBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if len(data) > maxPipedTokenBytes {
+		return "", fmt.Errorf("piped token exceeds the %d-byte limit", maxPipedTokenBytes)
+	}
+	return string(data), nil
 }
 
 func (productionSeam) homeDir() (string, error)  { return os.UserHomeDir() }

@@ -88,6 +88,11 @@ func TestUsableToken(t *testing.T) {
 		{"", "", false},
 		{"   ", "", false},
 		{"\t\n ", "", false},
+		// Embedded line breaks are rejected — writing one would split into
+		// multiple .glassfrogrc lines and could inject extra keys.
+		{"gf_a\ngf_b", "gf_a\ngf_b", false},
+		{"gf_a\r\nother=x", "gf_a\r\nother=x", false},
+		{"line1\rline2", "line1\rline2", false},
 	}
 	for _, tc := range cases {
 		tok, ok := usableToken(tc.raw)
