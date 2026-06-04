@@ -98,16 +98,30 @@ func runLogin(cfg loginConfig) (Outcome, error) {
 }
 
 // classifyAuthError maps an internal/auth error to a RuntimeError outcome and
-// writes the operator-facing message (path only, never the token). A
-// *FormatError is reported as a format error (the file was not overwritten);
-// anything else is reported as a write error (the filesystem is unchanged).
+// writes the operator-facing message (path only, never the token). It
+// discriminates the three distinct failures so the message names the real cause
+// and never over-claims about the filesystem:
+//   - *FormatError — an existing file is malformed; it was not overwritten.
+//   - *WriteError — the write to this path failed; the atomic temp+rename
+//     guarantees this path was not partially written. The claim is scoped to
+//     path only: when writing several targets (the interactive "both" choice),
+//     an earlier target may already have been written, so no global
+//     "filesystem unchanged" claim is made.
+//   - anything else — e.g. an existing credentials file that could not be read
+//     during the pre-write guard: report it as a read/access failure, not a
+//     write error, since no write was attempted.
 func classifyAuthError(stderr io.Writer, path string, err error) (Outcome, error) {
 	var fe *auth.FormatError
 	if errors.As(err, &fe) {
 		fmt.Fprintf(stderr, "format error: %s is malformed — fix or remove it; it was not overwritten\n", path)
 		return RuntimeError, err
 	}
-	fmt.Fprintf(stderr, "write error: could not write credentials to %s — check write permission on the directory; the filesystem is unchanged\n", path)
+	var we *auth.WriteError
+	if errors.As(err, &we) {
+		fmt.Fprintf(stderr, "write error: could not write credentials to %s — check write permission on the directory; %s was not partially written\n", path, path)
+		return RuntimeError, err
+	}
+	fmt.Fprintf(stderr, "error: could not read the existing credentials at %s — check its permissions; no changes were made\n", path)
 	return RuntimeError, err
 }
 

@@ -245,6 +245,39 @@ func TestRunLogin_MalformedExisting_RuntimeErrorNotOverwritten(t *testing.T) {
 	}
 }
 
+// An unreadable existing file fails at the pre-write guard (a read error, not a
+// write or format error): the message must not claim "write error" or that the
+// filesystem is unchanged in write terms — no write was attempted.
+func TestRunLogin_UnreadableExisting_ReadErrorNotWriteError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses file permission checks")
+	}
+	home, start := t.TempDir(), t.TempDir()
+	homePath := filepath.Join(home, auth.CredentialsFileName)
+	if err := os.WriteFile(homePath, []byte("token=gf_old_token\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(homePath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(homePath, 0o600) })
+
+	outcome, _, stderr := runLoginCapture(loginConfig{
+		inputs:  tokenInputs{arg: "gf_new_token", argGiven: true},
+		homeDir: home, startDir: start,
+		interact: &fakeInteractor{},
+	})
+	if outcome != RuntimeError {
+		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	}
+	if strings.Contains(stderr, "write error") {
+		t.Fatalf("a read failure must not be reported as a write error, got %q", stderr)
+	}
+	if !strings.Contains(stderr, homePath) {
+		t.Fatalf("stderr should name the unreadable file %q, got %q", homePath, stderr)
+	}
+}
+
 // --- runLogin: interactive paths through the fake interactor ---
 
 func TestRunLogin_NeedsPrompt_UsesInteractorAndWritesHome(t *testing.T) {
