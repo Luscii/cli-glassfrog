@@ -26,5 +26,5 @@ This document captures the solutions and capabilities for the Glassfrog CLI, org
 ## Connection Configuration
 > Problem: Undefined Connection Settings — the CLI doesn't know which token or base URL to use, or where to read them from (affects: Practitioner)
 
-- Connection Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), reading the file value from the same npmrc-style credentials file Credential Discovery locates (nearest-wins), then combine it with the discovered token into the single connection context each request uses
+- Connection Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), read the value from the same npmrc-style credentials file that Credential Discovery locates (nearest-wins), then combine it with the discovered token to form the single connection context each request uses
   + depends-on: Credential Discovery
