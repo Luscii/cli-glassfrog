@@ -68,9 +68,10 @@ func (e *WriteError) Unwrap() error { return e.cause }
 
 // WriteCredentials persists token into the .glassfrogrc file at path.
 //
-// It parse-validates any existing file through the shared reader first: a
-// malformed file (a non-blank, non-comment line without '=') aborts with a
-// *FormatError and NO write. On success it rewrites at the line level —
+// It parse-validates any existing file through the shared parser first, on the
+// exact bytes it then merges (one snapshot, no re-read race): a malformed file
+// (a non-blank, non-comment line without '=') aborts with a *FormatError and NO
+// write. On success it rewrites at the line level —
 // replacing the value on the existing token= line, or appending a token= line
 // if absent — preserving every other line and comment and their order. An
 // absent target is created. The write is atomic (a temp file in the same
@@ -93,14 +94,13 @@ func WriteCredentials(path, token string) error {
 	existing, readErr := os.ReadFile(path)
 	switch {
 	case readErr == nil:
-		// Validate the existing file through the shared reader so the read and
-		// write sides cannot drift; a malformed file aborts with no write.
-		if _, _, perr := readCredentialsFile(path); perr != nil {
-			var fe *FormatError
-			if errors.As(perr, &fe) {
-				return perr // *FormatError → no write
-			}
-			return &WriteError{Path: path, cause: perr}
+		// Validate the exact bytes we are about to merge through the shared
+		// parser, so the read and write sides cannot drift and validation can't
+		// race a concurrent edit (no re-read between check and merge); a
+		// malformed file aborts with no write. parseCredentials does no I/O, so
+		// the only error it yields is a *FormatError.
+		if _, _, perr := parseCredentials(path, existing); perr != nil {
+			return perr // *FormatError → no write
 		}
 	case errors.Is(readErr, fs.ErrNotExist):
 		existing = nil // absent target: create it
