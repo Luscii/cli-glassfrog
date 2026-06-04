@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/Luscii/cli-glassfrog/internal/auth"
 	"github.com/spf13/cobra"
@@ -55,7 +56,10 @@ func runLogin(cfg loginConfig) (Outcome, error) {
 	// file fails loud here, before any write).
 	target := targetPath(cfg.homeDir, cfg.startDir, cfg.cwd)
 	_, hasExisting, rerr := auth.ReadCredentialsFile(target)
-	if rerr != nil {
+	// An absent target is not an error — it means "no existing token, proceed".
+	// The shared reader (005) reports absence as a *ReadError wrapping
+	// os.ErrNotExist; only a genuine read/format failure is surfaced.
+	if rerr != nil && !errors.Is(rerr, os.ErrNotExist) {
 		return classifyAuthError(cfg.stderr, target, rerr)
 	}
 

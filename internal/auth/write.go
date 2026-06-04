@@ -15,10 +15,35 @@ import (
 // intermediate file (see writeAtomic).
 const credentialsFileMode fs.FileMode = 0o600
 
+// Exported surface for the command layer (internal/cli, Credential Storage
+// 006). The shared file name, env var, and single-path reader are owned by the
+// format module (credentials.go, Credential Discovery 005) and re-exported here
+// so the auth login command can build target paths, read GLASSFROG_TOKEN as a
+// persistable source, run the existing-token guard, and round-trip a written
+// token through the very reader Discovery uses. Single source of truth stays in
+// credentials.go; these only widen its visibility.
+const (
+	// CredentialsFileName is the credentials file's base name (`.glassfrogrc`).
+	CredentialsFileName = credentialsFileName
+	// EnvVarToken is the token environment variable (`GLASSFROG_TOKEN`).
+	EnvVarToken = envTokenVar
+)
+
+// ReadCredentialsFile reads the token at path through the shared format reader
+// (the round-trip target for the writer). It returns (token, found, err) with
+// the same contract as the internal reader: a missing or unreadable file
+// returns a *ReadError (a missing file unwraps to os.ErrNotExist), a malformed
+// file a *FormatError, and a parsed-but-tokenless file (token, false, nil).
+func ReadCredentialsFile(path string) (token string, found bool, err error) {
+	return readCredentialsFile(path)
+}
+
 // WriteError reports that a credentials file could not be written (an unwritable
 // directory, a failed rename, …). It names only the path and wraps the cause —
-// never any token value (secret hygiene). On any WriteError the filesystem is
-// left unchanged: a store is all-or-nothing.
+// never any token value (secret hygiene). On any WriteError the target path is
+// left unchanged: the atomic temp+rename guarantees no partial file at that
+// path. (Distinct from *FormatError — a malformed existing file — and from
+// *ReadError — an existing file that could not be read during the guard.)
 type WriteError struct {
 	// Path is the target credentials file.
 	Path string
@@ -46,24 +71,26 @@ func (e *WriteError) Unwrap() error { return e.cause }
 //
 // The token value never appears in a returned error.
 func WriteCredentials(path, token string) error {
-	existing, err := os.ReadFile(path)
+	existing, readErr := os.ReadFile(path)
 	switch {
-	case err == nil:
-		// Validate the existing file before touching it.
-		if _, _, perr := parseCredentials(path, existing); perr != nil {
-			return perr // *FormatError → no write
+	case readErr == nil:
+		// Validate the existing file through the shared reader so the read and
+		// write sides cannot drift; a malformed file aborts with no write.
+		if _, _, perr := readCredentialsFile(path); perr != nil {
+			var fe *FormatError
+			if errors.As(perr, &fe) {
+				return perr // *FormatError → no write
+			}
+			return &WriteError{Path: path, cause: perr}
 		}
-	case errors.Is(err, fs.ErrNotExist):
+	case errors.Is(readErr, fs.ErrNotExist):
 		existing = nil // absent target: create it
 	default:
-		return &WriteError{Path: path, cause: err}
+		return &WriteError{Path: path, cause: readErr}
 	}
 
 	merged := mergeTokenLine(existing, token)
-	if err := writeAtomic(path, merged); err != nil {
-		return err
-	}
-	return nil
+	return writeAtomic(path, merged)
 }
 
 // mergeTokenLine returns the file content with the token entry set to token:
@@ -97,6 +124,22 @@ func mergeTokenLine(existing []byte, token string) []byte {
 		lines = append(lines, tokenLine)
 	}
 	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
+// isTokenLine reports whether line is the credential's token= entry (used by the
+// line-preserving merge to find the line whose value to replace). Blank, comment
+// and non-'=' lines are not token lines; malformed lines are rejected upstream
+// by the shared reader before the merge runs.
+func isTokenLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return false
+	}
+	eq := strings.IndexByte(line, '=')
+	if eq < 0 {
+		return false
+	}
+	return strings.TrimSpace(line[:eq]) == tokenKey
 }
 
 // writeAtomic writes data to path atomically: a temp file in the same directory

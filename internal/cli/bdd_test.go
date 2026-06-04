@@ -11,19 +11,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TestFeatures runs the executable acceptance scenarios under
-// features/no-runnable-cli/ (command-registration, argument-dispatch,
-// help-and-version, exit-code-convention) against the registration guard and
-// the assembled command tree; godog walks the features/ tree recursively, so
-// the per-capability files are all discovered. @wip scenarios are skipped — the @validation
-// scenarios stay @wip because they are held out for independent verification
-// (the validate skill), not implemented by the Builder.
+// TestFeatures runs the executable acceptance scenarios this package owns: the
+// CLI-skeleton features under features/no-runnable-cli/ (command-registration,
+// argument-dispatch, help-and-version, exit-code-convention) and the
+// credential-storage feature (the `auth login` command, Credential Storage
+// 006). @wip scenarios are skipped — the @validation scenarios stay @wip
+// because they are held out for independent verification (the validate skill),
+// not implemented by the Builder.
+//
+// The paths are scoped to this package's own features rather than the whole
+// features/ directory: each package's godog suite owns the feature(s) whose
+// steps it defines (the cli command tree + auth login here; Credential
+// Discovery's unauthenticated-access/credential-discovery.feature is owned by
+// internal/auth). Pointing at credential-storage.feature specifically — not the
+// unauthenticated-access/ directory — keeps the resolver's feature out of this
+// suite, which has no matching step definitions for it.
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeScenario,
 		Options: &godog.Options{
-			Format:   "pretty",
-			Paths:    []string{"../../features"},
+			Format: "pretty",
+			Paths: []string{
+				"../../features/no-runnable-cli",
+				"../../features/unauthenticated-access/credential-storage.feature",
+			},
 			Tags:     "~@wip",
 			TestingT: t,
 		},

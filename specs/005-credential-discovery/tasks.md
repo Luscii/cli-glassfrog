@@ -26,7 +26,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Shared `.glassfrogrc` reader [Shared]
 
-- [ ] **T001** [Shared] Create the `internal/auth` package and the shared `.glassfrogrc` reader — `readCredentialsFile(path)` parsing npmrc-style `key=value`, with RED-first unit tests
+- [x] **T001** [Shared] Create the `internal/auth` package and the shared `.glassfrogrc` reader — `readCredentialsFile(path)` parsing npmrc-style `key=value`, with RED-first unit tests — 7 unit tests (valid/trim/tokenless/whitespace-value/comments+blanks/malformed/missing); no findings
   - **Scope**: New `internal/auth` package. Add `readCredentialsFile(path) → (token string, found bool, err error)`: split each line on the first `=`, trim key/value, ignore blank lines and `#`-comment lines, read the `token` key, treat a whitespace-only value as no token (`found = false`). A non-blank, non-comment line without `=` is a parse error. Centralize the file name (`.glassfrogrc`) and `GLASSFROG_TOKEN` as constants in the package. Reader only — no walk-up, no env, no resolver yet.
   - **Acceptance criteria**:
     - `readCredentialsFile` returns the token and `found = true` for a file containing `token=gf_x`
@@ -40,7 +40,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Resolver + precedence [Shared]
 
-- [ ] **T002** [Shared] Implement `resolve(startDir, homeDir)` with env-first / walk-up / home-fallback precedence and the production seam — RED-first unit tests over temp directory trees
+- [x] **T002** [Shared] Implement `resolve(startDir, homeDir)` with env-first / walk-up / home-fallback precedence and the production seam — RED-first unit tests over temp directory trees — 13 unit tests (env-first/empty-env/nearest-wins/walk-up/home-fallback/home-on-ascent/tokenless-skip/none/unreadable/malformed + 3 candidateDirs dedup+root cases); no findings
   - **Scope**: Add `resolve(startDir, homeDir) → (Resolution, error)` returning `Resolution{Token, Source, Path}` (`Source ∈ {Environment, File, None}`). Order: non-empty `GLASSFROG_TOKEN` short-circuits to `Environment`; else build a de-duplicated candidate list (`startDir`, each ancestor to the filesystem root, then `homeDir` if not already present) and return the first file with a usable token (nearest-wins); a parseable-but-tokenless file is skipped; an unreadable or unparseable file returns a typed error naming the path (no fall-through); nothing found → `Source: None`, no error. Add a thin production seam binding `os.Getwd` / `os.UserHomeDir` / `os.Getenv` (the only place that reads globals — ADR-5). The token value never appears in any error or log.
   - **Acceptance criteria**:
     - Env-first: non-empty `GLASSFROG_TOKEN` wins and no file is read; an empty/unset value falls through to files
@@ -56,7 +56,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 005 driving scenarios pass as executable acceptance via godog, exercising the production seam over temp dirs and a controlled `GLASSFROG_TOKEN`
+- [x] **T003** [Shared] Make the 005 driving scenarios pass as executable acceptance via godog, exercising the production seam over temp dirs and a controlled `GLASSFROG_TOKEN` — new `internal/auth` godog suite, 10 behavioral scenarios pass / 3 `@validation` held @wip; scoped the `cli` suite to its own feature file (noted in LEARNINGS)
   - **Scope**: Add godog step definitions for the Credential Discovery scenarios in `features/unauthenticated-access/credential-discovery.feature` (all three Rule blocks), driving the production seam against temp directory trees and a set/unset `GLASSFROG_TOKEN`, asserting the resolved `(Token, Source, Path)` or the typed read/format error. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 005 scenario (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) has an executable, passing path
