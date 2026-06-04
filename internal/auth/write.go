@@ -38,6 +38,15 @@ func ReadCredentialsFile(path string) (token string, found bool, err error) {
 	return readCredentialsFile(path)
 }
 
+// ErrTokenNotSingleLine reports that a token passed to WriteCredentials contained
+// a carriage return or newline. A multi-line token would inject extra lines (and
+// thus extra keys) into the line-oriented .glassfrogrc, so the writer rejects it
+// before any read or write — the file is left untouched. The error never includes
+// the token value (secret hygiene). Callers that accept tokens from external
+// sources (stdin/env/prompt) should still validate upstream; this is the shared
+// writer API's own defensive floor.
+var ErrTokenNotSingleLine = errors.New("token must be a single line (contains a carriage return or newline)")
+
 // WriteError reports that a credentials file could not be written (an unwritable
 // directory, a failed rename, …). It names only the path and wraps the cause —
 // never any token value (secret hygiene). On any WriteError the target path is
@@ -69,8 +78,18 @@ func (e *WriteError) Unwrap() error { return e.cause }
 // so a mid-write failure leaves the original (or its absence) intact and the
 // secret is never briefly more-permissive than 0600.
 //
+// A token containing a carriage return or newline is rejected up front with
+// ErrTokenNotSingleLine and NO write — a multi-line token would inject extra
+// .glassfrogrc lines/keys.
+//
 // The token value never appears in a returned error.
 func WriteCredentials(path, token string) error {
+	// Reject a multi-line token before touching the filesystem: it would inject
+	// extra .glassfrogrc lines/keys. Fail without writing (ErrTokenNotSingleLine).
+	if strings.ContainsAny(token, "\r\n") {
+		return ErrTokenNotSingleLine
+	}
+
 	existing, readErr := os.ReadFile(path)
 	switch {
 	case readErr == nil:

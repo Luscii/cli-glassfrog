@@ -165,6 +165,34 @@ func TestWriteCredentials_MalformedExisting_FormatErrorNoWrite(t *testing.T) {
 	}
 }
 
+// --- WriteCredentials: a multi-line token is rejected at the API boundary ---
+
+func TestWriteCredentials_MultiLineToken_RejectedNoWrite(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		token string
+	}{
+		{"newline", "gf_tok\nevil=injected"},
+		{"carriage-return", "gf_tok\revil=injected"},
+		{"crlf", "gf_tok\r\nevil=injected"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), CredentialsFileName)
+
+			err := WriteCredentials(path, tc.token)
+			if !errors.Is(err, ErrTokenNotSingleLine) {
+				t.Fatalf("expected ErrTokenNotSingleLine, got %T: %v", err, err)
+			}
+			if strings.Contains(err.Error(), "gf_tok") || strings.Contains(err.Error(), "injected") {
+				t.Fatalf("error must not contain the token value: %v", err)
+			}
+			if _, statErr := os.Stat(path); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("a rejected token must not create the file, stat err = %v", statErr)
+			}
+		})
+	}
+}
+
 // --- WriteCredentials: failed write leaves filesystem unchanged, no temp left ---
 
 func TestWriteCredentials_UnwritableDir_WriteErrorOriginalUnchanged(t *testing.T) {
