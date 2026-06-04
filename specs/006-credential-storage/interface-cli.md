@@ -34,8 +34,9 @@ Store an API token to the credentials file so later commands authenticate withou
 
 **Output** (success, stdout) — names the written path, never the token:
 ```
-Stored credentials in /Users/me/.glassfrogrc
+Stored credentials in <path>
 ```
+where `<path>` is the resolved credentials file (the home-directory `.glassfrogrc`, or `./.glassfrogrc` under `--cwd`).
 
 ## Interactions
 
@@ -60,16 +61,18 @@ Stored credentials in /Users/me/.glassfrogrc
 
 Errors are written to **stderr**; the process exit code is the category mapped by Exit-Code Convention (004) — this command emits a code-free outcome category, not a code.
 
-| Condition | Outcome category | Exit code (via 004) | stderr message (token never included) |
-|---|---|---|---|
-| Token stored | success | 0 | — (success line on stdout) |
-| No token supplied, non-interactive | usage error | 2 | `no token to store` |
-| Blank / whitespace-only token | usage error | 2 | names the empty input, not a value |
-| Existing token, non-interactive, no `--overwrite` | usage error | 2 | reports the existing credential at `<path>` and that `--overwrite` is required |
-| Target not writable (permission denied) | internal/runtime error | 1 | write error naming `<path>`; filesystem unchanged |
-| Existing file unparseable (merge) | internal/runtime error | 1 | format error naming `<path>`; file not overwritten |
+The **Outcome category** column uses the canonical `Outcome` enum names published by 004 / `internal/cli` (`Success`, `UsageError`, `RuntimeError`) so the mapping to Exit-Code Convention is unambiguous. Every error message names both the cause **and** a concrete next step (CONSTITUTION II), and never includes the token value.
 
-Exit codes follow the frozen convention pinned by 004 (`0` success, `1` internal, `2` usage). No new codes are introduced. The token value never appears in any message, prompt echo, or diagnostic.
+| Condition | Outcome category | Exit code (via 004) | stderr message (cause + next step; token never included) |
+|---|---|---|---|
+| Token stored | `Success` | 0 | — (success line on stdout) |
+| No token supplied, non-interactive | `UsageError` | 2 | `no token to store` — supply a token via argument, stdin, or `GLASSFROG_TOKEN` |
+| Blank / whitespace-only token | `UsageError` | 2 | names the empty input (not a value) — supply a non-empty token |
+| Existing token, non-interactive, no `--overwrite` | `UsageError` | 2 | reports the existing credential at `<path>` — pass `--overwrite` to replace it |
+| Target not writable (permission denied) | `RuntimeError` | 1 | write error naming `<path>` — check write permission on the directory; filesystem unchanged |
+| Existing file unparseable (merge) | `RuntimeError` | 1 | format error naming `<path>` — fix or remove the malformed `.glassfrogrc`; file not overwritten |
+
+Exit codes follow the frozen convention pinned by 004 (`0` Success, `1` RuntimeError/internal, `2` UsageError). No new codes are introduced. The token value never appears in any message, prompt echo, or diagnostic.
 
 ## Consistency Notes
 
