@@ -2,18 +2,18 @@
 
 **Feature**: 006-credential-storage
 **Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/unauthenticated-access/credential-storage.feature, tasks.md
-**Checklist context**: checklist.md present (2 P1 findings) — correlated, not re-evaluated
-**Findings**: 1 (1 P1 completeness) across ~21 evaluations
-**Generated**: 2026-06-04
+**Checklist context**: checklist.md present (0 open findings after PR #12 review) — correlated, not re-evaluated
+**Findings**: 0 open across ~21 evaluations (1 P1 raised in PR #12 review, resolved in this PR)
+**Generated**: 2026-06-04 (updated after PR #12 review)
 
 ---
 
 ## Summary
 
-~21 evaluations (6 consistency + 6 completeness + 4 coherence base types; interface checks ×2 for interface-cli + interface-spec). **1 P1 finding** (completeness). Consistency: clean. Coherence: clean.
+~21 evaluations (6 consistency + 6 completeness + 4 coherence base types; interface checks ×2 for interface-cli + interface-spec). **0 open findings**. Consistency: clean. Coherence: clean.
 
 - **Consistency (P0)**: 8/8 pass
-- **Completeness (P1)**: 8/9 pass — 1 gap (K5)
+- **Completeness (P1)**: 9/9 pass (K5 raised in PR #12 review, resolved in this PR)
 - **Coherence (P2)**: 4/4 pass
 
 ---
@@ -27,18 +27,17 @@
 - **C5** plan System Architecture ↔ tasks scope — PASS. T001–T005 map 1:1 to plan components (writer / pure resolution / production seam / command / acceptance); no task builds something plan omits.
 - **C6 (×2)** interface surfaces ↔ feature steps — PASS. Scenario steps reference only behaviors/flags the interface defines (`--cwd`, `GLASSFROG_TOKEN`, `.glassfrogrc`, store/merge); no step invokes an undefined surface.
 
-## Completeness (P1 — gap): 8/9 pass
+## Completeness (P1 — gap): 9/9 pass
 
-### Finding
+### Resolved during review (1)
 
-**P1 (K5)** | interface-cli.md § Interactions (interactive surface) → features/unauthenticated-access/credential-storage.feature
-**Gap**: interface-cli.md defines two interactive surfaces with **no scenario coverage** — the non-echoing interactive **prompt** (TTY, no other source) and the interactive **existing-token confirmation** offering merge and the working-dir / home / **both** location choice. All 12 scenarios exercise non-interactive paths (argument / stdin / env / `--overwrite`).
-**What's missing**: a scenario driving the prompt path, and a scenario driving the interactive confirm + the "both"-location write. (The non-interactive existing-token path *is* covered by "A non-interactive overwrite requires the overwrite flag".)
-**Recommendation**: add godog scenarios driving these through the injected `isTTY` seam (T003/T005 make interactivity injectable), or explicitly defer interactive-path verification to manual/validate with a noted justification. **Correlates with the checklist IV finding** (same gap, vertical lens).
+**P1 (K5) → resolved** | interface-cli.md § Interactions (interactive surface) → features/unauthenticated-access/credential-storage.feature
+**Was**: interface-cli.md defined two interactive surfaces without scenario coverage — the non-echoing interactive **prompt** (TTY, no other source) and the interactive **existing-token confirmation** offering merge and the cwd / home / both location choice. (The earlier wording "all 12 scenarios exercise non-interactive paths" was imprecise — the merge scenario already included an interactive confirmation step; the genuine gap was the prompt path and the location choice.)
+**Resolution (PR #12)**: added driving scenarios to **spec.md** ("Interactive prompt for a missing token", "Interactive confirmation chooses the write location") and matching `@wip` acceptance scenarios to the feature file; the merge scenario now states its interactive (TTY) precondition explicitly. Both interactive surfaces now have scenario coverage. **Correlates with the checklist IV finding** (same gap, also resolved).
 
-### Passed (8/9)
+### Passed (9/9)
 
-- **K1** spec Driving Scenarios → feature — PASS. All 9 driving + 3 validation scenarios have Gherkin equivalents (arg→home, stdin→cwd, env-persist, unwritable, malformed, no-token-non-interactive, blank, merge-preserves, existing-token-no-override; round-trip, no-output-leak, owner-only).
+- **K1** spec Driving Scenarios → feature — PASS. All 11 driving + 3 validation scenarios have Gherkin equivalents (arg→home, stdin→cwd, env-persist, interactive-prompt, unwritable, malformed, no-token-non-interactive, blank, merge-preserves, existing-token-no-override, interactive-location-choice; round-trip, no-output-leak, owner-only).
 - **K2 (×2)** spec Integration Boundaries → interface file presence — PASS. The CLI boundary → interface-cli.md; the shared `.glassfrogrc` specification boundary → interface-spec.md. The filesystem/stdin/env inputs are covered within those files; Exit-Code Convention (004) is a downstream consumer spec, not a 006 interface file.
 - **K3** plan phases → tasks — PASS. All three phases decomposed (P1→T001, P2→T002/T003, P3→T004/T005).
 - **K4** plan components → tasks scope — PASS. Writer, pure resolution, production seam, command, and acceptance each have implementing tasks.
@@ -54,8 +53,8 @@
 
 ## Checklist Correlation
 
-- **Analyze K5 ↔ Checklist IV finding**: the same underlying gap from two lenses — analyze sees an interface surface with no scenario realization (horizontal); checklist sees user-facing behavior with no acceptance scenario (vertical, CONSTITUTION IV). Resolving one resolves both.
-- **Checklist II finding (error next-step)** is in interface-cli.md § Error Communication — a vertical completeness-of-contract issue analyze does not double-flag (no cross-artifact contradiction; the error contract is internally consistent with spec and tasks).
+- **Analyze K5 ↔ Checklist IV finding** (both resolved in PR #12): the same underlying gap from two lenses — analyze saw an interface surface with no scenario realization (horizontal); checklist saw user-facing behavior with no acceptance scenario (vertical, CONSTITUTION IV). Resolved together by adding the interactive driving + acceptance scenarios.
+- **Checklist II finding (error next-step)** (resolved in PR #12) was in interface-cli.md § Error Communication — a vertical completeness-of-contract issue analyze did not double-flag (no cross-artifact contradiction; the error contract is internally consistent with spec and tasks). The interface error table now pins a next step per error.
 - **Shared `[ASSUMED]` contract with 005** (checklist advisory): analyze confirms spec, plan, interface-cli, and interface-spec all reference the jointly-held `.glassfrogrc`/`GLASSFROG_TOKEN`/`0600` contract consistently and defer to 005 as canonical — the coordination concern is internally coherent (H1 pass); the remaining action is the cross-spec reconciliation before both ship, not an in-spec contradiction.
 
 ## Governance Notes

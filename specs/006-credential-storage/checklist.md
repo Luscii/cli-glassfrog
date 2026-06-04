@@ -3,41 +3,41 @@
 **Feature**: 006-credential-storage
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
 **Artifacts checked**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/unauthenticated-access/credential-storage.feature, tasks.md
-**Checks**: 10 (8 pass, 2 P1 findings)
-**Generated**: 2026-06-04
+**Checks**: 10 (10 pass — 2 P1 raised in PR #12 review, resolved in this PR)
+**Generated**: 2026-06-04 (updated after PR #12 review)
 
 ---
 
 ## Summary
 
-10 checks: **8 pass, 2 P1 findings**. Constitution: 8/10. Done-criteria: not run (no accords). Cross-references: not run (no accords).
+10 checks: **10 pass, 0 open findings**. Constitution: 10/10. Done-criteria: not run (no accords). Cross-references: not run (no accords).
 
-8 of 12 constitution principles produced applicable checks; 4 are N/A for this local, no-network credential writer (see Governance Notes). Unlike 005 (no operator-facing surface), 006 adds a command, so Action Transparency (II) is now applicable — and is where the single finding sits.
+8 of 12 constitution principles produced applicable checks; 4 are N/A for this local, no-network credential writer (see Governance Notes). Unlike 005 (no operator-facing surface), 006 adds a command, so Action Transparency (II) is now applicable.
+
+_Two P1 items were raised during PR #12 review and resolved in this PR — see **Resolved during review** below._
 
 ---
 
-## Constitution Checks: 9/10 passed
+## Constitution Checks: 10/10 passed
 
-### Findings
+### Resolved during review (2)
 
-**P1** | CONSTITUTION.md II (Action Transparency, NON-NEGOTIABLE): "every error MUST explain what went wrong **and the next step**"
-→ **interface-cli.md § Error Communication**: the error contract names the cause/path for every error, but only the existing-token row states an explicit next step ("`--overwrite` is required"). The `no token to store`, write-error, and format-error rows name the cause but leave the next step implicit.
-*Why P1 not P0*: II's cause clause passes for every error (the **what** is always present); the gap is the **next-step** sub-clause, easily pinned in the message strings at implementation. Mechanically II is a MUST — recommend the Builder give each error message an explicit next step (e.g. write-error → "check permissions on `<path>`"; no-token → "supply a token via argument, stdin, or GLASSFROG_TOKEN") and add a step-asserting check to the @validation scenarios.
+**P1 → resolved** | CONSTITUTION.md II (Action Transparency, NON-NEGOTIABLE): "every error MUST explain what went wrong **and the next step**"
+→ **interface-cli.md § Error Communication** now pins a concrete next step in every error message (no-token → "supply a token via argument, stdin, or `GLASSFROG_TOKEN`"; write-error → "check write permission on the directory"; format-error → "fix or remove the malformed `.glassfrogrc`"; existing-token → "pass `--overwrite` to replace it"), and uses the canonical `Success`/`UsageError`/`RuntimeError` category names. The token value still never appears. *(PR #12, Copilot review.)*
 
-**P1** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **spec.md § Behavioral Accord > Token input / Existing credentials**, **interface-cli.md § Interactions**, **features/unauthenticated-access/credential-storage.feature**: two user-facing behaviors have **no** acceptance scenario — the non-echoing **interactive prompt** (TTY, no other source) and the **interactive existing-token confirmation** (offering merge + the working-dir/home/both location choice). All 9 behavioral scenarios cover the non-interactive paths.
-*Why P1 not P0*: the primary operator is a non-interactive AI agent and every non-interactive path **is** acceptance-covered; the gap is the interactive (human-at-a-TTY) convenience sub-paths. Mechanically IV is a MUST — recommend either (a) adding godog scenarios that drive the prompt/confirm through the injected `isTTY` seam (T003/T005 already make interactivity injectable), or (b) explicitly deferring interactive-path verification to manual/validate with a noted justification in the spec and tasks. Correlates with analyze K5.
+**P1 → resolved** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
+→ the two previously-uncovered interactive behaviors now have driving scenarios in **spec.md § Driving Scenarios** ("Interactive prompt for a missing token", "Interactive confirmation chooses the write location") and matching `@wip` acceptance scenarios in **features/unauthenticated-access/credential-storage.feature**; the merge scenario now states its interactive (TTY) precondition explicitly. The interactive prompt and the existing-token confirmation (with the cwd/home/both location choice) are acceptance-covered. *(PR #12, Copilot review — correlates with analyze K5, also resolved.)*
 
-### Passed (8/10)
+### Passed (10/10)
 
 **P0** | CONSTITUTION.md II (Action Transparency) — *report what was done + target, never the secret*
-→ **interface-cli.md § Surface/Output**, **spec.md § Behavioral Accord > Writing**: a successful store reports the written path ("Stored credentials in `<path>`") and never the token; the target resource (the file) is always named. The cause clause of every error is present (see finding for the next-step sub-clause).
+→ **interface-cli.md § Surface/Output**, **spec.md § Behavioral Accord > Writing**: a successful store reports the written path ("Stored credentials in `<path>`") and never the token; the target resource (the file) is always named. Every error names both the cause and a next step (resolved during review — see above).
 
 **P0** | CONSTITUTION.md III (Fail Safe, Not Silent): "MUST validate a write before sending … MUST NOT leave [state] partially-applied"; anti-pattern "a failure condition reported as success"
 → **plan.md § ADR-4**, **interface-spec.md § Error Communication**, **feature scenarios**: the existing file is parse-validated before any write (malformed → format error, **no write**); the write is atomic (temp-in-same-dir + `rename`) so a mid-write failure leaves the original/absence intact; an unwritable target reports a write error with the filesystem unchanged. Pinned by "A malformed existing file fails the store loudly" and "An unwritable target fails the store loudly".
 
 **P0** | CONSTITUTION.md IV (TDD): "Features MUST be built test-first (RED → GREEN)"
-→ **tasks.md § T001–T005**: each mandates RED-first unit tests (writer: create/merge/malformed/atomic/perms/round-trip; resolution: precedence/blank/no-token/guard) before implementation, and the 9 **non-interactive** behavioral scenarios exist as `@wip` acceptance before code (T005 makes them executable; the 3 `@validation` scenarios stay held out). *(The interactive-path acceptance gap is the IV finding above.)*
+→ **tasks.md § T001–T005**: each mandates RED-first unit tests (writer: create/merge/malformed/atomic/perms/round-trip; resolution: precedence/blank/no-token/guard) before implementation, and the behavioral scenarios — both non-interactive and interactive (prompt, confirm-and-choose-location) — exist as `@wip` acceptance before code (T005 makes them executable; the 3 `@validation` scenarios stay held out).
 
 **P0** | CONSTITUTION.md V (Composition over Monolith): "modular … adding … MUST NOT require changing unrelated ones"
 → **plan.md § ADR-1/ADR-2**: the writer joins `internal/auth` (file concern), the command is a new guard-registered leaf wired explicitly in `main` (no `init()`); adding it edits no existing command module.

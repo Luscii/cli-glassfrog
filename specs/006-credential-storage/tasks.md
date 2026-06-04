@@ -83,12 +83,12 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
   - **Dependencies**: T003
   - **Plan reference**: Phase 3 — Command wiring; ADR-2 (guard-registered leaf delegating to writer), ADR-5 (outcome categories)
   - **Interface references**: interface-cli.md — Surface (`auth login`, flags), output, Error Communication table
-  - **Scenario references**: credential-storage.feature: all 12 scenarios (command-level behavior)
+  - **Scenario references**: credential-storage.feature: all 14 scenarios (command-level behavior)
 
 - [ ] **T005** [Shared] Executable acceptance — godog step definitions for the 006 scenarios over temp dirs and controlled stdin / TTY / `GLASSFROG_TOKEN`
   - **Scope**: Add godog step definitions for the scenarios in `features/unauthenticated-access/credential-storage.feature` (all three Rule blocks), driving the command/production seam against temp directory trees with a controlled token source (argument, piped stdin, `GLASSFROG_TOKEN`) and a controlled `isTTY` signal, asserting written file contents, reported path, preserved keys, `0600` permissions, the round-trip with the reader, and the no-token-in-output property. Reuse existing 005 step vocabulary for file-state Givens and "naming that file" assertions; reserve new bindings for the write/merge/prompt steps. Remove `@wip` from passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
-    - Every non-`@validation` 006 scenario (arg→home / env-persist / blank-rejected / no-token-non-interactive / overwrite-required / piped→cwd / unwritable / malformed / merge-preserves) has an executable, passing path
+    - Every non-`@validation` 006 scenario (arg→home / env-persist / interactive-prompt / blank-rejected / no-token-non-interactive / overwrite-required / piped→cwd / interactive-location-choice / unwritable / malformed / merge-preserves) has an executable, passing path — interactive paths driven through the injected `isTTY` seam
     - `@wip` removed from those scenarios; the three `@validation` scenarios (round-trip / token-never-in-output / owner-only-readable) keep `@wip`
     - Steps confine all files to temp dirs and control stdin/TTY/`GLASSFROG_TOKEN` without touching the real home directory; the suite asserts no token value appears in captured output
     - New step bindings reuse existing step text where the assertion already exists; `go build ./...`, `go vet ./...`, and the feature suite run clean
