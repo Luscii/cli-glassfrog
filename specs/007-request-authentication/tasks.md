@@ -64,7 +64,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 007 driving scenarios pass as executable acceptance via godog, driving the round-tripper with a fake base transport and a fake resolver
+- [x] **T003** [Shared] Make the 007 driving scenarios pass as executable acceptance via godog, driving the round-tripper with a fake base transport and a fake resolver — 8 behavioral scenarios pass (33 steps); 3 @validation scenarios kept @wip; own godog suite scoped to request-authentication.feature only (per LEARNINGS godog-suite-scoping)
   - **Scope**: Add godog step definitions for `features/unauthenticated-access/request-authentication.feature` (all three Rule blocks), driving the auth round-tripper with a fake base transport (capturing the attached header, whether it was called, and the call count) and a fake resolver supplying canned `Resolution`s and errors. Assert header attachment, base-not-called-on-failure, same identity across calls, resolve-once, active-source reporting, and diagnostic redaction. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 007 scenario (token attached / verbatim / same-identity / resolved-once / missing-credential refusal / broken-credential refusal / active-source reported / diagnostic redaction) has an executable, passing path
