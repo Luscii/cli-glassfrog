@@ -43,14 +43,25 @@ func TestExitCode_DefaultArmIsInternalError(t *testing.T) {
 }
 
 // Change-detector: the exact frozen values. A future renumber breaks loudly
-// here so it can never happen silently (interface-cli.md "Extension").
+// here so it can never happen silently (interface-cli.md "Extension"). The
+// length check plus the comma-ok lookup also catch a code being removed or
+// renamed: without them, dropping "success" would pass silently because a
+// missing key reads back as the zero value 0, which equals its expected code.
 func TestExitCodeConstants_ExactValues(t *testing.T) {
 	want := map[string]int{
 		"success": 0, "internal": 1, "usage": 2, "api": 3,
 		"permission": 4, "rate-limited": 5, "network-unavailable": 6,
 	}
+	if len(publishedCodes) != len(want) {
+		t.Errorf("publishedCodes has %d entries, want %d — a code was added or removed without updating this test", len(publishedCodes), len(want))
+	}
 	for name, w := range want {
-		if got := publishedCodes[name]; got != w {
+		got, ok := publishedCodes[name]
+		if !ok {
+			t.Errorf("code %q is missing from publishedCodes", name)
+			continue
+		}
+		if got != w {
 			t.Errorf("code %q = %d, want %d (frozen convention — a renumber must be deliberate)", name, got, w)
 		}
 	}

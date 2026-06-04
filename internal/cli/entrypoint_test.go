@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -89,6 +90,11 @@ func TestMain_SuccessfulInvocationYieldsZero(t *testing.T) {
 // panic diagnostic synchronously, with no concurrent reader, so a pipe could
 // block and deadlock once a large write filled the OS pipe buffer. A file has
 // no such bound and its descriptor is closed on restore.
+//
+// restore is idempotent (guarded by sync.Once), so calling it more than once —
+// e.g. a `defer restore()` alongside a get() that restores internally — is
+// safe and never double-closes the file. get() stops capturing (it calls
+// restore) before reading, so it returns everything written up to that point.
 func captureStderr(t *testing.T) (func() string, func()) {
 	t.Helper()
 	orig := os.Stderr
@@ -97,9 +103,12 @@ func captureStderr(t *testing.T) (func() string, func()) {
 		t.Fatalf("create temp stderr: %v", err)
 	}
 	os.Stderr = f
+	var once sync.Once
 	restore := func() {
-		os.Stderr = orig
-		f.Close()
+		once.Do(func() {
+			os.Stderr = orig
+			f.Close()
+		})
 	}
 	get := func() string {
 		restore()
