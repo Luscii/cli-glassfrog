@@ -10,7 +10,7 @@ Get a runnable CLI that can authenticate and serve one real read command.
 
 1. **No Runnable CLI** *(Project Foundation)* — nothing can be built or run until the CLI exists as a runnable skeleton with a command framework; hard prerequisite for every other problem. (addressed)
 2. **Unauthenticated Access** *(Client Foundation)* — every command depends on a proven org + person identity; without it nothing reaches the API. (addressed)
-3. **Undefined Connection Settings** *(Client Foundation)* — the CLI must know which token, organization, and base URL to use before any call; pairs with authentication. The token half rides on Token Authentication; the base-URL half (Connection Resolution) is modeled but unbuilt. (in score)
+3. **Undefined Connection Settings** *(Client Foundation)* — the CLI must know which token, organization, and base URL to use before any call; pairs with authentication. The token half rides on Token Authentication; the base URL half (Connection Resolution) is modeled but unbuilt. (in score)
 4. **Self-Service Reads** *(Endpoint Commands)* — the smallest real vertical slice (`/me`, my roles) that exercises the whole chain; the read half of VISION success #2. (in score)
 
 ## Next
