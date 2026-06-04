@@ -193,6 +193,39 @@ func TestWriteCredentials_MultiLineToken_RejectedNoWrite(t *testing.T) {
 	}
 }
 
+// --- WriteCredentials: an unreadable existing target is a *ReadError, no write ---
+
+func TestWriteCredentials_UnreadableExisting_ReadErrorNoWrite(t *testing.T) {
+	// A directory at the credentials path makes os.ReadFile fail deterministically
+	// across platforms and privilege levels with a non-NotExist error (the
+	// project's "directory, not chmod 0o000" convention). No write is attempted,
+	// so the writer must report a *ReadError, not a *WriteError.
+	path := filepath.Join(t.TempDir(), CredentialsFileName)
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatalf("mkdir at credentials path: %v", err)
+	}
+
+	err := WriteCredentials(path, "gf_new_token")
+	if err == nil {
+		t.Fatal("expected a read error for an unreadable existing target, got nil")
+	}
+	var re *ReadError
+	if !errors.As(err, &re) {
+		t.Fatalf("expected *ReadError, got %T: %v", err, err)
+	}
+	var we *WriteError
+	if errors.As(err, &we) {
+		t.Fatalf("a pre-write read failure must not be a *WriteError: %v", err)
+	}
+	if strings.Contains(err.Error(), "gf_new_token") {
+		t.Fatalf("error must not contain the token value: %v", err)
+	}
+	// The directory is still there and is still a directory (nothing written over it).
+	if info, statErr := os.Stat(path); statErr != nil || !info.IsDir() {
+		t.Fatalf("the path must be untouched (still a directory), stat err = %v", statErr)
+	}
+}
+
 // --- WriteCredentials: failed write leaves filesystem unchanged, no temp left ---
 
 func TestWriteCredentials_UnwritableDir_WriteErrorOriginalUnchanged(t *testing.T) {

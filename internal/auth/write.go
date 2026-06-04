@@ -83,6 +83,10 @@ func (e *WriteError) Unwrap() error { return e.cause }
 // ErrTokenNotSingleLine and NO write — a multi-line token would inject extra
 // .glassfrogrc lines/keys.
 //
+// If an existing target cannot be read (e.g. permission denied, or a directory
+// at the path — anything other than "absent"), it returns a *ReadError and does
+// NOT write: no write was attempted, so it is not a *WriteError.
+//
 // The token value never appears in a returned error.
 func WriteCredentials(path, token string) error {
 	// Reject a multi-line token before touching the filesystem: it would inject
@@ -105,7 +109,11 @@ func WriteCredentials(path, token string) error {
 	case errors.Is(readErr, fs.ErrNotExist):
 		existing = nil // absent target: create it
 	default:
-		return &WriteError{Path: path, cause: readErr}
+		// The existing file could not be read (e.g. permission denied, or a
+		// directory at the path). No write was attempted, so this is a read/access
+		// failure, not a *WriteError — return 005's *ReadError so callers can
+		// distinguish it and message accordingly.
+		return &ReadError{Path: path, Err: readErr}
 	}
 
 	merged := mergeTokenLine(existing, token)
