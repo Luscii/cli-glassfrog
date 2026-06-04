@@ -229,6 +229,32 @@ func TestRun_NestedUnknownSubcommand_WritesErrorToStderr(t *testing.T) {
 	}
 }
 
+// A resolved command that returns a *commandUsageError is classified
+// UsageError (the invocation, not the action's execution, is at fault), so
+// Exit-Code Convention maps it to code 2 — distinct from a plain action error
+// (RuntimeError → 1). This is the seam Credential Storage (006) uses for
+// "no token to store" and "existing credential, no --overwrite".
+func TestRun_CommandUsageError_IsUsageErrorCategory(t *testing.T) {
+	root := NewRootCommand()
+	MustRegister(root, &cobra.Command{
+		Use:           "needsinput",
+		Short:         "the needsinput command",
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(*cobra.Command, []string) error {
+			return &commandUsageError{errors.New("nothing supplied")}
+		},
+	})
+	outcome, err := runQuiet(root, "needsinput")
+	if outcome != UsageError {
+		t.Fatalf("command usage error: outcome = %v, want UsageError", outcome)
+	}
+	if err == nil || !strings.Contains(err.Error(), "nothing supplied") {
+		t.Fatalf("the underlying message should travel via the error, got: %v", err)
+	}
+}
+
 func TestOutcome_String_RuntimeError(t *testing.T) {
 	if got := RuntimeError.String(); got != "RuntimeError" {
 		t.Fatalf("RuntimeError.String() = %q, want %q", got, "RuntimeError")

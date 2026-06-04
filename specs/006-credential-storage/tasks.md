@@ -28,7 +28,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 1: Writer in `internal/auth` [Shared]
 
-- [ ] **T001** [Shared] Add `writeCredentials(path, token)` to `internal/auth` — line-preserving merge, atomic write, owner-only permissions — with RED-first unit tests including a round-trip against the reader
+- [x] **T001** [Shared] Add `writeCredentials(path, token)` to `internal/auth` — line-preserving merge, atomic write, owner-only permissions — with RED-first unit tests including a round-trip against the reader — 12 unit tests; created shared format module (reader+constants) to 005's contract since 005 unimplemented; exported as `auth.WriteCredentials`/`auth.ReadCredentialsFile` (cross-package use in T004)
   - **Scope**: Add `writeCredentials(path, token) → error` to `internal/auth`. Parse-validate any existing file via the shared `readCredentialsFile` (a malformed non-comment line without `=` → format error, **no write**). On success, rewrite at the line level: replace the value on the existing `token=` line, or append a `token=` line if absent, preserving every other line and comment and their order; an absent target file is created. Serialize to a temp file **in the same directory**, `chmod 0600` before writing token bytes, then `rename` over the target (atomic; failure leaves the original/absence intact). If `internal/auth` and the shared reader/constants do not yet exist (005 not yet implemented), create them to 005's `interface-spec.md` contract. The token value never appears in any error or log.
   - **Acceptance criteria**:
     - Writing to an absent path creates `.glassfrogrc` with a `token=` line and `0600` permissions
@@ -45,7 +45,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 2: Token-source resolution & interactivity [Shared]
 
-- [ ] **T002** [Shared] Pure token-source precedence, blank rejection, target-path selection, and the existing-token guard — RED-first unit tests with injected sources
+- [x] **T002** [Shared] Pure token-source precedence, blank rejection, target-path selection, and the existing-token guard — RED-first unit tests with injected sources — resolveTokenSource/usableToken/targetPath/existingTokenGuard in authlogin.go; table-driven hermetic unit tests
   - **Scope**: Add pure logic (injected sources, no real `os` reads): `resolveToken` choosing a single token in precedence order argument → piped stdin → `GLASSFROG_TOKEN` → prompt-marker, rejecting empty/whitespace-only values as unusable, and signalling the non-interactive-no-token case. Add target-path selection from injected `startDir`/`homeDir` (home default; current-directory file when `--cwd`). Add the existing-token guard: non-interactive with an existing token → error unless an overwrite signal is set; interactive → confirm/choose-location decision surfaced to the caller. All branches decided from injected inputs (`isTTY` flag, source set), returning a code-free outcome category (`UsageError` for no-token / no-override / blank; success otherwise) for 004 to map.
   - **Acceptance criteria**:
     - Precedence: argument beats piped stdin beats `GLASSFROG_TOKEN` beats prompt; first present wins
@@ -59,7 +59,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
   - **Interface references**: interface-cli.md — token-source precedence, existing-stored-token rules, Error Communication table
   - **Scenario references**: credential-storage.feature: "A token argument is stored to the home file", "A token in the environment is persisted", "A blank token is rejected", "A non-interactive store with no token is reported", "A non-interactive overwrite requires the overwrite flag"
 
-- [ ] **T003** [Shared] Production input seam — bind real stdin / TTY detection / env / directories and the non-echoing prompt
+- [x] **T003** [Shared] Production input seam — bind real stdin / TTY detection / env / directories and the non-echoing prompt — loginSeam/productionSeam + ttyInteractor (term.ReadPassword); pure gatherInputsFrom unit-tested; added golang.org/x/term
   - **Scope**: Add the thin production seam that supplies real values to T002's pure logic: read piped stdin, detect whether stdin is a terminal, read `GLASSFROG_TOKEN`, resolve `os.Getwd`/`os.UserHomeDir`, and implement the non-echoing interactive prompt (no characters echoed; the prompt requests the token only when stdin is a TTY and no other source supplied one). The seam is the only place that reads these globals. The token read from stdin/prompt is never echoed or logged.
   - **Acceptance criteria**:
     - Piped stdin is read as the token without prompting; a TTY with no other source triggers the non-echoing prompt; a non-TTY with no source does not prompt
@@ -73,7 +73,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 3: Command wiring & executable acceptance [Shared]
 
-- [ ] **T004** [Shared] Register the `auth` group and `auth login` leaf via the guard, wire in main, classify outcomes — delegating the write to `internal/auth`
+- [x] **T004** [Shared] Register the `auth` group and `auth login` leaf via the guard, wire in main, classify outcomes — delegating the write to `internal/auth` — runLogin + newAuthCommand/newAuthLoginCommand, wired in Assemble; added `commandUsageError` dispatch seam so a command can emit UsageError (→2) vs RuntimeError (→1), pinned by a dispatch test; noted in LEARNINGS
   - **Scope**: Add the `auth` command group (non-runnable, non-empty `Short`) and the `auth login [TOKEN]` leaf (`Args: cobra.MaximumNArgs(1)`, non-empty `Short`, flags `--cwd` and `--overwrite`), registered through the `MustRegister` guard and wired explicitly in `main` (no `init()`). The leaf composes T003's seam → T002's resolution/guard → T001's writer, classifies the outcome into the existing `Outcome` categories (no `os.Exit`, no new codes — 004 maps), writes the success line naming the path (never the token) to stdout, and write/format/usage errors to stderr.
   - **Acceptance criteria**:
     - `glassfrog auth login` resolves; `auth` is a non-runnable group with a summary; the leaf accepts at most one positional and rejects extras as a usage error
@@ -85,7 +85,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
   - **Interface references**: interface-cli.md — Surface (`auth login`, flags), output, Error Communication table
   - **Scenario references**: credential-storage.feature: all 14 scenarios (command-level behavior)
 
-- [ ] **T005** [Shared] Executable acceptance — godog step definitions for the 006 scenarios over temp dirs and controlled stdin / TTY / `GLASSFROG_TOKEN`
+- [x] **T005** [Shared] Executable acceptance — godog step definitions for the 006 scenarios over temp dirs and controlled stdin / TTY / `GLASSFROG_TOKEN` — 12 behavioral scenarios passing (credstorage_bdd_test.go); @wip removed from those, 3 @validation scenarios held out; hermetic (temp dirs, perms restored, real home untouched); reused T004 fakeSeam/fakeInteractor
   - **Scope**: Add godog step definitions for the scenarios in `features/unauthenticated-access/credential-storage.feature` (all three Rule blocks), driving the command/production seam against temp directory trees with a controlled token source (argument, piped stdin, `GLASSFROG_TOKEN`) and a controlled `isTTY` signal, asserting written file contents, reported path, preserved keys, `0600` permissions, the round-trip with the reader, and the no-token-in-output property. Reuse existing 005 step vocabulary for file-state Givens and "naming that file" assertions; reserve new bindings for the write/merge/prompt steps. Remove `@wip` from passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 006 scenario (arg→home / env-persist / interactive-prompt / blank-rejected / no-token-non-interactive / overwrite-required / piped→cwd / interactive-location-choice / unwritable / malformed / merge-preserves) has an executable, passing path — interactive paths driven through the injected `isTTY` seam

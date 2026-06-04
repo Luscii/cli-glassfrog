@@ -80,7 +80,19 @@ func readCredentialsFile(path string) (token string, found bool, err error) {
 	if err != nil {
 		return "", false, &ReadError{Path: path, Err: err}
 	}
+	return parseCredentials(path, data)
+}
 
+// parseCredentials applies the .glassfrogrc structural contract to data already
+// read from path, returning the token under the "token" key. It is the shared
+// parse step: readCredentialsFile feeds it bytes from disk, and Credential
+// Storage's writer feeds it the same bytes it is about to merge — so validation
+// and merge operate on one snapshot and cannot diverge under a concurrent edit
+// (no re-read TOCTOU). path is used only for error messages, never the contents.
+//
+// It performs no I/O, so the only error it can return is a *FormatError (a
+// non-blank, non-comment line without '='); a *ReadError is the reader's concern.
+func parseCredentials(path string, data []byte) (token string, found bool, err error) {
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
