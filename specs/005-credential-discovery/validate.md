@@ -100,7 +100,7 @@ These were held out from the Builder. Traced independently against the code; the
 | Scenario | Status | Trace |
 |---|---|---|
 | Resolution is deterministic | ✓ Satisfied | `resolve` has no randomness/time; `candidateDirs` returns an ordered slice (the `seen` map is membership-only, iteration is over the ordered slice). Same env + filesystem → same candidate order → same first-usable result from the same source. |
-| The token value never appears in produced output | ✓ Satisfied | Discovery prints nothing. `FormatError` carries no file content; `ReadError` wraps an `os` error (path, not token). The only token-bearing field is `Resolution.Token`, documented as never rendered. Unit tests pin token absence in both error types (`credentials_test.go:112`, `resolve_test.go:212`). |
+| The token value never appears in produced output | ✓ Satisfied | Discovery prints nothing. `FormatError` carries no file content; `ReadError` wraps an `os` error (path, not token). The only token-bearing field is `Resolution.Token`, documented as never rendered — and `Resolution.String()` redacts it, so `%v`/`%+v`/`%s` formatting cannot leak it either. Unit tests pin token absence on the format-error path (`TestReadCredentialsFile_MalformedLineIsFormatError`) and the redacted formatting (`TestResolution_StringRedactsToken`). |
 | Discovery performs no writes | ✓ Satisfied | Only `os.ReadFile` is used across both production files; no create/modify/mkdir call exists. |
 
 ---

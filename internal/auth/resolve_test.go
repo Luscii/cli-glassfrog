@@ -2,8 +2,10 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +37,34 @@ func seedToken(t *testing.T, dir, val string) string {
 		t.Fatalf("seeding %s: %v", path, err)
 	}
 	return path
+}
+
+func TestResolution_StringRedactsToken(t *testing.T) {
+	secret := "gf_super_secret_value"
+	r := Resolution{Token: secret, Source: SourceFile, Path: "/home/u/.glassfrogrc"}
+
+	// The common formatting verbs route through String() and must not leak.
+	for _, format := range []string{"%v", "%+v", "%s"} {
+		if out := fmt.Sprintf(format, r); strings.Contains(out, secret) {
+			t.Errorf("Sprintf(%q, Resolution) leaked the token: %s", format, out)
+		}
+	}
+
+	out := r.String()
+	if strings.Contains(out, secret) {
+		t.Errorf("String() leaked the token: %s", out)
+	}
+	if !strings.Contains(out, "file") || !strings.Contains(out, "/home/u/.glassfrogrc") {
+		t.Errorf("String() should keep the safe-to-display Source and Path: %s", out)
+	}
+	if !strings.Contains(out, "<redacted>") {
+		t.Errorf("String() should mark a present token as redacted: %s", out)
+	}
+
+	// A tokenless resolution shows <none>, not <redacted>.
+	if none := (Resolution{Source: SourceNone}).String(); !strings.Contains(none, "<none>") || strings.Contains(none, "<redacted>") {
+		t.Errorf("a tokenless Resolution should render <none>: %s", none)
+	}
 }
 
 func TestResolve_EnvFirstShortCircuitsFiles(t *testing.T) {

@@ -31,11 +31,26 @@ func (s Source) String() string {
 
 // Resolution is Credential Discovery's code-free output, consumed by Request
 // Authentication (007). Source and Path are safe to display; Token is a secret
-// and must never be rendered, logged, or placed in an error.
+// and must never be rendered, logged, or placed in an error. Its String method
+// redacts Token so accidental formatting (e.g. fmt.Errorf("%+v", res) in tests
+// or future logging) cannot leak the credential; read the value through the
+// Token field, never through formatting.
 type Resolution struct {
 	Token  string // the resolved credential; set only when Source is Environment or File
 	Source Source
 	Path   string // the file the token was read from, when Source is File; empty otherwise
+}
+
+// String renders a Resolution with the Token redacted, so the common formatting
+// verbs (%v, %s, %+v) cannot leak the secret. Source and Path — the safe-to-
+// display parts — are shown in full. The token is reported as present-but-hidden
+// or absent, never verbatim.
+func (r Resolution) String() string {
+	token := "<none>"
+	if r.Token != "" {
+		token = "<redacted>"
+	}
+	return fmt.Sprintf("Resolution{Source: %s, Path: %q, Token: %s}", r.Source, r.Path, token)
 }
 
 // Production seam: the only places the package reads process/OS globals. They
