@@ -33,6 +33,13 @@ type AuthTransport struct {
 // injected resolver. Production binds Credential Discovery's resolver
 // (auth.Resolve); tests bind a fake. 007 never resolves credentials itself
 // (ADR-3) — the resolver is the only source of the token.
+//
+// Both base and resolve are required and must be non-nil; a nil argument is a
+// wiring error and RoundTrip will panic. This is deliberate fail-fast: the
+// transport must not substitute a default base (e.g. http.DefaultTransport),
+// because Connection Configuration — not 007 — owns the HTTP transport, its base
+// URL, and its timeouts (spec § Non-Behaviors; ADR-1). Silently defaulting would
+// also degrade quietly where the spec requires failing loud (CONSTITUTION III).
 func NewAuthTransport(base http.RoundTripper, resolve func() (auth.Resolution, error)) *AuthTransport {
 	return &AuthTransport{base: base, resolve: resolve}
 }
