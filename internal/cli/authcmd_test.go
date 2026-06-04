@@ -359,9 +359,14 @@ func TestAuthLogin_ExtraPositional_UsageError(t *testing.T) {
 		t.Fatalf("a second positional must be a usage error, got %v", outcome)
 	}
 	// Arg validation runs before RunE; with SilenceErrors the operator would
-	// otherwise get a silent exit 2. The command's Args func must emit a cause.
+	// otherwise get a silent exit 2. Dispatch must emit the cause — exactly once
+	// (it re-checks Args to classify, so a side-effecting validator would
+	// double-print).
 	if !strings.Contains(output, "accepts at most 1 arg") || !strings.Contains(output, "--help") {
 		t.Fatalf("a rejected positional must produce operator-facing output, got %q", output)
+	}
+	if n := strings.Count(output, "accepts at most 1 arg"); n != 1 {
+		t.Fatalf("the arg-validation error must be printed exactly once, got %d times: %q", n, output)
 	}
 }
 

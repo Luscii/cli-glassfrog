@@ -152,17 +152,11 @@ func newAuthLoginCommand(seam loginSeam) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login [TOKEN]",
 		Short: "Store an API token to the credentials file",
-		// SilenceErrors silences cobra's own dump, but arg-validation runs before
-		// RunE — so a rejected positional would otherwise exit 2 with no message.
-		// Print the validation error and a --help hint here (the same shape
-		// dispatch uses for unknown commands) so the operator always sees a cause.
-		Args: func(cmd *cobra.Command, args []string) error {
-			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", err, cmd.CommandPath())
-				return err
-			}
-			return nil
-		},
+		// Args stays side-effect-free: dispatch re-checks it to classify a
+		// rejection, so printing here would double-print. SilenceErrors means
+		// cobra emits nothing on an arg rejection; dispatch surfaces the cause to
+		// stderr for any SilenceErrors command (see dispatch.Run).
+		Args:          cobra.MaximumNArgs(1),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {

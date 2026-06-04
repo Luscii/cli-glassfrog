@@ -149,6 +149,15 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 		// positional args: a non-nil result means the command refused an
 		// unexpected argument (a usage error — the action never ran).
 		if err != nil && executed != nil && executed.ValidateArgs(executed.Flags().Args()) != nil {
+			// The command's Args validator rejected the input before the action
+			// ran. A command that silenced cobra's own error output (SilenceErrors)
+			// printed nothing — surface the cause here so the operator isn't left
+			// with a bare exit code. Commands that let cobra print keep their
+			// default output, so this never double-prints. The Args validator is
+			// side-effect-free, so re-checking it above is safe.
+			if executed.SilenceErrors {
+				fmt.Fprintf(executed.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", err, executed.CommandPath())
+			}
 			return UsageError, err
 		}
 		// The validator passed. A resolved action may still classify its own
