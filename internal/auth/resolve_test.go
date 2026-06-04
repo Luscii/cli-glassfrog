@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -206,12 +205,15 @@ func TestResolve_UnreadableFileFailsLoud(t *testing.T) {
 	start := t.TempDir()
 	home := t.TempDir()
 	seedToken(t, home, "gf_home_token") // a usable source exists further along
+	// A directory at the .glassfrogrc path makes os.ReadFile fail
+	// deterministically across platforms (and as root) — a path-only
+	// PathError, not os.ErrNotExist — exercising the fail-loud branch without
+	// 0o000 permission semantics that vary by OS / privilege. os.ReadFile
+	// never reads content into its error, so the read path cannot leak a
+	// token; content-leak hygiene is covered by the format-error test.
 	bad := filepath.Join(start, credentialsFileName)
-	if err := os.WriteFile(bad, []byte("token=gf_secret"), 0o000); err != nil {
+	if err := os.Mkdir(bad, 0o755); err != nil {
 		t.Fatal(err)
-	}
-	if _, err := os.ReadFile(bad); err == nil {
-		t.Skip("file is readable despite mode 0000 (running as root?) — cannot exercise the unreadable path")
 	}
 
 	_, err := resolve(start, home)
@@ -222,11 +224,11 @@ func TestResolve_UnreadableFileFailsLoud(t *testing.T) {
 	if !errors.As(err, &re) {
 		t.Fatalf("expected *ReadError, got %T: %v", err, err)
 	}
+	if errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a directory at the path must not be reported as absence: %v", err)
+	}
 	if re.Path != bad {
 		t.Errorf("ReadError.Path = %q, want %q", re.Path, bad)
-	}
-	if strings.Contains(err.Error(), "gf_secret") {
-		t.Errorf("read error leaked the token value: %q", err.Error())
 	}
 }
 

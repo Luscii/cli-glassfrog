@@ -217,15 +217,13 @@ func (w *authWorld) givenHomeIsAncestor() error {
 }
 
 func (w *authWorld) givenNearestUnreadable() error {
-	path, err := w.seed(w.currDir, "token=gf_unreadable_secret\n", 0o000)
-	if err != nil {
+	// Create a directory at the .glassfrogrc path. os.ReadFile fails on a
+	// directory deterministically across platforms (and as root), so this
+	// exercises the resolver's fail-loud ReadError branch without relying on
+	// 0o000 permission semantics that vary by OS / privilege.
+	path := filepath.Join(w.currDir, credentialsFileName)
+	if _, err := w.mkdir(path); err != nil {
 		return err
-	}
-	// If the file is still readable (e.g. the suite runs as root), the
-	// fail-loud path cannot be exercised — surface that rather than pass a
-	// scenario that did not test what it claims.
-	if _, err := os.ReadFile(path); err == nil {
-		return fmt.Errorf("cannot make %s unreadable (running as root?) — unreadable scenario not exercised", path)
 	}
 	w.currPath = path
 	return nil
