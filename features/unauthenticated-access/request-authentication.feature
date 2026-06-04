@@ -13,7 +13,6 @@ Feature: Unauthenticated Access — Request Authentication
     # I want the CLI to attach my resolved identity to every API call automatically.
 
     # Source: 007-request-authentication — Scenario: Resolved token is attached to the outgoing call
-    @wip
     Scenario: The resolved token is attached to the request
       Given Credential Discovery resolved the token "gf_resolved_token" from a source
       When the CLI sends an API request
@@ -21,7 +20,6 @@ Feature: Unauthenticated Access — Request Authentication
       And the request will be sent to the API
 
     # Source: 007-request-authentication — Scenario: Token is attached verbatim
-    @wip
     Scenario: The token is attached verbatim
       Given Credential Discovery resolved a token containing unusual characters
       When the CLI sends an API request
@@ -29,14 +27,12 @@ Feature: Unauthenticated Access — Request Authentication
       And no characters will be added, removed, or re-encoded
 
     # Source: 007-request-authentication — Scenario: The same identity applies across multiple calls in one invocation
-    @wip
     Scenario: Every request in an invocation carries the same identity
       Given Credential Discovery resolved the token "gf_resolved_token"
       When the CLI sends more than one API request in a single invocation
       Then every request will carry the same "X-Auth-Token" identity
 
     # Source: 007-request-authentication — Proposed: The credential is resolved once per invocation (plan: resolve-once cache)
-    @wip
     Scenario: The credential is resolved once per invocation
       Given Credential Discovery was available as the credential source
       When the CLI sends more than one API request in a single invocation
@@ -57,7 +53,6 @@ Feature: Unauthenticated Access — Request Authentication
     # I want the CLI to refuse to reach the API when no credential is available, and tell me why.
 
     # Source: 007-request-authentication — Scenario: No credentials — refuse to call
-    @wip
     Scenario: A missing credential refuses the call
       Given Credential Discovery reported that no credentials were found
       When the CLI prepares an API request
@@ -65,7 +60,6 @@ Feature: Unauthenticated Access — Request Authentication
       And the CLI will report that it cannot authenticate because no credentials were found
 
     # Source: 007-request-authentication — Scenario: Credential error — refuse to call and name the cause
-    @wip
     Scenario: A broken credential fails loudly without sending
       Given a ".glassfrogrc" existed but could not be read or parsed
       And Credential Discovery reported a credential error naming that file
@@ -88,7 +82,6 @@ Feature: Unauthenticated Access — Request Authentication
     # I want the CLI to report the credential source used — never the secret itself.
 
     # Source: 007-request-authentication — Scenario: Active identity source is reported without exposing the secret
-    @wip
     Scenario: The active identity source is reported without the secret
       Given Credential Discovery resolved a token from the file "/home/dev/.glassfrogrc"
       When the CLI authenticates an API request
@@ -96,7 +89,6 @@ Feature: Unauthenticated Access — Request Authentication
       And the token value will not appear in the output
 
     # Source: 007-request-authentication — Scenario: Token is redacted from request diagnostics
-    @wip
     Scenario: The token is redacted from request diagnostics
       Given request diagnostics were enabled
       And Credential Discovery resolved a token

@@ -30,7 +30,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Auth outcome model [Shared]
 
-- [ ] **T001** [Shared] Create the API-client package and the typed `AuthError` + pure resolution-to-outcome mapping, with RED-first unit tests
+- [x] **T001** [Shared] Create the API-client package and the typed `AuthError` + pure resolution-to-outcome mapping, with RED-first unit tests — 7 unit tests (3 branches + secret-hygiene + Kind-distinct + header constant); created `internal/apiclient` (007 lands first, ADR-2)
   - **Scope**: New API-client package (`internal/apiclient` proposed — `[ASSUMED]`, reconcile with Connection Configuration). Define `AuthError` carrying a `Kind` (`NoCredentials` or `CredentialError`); `CredentialError` wraps Discovery's underlying read/format error (unwrappable via `errors.As`/`Unwrap`). Add the pure mapping `authorize(res auth.Resolution, err error) → (token string, authErr *AuthError)`: `err != nil` → `CredentialError` wrapping it; `Source == None` → `NoCredentials`; `Source ∈ {Environment, File}` → return `Token`. Centralize the `X-Auth-Token` header name as a constant. No `net/http`, no command, no `os.Exit` yet. Consumes `internal/auth.Resolution` (005).
   - **Acceptance criteria**:
     - `authorize` returns the token with no `AuthError` for `Source` `Environment` and `File`
@@ -47,7 +47,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Auth round-tripper [Shared]
 
-- [ ] **T002** [Shared] Implement the `http.RoundTripper` that authenticates outgoing requests (resolve-once, attach-or-refuse), with RED-first unit tests over a fake base transport
+- [x] **T002** [Shared] Implement the `http.RoundTripper` that authenticates outgoing requests (resolve-once, attach-or-refuse), with RED-first unit tests over a fake base transport — 8 unit tests; `AuthTransport` clones the request before setting the header (net/http convention), resolve-once via `sync.Once`, `ActiveIdentity` exposes Source/Path
   - **Scope**: Add the auth round-tripper wrapping a base `http.RoundTripper` with an injected `func() (auth.Resolution, error)`, plus its constructor. Resolve once per invocation (cache the outcome). Per `RoundTrip`: resolver error → return `CredentialError` (base **not** called); `Source: None` → return `NoCredentials` (base **not** called); usable token → `req.Header.Set("X-Auth-Token", token)` verbatim, then delegate to the base transport and return its result unchanged. Expose `Source`/`Path` as the reportable active identity (never the token). No exit code, no `os.Exit`, no command surface. The composition seam with Connection Configuration is `[ASSUMED]`.
   - **Acceptance criteria**:
     - On a resolved token, `RoundTrip` sets `X-Auth-Token` to the token verbatim and delegates to the base transport, returning its response/error unchanged
@@ -64,7 +64,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 007 driving scenarios pass as executable acceptance via godog, driving the round-tripper with a fake base transport and a fake resolver
+- [x] **T003** [Shared] Make the 007 driving scenarios pass as executable acceptance via godog, driving the round-tripper with a fake base transport and a fake resolver — 8 behavioral scenarios pass (33 steps); 3 @validation scenarios kept @wip; own godog suite scoped to request-authentication.feature only (per LEARNINGS godog-suite-scoping)
   - **Scope**: Add godog step definitions for `features/unauthenticated-access/request-authentication.feature` (all three Rule blocks), driving the auth round-tripper with a fake base transport (capturing the attached header, whether it was called, and the call count) and a fake resolver supplying canned `Resolution`s and errors. Assert header attachment, base-not-called-on-failure, same identity across calls, resolve-once, active-source reporting, and diagnostic redaction. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 007 scenario (token attached / verbatim / same-identity / resolved-once / missing-credential refusal / broken-credential refusal / active-source reported / diagnostic redaction) has an executable, passing path
