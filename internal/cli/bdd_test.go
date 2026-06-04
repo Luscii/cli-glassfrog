@@ -20,7 +20,8 @@ import (
 // The path is scoped to this package's own feature file rather than the whole
 // features/ directory: each package's godog suite owns the feature(s) whose
 // steps it defines (the cli command tree here; Credential Discovery's
-// unauthenticated-access.feature is owned by internal/auth). Globbing the
+// unauthenticated-access/credential-discovery.feature is owned by
+// internal/auth). Globbing the
 // directory would make this suite try to run another package's scenarios with
 // no matching step definitions.
 func TestFeatures(t *testing.T) {

@@ -4,7 +4,7 @@
 **Round**: 1 of 3
 **Date**: 2026-06-04
 **Verdict**: Ready
-**Artifacts loaded**: spec.md, plan.md (§ System Architecture), tasks.md (3 of 3 tasks complete), interface-spec.md, features/unauthenticated-access.feature, PROJECT.md
+**Artifacts loaded**: spec.md, plan.md (§ System Architecture), tasks.md (3 of 3 tasks complete), interface-spec.md, features/unauthenticated-access/credential-discovery.feature, PROJECT.md
 **Implementation files**: 2 production files in `internal/auth/` (`credentials.go`, `resolve.go`) + 3 test files (`credentials_test.go`, `resolve_test.go`, `bdd_test.go`)
 
 ---
@@ -87,7 +87,7 @@ Direct inspection of the production files (`credentials.go`, `resolve.go`) confi
 
 **Status**: Pass
 
-The only remaining `@wip` tags are on the 3 `@validation` scenarios (`unauthenticated-access.feature:57,64,71`). T003 (checked) explicitly keeps these held out and removed `@wip` from the 10 behavioral scenarios it implemented. No scenario referenced by a checked task for implementation still carries `@wip`.
+The only remaining `@wip` tags are on the 3 `@validation` scenarios (`unauthenticated-access/credential-discovery.feature:57,64,71`). T003 (checked) explicitly keeps these held out and removed `@wip` from the 10 behavioral scenarios it implemented. No scenario referenced by a checked task for implementation still carries `@wip`.
 
 ---
 

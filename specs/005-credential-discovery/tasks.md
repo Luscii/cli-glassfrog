@@ -2,7 +2,7 @@
 
 **Feature**: 005-credential-discovery
 **Concretization**: Full context (plan + spec + interface + scenarios)
-**Inputs**: plan.md, spec.md, interface-spec.md, features/unauthenticated-access.feature
+**Inputs**: plan.md, spec.md, interface-spec.md, features/unauthenticated-access/credential-discovery.feature
 
 ---
 
@@ -51,13 +51,13 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
   - **Dependencies**: T001
   - **Plan reference**: Phase 2 — Resolver + precedence; ADR-2 (order), ADR-4 (Resolution), ADR-5 (injected roots)
   - **Interface references**: interface-spec.md — resolution precedence, `Resolution` output contract, Error Communication table
-  - **Scenario references**: unauthenticated-access.feature: "The environment token overrides a stored file", "An empty environment variable is ignored", "The nearest credentials file wins over the home file", "The search ascends to an ancestor's credentials file", "A home file on the ascent path is read once", "The home file is used when no project file exists", "A tokenless file is skipped for the next source", "No credentials anywhere is reported as absence", "An unreadable credentials file fails loudly", "A malformed credentials file fails loudly"
+  - **Scenario references**: unauthenticated-access/credential-discovery.feature: "The environment token overrides a stored file", "An empty environment variable is ignored", "The nearest credentials file wins over the home file", "The search ascends to an ancestor's credentials file", "A home file on the ascent path is read once", "The home file is used when no project file exists", "A tokenless file is skipped for the next source", "No credentials anywhere is reported as absence", "An unreadable credentials file fails loudly", "A malformed credentials file fails loudly"
   - **Risk**: ⚠️ Walk-up + home-dedupe correctness (double-read / root off-by-one) and test hermeticity — build an explicit de-duplicated candidate list and exercise the home-on-path and root-reached cases over temp dirs; never touch the real home directory.
 
 ## Phase 3: Executable acceptance [Shared]
 
 - [x] **T003** [Shared] Make the 005 driving scenarios pass as executable acceptance via godog, exercising the production seam over temp dirs and a controlled `GLASSFROG_TOKEN` — new `internal/auth` godog suite, 10 behavioral scenarios pass / 3 `@validation` held @wip; scoped the `cli` suite to its own feature file (noted in LEARNINGS)
-  - **Scope**: Add godog step definitions for the Credential Discovery scenarios in `features/unauthenticated-access.feature` (all three Rule blocks), driving the production seam against temp directory trees and a set/unset `GLASSFROG_TOKEN`, asserting the resolved `(Token, Source, Path)` or the typed read/format error. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
+  - **Scope**: Add godog step definitions for the Credential Discovery scenarios in `features/unauthenticated-access/credential-discovery.feature` (all three Rule blocks), driving the production seam against temp directory trees and a set/unset `GLASSFROG_TOKEN`, asserting the resolved `(Token, Source, Path)` or the typed read/format error. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 005 scenario (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) has an executable, passing path
     - `@wip` removed from those scenarios; the three `@validation` scenarios (deterministic / token-never-in-output / no-writes) keep `@wip`
@@ -65,5 +65,5 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
     - `go build ./...`, `go vet ./...`, and the feature suite run clean
   - **Dependencies**: T002
   - **Plan reference**: Phase 3 — Executable acceptance; Cross-cutting Concerns (testing strategy)
-  - **Scenario references**: unauthenticated-access.feature: all 005 Rule-block scenarios
+  - **Scenario references**: unauthenticated-access/credential-discovery.feature: all 005 Rule-block scenarios
   - **Risk**: ⚠️ Test isolation — environment-variable and CWD/home manipulation must be hermetic and not leak between scenarios; restore/override per scenario and confine all files to temp dirs.

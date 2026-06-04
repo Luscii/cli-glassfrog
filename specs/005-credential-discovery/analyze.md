@@ -1,10 +1,10 @@
 # Analyze: Credential Discovery
 
 **Feature**: 005-credential-discovery
-**Artifacts analyzed**: spec.md, plan.md, interface-spec.md, features/unauthenticated-access.feature, tasks.md
+**Artifacts analyzed**: spec.md, plan.md, interface-spec.md, features/unauthenticated-access/credential-discovery.feature, tasks.md
 **Checklist context**: loaded — 8/8 pass, 0 failures
 **Checks**: 16 (16 pass, 0 fail)
-**Generated**: 2026-06-03
+**Generated**: 2026-06-03 (re-validated 2026-06-04 after the scenarios migration relocated the feature file to `features/unauthenticated-access/credential-discovery.feature` — findings unchanged; tasks.md scenario references re-checked against the new path)
 
 ---
 
@@ -34,7 +34,7 @@ None.
 - **C3** spec § Non-Behaviors ↔ plan — the plan architects none of the excluded concerns: no file writing (deferred to 006), no header attachment or API call (007), no exit codes (Exit-Code Convention), no token printing, no prompting, no multi-profile, no `--token` flag. "What This Plan Does Not Cover" mirrors them.
 - **C4** plan § Architecture Decisions ↔ interface-spec § Surface — the accord reflects ADR-2 (env-first precedence), ADR-3 (`.glassfrogrc` `key=value`/`token` format), and ADR-4 (`Resolution{Token, Source, Path}`); the `[ASSUMED]` markers match the plan.
 - **C5** plan § System Architecture ↔ tasks § Scope — T001 (reader), T002 (resolver + seam), T003 (acceptance) map to the plan's three phases; no task builds anything the plan omits.
-- **C6** interface-spec ↔ unauthenticated-access.feature steps — every scenario step references only surfaces the accord defines (`GLASSFROG_TOKEN`, `.glassfrogrc`, the `token` value, the reported source/path, read and format errors).
+- **C6** interface-spec ↔ unauthenticated-access/credential-discovery.feature steps — every scenario step references only surfaces the accord defines (`GLASSFROG_TOKEN`, `.glassfrogrc`, the `token` value, the reported source/path, read and format errors).
 
 ## Completeness: 6/6 passed
 
@@ -72,6 +72,6 @@ No overlapping severity findings — checklist had 0 failures. The checklist's `
 
 ## Governance Notes
 
-- **All 16 base checks ran** — full artifact set present (spec, plan, 1 interface, the dedicated `unauthenticated-access.feature`, tasks). No checks skipped for missing artifacts.
-- **Interface/scenario checks scaled** across the single interface file and the 13 scenarios in `unauthenticated-access.feature`.
+- **All 16 base checks ran** — full artifact set present (spec, plan, 1 interface, the dedicated `unauthenticated-access/credential-discovery.feature`, tasks). No checks skipped for missing artifacts.
+- **Interface/scenario checks scaled** across the single interface file and the 13 scenarios in `unauthenticated-access/credential-discovery.feature`.
 - **Checklist context**: loaded and parsed (8/8 pass).

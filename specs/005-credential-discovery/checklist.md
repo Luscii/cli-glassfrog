@@ -2,9 +2,9 @@
 
 **Feature**: 005-credential-discovery
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
-**Artifacts checked**: spec.md, plan.md, interface-spec.md, features/unauthenticated-access.feature, tasks.md
+**Artifacts checked**: spec.md, plan.md, interface-spec.md, features/unauthenticated-access/credential-discovery.feature, tasks.md
 **Checks**: 8 (8 pass, 0 fail)
-**Generated**: 2026-06-03
+**Generated**: 2026-06-03 (re-validated 2026-06-04 after the scenarios migration relocated the feature file to `features/unauthenticated-access/credential-discovery.feature` — findings unchanged)
 
 ---
 
@@ -25,13 +25,13 @@ None.
 ### Passed (8/8)
 
 **P0** | CONSTITUTION.md III (Fail Safe, Not Silent): "Errors MUST be obvious and recoverable, never hidden" / anti-pattern "swallowing errors … a failure condition reported as success"
-→ **spec.md § Behavioral Accord > Error handling**, **interface-spec.md § Error Communication**, **features/unauthenticated-access.feature**: an unreadable or unparseable `.glassfrogrc` returns a typed error naming the path — never a silent fall-through and never reported as "no credentials found". Pinned by scenarios "An unreadable credentials file fails loudly" and "A malformed credentials file fails loudly".
+→ **spec.md § Behavioral Accord > Error handling**, **interface-spec.md § Error Communication**, **features/unauthenticated-access/credential-discovery.feature**: an unreadable or unparseable `.glassfrogrc` returns a typed error naming the path — never a silent fall-through and never reported as "no credentials found". Pinned by scenarios "An unreadable credentials file fails loudly" and "A malformed credentials file fails loudly".
 
 **P0** | CONSTITUTION.md IV (TDD): "Features MUST be built test-first (RED → GREEN)"
 → **tasks.md § T001, T002**: both mandate RED-first unit tests (reader: valid/tokenless/comments/malformed; resolver: each precedence rung + edge cases over temp dirs) before implementation.
 
 **P0** | CONSTITUTION.md IV: "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/unauthenticated-access.feature § T003**: 10 behavioral `@wip` scenarios (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) exist before implementation; T003 turns them into executable acceptance.
+→ **features/unauthenticated-access/credential-discovery.feature § T003**: 10 behavioral `@wip` scenarios (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) exist before implementation; T003 turns them into executable acceptance.
 
 **P0** | CONSTITUTION.md V (Composition over Monolith): "modular, independently-testable parts … adding … MUST NOT require changing unrelated ones"
 → **plan.md § ADR-1 / System Architecture**: resolution lives in a new `internal/auth` package, separate from `internal/cli`; it registers no command and edits no existing command module. The reader/resolver are exercised in isolation via injected roots (ADR-5).

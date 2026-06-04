@@ -7,3 +7,4 @@
 | 003-help-and-version | Complete | validate | 2026-06-03T21:47:19 |
 | 004-exit-code-convention | Complete | validate | 2026-06-03T23:24:00 |
 | 005-credential-discovery | Complete | validate | 2026-06-04T10:14:00 |
+| 006-credential-storage | Analyzed | risk | 2026-06-04T14:01:46 |

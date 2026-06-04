@@ -12,21 +12,21 @@ import (
 )
 
 // TestFeatures runs the Credential Discovery (005) executable acceptance
-// scenarios in features/unauthenticated-access.feature against the production
+// scenarios in features/unauthenticated-access/credential-discovery.feature against the production
 // seam (Resolve) over temp directory trees and a controlled GLASSFROG_TOKEN.
 // @wip scenarios are skipped — the three @validation scenarios stay @wip
 // because they are held out for independent verification (the validate skill),
 // not implemented by the Builder.
 //
-// This suite owns unauthenticated-access.feature; the cli package's suite owns
-// no-runnable-cli.feature. Per-package ownership keeps each suite pointed only
-// at the feature whose steps it defines.
+// This suite owns the credential-discovery.feature; the cli package's suite
+// owns no-runnable-cli.feature. Per-package ownership keeps each suite pointed
+// only at the feature whose steps it defines.
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
-			Paths:    []string{"../../features/unauthenticated-access.feature"},
+			Paths:    []string{"../../features/unauthenticated-access/credential-discovery.feature"},
 			Tags:     "~@wip",
 			TestingT: t,
 		},
