@@ -39,7 +39,7 @@ Every driving scenario has an identifiable code path. The behavioral scenarios a
 | A credentials file exists but cannot be read | ✓ Covered | `resolve.go:84-88` — non-`ErrNotExist` read error fails loud, no fall-through |
 | A credentials file cannot be parsed | ✓ Covered | `FormatError` (`credentials.go:90-94`) propagated by `resolve.go:88`, not reported as absence |
 | No credentials anywhere | ✓ Covered | `resolve.go:96` → `Source: None`, nil error |
-| Environment variable set but empty | ✓ Covered | `resolve.go:75` `token != ""` — empty value falls through to the file search |
+| Environment variable set but empty | ✓ Covered | `resolve.go:75` `strings.TrimSpace(token) != ""` — an empty, unset, or whitespace-only value falls through to the file search |
 | A file is present but holds no token | ✓ Covered | `readCredentialsFile` `found=false` (`credentials.go:105`) → `resolve.go:90-91` skip, continue |
 
 ## Acceptance Criteria
@@ -47,10 +47,10 @@ Every driving scenario has an identifiable code path. The behavioral scenarios a
 **Status**: Pass (all criteria of all 3 checked tasks met)
 
 - **T001** — `readCredentialsFile` returns `(token, true)` for `token=gf_x` (`credentials.go:98-105`); tokenless / whitespace-only value → `found=false`, no error (line 105); `#` comments + blanks + unknown keys ignored (lines 86, 96-100); non-blank/non-comment line without `=` → `FormatError` naming the path with no token in the message (lines 90-94); 7 RED-first unit tests; `go build`/`go vet` clean. ✓
-- **T002** — env-first short-circuit + empty/unset fall-through (`resolve.go:75`); nearest-wins / walk-up / home fallback (`candidateDirs`); home-on-ascent deduped to a single read and walk-up stops at root (`seen` map + `parent == dir` break, lines 107-124); tokenless-skip + fail-loud read/format errors naming the path + `None`-on-absence (`resolve.go:81-96`); injected `startDir`/`homeDir` + stubbed env seam — no test reads the real `~/.glassfrogrc`; 13 unit tests; build/vet clean. ✓
+- **T002** — env-first short-circuit on a value non-empty after trimming, with empty/unset/whitespace-only falling through (`resolve.go:75-79`, `strings.TrimSpace(token) != ""`); nearest-wins / walk-up / home fallback (`candidateDirs`); home-on-ascent deduped to a single read and walk-up stops at root (`seen` map + `parent == dir` break, lines 107-124); tokenless-skip + fail-loud read/format errors naming the path + `None`-on-absence (`resolve.go:81-96`); injected `startDir`/`homeDir` + stubbed env seam — no test reads the real `~/.glassfrogrc`; 13 unit tests; build/vet clean. ✓
 - **T003** — all 10 non-`@validation` scenarios executable and passing; `@wip` removed from them, the 3 `@validation` scenarios kept `@wip`; steps set/unset the real `GLASSFROG_TOKEN` and build temp `.glassfrogrc` trees while binding `getwd`/`userHomeDir` to temp dirs (never the real home); suite + build/vet clean. ✓
 
-*Observation (not a finding):* T003's criterion mentions "the suite asserts no token value appears in captured output." Discovery produces no output on the behavioral path, so the secret-hygiene assertion correctly lives (a) in the held-out `@validation` "token never in output" scenario and (b) as explicit `!strings.Contains(err.Error(), secret)` assertions in the unit tests (`credentials_test.go:112`, `resolve_test.go:212`). The behavior is delivered and tested; only the assertion's location differs from the criterion's literal wording.
+*Observation (not a finding):* T003's criterion mentions "the suite asserts no token value appears in captured output." Discovery produces no output on the behavioral path, so the secret-hygiene assertion correctly lives (a) in the held-out `@validation` "token never in output" scenario and (b) as an explicit `!strings.Contains(err.Error(), secret)` assertion on the format-error path in the unit tests (`credentials_test.go:112`). The read-error path cannot leak a token by construction (`os.ReadFile` returns a path-only `*PathError` and the unreadable case is now exercised with a directory, which has no content), so the leak check belongs on the parse path. The behavior is delivered and tested; only the assertion's location differs from the criterion's literal wording.
 
 ## Interface Contract Conformance
 
@@ -58,7 +58,7 @@ Every driving scenario has an identifiable code path. The behavioral scenarios a
 
 | Surface (interface-spec.md) | Status | Implementation |
 |---|---|---|
-| `GLASSFROG_TOKEN` — non-empty used as-is + short-circuits; empty/unset ignored | ✓ Conformant | `resolve.go:75-79` |
+| `GLASSFROG_TOKEN` — value non-empty after trimming used as-is + short-circuits; empty/unset/whitespace-only ignored (falls through) | ✓ Conformant | `resolve.go:75-79` |
 | `.glassfrogrc` format — split on first `=`, trim key/value, unknown keys ignored | ✓ Conformant | `credentials.go:89-100` |
 | Empty/whitespace-only `token` value → no token present | ✓ Conformant | `credentials.go:97,105` |
 | Blank lines ignored; first-non-whitespace-`#` ignored | ✓ Conformant | `credentials.go:85-86` (`TrimSpace` then `HasPrefix("#")`) |
