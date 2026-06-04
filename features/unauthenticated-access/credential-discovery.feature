@@ -1,6 +1,6 @@
 # Source: 005-credential-discovery — Scenario: Home-directory file as the final fallback
 
-Feature: Unauthenticated Access
+Feature: Unauthenticated Access — Credential Discovery
   The CLI has no way to prove it's acting as a specific org + person, so
   Glassfrog can't authorize its calls. Before any authenticated command can
   run, the CLI must resolve the caller's token — discovering it from the
