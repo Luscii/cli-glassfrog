@@ -61,7 +61,7 @@ Operational patterns discovered during implementation. Each entry records a non-
 - **Suggested action**: when a spec adds a feature file owned by a new package (a capability with its own package and no cobra surface is the tell), give that package its own godog `TestSuite` pointed at *only* its feature file, and confirm every other suite's `Paths` names a specific file rather than the directory. Run both suites with `-count=1 -v` and check the `N scenarios (N passed)` summary so a mis-scoped path surfaces as an undefined-step failure immediately, not after a reviewer notices the cross-package break.
 
 ### 2026-06-04 — the "usable token" rule (non-empty after trimming) applies to every credential source uniformly
-(Found during PR #11 review of [005-credential-discovery](../../specs/005-credential-discovery/resolve.go))
+(Found during PR #11 review of [005-credential-discovery](../../specs/005-credential-discovery/spec.md); code in `internal/auth/resolve.go`)
 
 - **Type**: convention
 - **Location**: `internal/auth/resolve.go` (env short-circuit) and `internal/auth/credentials.go` (`readCredentialsFile`); the contract is shared with Credential Storage (006) and consumed by Request Authentication (007).
@@ -70,7 +70,7 @@ Operational patterns discovered during implementation. Each entry records a non-
 - **Suggested action**: when 006 (Storage) writes the file and 007 (Request Auth) consumes the `Resolution`, keep the "non-empty after trimming" definition uniform — Storage should not persist a whitespace-only token, and any new credential source must apply the same trim-for-usability test. When adding an empty/blank predicate for a credential, grep the sibling sources (`resolve.go` env branch, `readCredentialsFile`) for the established `strings.TrimSpace(x) != ""` shape rather than inventing a bare `!= ""`.
 
 ### 2026-06-04 — godog step helpers must return errors, never panic, so After hooks run
-(Found during PR #11 review of [005-credential-discovery](../../specs/005-credential-discovery/internal/auth/bdd_test.go))
+(Found during PR #11 review of [005-credential-discovery](../../specs/005-credential-discovery/spec.md); code in `internal/auth/bdd_test.go`)
 
 - **Type**: convention
 - **Location**: `internal/auth/bdd_test.go` (`mkdir`/`seed` helpers); applies to every godog suite in the project (`internal/cli`, `internal/auth`, and future ones).
