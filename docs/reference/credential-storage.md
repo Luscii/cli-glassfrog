@@ -133,9 +133,9 @@ and a next step, and never includes the token value.
 |---|---|---|---|
 | Token stored | `Success` | `0` | — (success line on stdout) |
 | No token supplied, non-interactive | `UsageError` | `2` | `no token to store` — supply via argument, stdin, or `GLASSFROG_TOKEN` |
-| Blank / whitespace-only token | `UsageError` | `2` | names the empty input — supply a non-empty token |
+| Token not usable (empty, whitespace-only, or contains a line break) | `UsageError` | `2` | `the supplied token is not usable (empty, whitespace-only, or containing line breaks) — supply a single-line, non-empty token` |
 | Existing token, non-interactive, no `--overwrite` | `UsageError` | `2` | a credential already exists at `<path>` — pass `--overwrite` to replace it |
-| Target not writable (permission denied) | `RuntimeError` | `1` | write error naming `<path>` — check write permission; filesystem unchanged |
+| Target not writable (permission denied) | `RuntimeError` | `1` | write error naming `<path>` — check write permission on the directory; `<path>` was not partially written (scoped to that path; an interactive "both" write may have already written an earlier target) |
 | Existing file unparseable (merge) | `RuntimeError` | `1` | format error naming `<path>` — fix or remove the malformed file; not overwritten |
 
 ## Related

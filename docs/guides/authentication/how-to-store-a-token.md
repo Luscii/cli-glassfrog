@@ -105,9 +105,9 @@ These messages go to **stderr**; the exit code follows the
 | You see | Cause | Do this |
 |---|---|---|
 | `no token to store` | Non-interactive session and no token via argument, stdin, or `GLASSFROG_TOKEN` (exit `2`) | Supply a token by one of those sources |
-| A "not a value" / empty-input error | The supplied token was empty or whitespace-only (exit `2`) | Supply a non-empty token |
+| `the supplied token is not usable (empty, whitespace-only, or containing line breaks) …` | The token was empty, whitespace-only, or contained a line break (exit `2`) | Supply a single-line, non-empty token |
 | `a credential already exists at <path>` | A token is already stored and the session is non-interactive without `--overwrite` (exit `2`) | Pass `--overwrite` to replace it |
-| A write error naming `<path>` | The target location isn't writable (exit `1`) | Check write permission on the directory; the filesystem is left unchanged |
+| A write error naming `<path>` | The target location isn't writable (exit `1`) | Check write permission on the directory; `<path>` was not partially written (an interactive "both" write may have already written an earlier target) |
 | A format error naming `<path>` | The existing `.glassfrogrc` couldn't be parsed for a merge (exit `1`) | Fix or remove the malformed file; it is not overwritten |
 
 The token value never appears in any message, prompt, or success line.
