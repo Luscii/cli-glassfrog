@@ -51,6 +51,12 @@ type world struct {
 	output     string
 	routed     string
 
+	// Exit-Code Convention (004): the process exit code an invocation maps to,
+	// computed through the production recover+map core (recoverToCode) so the
+	// panic→1 path is exercised end-to-end rather than re-implemented here.
+	exitCode    int
+	exitCodeSet bool
+
 	// Help & Version (003): a per-invocation root factory (so a parity
 	// scenario's two invocations each run against a fresh assembled+configured
 	// root) and the output of every invocation in the scenario, in order.
@@ -73,6 +79,8 @@ func (w *world) reset() {
 	w.ran = map[string]bool{}
 	w.output = ""
 	w.routed = ""
+	w.exitCode = 0
+	w.exitCodeSet = false
 	w.newRoot = nil
 	w.outputs = nil
 	// Restore the build-time version var to its default placeholder so a 003
@@ -119,6 +127,8 @@ func initializeScenario(sc *godog.ScenarioContext) {
 	w.registerDispatchSteps(sc)
 	// Help & Version (003) steps live in helpversion_bdd_test.go.
 	w.registerHelpVersionSteps(sc)
+	// Exit-Code Convention (004) steps live in exitcode_bdd_test.go.
+	w.registerExitCodeSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

@@ -154,17 +154,17 @@ func TestRun_UnknownFlag_UsageError_CommandDoesNotRun(t *testing.T) {
 	}
 }
 
-// A resolved command whose own action errors is reported via the returned
-// error but classified Success — a distinct RuntimeError category is deferred
-// to Exit-Code Convention (004).
-func TestRun_RuntimeActionError_IsSuccessCategory(t *testing.T) {
+// A resolved command whose own action errors is classified RuntimeError, with
+// the error still travelling via the return. 002 deferred this distinct
+// category to Exit-Code Convention (004), which maps ExitCode(RuntimeError) == 1.
+func TestRun_RuntimeActionError_IsRuntimeErrorCategory(t *testing.T) {
 	ran := map[string]bool{}
 	outcome, err := runQuiet(dispatchTree(ran), "boom")
 	if !ran["boom"] {
 		t.Fatal("boom action did not run")
 	}
-	if outcome != Success {
-		t.Fatalf("runtime action error: outcome = %v, want Success (RuntimeError deferred to 004)", outcome)
+	if outcome != RuntimeError {
+		t.Fatalf("runtime action error: outcome = %v, want RuntimeError", outcome)
 	}
 	if err == nil || !strings.Contains(err.Error(), "kaboom") {
 		t.Fatalf("runtime error should travel via the returned error, got: %v", err)
@@ -196,17 +196,17 @@ func TestRun_UnexpectedPositionalArg_UsageError_CommandDoesNotRun(t *testing.T) 
 	}
 }
 
-// A runtime action error must stay classified Success even though the command
-// also declares an Args validator — the validator passed, so the error is the
-// action's own (RuntimeError deferred to 004).
+// A runtime action error is classified RuntimeError, not UsageError, even
+// though the command also declares an Args validator — the validator passed, so
+// the error is the action's own and not an arg rejection.
 func TestRun_RuntimeError_NotMisclassifiedAsArgError(t *testing.T) {
 	ran := map[string]bool{}
 	outcome, err := runQuiet(dispatchTree(ran), "boom")
 	if !ran["boom"] {
 		t.Fatal("boom action did not run")
 	}
-	if outcome != Success {
-		t.Fatalf("runtime error: outcome = %v, want Success", outcome)
+	if outcome != RuntimeError {
+		t.Fatalf("runtime error: outcome = %v, want RuntimeError", outcome)
 	}
 	if err == nil || !strings.Contains(err.Error(), "kaboom") {
 		t.Fatalf("runtime error should travel via the returned error, got: %v", err)
@@ -226,6 +226,12 @@ func TestRun_NestedUnknownSubcommand_WritesErrorToStderr(t *testing.T) {
 	}
 	if !strings.Contains(output, "--help") {
 		t.Fatalf("the synthesized error should point the caller to help, got: %q", output)
+	}
+}
+
+func TestOutcome_String_RuntimeError(t *testing.T) {
+	if got := RuntimeError.String(); got != "RuntimeError" {
+		t.Fatalf("RuntimeError.String() = %q, want %q", got, "RuntimeError")
 	}
 }
 

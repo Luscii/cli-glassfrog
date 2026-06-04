@@ -9,13 +9,9 @@ import (
 )
 
 func main() {
-	// Dispatch through cli.Run, which resolves the invocation against the
-	// assembled tree and returns a code-free Outcome category. The category has
-	// no consumer yet: until Exit-Code Convention (a later spec) maps it to a
-	// process code, the entrypoint maps minimally — success → 0, any error →
-	// non-zero. This minimal mapping is a documented placeholder, not the final
-	// convention.
-	if _, err := cli.Run(cli.Assemble(), os.Args[1:]); err != nil {
-		os.Exit(1)
-	}
+	// cli.Main assembles the command tree, dispatches the invocation, and maps
+	// the outcome to the canonical exit code (Exit-Code Convention, 004),
+	// recovering a panic to code 1. The entrypoint only forwards that code to
+	// the process — every code selection lives behind cli.Main.
+	os.Exit(cli.Main())
 }

@@ -132,8 +132,21 @@ func (w *world) whenCallerInvokes(invocation string) error {
 	buf := &bytes.Buffer{}
 	w.root.SetOut(buf)
 	w.root.SetErr(buf)
-	w.outcome, w.lastErr = Run(w.root, args)
-	w.outcomeSet = true
+	// Route through the production recover+map core (recoverToCode), so the
+	// process exit code — and the panic→1 recover that a 004 scenario exercises
+	// — are the real ones the binary uses, not a harness copy. The closure also
+	// records the Outcome for the dispatch (002/003) assertions; a panic
+	// interrupts it before the outcome is set, but the panic scenario asserts
+	// only the exit code. The panic diagnostic goes to os.Stderr, silenced here
+	// to keep the test log clean (the unit test pins the stderr write).
+	restore := silenceOSStderr()
+	w.exitCode = recoverToCode(func() int {
+		w.outcome, w.lastErr = Run(w.root, args)
+		w.outcomeSet = true
+		return ExitCode(w.outcome)
+	})
+	restore()
+	w.exitCodeSet = true
 	w.output = buf.String()
 	w.outputs = append(w.outputs, w.output)
 	return nil
