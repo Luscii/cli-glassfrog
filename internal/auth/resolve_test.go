@@ -72,6 +72,22 @@ func TestResolve_EmptyEnvFallsThroughToFile(t *testing.T) {
 	}
 }
 
+func TestResolve_WhitespaceOnlyEnvFallsThroughToFile(t *testing.T) {
+	// A whitespace-only GLASSFROG_TOKEN is treated as absent (not a usable
+	// credential) and must not short-circuit the file search.
+	stubEnv(t, "   \t ")
+	start := t.TempDir()
+	want := seedToken(t, start, "gf_file_token")
+
+	got, err := resolve(start, t.TempDir())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Source != SourceFile || got.Token != "gf_file_token" || got.Path != want {
+		t.Errorf("got %+v, want File/gf_file_token/%s (whitespace env ignored)", got, want)
+	}
+}
+
 func TestResolve_NearestWinsOverHome(t *testing.T) {
 	stubEnv(t, "")
 	start := t.TempDir()

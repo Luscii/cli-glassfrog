@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Source names where a resolved credential came from. SourceNone is the zero
@@ -72,9 +73,11 @@ func Resolve() (Resolution, error) {
 // through to another source). Nothing found anywhere is Source: None with no
 // error. The token value never appears in any error.
 func resolve(startDir, homeDir string) (Resolution, error) {
-	if token := getenv(envTokenVar); token != "" {
-		// A non-empty environment value is used as-is and short-circuits all
-		// file reads. Empty/unset falls through to the file search.
+	if token := getenv(envTokenVar); strings.TrimSpace(token) != "" {
+		// A usable environment value (non-empty after trimming) is used as-is
+		// and short-circuits all file reads. Empty, unset, or whitespace-only
+		// falls through to the file search — a blank value is treated as absent,
+		// matching the "usable token" rule applied to file tokens.
 		return Resolution{Token: token, Source: SourceEnvironment}, nil
 	}
 
