@@ -354,9 +354,14 @@ func TestAuthLogin_NoTokenNonInteractive_MapsToUsageCode2(t *testing.T) {
 
 func TestAuthLogin_ExtraPositional_UsageError(t *testing.T) {
 	root := newTestRootWithAuth(&fakeSeam{home: t.TempDir(), start: t.TempDir(), inter: &fakeInteractor{}})
-	outcome, _, _ := runCapture(root, "auth", "login", "tok1", "tok2")
+	outcome, _, output := runCapture(root, "auth", "login", "tok1", "tok2")
 	if outcome != UsageError {
 		t.Fatalf("a second positional must be a usage error, got %v", outcome)
+	}
+	// Arg validation runs before RunE; with SilenceErrors the operator would
+	// otherwise get a silent exit 2. The command's Args func must emit a cause.
+	if !strings.Contains(output, "accepts at most 1 arg") || !strings.Contains(output, "--help") {
+		t.Fatalf("a rejected positional must produce operator-facing output, got %q", output)
 	}
 }
 

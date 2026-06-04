@@ -150,9 +150,19 @@ func newAuthCommand(seam loginSeam) *cobra.Command {
 func newAuthLoginCommand(seam loginSeam) *cobra.Command {
 	var cwd, overwrite bool
 	cmd := &cobra.Command{
-		Use:           "login [TOKEN]",
-		Short:         "Store an API token to the credentials file",
-		Args:          cobra.MaximumNArgs(1),
+		Use:   "login [TOKEN]",
+		Short: "Store an API token to the credentials file",
+		// SilenceErrors silences cobra's own dump, but arg-validation runs before
+		// RunE — so a rejected positional would otherwise exit 2 with no message.
+		// Print the validation error and a --help hint here (the same shape
+		// dispatch uses for unknown commands) so the operator always sees a cause.
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", err, cmd.CommandPath())
+				return err
+			}
+			return nil
+		},
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
