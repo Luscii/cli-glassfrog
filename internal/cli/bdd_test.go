@@ -11,27 +11,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TestFeatures runs the executable acceptance scenarios under
-// features/no-runnable-cli/ (command-registration, argument-dispatch,
-// help-and-version, exit-code-convention) against the registration guard and
-// the assembled command tree; godog walks the features/ tree recursively, so
-// the per-capability files are all discovered. @wip scenarios are skipped — the @validation
-// scenarios stay @wip because they are held out for independent verification
-// (the validate skill), not implemented by the Builder.
+// TestFeatures runs the executable acceptance scenarios this package owns: the
+// CLI-skeleton features under features/no-runnable-cli/ (command-registration,
+// argument-dispatch, help-and-version, exit-code-convention) and the
+// credential-storage feature (the `auth login` command, Credential Storage
+// 006). @wip scenarios are skipped — the @validation scenarios stay @wip
+// because they are held out for independent verification (the validate skill),
+// not implemented by the Builder.
 //
-// The path is scoped to this package's own feature directory rather than the
-// whole features/ directory: each package's godog suite owns the feature(s) whose
-// steps it defines (the cli command tree here; Credential Discovery's
-// unauthenticated-access/credential-discovery.feature is owned by
-// internal/auth). Globbing the
-// directory would make this suite try to run another package's scenarios with
-// no matching step definitions.
+// The paths are scoped to this package's own features rather than the whole
+// features/ directory: each package's godog suite owns the feature(s) whose
+// steps it defines (the cli command tree + auth login here; Credential
+// Discovery's unauthenticated-access/credential-discovery.feature is owned by
+// internal/auth). Pointing at credential-storage.feature specifically — not the
+// unauthenticated-access/ directory — keeps the resolver's feature out of this
+// suite, which has no matching step definitions for it.
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeScenario,
 		Options: &godog.Options{
-			Format:   "pretty",
-			Paths:    []string{"../../features/no-runnable-cli"},
+			Format: "pretty",
+			Paths: []string{
+				"../../features/no-runnable-cli",
+				"../../features/unauthenticated-access/credential-storage.feature",
+			},
 			Tags:     "~@wip",
 			TestingT: t,
 		},
@@ -72,6 +75,10 @@ type world struct {
 	// root) and the output of every invocation in the scenario, in order.
 	newRoot func() *cobra.Command
 	outputs []string
+
+	// Credential Storage (006): the per-scenario store fixture (temp dirs,
+	// controlled token sources, isTTY, scripted interactor, captured output).
+	cred *credState
 }
 
 func (w *world) reset() {
@@ -93,6 +100,7 @@ func (w *world) reset() {
 	w.exitCodeSet = false
 	w.newRoot = nil
 	w.outputs = nil
+	w.cred = &credState{}
 	// Restore the build-time version var to its default placeholder so a 003
 	// "built with version X" scenario cannot leak its value into later
 	// scenarios (the var is the single source of truth both --version and the
@@ -139,6 +147,8 @@ func initializeScenario(sc *godog.ScenarioContext) {
 	w.registerHelpVersionSteps(sc)
 	// Exit-Code Convention (004) steps live in exitcode_bdd_test.go.
 	w.registerExitCodeSteps(sc)
+	// Credential Storage (006) steps live in credstorage_bdd_test.go.
+	w.registerCredStorageSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

@@ -13,7 +13,6 @@ Feature: Unauthenticated Access — Credential Storage
     # I want to store my token once to a credentials file the CLI will find automatically.
 
     # Source: 006-credential-storage — Scenario: Store a token supplied as an argument to the home file
-    @wip
     Scenario: A token argument is stored to the home file
       Given no ".glassfrogrc" existed in the home directory
       And the operator supplied the token "gf_new_token" as a command argument
@@ -23,7 +22,6 @@ Feature: Unauthenticated Access — Credential Storage
       And the token value will not appear in the output
 
     # Source: 006-credential-storage — Scenario: Target location is not writable
-    @wip
     Scenario: An unwritable target fails the store loudly
       Given the home ".glassfrogrc" location could not be written
       And the operator supplied the token "gf_new_token" as a command argument
@@ -32,7 +30,6 @@ Feature: Unauthenticated Access — Credential Storage
       And the filesystem will be unchanged afterward
 
     # Source: 006-credential-storage — Scenario: Existing credentials file cannot be parsed for a merge
-    @wip
     Scenario: A malformed existing file fails the store loudly
       Given the home ".glassfrogrc" held a line that was neither blank, a comment, nor a "key=value" pair
       And the operator supplied the token "gf_new_token" as a command argument
@@ -41,7 +38,6 @@ Feature: Unauthenticated Access — Credential Storage
       And it will not overwrite the file
 
     # Source: 006-credential-storage — Scenario: Supplied token is blank
-    @wip
     Scenario: A blank token is rejected
       Given the operator supplied a token that was only whitespace
       When the CLI stores the credential
@@ -49,7 +45,6 @@ Feature: Unauthenticated Access — Credential Storage
       And it will not write any file
 
     # Source: 006-credential-storage — Scenario: Merge preserves other keys in an existing file
-    @wip
     Scenario: Re-storing preserves other entries in the file
       Given the home ".glassfrogrc" held the token "gf_old_token" and an unrelated entry
       And the session was interactive (standard input is a terminal)
@@ -59,7 +54,6 @@ Feature: Unauthenticated Access — Credential Storage
       And it will leave the unrelated entry unchanged
 
     # Source: 006-credential-storage — Scenario: Interactive prompt for a missing token
-    @wip
     Scenario: An interactive prompt requests a missing token
       Given the session was interactive (standard input is a terminal)
       And no token was supplied as an argument, on standard input, or in GLASSFROG_TOKEN
@@ -95,7 +89,6 @@ Feature: Unauthenticated Access — Credential Storage
     # I want to pipe a token on standard input (or persist one already in the environment) and have it written deterministically.
 
     # Source: 006-credential-storage — Scenario: Persist a token already present in the environment
-    @wip
     Scenario: A token in the environment is persisted
       Given GLASSFROG_TOKEN was set to "gf_env_token"
       And the operator supplied no argument and piped nothing to standard input
@@ -103,7 +96,6 @@ Feature: Unauthenticated Access — Credential Storage
       Then it will write the token "gf_env_token" to the home ".glassfrogrc"
 
     # Source: 006-credential-storage — Scenario: Non-interactive session with no token supplied
-    @wip
     Scenario: A non-interactive store with no token is reported
       Given the session had no terminal on standard input
       And no token was supplied as an argument, on standard input, or in GLASSFROG_TOKEN
@@ -112,7 +104,6 @@ Feature: Unauthenticated Access — Credential Storage
       And it will not write any file
 
     # Source: 006-credential-storage — Scenario: Existing token, non-interactive, no overwrite signal
-    @wip
     Scenario: A non-interactive overwrite requires the overwrite flag
       Given the home ".glassfrogrc" already held the token "gf_old_token"
       And the operator supplied the token "gf_new_token" as a command argument
@@ -128,7 +119,6 @@ Feature: Unauthenticated Access — Credential Storage
     # I want to store a token into a current-directory credentials file that takes precedence over my home one.
 
     # Source: 006-credential-storage — Scenario: Store a token piped on standard input to the current directory
-    @wip
     Scenario: A piped token is stored to the current directory
       Given the token "gf_project_token" was piped to standard input
       And the operator supplied no token argument
@@ -137,7 +127,6 @@ Feature: Unauthenticated Access — Credential Storage
       Then it will write the token "gf_project_token" to the current directory's ".glassfrogrc"
 
     # Source: 006-credential-storage — Scenario: Interactive confirmation chooses the write location
-    @wip
     Scenario: An interactive store confirms and chooses the write location
       Given the session was interactive (standard input is a terminal)
       And a ".glassfrogrc" in the current directory and one in the home directory each held a token

@@ -1,10 +1,27 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 )
+
+// commandUsageError marks an error returned by a resolved command's own action
+// as a usage problem the operator can fix (e.g. "no token to store",
+// "credential already exists — pass --overwrite") rather than a runtime
+// failure. A runnable command returns it (wrapped) when the *invocation* is at
+// fault even though the action itself ran far enough to detect it; dispatch
+// classifies it as UsageError so Exit-Code Convention maps it to code 2.
+//
+// It is the single sanctioned way for a command's action to yield a UsageError:
+// every other UsageError source is cobra-level (unknown command/flag, an
+// arg-validator rejection). Introduced with the first command that produces
+// command-originated usage errors (Credential Storage 006).
+type commandUsageError struct{ err error }
+
+func (e *commandUsageError) Error() string { return e.err.Error() }
+func (e *commandUsageError) Unwrap() error { return e.err }
 
 // Outcome is the code-free classification dispatch assigns to an invocation.
 // It names *what kind* of outcome occurred — never a process exit code (that
@@ -132,11 +149,27 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 		// positional args: a non-nil result means the command refused an
 		// unexpected argument (a usage error — the action never ran).
 		if err != nil && executed != nil && executed.ValidateArgs(executed.Flags().Args()) != nil {
+			// The command's Args validator rejected the input before the action
+			// ran. A command that silenced cobra's own error output (SilenceErrors)
+			// printed nothing — surface the cause here so the operator isn't left
+			// with a bare exit code. Commands that let cobra print keep their
+			// default output, so this never double-prints. The Args validator is
+			// side-effect-free, so re-checking it above is safe.
+			if executed.SilenceErrors {
+				fmt.Fprintf(executed.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", err, executed.CommandPath())
+			}
 			return UsageError, err
 		}
-		// Otherwise the validator passed: an error here is the action's own
-		// runtime failure (RuntimeError → code 1, ADR-3); no error is a clean run.
+		// The validator passed. A resolved action may still classify its own
+		// error as a usage problem by returning a *commandUsageError (e.g. "no
+		// token to store") — that is a UsageError (→ code 2). Any other error is
+		// the action's own runtime failure (RuntimeError → code 1, ADR-3); no
+		// error is a clean run.
 		if err != nil {
+			var ue *commandUsageError
+			if errors.As(err, &ue) {
+				return UsageError, err
+			}
 			return RuntimeError, err
 		}
 		return Success, nil
