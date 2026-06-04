@@ -28,7 +28,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 1: Writer in `internal/auth` [Shared]
 
-- [ ] **T001** [Shared] Add `writeCredentials(path, token)` to `internal/auth` — line-preserving merge, atomic write, owner-only permissions — with RED-first unit tests including a round-trip against the reader
+- [x] **T001** [Shared] Add `writeCredentials(path, token)` to `internal/auth` — line-preserving merge, atomic write, owner-only permissions — with RED-first unit tests including a round-trip against the reader — 12 unit tests; created shared format module (reader+constants) to 005's contract since 005 unimplemented; exported as `auth.WriteCredentials`/`auth.ReadCredentialsFile` (cross-package use in T004)
   - **Scope**: Add `writeCredentials(path, token) → error` to `internal/auth`. Parse-validate any existing file via the shared `readCredentialsFile` (a malformed non-comment line without `=` → format error, **no write**). On success, rewrite at the line level: replace the value on the existing `token=` line, or append a `token=` line if absent, preserving every other line and comment and their order; an absent target file is created. Serialize to a temp file **in the same directory**, `chmod 0600` before writing token bytes, then `rename` over the target (atomic; failure leaves the original/absence intact). If `internal/auth` and the shared reader/constants do not yet exist (005 not yet implemented), create them to 005's `interface-spec.md` contract. The token value never appears in any error or log.
   - **Acceptance criteria**:
     - Writing to an absent path creates `.glassfrogrc` with a `token=` line and `0600` permissions
