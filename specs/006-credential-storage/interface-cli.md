@@ -68,7 +68,7 @@ The **Outcome category** column uses the canonical `Outcome` enum names publishe
 | Token stored | `Success` | 0 | — (success line on stdout) |
 | No token supplied, non-interactive | `UsageError` | 2 | `no token to store` — supply a token via argument, stdin, or `GLASSFROG_TOKEN` |
 | Blank / whitespace-only token | `UsageError` | 2 | names the empty input (not a value) — supply a non-empty token |
-| Existing token, non-interactive, no `--overwrite` | `UsageError` | 2 | reports the existing credential at `<path>` — pass `--overwrite` to replace it |
+| Existing token, non-interactive, no `--overwrite` | `UsageError` | 2 | reports that a credential already exists at `<path>` (the path only, never the stored value) — pass `--overwrite` to replace it |
 | Target not writable (permission denied) | `RuntimeError` | 1 | write error naming `<path>` — check write permission on the directory; filesystem unchanged |
 | Existing file unparseable (merge) | `RuntimeError` | 1 | format error naming `<path>` — fix or remove the malformed `.glassfrogrc`; file not overwritten |
 
