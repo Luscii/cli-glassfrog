@@ -107,5 +107,7 @@ credential fails loud; it is never masked as absence.
 - The `Resolution` is consumed by
   [Request Authentication](request-authentication.md), which attaches `Token` as
   the `X-Auth-Token` header.
-- The file name, format, and `GLASSFROG_TOKEN` are recorded `[ASSUMED]` in the
-  source spec — provisional names jointly held with Credential Storage.
+- The `.glassfrogrc` file name and the `GLASSFROG_TOKEN` variable are shared,
+  concrete constants — defined once in `internal/auth` and used by both the read
+  (Discovery) and write ([Credential Storage](credential-storage.md)) sides, so
+  the two cannot drift.

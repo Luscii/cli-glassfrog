@@ -40,9 +40,8 @@ front of it.
 | base transport | `http.RoundTripper` | The next transport in the chain, reached only on the authenticated branch. |
 | resolver | `func() (auth.Resolution, error)` | The injected credential source. Production binds Credential Discovery's resolver; tests bind a fake. |
 
-The constructor name (e.g. `NewAuthTransport`) and its package (`internal/apiclient`
-proposed) are `[ASSUMED]` in the source spec — to be reconciled with Connection
-Configuration.
+The constructor is `apiclient.NewAuthTransport(base, resolver)` in the
+`internal/apiclient` package.
 
 ## Resolver seam (consumed input)
 

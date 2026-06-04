@@ -59,9 +59,9 @@ remains available everywhere.
   produced.
 - **Empty command set**: `glassfrog --help` produces a coherent listing that
   names no commands rather than failing.
-- **Version-unset fallback**: when no version was stamped into the build, version
-  output shows a clear placeholder rather than an empty string. *(`[ASSUMED]` in
-  the source spec.)*
+- **Version-unset fallback**: when no version is stamped into the build, the
+  version output is the placeholder `0.0.0-dev` rather than an empty string. A
+  build stamps the real version via `-ldflags "-X …/internal/cli.version=<value>"`.
 
 ## Boundaries
 
