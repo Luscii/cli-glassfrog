@@ -30,7 +30,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Auth outcome model [Shared]
 
-- [ ] **T001** [Shared] Create the API-client package and the typed `AuthError` + pure resolution-to-outcome mapping, with RED-first unit tests
+- [x] **T001** [Shared] Create the API-client package and the typed `AuthError` + pure resolution-to-outcome mapping, with RED-first unit tests — 7 unit tests (3 branches + secret-hygiene + Kind-distinct + header constant); created `internal/apiclient` (007 lands first, ADR-2)
   - **Scope**: New API-client package (`internal/apiclient` proposed — `[ASSUMED]`, reconcile with Connection Configuration). Define `AuthError` carrying a `Kind` (`NoCredentials` or `CredentialError`); `CredentialError` wraps Discovery's underlying read/format error (unwrappable via `errors.As`/`Unwrap`). Add the pure mapping `authorize(res auth.Resolution, err error) → (token string, authErr *AuthError)`: `err != nil` → `CredentialError` wrapping it; `Source == None` → `NoCredentials`; `Source ∈ {Environment, File}` → return `Token`. Centralize the `X-Auth-Token` header name as a constant. No `net/http`, no command, no `os.Exit` yet. Consumes `internal/auth.Resolution` (005).
   - **Acceptance criteria**:
     - `authorize` returns the token with no `AuthError` for `Source` `Environment` and `File`
