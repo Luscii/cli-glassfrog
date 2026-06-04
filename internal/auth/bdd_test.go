@@ -54,20 +54,27 @@ type authWorld struct {
 	err error
 }
 
-func (w *authWorld) mkdir(dir string) string {
+// mkdir and seed return errors rather than panicking: a panic inside a step
+// would skip godog's After hook, leaving the getwd/userHomeDir/GLASSFROG_TOKEN
+// globals mutated and the temp tree undeleted, which leaks into later
+// scenarios. Returning the error keeps every step on godog's normal failure
+// path, so cleanup always runs.
+func (w *authWorld) mkdir(dir string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		panic(fmt.Sprintf("mkdir %s: %v", dir, err))
+		return "", fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	return dir
+	return dir, nil
 }
 
-func (w *authWorld) seed(dir, content string, mode os.FileMode) string {
-	w.mkdir(dir)
+func (w *authWorld) seed(dir, content string, mode os.FileMode) (string, error) {
+	if _, err := w.mkdir(dir); err != nil {
+		return "", err
+	}
 	path := filepath.Join(dir, credentialsFileName)
 	if err := os.WriteFile(path, []byte(content), mode); err != nil {
-		panic(fmt.Sprintf("seed %s: %v", path, err))
+		return "", fmt.Errorf("seed %s: %w", path, err)
 	}
-	return path
+	return path, nil
 }
 
 func initializeScenario(sc *godog.ScenarioContext) {
@@ -84,11 +91,15 @@ func initializeScenario(sc *godog.ScenarioContext) {
 			return ctx, err
 		}
 		*w = authWorld{base: base}
-		w.homeDir = w.mkdir(filepath.Join(base, "home"))
+		if w.homeDir, err = w.mkdir(filepath.Join(base, "home")); err != nil {
+			return ctx, err
+		}
 		// Default current directory is independent of home (a sibling subtree),
 		// so home is the final fallback rather than an ancestor unless a
 		// scenario reconfigures it.
-		w.currDir = w.mkdir(filepath.Join(base, "work", "nested"))
+		if w.currDir, err = w.mkdir(filepath.Join(base, "work", "nested")); err != nil {
+			return ctx, err
+		}
 
 		// Bind the seams to this scenario's directories; reads happen live so a
 		// later Given that moves currDir takes effect.
@@ -160,24 +171,36 @@ func initializeScenario(sc *godog.ScenarioContext) {
 // --- Given implementations ---
 
 func (w *authWorld) givenHomeToken(v string) error {
-	w.homePath = w.seed(w.homeDir, "token="+v+"\n", 0o600)
+	path, err := w.seed(w.homeDir, "token="+v+"\n", 0o600)
+	if err != nil {
+		return err
+	}
+	w.homePath = path
 	return nil
 }
 
 func (w *authWorld) givenCurrentToken(v string) error {
-	w.currPath = w.seed(w.currDir, "token="+v+"\n", 0o600)
+	path, err := w.seed(w.currDir, "token="+v+"\n", 0o600)
+	if err != nil {
+		return err
+	}
+	w.currPath = path
 	return nil
 }
 
 func (w *authWorld) givenCurrentTokenless() error {
 	w.tokenlessDir = w.currDir
-	w.seed(w.currDir, "# a comment but no token entry\n", 0o600)
-	return nil
+	_, err := w.seed(w.currDir, "# a comment but no token entry\n", 0o600)
+	return err
 }
 
 func (w *authWorld) givenAncestorToken(v string) error {
 	// currDir is base/work/nested; two directories above is base.
-	w.ancestorPath = w.seed(w.base, "token="+v+"\n", 0o600)
+	path, err := w.seed(w.base, "token="+v+"\n", 0o600)
+	if err != nil {
+		return err
+	}
+	w.ancestorPath = path
 	return nil
 }
 
@@ -185,12 +208,19 @@ func (w *authWorld) givenHomeIsAncestor() error {
 	// Reconfigure the working directory to sit beneath the home directory so
 	// the home file is encountered during the walk-up rather than as the final
 	// fallback.
-	w.currDir = w.mkdir(filepath.Join(w.homeDir, "projects", "app"))
+	dir, err := w.mkdir(filepath.Join(w.homeDir, "projects", "app"))
+	if err != nil {
+		return err
+	}
+	w.currDir = dir
 	return nil
 }
 
 func (w *authWorld) givenNearestUnreadable() error {
-	path := w.seed(w.currDir, "token=gf_unreadable_secret\n", 0o000)
+	path, err := w.seed(w.currDir, "token=gf_unreadable_secret\n", 0o000)
+	if err != nil {
+		return err
+	}
 	// If the file is still readable (e.g. the suite runs as root), the
 	// fail-loud path cannot be exercised — surface that rather than pass a
 	// scenario that did not test what it claims.
@@ -203,7 +233,11 @@ func (w *authWorld) givenNearestUnreadable() error {
 
 func (w *authWorld) givenNearestMalformed() error {
 	// No '=' anywhere on the line, so it is genuinely unparseable.
-	w.currPath = w.seed(w.currDir, "this line is neither blank a comment nor a pair\n", 0o600)
+	path, err := w.seed(w.currDir, "this line is neither blank a comment nor a pair\n", 0o600)
+	if err != nil {
+		return err
+	}
+	w.currPath = path
 	return nil
 }
 
