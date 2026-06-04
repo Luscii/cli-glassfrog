@@ -15,6 +15,9 @@ func Assemble() *cobra.Command {
 	// each. Adding a command does not touch the others.
 	MustRegister(root, newVersionCommand())
 	MustRegister(root, newRolesCommand())
+	// Credential Storage (006): the auth group + login leaf, delegating the file
+	// write to internal/auth through the production input seam.
+	MustRegister(root, newAuthCommand(productionSeam{}))
 	// Help & Version (003): tune the assembled root's help/version rendering —
 	// unify --version with the version command, hide framework built-ins, keep
 	// standard alphabetical listing. Applied after wiring so it configures the

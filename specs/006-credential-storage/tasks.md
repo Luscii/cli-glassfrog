@@ -59,7 +59,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
   - **Interface references**: interface-cli.md — token-source precedence, existing-stored-token rules, Error Communication table
   - **Scenario references**: credential-storage.feature: "A token argument is stored to the home file", "A token in the environment is persisted", "A blank token is rejected", "A non-interactive store with no token is reported", "A non-interactive overwrite requires the overwrite flag"
 
-- [ ] **T003** [Shared] Production input seam — bind real stdin / TTY detection / env / directories and the non-echoing prompt
+- [x] **T003** [Shared] Production input seam — bind real stdin / TTY detection / env / directories and the non-echoing prompt — loginSeam/productionSeam + ttyInteractor (term.ReadPassword); pure gatherInputsFrom unit-tested; added golang.org/x/term
   - **Scope**: Add the thin production seam that supplies real values to T002's pure logic: read piped stdin, detect whether stdin is a terminal, read `GLASSFROG_TOKEN`, resolve `os.Getwd`/`os.UserHomeDir`, and implement the non-echoing interactive prompt (no characters echoed; the prompt requests the token only when stdin is a TTY and no other source supplied one). The seam is the only place that reads these globals. The token read from stdin/prompt is never echoed or logged.
   - **Acceptance criteria**:
     - Piped stdin is read as the token without prompting; a TTY with no other source triggers the non-echoing prompt; a non-TTY with no source does not prompt
