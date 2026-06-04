@@ -18,12 +18,20 @@ import (
 // the per-capability files are all discovered. @wip scenarios are skipped — the @validation
 // scenarios stay @wip because they are held out for independent verification
 // (the validate skill), not implemented by the Builder.
+//
+// The path is scoped to this package's own feature file rather than the whole
+// features/ directory: each package's godog suite owns the feature(s) whose
+// steps it defines (the cli command tree here; Credential Discovery's
+// unauthenticated-access/credential-discovery.feature is owned by
+// internal/auth). Globbing the
+// directory would make this suite try to run another package's scenarios with
+// no matching step definitions.
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
-			Paths:    []string{"../../features"},
+			Paths:    []string{"../../features/no-runnable-cli.feature"},
 			Tags:     "~@wip",
 			TestingT: t,
 		},

@@ -17,7 +17,7 @@ This accord pins three contracts the rest of Token Authentication depends on: th
 
 | Input | Form | Description |
 |---|---|---|
-| `GLASSFROG_TOKEN` | environment variable | `[ASSUMED]` The token, supplied directly. A **non-empty** value is used as-is and short-circuits all file reads. Empty or unset → ignored, file search proceeds. |
+| `GLASSFROG_TOKEN` | environment variable | `[ASSUMED]` The token, supplied directly. A value that is **non-empty after trimming** is used as-is and short-circuits all file reads. Empty, unset, or whitespace-only → ignored, file search proceeds (a blank value is treated as absent, matching the file token's usability rule). |
 | `.glassfrogrc` | file (`key=value`) | `[ASSUMED]` The credentials file. Searched in the current directory's ancestry (nearest wins) and in the home directory. |
 
 ### `.glassfrogrc` structural contract `[ASSUMED]`
