@@ -1,7 +1,7 @@
 # Analyze: Help & Version
 
 **Feature**: 003-help-and-version
-**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli/help-and-version.feature, tasks.md
 **Checklist context**: loaded — 6/6 pass, 0 failures
 **Checks**: 16 (16 pass, 0 fail)
 **Generated**: 2026-06-03
@@ -34,7 +34,7 @@ None.
 - **C3** spec § Non-Behaviors ↔ plan — plan architects none of the excluded concerns: no routing (deferred to 002), no exit codes (004), no `--json`, no standalone `help` command (ADR-2 keeps the flag, hides the command), no build metadata (ADR-3 bare string), no command mutation. "What This Plan Does Not Cover" mirrors them.
 - **C4** plan § ADRs ↔ interface-cli — the accord reflects ADR-1 (standard rendering), ADR-2 (built-ins hidden, `--help` retained), and ADR-3 (version parity); the deviation-from-default note matches ADR-2.
 - **C5** plan § System Architecture ↔ tasks § Scope — T001 (root configuration pass) and T002 (executable acceptance) map to plan Phase 1/Phase 2; no task builds anything the plan omits.
-- **C6** interface-cli ↔ no-runnable-cli.feature steps — the 003 scenario steps reference only surfaces the accord defines (listing, usage, version parity, built-ins hidden, precedence, stdout).
+- **C6** interface-cli ↔ no-runnable-cli/help-and-version.feature steps — the 003 scenario steps reference only surfaces the accord defines (listing, usage, version parity, built-ins hidden, precedence, stdout).
 
 ## Completeness: 6/6 passed
 
@@ -73,5 +73,5 @@ No overlapping severity findings — checklist had 0 failures. The checklist adv
 ## Governance Notes
 
 - **All 16 base checks ran** — full artifact set present (spec, plan, 1 interface, the shared feature file, tasks). No checks skipped for missing artifacts.
-- **Interface/scenario checks scaled** across the single interface file and the 003 scenarios in the shared `no-runnable-cli.feature`.
+- **Interface/scenario checks scaled** across the single interface file and the 003 scenarios in the shared `no-runnable-cli/help-and-version.feature`.
 - **Checklist context**: loaded and parsed (6/6 pass).

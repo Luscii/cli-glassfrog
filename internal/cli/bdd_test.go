@@ -11,9 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TestFeatures runs the executable acceptance scenarios in
-// features/no-runnable-cli.feature against the registration guard and the
-// assembled command tree. @wip scenarios are skipped — the @validation
+// TestFeatures runs the executable acceptance scenarios under
+// features/no-runnable-cli/ (command-registration, argument-dispatch,
+// help-and-version, exit-code-convention) against the registration guard and
+// the assembled command tree; godog walks the features/ tree recursively, so
+// the per-capability files are all discovered. @wip scenarios are skipped — the @validation
 // scenarios stay @wip because they are held out for independent verification
 // (the validate skill), not implemented by the Builder.
 func TestFeatures(t *testing.T) {

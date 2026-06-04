@@ -2,7 +2,7 @@
 
 **Feature**: 003-help-and-version
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
-**Artifacts checked**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts checked**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli/help-and-version.feature, tasks.md
 **Checks**: 6 (6 pass, 0 fail)
 **Generated**: 2026-06-03
 
@@ -25,7 +25,7 @@ None.
 ### Passed (6/6)
 
 **P0** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/no-runnable-cli.feature**: 14 `@wip` 003 scenarios exist before implementation, covering listing, usage, version, built-ins-hidden, precedence, and the boundary cases.
+→ **features/no-runnable-cli/help-and-version.feature**: 14 `@wip` 003 scenarios exist before implementation, covering listing, usage, version, built-ins-hidden, precedence, and the boundary cases.
 
 **P0** | CONSTITUTION.md IV: "Features MUST be built test-first (RED → GREEN)"
 → **tasks.md § T001, T002**: T001 acceptance criteria mandate RED-first unit tests (version parity, built-ins absent, `--help` renders, sorting pinned, precedence); T002 provides executable acceptance.

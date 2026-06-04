@@ -2,7 +2,7 @@
 
 **Feature**: 001-command-registration
 **Concretization**: Full context (plan + spec + interface + scenarios)
-**Inputs**: plan.md, spec.md, interface-spec.md, interface-cli.md, features/no-runnable-cli.feature
+**Inputs**: plan.md, spec.md, interface-spec.md, interface-cli.md, features/no-runnable-cli/command-registration.feature
 
 ---
 
@@ -58,7 +58,7 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Dependencies**: T001, T002
   - **Plan reference**: Phase 2 — Registration guard; ADR-3 (fail-loud guard over cobra defaults)
   - **Interface references**: interface-spec.md: command definition + `Register`/`MustRegister` entry points + Error Communication table
-  - **Scenario references**: no-runnable-cli.feature: "Registering a leaf command makes it known", "Duplicate sibling name is rejected", "Empty command name is rejected", "Missing summary is rejected", "Leaf command without an action is rejected", "Group without children is rejected"
+  - **Scenario references**: no-runnable-cli/command-registration.feature: "Registering a leaf command makes it known", "Duplicate sibling name is rejected", "Empty command name is rejected", "Missing summary is rejected", "Leaf command without an action is rejected", "Group without children is rejected"
   - **Risk**: ⚠️ Technology familiarity — cobra's `AddCommand` does not enforce these rules; the guard must wrap it and be the only attach path (guard-bypass risk from plan).
 
 ## Phase 3: Exercise nested registration [Shared]
@@ -73,15 +73,15 @@ Phase 3: Exercise nested registration (2 tasks, depends on Phase 2) [Shared]
   - **Dependencies**: T003
   - **Plan reference**: Phase 3 — Exercise nested registration; ADR-4 (explicit wiring)
   - **Interface references**: interface-cli.md: invocation table (bare group, nested paths); interface-spec.md: composition example
-  - **Scenario references**: no-runnable-cli.feature: "Registering a group exposes its subcommands by path", "A bare group name resolves to the group itself", "Groups nest to arbitrary depth", "A name is unique only within its own group", "Registering a command leaves existing commands untouched"
+  - **Scenario references**: no-runnable-cli/command-registration.feature: "Registering a group exposes its subcommands by path", "A bare group name resolves to the group itself", "Groups nest to arbitrary depth", "A name is unique only within its own group", "Registering a command leaves existing commands untouched"
 
 - [x] **T005** [Shared] Make the driving scenarios pass as executable acceptance — godog harness (bdd_test.go) runs 12 behavioral scenarios (45 steps), all pass; @wip removed from those 12; the 3 @validation scenarios remain @wip (held out for validate); both doc-check validations confirmed against spec.md text
-  - **Scope**: Provide the executable acceptance coverage for `features/no-runnable-cli.feature` against the assembled CLI — registration, nested lookup, bare-group resolution, collision/validation rejection, and the startup-abort behavior. (Step definitions / `@wip` removal are the implement skill's BDD outer loop; this task ensures the scenarios are coverable end-to-end.)
+  - **Scope**: Provide the executable acceptance coverage for `features/no-runnable-cli/command-registration.feature` against the assembled CLI — registration, nested lookup, bare-group resolution, collision/validation rejection, and the startup-abort behavior. (Step definitions / `@wip` removal are the implement skill's BDD outer loop; this task ensures the scenarios are coverable end-to-end.)
   - **Acceptance criteria**:
-    - Every non-`@validation` scenario in no-runnable-cli.feature has an executable path against the built CLI / registry
+    - Every non-`@validation` scenario in no-runnable-cli/command-registration.feature has an executable path against the built CLI / registry
     - A single failed registration prevents any command from being dispatched and exposes no partial command tree
     - The two `@validation` scenarios (no implementation leakage, non-behaviors name their owners) are confirmed against the spec text (documentation checks)
   - **Dependencies**: T004
   - **Plan reference**: Phase 3 — Exercise nested registration; Cross-cutting Concerns (testing strategy)
-  - **Scenario references**: no-runnable-cli.feature: "One failed registration prevents the whole CLI from running", "Lookup is predictable from registration alone", and all Rule-block scenarios
+  - **Scenario references**: no-runnable-cli/command-registration.feature: "One failed registration prevents the whole CLI from running", "Lookup is predictable from registration alone", and all Rule-block scenarios
   - **Risk**: ⚠️ Edge semantics — confirm cobra's bare-group-shows-help and unknown-path behavior match the spec; the precise unknown-path contract belongs to the later Argument Dispatch spec.
