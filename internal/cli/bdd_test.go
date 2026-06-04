@@ -64,6 +64,10 @@ type world struct {
 	// root) and the output of every invocation in the scenario, in order.
 	newRoot func() *cobra.Command
 	outputs []string
+
+	// Credential Storage (006): the per-scenario store fixture (temp dirs,
+	// controlled token sources, isTTY, scripted interactor, captured output).
+	cred *credState
 }
 
 func (w *world) reset() {
@@ -85,6 +89,7 @@ func (w *world) reset() {
 	w.exitCodeSet = false
 	w.newRoot = nil
 	w.outputs = nil
+	w.cred = &credState{}
 	// Restore the build-time version var to its default placeholder so a 003
 	// "built with version X" scenario cannot leak its value into later
 	// scenarios (the var is the single source of truth both --version and the
@@ -131,6 +136,8 @@ func initializeScenario(sc *godog.ScenarioContext) {
 	w.registerHelpVersionSteps(sc)
 	// Exit-Code Convention (004) steps live in exitcode_bdd_test.go.
 	w.registerExitCodeSteps(sc)
+	// Credential Storage (006) steps live in credstorage_bdd_test.go.
+	w.registerCredStorageSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

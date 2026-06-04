@@ -73,7 +73,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 3: Command wiring & executable acceptance [Shared]
 
-- [ ] **T004** [Shared] Register the `auth` group and `auth login` leaf via the guard, wire in main, classify outcomes — delegating the write to `internal/auth`
+- [x] **T004** [Shared] Register the `auth` group and `auth login` leaf via the guard, wire in main, classify outcomes — delegating the write to `internal/auth` — runLogin + newAuthCommand/newAuthLoginCommand, wired in Assemble; added `commandUsageError` dispatch seam so a command can emit UsageError (→2) vs RuntimeError (→1), pinned by a dispatch test; noted in LEARNINGS
   - **Scope**: Add the `auth` command group (non-runnable, non-empty `Short`) and the `auth login [TOKEN]` leaf (`Args: cobra.MaximumNArgs(1)`, non-empty `Short`, flags `--cwd` and `--overwrite`), registered through the `MustRegister` guard and wired explicitly in `main` (no `init()`). The leaf composes T003's seam → T002's resolution/guard → T001's writer, classifies the outcome into the existing `Outcome` categories (no `os.Exit`, no new codes — 004 maps), writes the success line naming the path (never the token) to stdout, and write/format/usage errors to stderr.
   - **Acceptance criteria**:
     - `glassfrog auth login` resolves; `auth` is a non-runnable group with a summary; the leaf accepts at most one positional and rejects extras as a usage error
