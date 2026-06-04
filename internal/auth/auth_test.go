@@ -108,6 +108,37 @@ func TestWriteCredentials_PresentFileNoToken_AppendsTokenPreservesOthers(t *test
 	}
 }
 
+// A file with multiple token= lines collapses to a single one holding the new
+// value, with no stale secret left behind — matching the reader's last-wins
+// rule so the written token is the effective one.
+func TestWriteCredentials_MultipleTokenLines_CollapsedToOne(t *testing.T) {
+	path := filepath.Join(t.TempDir(), CredentialsFileName)
+	seedCredFile(t, path, "token=gf_first\nother=keep_me\ntoken=gf_second\n")
+
+	if err := WriteCredentials(path, "gf_new_token"); err != nil {
+		t.Fatalf("WriteCredentials: %v", err)
+	}
+
+	got := readBack(t, path)
+	if n := strings.Count(got, "token="); n != 1 {
+		t.Fatalf("expected exactly one token= line, got %d:\n%s", n, got)
+	}
+	if !strings.Contains(got, "token=gf_new_token") {
+		t.Fatalf("new token not written, got:\n%s", got)
+	}
+	if strings.Contains(got, "gf_first") || strings.Contains(got, "gf_second") {
+		t.Fatalf("a stale token value remained, got:\n%s", got)
+	}
+	if !strings.Contains(got, "other=keep_me") {
+		t.Fatalf("unrelated entry not preserved, got:\n%s", got)
+	}
+	// The reader (last-wins) returns the value just written.
+	tok, found, err := ReadCredentialsFile(path)
+	if err != nil || !found || tok != "gf_new_token" {
+		t.Fatalf("reader after collapse: token=%q found=%v err=%v", tok, found, err)
+	}
+}
+
 // --- WriteCredentials: malformed existing file → format error, no write ---
 
 func TestWriteCredentials_MalformedExisting_FormatErrorNoWrite(t *testing.T) {

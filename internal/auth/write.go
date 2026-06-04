@@ -94,9 +94,13 @@ func WriteCredentials(path, token string) error {
 }
 
 // mergeTokenLine returns the file content with the token entry set to token:
-// the existing token= line's value is replaced in place, or a token= line is
-// appended when none exists, preserving every other line and comment and their
-// order. The result always ends with a trailing newline.
+// the first existing token= line's value is replaced in place (or a token= line
+// is appended when none exists), and any further token= lines are dropped, so
+// exactly one token entry remains. Collapsing duplicates matters because the
+// shared reader is last-token-wins: leaving a later stale token= line would keep
+// the old value effective after a write and leave the old secret in the file.
+// Every non-token line and comment is preserved in order; the result always ends
+// with a trailing newline.
 func mergeTokenLine(existing []byte, token string) []byte {
 	tokenLine := tokenKey + "=" + token
 	if len(existing) == 0 {
@@ -112,18 +116,22 @@ func mergeTokenLine(existing []byte, token string) []byte {
 		lines = lines[:len(lines)-1]
 	}
 
+	out := make([]string, 0, len(lines)+1)
 	replaced := false
-	for i, line := range lines {
+	for _, line := range lines {
 		if isTokenLine(line) {
-			lines[i] = tokenLine
-			replaced = true
-			break
+			if !replaced {
+				out = append(out, tokenLine) // keep the first token entry's position
+				replaced = true
+			}
+			continue // drop this (and any later) duplicate token line
 		}
+		out = append(out, line)
 	}
 	if !replaced {
-		lines = append(lines, tokenLine)
+		out = append(out, tokenLine)
 	}
-	return []byte(strings.Join(lines, "\n") + "\n")
+	return []byte(strings.Join(out, "\n") + "\n")
 }
 
 // isTokenLine reports whether line is the credential's token= entry (used by the
