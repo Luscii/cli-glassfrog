@@ -1,7 +1,7 @@
 # Analyze: Command Registration
 
 **Feature**: 001-command-registration
-**Artifacts analyzed**: spec.md, plan.md, interface-spec.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts analyzed**: spec.md, plan.md, interface-spec.md, interface-cli.md, features/no-runnable-cli/command-registration.feature, tasks.md
 **Checklist context**: loaded — 11/11 pass, 0 failures
 **Checks**: 16 (15 pass, 1 fail)
 **Generated**: 2026-06-03
@@ -34,7 +34,7 @@ None.
 - **C3** spec § Non-Behaviors ↔ plan § System Architecture — plan architects none of the excluded concerns (parsing, help rendering, execution, exit codes, dynamic registration); its "What This Plan Does Not Cover" mirrors the non-behaviors.
 - **C4** plan § ADRs ↔ interface-spec/cli § Surface — interface contracts reflect cobra (ADR-2), the guard (ADR-3), and explicit wiring (ADR-4).
 - **C5** plan § System Architecture ↔ tasks § Scope — every task maps to a plan component/phase; no task builds something the plan doesn't mention.
-- **C6** interface-spec/cli § Surface ↔ no-runnable-cli.feature steps — scenario steps reference only surfaces the interface defines (register, command set, paths, bare-group, error cases).
+- **C6** interface-spec/cli § Surface ↔ no-runnable-cli/command-registration.feature steps — scenario steps reference only surfaces the interface defines (register, command set, paths, bare-group, error cases).
 
 ## Completeness: 6/6 passed
 

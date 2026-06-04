@@ -1,7 +1,7 @@
 # Analyze: Argument Dispatch
 
 **Feature**: 002-argument-dispatch
-**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/no-runnable-cli/argument-dispatch.feature, tasks.md
 **Checklist context**: loaded — 9/9 pass, 0 failures
 **Checks**: 16 (16 pass, 0 fail)
 **Generated**: 2026-06-03 (H3 updated after the RuntimeError-deferral decision)
@@ -34,7 +34,7 @@ None.
 - **C3** spec § Non-Behaviors ↔ plan — plan architects none of the excluded concerns (no help rendering, no exit codes, no registration, no prefix matching, no command work); "What This Plan Does Not Cover" mirrors them.
 - **C4** plan § ADRs ↔ interface — interface-cli reflects cobra resolution + exact match (ADR-1); interface-spec reflects the `Outcome` category (ADR-2).
 - **C5** plan § System Architecture ↔ tasks § Scope — T001–T003 map to plan components/phases; no task builds anything the plan omits.
-- **C6** interface ↔ no-runnable-cli.feature steps — 002 scenario steps reference only surfaces the dispatch accords define (resolution, outcome category, usage error).
+- **C6** interface ↔ no-runnable-cli/argument-dispatch.feature steps — 002 scenario steps reference only surfaces the dispatch accords define (resolution, outcome category, usage error).
 
 ## Completeness: 6/6 passed
 

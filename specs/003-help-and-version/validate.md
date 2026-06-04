@@ -4,7 +4,7 @@
 **Round**: 1 of 3
 **Date**: 2026-06-03
 **Verdict**: Ready
-**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, features/no-runnable-cli.feature, PROJECT.md
+**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-cli.md, features/no-runnable-cli/help-and-version.feature, PROJECT.md
 **Implementation files**: `internal/cli/helpversion.go` (configuration pass), `internal/cli/app.go` (wiring), `internal/cli/version.go` (version source of truth); tests in `internal/cli/helpversion_test.go` and `internal/cli/helpversion_bdd_test.go`
 
 ---
@@ -28,7 +28,7 @@
 
 **Status**: Pass (9 of 9 scenarios covered)
 
-All driving scenarios trace to identifiable code paths in `configureHelpAndVersion` over cobra's standard rendering, and each has a passing executable acceptance scenario in `no-runnable-cli.feature`.
+All driving scenarios trace to identifiable code paths in `configureHelpAndVersion` over cobra's standard rendering, and each has a passing executable acceptance scenario in `no-runnable-cli/help-and-version.feature`.
 
 | Scenario | Status | Implementation |
 |---|---|---|

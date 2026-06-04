@@ -2,7 +2,7 @@
 
 **Feature**: 004-exit-code-convention
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
-**Artifacts checked**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts checked**: spec.md, plan.md, interface-cli.md, features/no-runnable-cli/exit-code-convention.feature, tasks.md
 **Checks**: 10 (10 pass, 0 fail)
 **Generated**: 2026-06-03 (re-derived after the crash-diagnostic clarification)
 
@@ -42,7 +42,7 @@ None.
 → **plan.md § ADR-4 + features § "An internal panic exits one and never collides with the usage code"**: a panic exits `1`, not Go's default status `2`, so a crash is never mistaken for a usage error.
 
 **P0** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/no-runnable-cli.feature**: the 004 driving scenarios exist as `@wip` (three Rule blocks) before implementation.
+→ **features/no-runnable-cli/exit-code-convention.feature**: the 004 driving scenarios exist as `@wip` (three Rule blocks) before implementation.
 
 **P0** | CONSTITUTION.md IV: "Features MUST be built test-first (RED → GREEN)"
 → **tasks.md § T001–T002**: the registry is specified tests-RED-first (uniqueness / no-shell-reserved / exact-values), and the category reclassification flips the two deferral tests RED before GREEN.

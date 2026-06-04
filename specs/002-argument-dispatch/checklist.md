@@ -2,7 +2,7 @@
 
 **Feature**: 002-argument-dispatch
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
-**Artifacts checked**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts checked**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/no-runnable-cli/argument-dispatch.feature, tasks.md
 **Checks**: 9 (9 pass, 0 fail)
 **Generated**: 2026-06-03
 
@@ -37,7 +37,7 @@ None.
 → **plan.md § Cross-cutting Concerns**: dispatch returns the outcome category alongside any error and never swallows; it does not terminate the process itself.
 
 **P0** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/no-runnable-cli.feature**: the 002 driving scenarios exist as `@wip` before implementation.
+→ **features/no-runnable-cli/argument-dispatch.feature**: the 002 driving scenarios exist as `@wip` before implementation.
 
 **P0** | CONSTITUTION.md IV: "Features MUST be built test-first (RED → GREEN)"
 → **tasks.md § T002**: classification is specified test-first (RED-first unit tests per category).

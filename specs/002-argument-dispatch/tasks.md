@@ -2,7 +2,7 @@
 
 **Feature**: 002-argument-dispatch
 **Concretization**: Full context (plan + spec + interface + scenarios)
-**Inputs**: plan.md, spec.md, interface-cli.md, interface-spec.md, features/no-runnable-cli.feature
+**Inputs**: plan.md, spec.md, interface-cli.md, interface-spec.md, features/no-runnable-cli/argument-dispatch.feature
 
 ---
 
@@ -48,18 +48,18 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
   - **Dependencies**: T001
   - **Plan reference**: Phase 2 — Outcome classification; ADR-1 (exact match), ADR-2 (category)
   - **Interface references**: interface-cli.md — resolution + error contract; interface-spec.md — category derivation table
-  - **Scenario references**: no-runnable-cli.feature: "A prefix does not resolve to a longer command", "An unknown top-level command fails with guidance", "An unexpected flag is rejected as a usage error"
+  - **Scenario references**: no-runnable-cli/argument-dispatch.feature: "A prefix does not resolve to a longer command", "An unknown top-level command fails with guidance", "An unexpected flag is rejected as a usage error"
   - **Risk**: ⚠️ cobra exposes no typed "command not found" — classify `UsageError` at the seams (resolution check + flag-error hook). Pin each category with a test.
 
 ## Phase 3: Executable acceptance [Shared]
 
 - [x] **T003** [Shared] Make the 002 driving scenarios pass as executable acceptance — 8 behavioral scenarios de-`@wip`'d and passing via godog steps in `dispatch_bdd_test.go` (20/20 feature scenarios, 80 steps); 3 `@validation` scenarios kept `@wip` (held out for validate)
-  - **Scope**: Add godog step definitions for the Argument Dispatch scenarios in `features/no-runnable-cli.feature` (the three 002 Rule blocks), exercising `Run` against an assembled tree and asserting `(outcome category, output)`. Remove `@wip` from the passing behavioral scenarios.
+  - **Scope**: Add godog step definitions for the Argument Dispatch scenarios in `features/no-runnable-cli/argument-dispatch.feature` (the three 002 Rule blocks), exercising `Run` against an assembled tree and asserting `(outcome category, output)`. Remove `@wip` from the passing behavioral scenarios.
   - **Acceptance criteria**:
     - Every non-`@validation` 002 scenario (route nested / route top-level / prefix-no-resolve / unknown command / unknown subcommand / unexpected-flag rejected / bare group / empty invocation) has an executable, passing path
     - `@wip` removed from those scenarios; the three 002 `@validation` scenarios keep `@wip` (held out for validate)
     - The three `@validation` scenarios (no routing by abbreviation; no implementation tech; non-behaviors name owners) confirmed against spec.md text
   - **Dependencies**: T002
   - **Plan reference**: Phase 3 — Executable acceptance; Cross-cutting Concerns (testing strategy)
-  - **Scenario references**: no-runnable-cli.feature: all 002 Rule-block scenarios
+  - **Scenario references**: no-runnable-cli/argument-dispatch.feature: all 002 Rule-block scenarios
   - **Risk**: ⚠️ cobra's built-in `help`/`completion` are resolvable commands; if a scenario probes unknown-command behavior near them, account for them. The keep/hide decision is Help & Version's (003).

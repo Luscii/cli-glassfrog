@@ -2,7 +2,7 @@
 
 **Feature**: 003-help-and-version
 **Concretization**: Full context (plan + spec + interface + scenarios)
-**Inputs**: plan.md, spec.md, interface-cli.md, features/no-runnable-cli.feature
+**Inputs**: plan.md, spec.md, interface-cli.md, features/no-runnable-cli/help-and-version.feature
 
 ---
 
@@ -41,17 +41,17 @@ Phase 2: Executable acceptance (1 task, depends on Phase 1) [Shared]
   - **Dependencies**: None (builds on 001, already implemented)
   - **Plan reference**: Phase 1 — Root configuration pass; ADR-1, ADR-2, ADR-3
   - **Interface references**: interface-cli.md — Surface (flags/commands, built-ins hidden), Interactions (version parity, precedence)
-  - **Scenario references**: no-runnable-cli.feature (003 Rule blocks): "Root help lists all top-level commands with summaries", "Group help lists its subcommands with summaries", "Commands are listed in alphabetical order", "Framework built-in commands are absent from the listing", "Version flag and version command produce identical output", "Help takes precedence over version"
+  - **Scenario references**: no-runnable-cli/help-and-version.feature (003 Rule blocks): "Root help lists all top-level commands with summaries", "Group help lists its subcommands with summaries", "Commands are listed in alphabetical order", "Framework built-in commands are absent from the listing", "Version flag and version command produce identical output", "Help takes precedence over version"
   - **Risk**: ⚠️ alphabetical order and help-command hiding depend on a cobra package-global (`EnableCommandSorting`) and a cobra idiom (`SetHelpCommand` with a hidden command); pin both with regression tests (plan Risks).
 
 ## Phase 2: Executable acceptance [Shared]
 
 - [x] **T002** [Shared] Make the 003 driving scenarios pass as executable acceptance — 11 behavioral scenarios un-@wip'd and passing; 3 @validation scenarios held out
-  - **Scope**: Add godog step definitions for the three 003 Rule blocks in `features/no-runnable-cli.feature` (Discover the available commands / Read a command's usage before invoking it / Confirm which build of the CLI is running), exercising the assembled root and asserting the rendered output. Remove `@wip` from the passing behavioral scenarios; leave the `@validation` scenarios tagged for validate.
+  - **Scope**: Add godog step definitions for the three 003 Rule blocks in `features/no-runnable-cli/help-and-version.feature` (Discover the available commands / Read a command's usage before invoking it / Confirm which build of the CLI is running), exercising the assembled root and asserting the rendered output. Remove `@wip` from the passing behavioral scenarios; leave the `@validation` scenarios tagged for validate.
   - **Acceptance criteria**:
     - every non-`@validation` 003 scenario has an executable, passing path: root listing, group listing, empty-set root help, group-immediate-children, alphabetical order, built-ins absent, leaf usage, help-on-unregistered-renders-nothing, help precedence, version parity, version-flag-on-subcommand
     - the empty-command-set and unregistered-path scenarios run without panics
     - `@wip` removed from those behavioral scenarios; the three 003 `@validation` scenarios (deterministic output; no new required registration data; no exit-code/routing leak) keep `@validation @wip`, held out for validate
   - **Dependencies**: T001
   - **Plan reference**: Phase 2 — Executable acceptance; Cross-cutting Concerns (testing strategy)
-  - **Scenario references**: no-runnable-cli.feature — all 003 Rule-block scenarios
+  - **Scenario references**: no-runnable-cli/help-and-version.feature — all 003 Rule-block scenarios

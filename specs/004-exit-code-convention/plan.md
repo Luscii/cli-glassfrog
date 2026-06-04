@@ -115,7 +115,7 @@ Single phase (the feature is small and the dependency order within it is linear)
 1. **Registry** — add `internal/cli/exitcode.go`: the seven `code*` constants (frozen convention) and `ExitCode(Outcome) int` with the Fail-Safe default. Add `exitcode_test.go` (exact-values, constant uniqueness, no shell-reserved, producer-backed-category mapping). RED→GREEN.
 2. **Category** — extend `Outcome` with `RuntimeError`, update `String()`, and reclassify dispatch's default arm (`Success, err` → `RuntimeError, err` when the action errored). Update the two deferral tests in `dispatch_test.go`. RED first (flip the test expectations), then GREEN.
 3. **Entrypoint** — extract a testable `cli.Main() int` that maps the outcome via `cli.ExitCode` and recovers a panic to return `1` (writing a stderr diagnostic); reduce `main.go` to `os.Exit(cli.Main())` and replace the placeholder doc comment with the real convention reference. Extracting `Main()` rather than inlining in `main` lets the exit-code and panic paths be exercised in-process (step 4), since `os.Exit` would otherwise terminate the test binary.
-4. **Scenarios wiring** — bind the producer-backed exit-code scenarios via `cli.Main()` and add a subprocess smoke test for the `os.Exit`/panic→1 path, against `features/no-runnable-cli.feature`; the operational-category scenarios stay `@validation` until their producer lands.
+4. **Scenarios wiring** — bind the producer-backed exit-code scenarios via `cli.Main()` and add a subprocess smoke test for the `os.Exit`/panic→1 path, against `features/no-runnable-cli/exit-code-convention.feature`; the operational-category scenarios stay `@validation` until their producer lands.
 
 Steps 1→2 are independent enough to land separately; 3 depends on both (it calls `ExitCode` and relies on `RuntimeError`); 4 depends on 1–3.
 
@@ -133,6 +133,6 @@ Steps 1→2 are independent enough to land separately; 3 depends on both (it cal
 ## What This Plan Does Not Cover
 
 - **The protocol-level exit-code contract table** (the published category↔code surface an agent reads) — that is the **interface** skill's artifact (`interface-cli.md`): the process-exit boundary named in the spec's Integration Boundaries is an external-facing surface.
-- **Executable scenarios** — the **scenarios** skill concretizes the spec's driving scenarios into `features/no-runnable-cli.feature` and step bindings.
+- **Executable scenarios** — the **scenarios** skill concretizes the spec's driving scenarios into `features/no-runnable-cli/exit-code-convention.feature` and step bindings.
 - **Task decomposition** — the **tasks** skill turns the four implementation steps above into PR-sized units with acceptance criteria.
 - **The API client's HTTP-status→category classification** — deferred to the future API-client spec (the producer of categories 3–6); 004 only reserves their codes.

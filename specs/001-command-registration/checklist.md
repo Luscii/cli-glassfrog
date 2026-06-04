@@ -2,7 +2,7 @@
 
 **Feature**: 001-command-registration
 **Checked against**: CONSTITUTION.md (no `accords/governance/done-*.md` present)
-**Artifacts checked**: spec.md, plan.md, interface-spec.md, interface-cli.md, features/no-runnable-cli.feature, tasks.md
+**Artifacts checked**: spec.md, plan.md, interface-spec.md, interface-cli.md, features/no-runnable-cli/command-registration.feature, tasks.md
 **Checks**: 11 (11 pass, 0 fail)
 **Generated**: 2026-06-03
 
@@ -31,19 +31,19 @@ None.
 → **plan.md § ADR-3 / interface-spec.md**: the guard validates each command (name, summary, action/children, collision) before attaching it to the tree.
 
 **P0** | CONSTITUTION.md III: "MUST NOT leave governance in a partially-applied state"
-→ **plan.md § Cross-cutting Concerns / no-runnable-cli.feature**: a failed registration aborts startup before dispatch; scenario "One failed registration prevents the whole CLI from running" asserts no command runs and no partial command tree is exposed.
+→ **plan.md § Cross-cutting Concerns / no-runnable-cli/command-registration.feature**: a failed registration aborts startup before dispatch; scenario "One failed registration prevents the whole CLI from running" asserts no command runs and no partial command tree is exposed.
 
 **P0** | CONSTITUTION.md III (anti-pattern: swallowing errors)
 → **interface-spec.md § Error Communication**: violations surface as a returned error (`Register`) or panic (`MustRegister`) — never swallowed.
 
 **P0** | CONSTITUTION.md IV (TDD): "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/no-runnable-cli.feature**: 15 `@wip` scenarios exist before implementation, covering the registration behaviors.
+→ **features/no-runnable-cli/command-registration.feature**: 15 `@wip` scenarios exist before implementation, covering the registration behaviors.
 
 **P0** | CONSTITUTION.md IV: "Features MUST be built test-first (RED → GREEN)"
 → **tasks.md § T003**: acceptance criteria mandate RED-first unit tests for the guard's happy path and each rule; T005 provides executable acceptance.
 
 **P0** | CONSTITUTION.md V (Composition over Monolith): "Adding a new command MUST NOT require changing unrelated ones"
-→ **spec.md § Behavioral Accord / plan.md § ADR-4 / no-runnable-cli.feature**: registering one command leaves existing commands unchanged; explicit wiring adds one line plus the command's own package; scenario "Registering a command leaves existing commands untouched" verifies it.
+→ **spec.md § Behavioral Accord / plan.md § ADR-4 / no-runnable-cli/command-registration.feature**: registering one command leaves existing commands unchanged; explicit wiring adds one line plus the command's own package; scenario "Registering a command leaves existing commands untouched" verifies it.
 
 **P0** | CONSTITUTION.md V: "modular, independently-testable parts"
 → **plan.md § System Architecture**: each command lives in its own package; the guard is a pure function over (parent, child), unit-testable in isolation.
