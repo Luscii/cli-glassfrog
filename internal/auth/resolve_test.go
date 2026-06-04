@@ -70,11 +70,21 @@ func TestResolution_StringRedactsToken(t *testing.T) {
 func TestResolve_EnvFirstShortCircuitsFiles(t *testing.T) {
 	stubEnv(t, "gf_env_token")
 	home := t.TempDir()
-	seedToken(t, home, "gf_home_token") // present, but must not be read
+	seedToken(t, home, "gf_home_token") // a stored file exists, but env must win
 
-	got, err := resolve(filepath.Join(home, "work"), home)
+	// Tripwire: an unreadable .glassfrogrc (a directory) at the nearest search
+	// location. If a regression makes resolve consult the filesystem despite the
+	// env hit, readCredentialsFile fails on this path and the error surfaces
+	// below — so "short-circuits all file reads" is actually enforced, not just
+	// implied by the output.
+	startDir := filepath.Join(home, "work")
+	if err := os.MkdirAll(filepath.Join(startDir, credentialsFileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolve(startDir, home)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("env hit must not touch the filesystem, but a file read was attempted: %v", err)
 	}
 	if got.Source != SourceEnvironment {
 		t.Errorf("Source = %v, want Environment", got.Source)
