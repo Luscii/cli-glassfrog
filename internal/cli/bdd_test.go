@@ -19,8 +19,8 @@ import (
 // scenarios stay @wip because they are held out for independent verification
 // (the validate skill), not implemented by the Builder.
 //
-// The path is scoped to this package's own feature file rather than the whole
-// features/ directory: each package's godog suite owns the feature(s) whose
+// The path is scoped to this package's own feature directory rather than the
+// whole features/ directory: each package's godog suite owns the feature(s) whose
 // steps it defines (the cli command tree here; Credential Discovery's
 // unauthenticated-access/credential-discovery.feature is owned by
 // internal/auth). Globbing the
@@ -31,7 +31,7 @@ func TestFeatures(t *testing.T) {
 		ScenarioInitializer: initializeScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
-			Paths:    []string{"../../features/no-runnable-cli.feature"},
+			Paths:    []string{"../../features/no-runnable-cli"},
 			Tags:     "~@wip",
 			TestingT: t,
 		},
