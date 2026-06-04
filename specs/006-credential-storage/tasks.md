@@ -45,7 +45,7 @@ Phase 3: Command wiring & executable acceptance (2 tasks, depends on Phase 2) [S
 
 ## Phase 2: Token-source resolution & interactivity [Shared]
 
-- [ ] **T002** [Shared] Pure token-source precedence, blank rejection, target-path selection, and the existing-token guard — RED-first unit tests with injected sources
+- [x] **T002** [Shared] Pure token-source precedence, blank rejection, target-path selection, and the existing-token guard — RED-first unit tests with injected sources — resolveTokenSource/usableToken/targetPath/existingTokenGuard in authlogin.go; table-driven hermetic unit tests
   - **Scope**: Add pure logic (injected sources, no real `os` reads): `resolveToken` choosing a single token in precedence order argument → piped stdin → `GLASSFROG_TOKEN` → prompt-marker, rejecting empty/whitespace-only values as unusable, and signalling the non-interactive-no-token case. Add target-path selection from injected `startDir`/`homeDir` (home default; current-directory file when `--cwd`). Add the existing-token guard: non-interactive with an existing token → error unless an overwrite signal is set; interactive → confirm/choose-location decision surfaced to the caller. All branches decided from injected inputs (`isTTY` flag, source set), returning a code-free outcome category (`UsageError` for no-token / no-override / blank; success otherwise) for 004 to map.
   - **Acceptance criteria**:
     - Precedence: argument beats piped stdin beats `GLASSFROG_TOKEN` beats prompt; first present wins
