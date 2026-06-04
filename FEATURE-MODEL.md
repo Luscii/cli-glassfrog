@@ -22,3 +22,9 @@ This document captures the solutions and capabilities for the Glassfrog CLI, org
 - Credential Discovery — locate and read the credentials file at call time, with the working-directory file taking precedence over the home-directory one (nearest-wins)
 - Request Authentication — attach the resolved token as the X-Auth-Token header on outgoing API calls so Glassfrog authorizes them as the specific org + person
   + depends-on: Credential Discovery
+
+## Connection Configuration
+> Problem: Undefined Connection Settings — the CLI doesn't know which token or base URL to use, or where to read them from (affects: Practitioner)
+
+- Connection Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), reading the file value from the same npmrc-style credentials file Credential Discovery locates (nearest-wins), then combine it with the discovered token into the single connection context each request uses
+  + depends-on: Credential Discovery
