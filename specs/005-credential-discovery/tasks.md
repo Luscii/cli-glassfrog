@@ -40,7 +40,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Resolver + precedence [Shared]
 
-- [ ] **T002** [Shared] Implement `resolve(startDir, homeDir)` with env-first / walk-up / home-fallback precedence and the production seam — RED-first unit tests over temp directory trees
+- [x] **T002** [Shared] Implement `resolve(startDir, homeDir)` with env-first / walk-up / home-fallback precedence and the production seam — RED-first unit tests over temp directory trees — 13 unit tests (env-first/empty-env/nearest-wins/walk-up/home-fallback/home-on-ascent/tokenless-skip/none/unreadable/malformed + 3 candidateDirs dedup+root cases); no findings
   - **Scope**: Add `resolve(startDir, homeDir) → (Resolution, error)` returning `Resolution{Token, Source, Path}` (`Source ∈ {Environment, File, None}`). Order: non-empty `GLASSFROG_TOKEN` short-circuits to `Environment`; else build a de-duplicated candidate list (`startDir`, each ancestor to the filesystem root, then `homeDir` if not already present) and return the first file with a usable token (nearest-wins); a parseable-but-tokenless file is skipped; an unreadable or unparseable file returns a typed error naming the path (no fall-through); nothing found → `Source: None`, no error. Add a thin production seam binding `os.Getwd` / `os.UserHomeDir` / `os.Getenv` (the only place that reads globals — ADR-5). The token value never appears in any error or log.
   - **Acceptance criteria**:
     - Env-first: non-empty `GLASSFROG_TOKEN` wins and no file is read; an empty/unset value falls through to files
