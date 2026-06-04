@@ -47,7 +47,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Auth round-tripper [Shared]
 
-- [ ] **T002** [Shared] Implement the `http.RoundTripper` that authenticates outgoing requests (resolve-once, attach-or-refuse), with RED-first unit tests over a fake base transport
+- [x] **T002** [Shared] Implement the `http.RoundTripper` that authenticates outgoing requests (resolve-once, attach-or-refuse), with RED-first unit tests over a fake base transport — 8 unit tests; `AuthTransport` clones the request before setting the header (net/http convention), resolve-once via `sync.Once`, `ActiveIdentity` exposes Source/Path
   - **Scope**: Add the auth round-tripper wrapping a base `http.RoundTripper` with an injected `func() (auth.Resolution, error)`, plus its constructor. Resolve once per invocation (cache the outcome). Per `RoundTrip`: resolver error → return `CredentialError` (base **not** called); `Source: None` → return `NoCredentials` (base **not** called); usable token → `req.Header.Set("X-Auth-Token", token)` verbatim, then delegate to the base transport and return its result unchanged. Expose `Source`/`Path` as the reportable active identity (never the token). No exit code, no `os.Exit`, no command surface. The composition seam with Connection Configuration is `[ASSUMED]`.
   - **Acceptance criteria**:
     - On a resolved token, `RoundTrip` sets `X-Auth-Token` to the token verbatim and delegates to the base transport, returning its response/error unchanged
