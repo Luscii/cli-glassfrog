@@ -12,7 +12,6 @@ Feature: Unauthenticated Access
     # I want the CLI to find and use my stored token automatically.
 
     # Source: 005-credential-discovery — Scenario: Home-directory file as the final fallback
-    @wip
     Scenario: The home file is used when no project file exists
       Given GLASSFROG_TOKEN was not set
       And no ".glassfrogrc" existed in the current directory or any ancestor
@@ -21,7 +20,6 @@ Feature: Unauthenticated Access
       Then it will use the token from the home file
 
     # Source: 005-credential-discovery — Scenario: A file is present but holds no token
-    @wip
     Scenario: A tokenless file is skipped for the next source
       Given a ".glassfrogrc" in the current directory existed with no token entry
       And a ".glassfrogrc" in the home directory held the token "gf_home_token"
@@ -31,7 +29,6 @@ Feature: Unauthenticated Access
       And it will use the token from the home file
 
     # Source: 005-credential-discovery — Scenario: No credentials anywhere
-    @wip
     Scenario: No credentials anywhere is reported as absence
       Given GLASSFROG_TOKEN was not set
       And no ".glassfrogrc" existed in the current directory, any ancestor, or the home directory
@@ -41,7 +38,6 @@ Feature: Unauthenticated Access
       And it will not raise an error of its own
 
     # Source: 005-credential-discovery — Scenario: A credentials file exists but cannot be read
-    @wip
     Scenario: An unreadable credentials file fails loudly
       Given the nearest ".glassfrogrc" existed but could not be read
       And GLASSFROG_TOKEN was not set
@@ -50,7 +46,6 @@ Feature: Unauthenticated Access
       And it will not fall through to another source
 
     # Source: 005-credential-discovery — Scenario: A credentials file cannot be parsed
-    @wip
     Scenario: A malformed credentials file fails loudly
       Given the nearest ".glassfrogrc" held a line that was neither blank, a comment, nor a "key=value" pair
       And GLASSFROG_TOKEN was not set
@@ -86,7 +81,6 @@ Feature: Unauthenticated Access
     # I want to supply the token through an environment variable that overrides any stored file.
 
     # Source: 005-credential-discovery — Scenario: Environment variable overrides any stored file
-    @wip
     Scenario: The environment token overrides a stored file
       Given GLASSFROG_TOKEN was set to "gf_env_token"
       And a ".glassfrogrc" in the home directory held the token "gf_home_token"
@@ -96,7 +90,6 @@ Feature: Unauthenticated Access
       And it will not read any credentials file
 
     # Source: 005-credential-discovery — Scenario: Environment variable set but empty
-    @wip
     Scenario: An empty environment variable is ignored
       Given GLASSFROG_TOKEN was set to an empty value
       And a ".glassfrogrc" in the current directory held the token "gf_file_token"
@@ -110,7 +103,6 @@ Feature: Unauthenticated Access
     # I want a project-local credentials file to take precedence over my home-directory one.
 
     # Source: 005-credential-discovery — Scenario: Nearest credentials file wins over the home file
-    @wip
     Scenario: The nearest credentials file wins over the home file
       Given a ".glassfrogrc" in the current directory held the token "gf_project_token"
       And a ".glassfrogrc" in the home directory held the token "gf_home_token"
@@ -119,7 +111,6 @@ Feature: Unauthenticated Access
       Then it will use the token from the current directory's file
 
     # Source: 005-credential-discovery — Scenario: Walk-up finds an ancestor's credentials file
-    @wip
     Scenario: The search ascends to an ancestor's credentials file
       Given no ".glassfrogrc" existed in the current directory
       And a ".glassfrogrc" two directories above held the token "gf_ancestor_token"
@@ -129,7 +120,6 @@ Feature: Unauthenticated Access
       Then it will use the token from the ancestor file
 
     # Source: 005-credential-discovery — Proposed: A home file on the ascent path is read once (plan: walk-up + home dedupe risk)
-    @wip
     Scenario: A home file on the ascent path is read once
       Given the home directory was an ancestor of the current directory
       And the only ".glassfrogrc" lived in the home directory holding "gf_home_token"

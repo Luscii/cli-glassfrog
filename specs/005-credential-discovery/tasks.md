@@ -56,7 +56,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 005 driving scenarios pass as executable acceptance via godog, exercising the production seam over temp dirs and a controlled `GLASSFROG_TOKEN`
+- [x] **T003** [Shared] Make the 005 driving scenarios pass as executable acceptance via godog, exercising the production seam over temp dirs and a controlled `GLASSFROG_TOKEN` — new `internal/auth` godog suite, 10 behavioral scenarios pass / 3 `@validation` held @wip; scoped the `cli` suite to its own feature file (noted in LEARNINGS)
   - **Scope**: Add godog step definitions for the Credential Discovery scenarios in `features/unauthenticated-access.feature` (all three Rule blocks), driving the production seam against temp directory trees and a set/unset `GLASSFROG_TOKEN`, asserting the resolved `(Token, Source, Path)` or the typed read/format error. Remove `@wip` from the passing behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate).
   - **Acceptance criteria**:
     - Every non-`@validation` 005 scenario (env override / empty-env / nearest-wins / walk-up / home-on-path / home-fallback / tokenless-skip / no-credentials / unreadable / malformed) has an executable, passing path
