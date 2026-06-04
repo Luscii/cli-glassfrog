@@ -15,9 +15,9 @@ Feature: Unauthenticated Access — Request Authentication
     # Source: 007-request-authentication — Scenario: Resolved token is attached to the outgoing call
     @wip
     Scenario: The resolved token is attached to the request
-      Given Credential Discovery resolved the token "gf_live_abc123" from a source
+      Given Credential Discovery resolved the token "gf_resolved_token" from a source
       When the CLI sends an API request
-      Then the request will carry an "X-Auth-Token" header set to "gf_live_abc123"
+      Then the request will carry an "X-Auth-Token" header set to "gf_resolved_token"
       And the request will be sent to the API
 
     # Source: 007-request-authentication — Scenario: Token is attached verbatim
@@ -31,7 +31,7 @@ Feature: Unauthenticated Access — Request Authentication
     # Source: 007-request-authentication — Scenario: The same identity applies across multiple calls in one invocation
     @wip
     Scenario: Every request in an invocation carries the same identity
-      Given Credential Discovery resolved the token "gf_live_abc123"
+      Given Credential Discovery resolved the token "gf_resolved_token"
       When the CLI sends more than one API request in a single invocation
       Then every request will carry the same "X-Auth-Token" identity
 
