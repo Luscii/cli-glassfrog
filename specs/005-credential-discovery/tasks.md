@@ -26,7 +26,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: Shared `.glassfrogrc` reader [Shared]
 
-- [ ] **T001** [Shared] Create the `internal/auth` package and the shared `.glassfrogrc` reader — `readCredentialsFile(path)` parsing npmrc-style `key=value`, with RED-first unit tests
+- [x] **T001** [Shared] Create the `internal/auth` package and the shared `.glassfrogrc` reader — `readCredentialsFile(path)` parsing npmrc-style `key=value`, with RED-first unit tests — 7 unit tests (valid/trim/tokenless/whitespace-value/comments+blanks/malformed/missing); no findings
   - **Scope**: New `internal/auth` package. Add `readCredentialsFile(path) → (token string, found bool, err error)`: split each line on the first `=`, trim key/value, ignore blank lines and `#`-comment lines, read the `token` key, treat a whitespace-only value as no token (`found = false`). A non-blank, non-comment line without `=` is a parse error. Centralize the file name (`.glassfrogrc`) and `GLASSFROG_TOKEN` as constants in the package. Reader only — no walk-up, no env, no resolver yet.
   - **Acceptance criteria**:
     - `readCredentialsFile` returns the token and `found = true` for a file containing `token=gf_x`
