@@ -34,7 +34,7 @@ None.
 → **tasks.md § T001, T002**: both mandate RED-first unit tests (the `authorize` mapping's three branches + secret hygiene; the round-tripper over a fake base transport + fake resolver) before implementation.
 
 **P0** | CONSTITUTION.md IV: "user-facing behavior MUST have an executable acceptance scenario before the code"
-→ **features/unauthenticated-access/request-authentication.feature § T003**: the behavioral `@wip` scenarios (token attached / verbatim / same-identity / resolved-once / missing-credential refusal / broken-credential refusal / active-source reported / diagnostic redaction) exist before implementation; T003 turns them into executable acceptance.
+→ **features/unauthenticated-access/request-authentication.feature**, **tasks.md § T003**: the behavioral `@wip` scenarios (token attached / verbatim / same-identity / resolved-once / missing-credential refusal / broken-credential refusal / active-source reported / diagnostic redaction) exist before implementation; tasks.md T003 turns them into executable acceptance.
 
 **P0** | CONSTITUTION.md V (Composition over Monolith): "modular, independently-testable parts … adding … MUST NOT require changing unrelated ones"
 → **plan.md § ADR-1, ADR-2, ADR-3**: 007 is a `RoundTripper` in the API-client package (not `internal/auth`), composing over Connection Configuration's base transport and consuming Discovery via an injected resolver. It registers no command and edits no existing module; the round-tripper is exercised in isolation with a fake base transport and fake resolver.
