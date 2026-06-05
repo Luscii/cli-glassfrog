@@ -40,7 +40,7 @@ All pass — no artifact pair makes incompatible claims:
 **P1 — RESOLVED** | K5: interface-spec.md § Error Communication → features/…/base-url-resolution.feature (Given/When/Then)
 → Originally: **two error surfaces the accord defines had no acceptance scenario** — (1) a **malformed `base_url` *value* in a file**, and (2) an **unparseable `.glassfrogrc`**. **Resolution:** the feature now includes "A malformed config-file value fails loudly naming the file" (a concretization of the spec's "A source supplies a malformed base URL"), closing surface (1) at the acceptance layer; tasks T003 enumerates it. Surface (2), an unparseable `.glassfrogrc`, is the shared 005 reader's `*FormatError` — already covered by the `internal/auth` reader's own tests (005), so a base-URL-specific acceptance scenario adds no coverage; acceptance coverage of the error surfaces is now adequate. K5 **passes**.
 
-### Passed (5/6)
+### Passed without a finding (K1–K4, K6)
 
 - **K1** spec Driving Scenarios → feature: all 8 driving + 4 validation scenarios have Gherkin equivalents. **pass**
 - **K2** spec Integration Boundaries → interface presence: the `.glassfrogrc`/config-input/`BaseURL` boundaries are covered by interface-spec.md; downstream (connection-context) and exit-code boundaries are justified-absence (deferred/downstream, stated in spec). **pass**
@@ -57,7 +57,7 @@ All pass — no artifact pair makes incompatible claims:
 **P2 — RESOLVED** | H1: terminology drift across the artifact set
 → Originally: feature steps called the single `.glassfrogrc` a "**credentials file**" (inherited from 005's token vocabulary) while the rest of 008's artifacts say "config file" / ".glassfrogrc". **Resolution:** both occurrences were standardized — the empty-env step now reads "from the **current directory's file**" (matching the nearest-wins phrasing) and the env-wins step now reads "it will not read any **config file**". No terminology drift remains. H1 **passes**.
 
-### Passed (3/4)
+### Passed without a finding (H2–H4)
 
 - **H2** detail symmetry (spec↔plan, plan↔tasks): proportionate; no artifact carries 3x+ detail on a shared topic. **pass**
 - **H3** scope alignment (spec/interface/tasks): the same feature scope throughout; the deferred `--base-url` flag registration and the deferred connection-context half are stated consistently in all three; the proposed feature scenario adds coverage, not a capability. **pass**
