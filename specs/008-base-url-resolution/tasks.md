@@ -30,7 +30,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: `base_url` file read in `internal/auth` [Shared]
 
-- [ ] **T001** [Shared] Add a network-free, secret-safe `base_url` file read to `internal/auth`, reusing the shared parser and walk — RED-first unit tests
+- [x] **T001** [Shared] Add a network-free, secret-safe `base_url` file read to `internal/auth`, reusing the shared parser and walk — RED-first unit tests — 19 unit tests (file reader + walk + secret-hygiene tripwires); generalized `parseCredentials` into a shared `parseFields` pass (token reader unchanged), added `baseURLKey`, `readBaseURLFile`, exported `ResolveBaseURLFile` walk
   - **Scope**: In `internal/auth`, add the `base_url` file-key constant beside `tokenKey`. Add an exported function that resolves the `base_url` value from the nearest `.glassfrogrc` over the **existing** `candidateDirs` walk (current directory → ancestors → home, nearest-wins, home-dedupe) and the **existing** `parseCredentials` step — returning `(value string, path string, found bool, err error)`. The **token is never returned** through this path and never appears in any error (secret hygiene; plan ADR-3). It performs no URL validation (the raw string is returned; validation is Phase 2's concern) and makes no network call. Generalize `parseCredentials` to capture the `base_url` key alongside `token` without widening what the token reader exposes — no second `.glassfrogrc` parser is written.
   - **Acceptance criteria**:
     - The reader returns the nearest file's `base_url` value and that file's path; nearest-wins and home-dedupe match the token walk (reuses `candidateDirs`)
