@@ -73,7 +73,7 @@ This slice deliberately covers **only the base URL**. The other half of Connecti
 - **Command-line invocation (upstream input)**: reads the base-URL flag, the highest-precedence source.
 - **Environment (upstream input)**: reads the base-URL environment variable; an AI agent's runtime may set it to point at an endpoint without touching disk.
 - **Filesystem (upstream input)**: reads config files from the current directory's ancestry and from the home directory. It tolerates missing files (skip) and surfaces unreadable or unparseable ones (error).
-- **Glassfrog API v5 specification (reference)**: the built-in default base URL is the v5 API server URL declared in `spec.yaml`'s `servers:` block.
+- **Glassfrog API v5 specification (reference)**: the built-in default base URL is the v5 API server URL declared in `spec/glassfrog-api-v5.yaml`'s `servers:` block.
 - **Connection context / request layer (downstream consumer)**: receives the resolved base URL and its source and uses it as the root for request URLs. This slice produces the value; what consumes it (including pairing it with the token) is downstream.
 - **Exit-Code Convention (downstream)**: an error outcome informs the exit code that accompanies a command, but the classification belongs to that capability, not this one.
 
@@ -181,7 +181,7 @@ Then no outbound connection or API call is made during resolution.
 - **Config key name** `[ASSUMED]`: the base URL is stored in `.glassfrogrc` under a `base_url` key, alongside the `token` key that Credential Discovery reads. This is a contract shared with Credential Storage; reconcile the key name when Credential Storage gains base-URL support. (Parallels 005's `token` key.)
 - **Environment variable name** `[ASSUMED]`: the base-URL environment variable is `GLASSFROG_BASE_URL`, following the conventional `<TOOL>_<SETTING>` shape and paralleling `GLASSFROG_TOKEN`. (Adjustable without changing any behavior.)
 - **Flag name** `[ASSUMED]`: the command flag is `--base-url`. (Adjustable without changing any behavior.) Note: unlike Credential Discovery, which deferred its `--token` flag, the flag is in scope here because the feature model lists it as the top-precedence source for the base URL.
-- **Built-in default value** `[ASSUMED]`: the default base URL is the Glassfrog API v5 server URL declared in `spec.yaml`'s `servers:` block. The exact string is pinned from the spec during planning. (Not yet hardcoded anywhere in the codebase.)
+- **Built-in default value** `[ASSUMED]`: the default base URL is the Glassfrog API v5 server URL declared in `spec/glassfrog-api-v5.yaml`'s `servers:` block. The exact string is pinned from the spec during planning. (Not yet hardcoded anywhere in the codebase.)
 - **"Usable" base URL**: a value is usable when it is non-empty, non-whitespace, and is an absolute URL carrying an `http` or `https` scheme. Whitespace-only values are treated as absent and fall through; a non-empty value that is not an `http(s)` URL (a scheme-less host, or a non-`http` scheme) is malformed and reported as a format error rather than skipped.
 - **File and walk path**: the config file, its name, and the walk path (working-directory ascent to the filesystem root, then the home-directory file) are exactly those Credential Discovery uses. (Same path, per the defining conversation.)
 
@@ -189,7 +189,7 @@ Then no outbound connection or API call is made during resolution.
 
 ## Ambiguity Warnings
 
-_None remaining — the URL validity criterion was resolved during the 2026-06-04 clarify session (see Clarifications). The config key name, environment variable, flag name, and built-in default value are recorded as `[ASSUMED]` and must be reconciled with `spec.yaml` and Credential Storage during planning; these are coordination items, not behavioral gaps in this spec._
+_None remaining — the URL validity criterion was resolved during the 2026-06-04 clarify session (see Clarifications). The config key name, environment variable, flag name, and built-in default value are recorded as `[ASSUMED]` and must be reconciled with `spec/glassfrog-api-v5.yaml` and Credential Storage during planning; these are coordination items, not behavioral gaps in this spec._
 
 ---
 

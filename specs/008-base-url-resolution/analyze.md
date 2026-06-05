@@ -24,7 +24,7 @@ No contradictions. Two findings were raised on the first horizontal pass — one
 ## Consistency Checks (P0): 6/6 passed
 
 All pass — no artifact pair makes incompatible claims:
-- **C1** spec Integration Boundaries ↔ plan System Architecture: the plan's parts (internal/auth reuse, `internal/apiclient` resolver, flag/env/file/default, spec.yaml default, connection-context downstream) cover every named boundary. **pass**
+- **C1** spec Integration Boundaries ↔ plan System Architecture: the plan's parts (internal/auth reuse, `internal/apiclient` resolver, flag/env/file/default, spec/glassfrog-api-v5.yaml default, connection-context downstream) cover every named boundary. **pass**
 - **C2** spec Behavioral Accord ↔ plan System Architecture: the resolver serves the precedence/validation/always-a-value behaviors; none contradicted. **pass**
 - **C3** spec Non-Behaviors ↔ plan System Architecture: the plan architects none of the excluded capabilities (no token resolution, no API call, no writes, no exit code, no normalization, no multi-endpoint) — ADR-1/ADR-3/ADR-4 keep them out. **pass**
 - **C4** plan Architecture Decisions ↔ interface-spec Surface: the `BaseURL{Value, Source, Path}` shape, `Source` enum, `http(s)` validation, typed `BaseURLError`, and precedence in the accord reflect the plan's ADRs. **pass**
