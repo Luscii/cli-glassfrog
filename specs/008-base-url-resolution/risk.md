@@ -29,7 +29,7 @@ No residual **Red**. Two residual **Yellow** (H-1, H-6) — acceptable with the 
 
 ### H-1 — Mis-derived default endpoint
 **Severity: High** — the default backstops the chain, so when nothing is configured *every* request goes to the default host; a wrong host misroutes all out-of-the-box traffic (and, combined with the deferred connection-context half, would send the token there). **Probability: Medium** — `spec/glassfrog-api-v5.yaml` declares a *relative* server `url: /api/v5`, so the host (`https://glassfrog.com`) is inferred from `info.contact.url`, not stated as a server. The inference is plausible but unconfirmed (the live API may be served from `api.glassfrog.com` or similar).
-- **RC-1**: the default is a single centralized constant pinned from the spec (`internal/apiclient`), so a correction is one-line; confirm the host with the spec owner if the relative-server-URL convention is load-bearing (plan Risks).
+- **RC-1**: the default is a single centralized constant in `internal/apiclient` (the `/api/v5` path from the spec, the host inferred from `info.contact.url`), so a correction is one-line; confirm the host with the spec owner if the relative-server-URL convention is load-bearing (plan Risks).
 - **RC-2**: resolution reports `Source: Default`, so the operator can see the default was used rather than an explicit setting (interface § Surface).
 - **Residual: Yellow** — accepted with justification: blast radius is high but the value is a single reviewed constant, the fallback is transparently reported, and no request is sent in this slice (resolution is offline). Re-confirm the host before the connection-context half ships.
 

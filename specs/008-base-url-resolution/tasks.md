@@ -16,7 +16,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 > Every task is `[Shared]`: base URL resolution is infrastructure serving all three user scenarios (flag-override / default-out-of-the-box / project-local-precedence) rather than any single one.
 >
-> **Cross-spec note**: this slice reuses Credential Discovery's (005) one shared `.glassfrogrc` parser + `candidateDirs` walk — implemented and validated Ready on main — and lives in `internal/apiclient`, the package Request Authentication (007) created. The `base_url` file key, `GLASSFROG_BASE_URL`, and the `--base-url` flag name are `[ASSUMED]` CLI conventions — reconcile the file key with Credential Storage (006). The built-in default value is pinned: `https://glassfrog.com/api/v5`, from `spec/glassfrog-api-v5.yaml`.
+> **Cross-spec note**: this slice reuses Credential Discovery's (005) one shared `.glassfrogrc` parser + `candidateDirs` walk — implemented and validated Ready on main — and lives in `internal/apiclient`, the package Request Authentication (007) created. The `base_url` file key, `GLASSFROG_BASE_URL`, and the `--base-url` flag name are `[ASSUMED]` CLI conventions — reconcile the file key with Credential Storage (006). The built-in default `https://glassfrog.com/api/v5` is a fixed constant — the `/api/v5` path from `spec/glassfrog-api-v5.yaml`, the host inferred from `info.contact.url` (risk H-1).
 
 ---
 
