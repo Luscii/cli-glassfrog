@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Luscii/cli-glassfrog/internal/auth"
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
 // stubBaseURLEnv overrides the env seam so resolution sees a controlled
@@ -32,7 +32,7 @@ func seedBaseURLFile(t *testing.T, dir, val string) string {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
-	path := filepath.Join(dir, auth.CredentialsFileName)
+	path := filepath.Join(dir, rcfile.FileName)
 	if err := os.WriteFile(path, []byte("base_url="+val+"\n"), 0o600); err != nil {
 		t.Fatalf("seeding %s: %v", path, err)
 	}
@@ -44,7 +44,7 @@ func seedBaseURLFile(t *testing.T, dir, val string) string {
 // load-bearing rather than implied by output (LEARNINGS).
 func tripwireDir(t *testing.T, dir string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(dir, auth.CredentialsFileName), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, rcfile.FileName), 0o755); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -191,7 +191,7 @@ func TestResolveBaseURL_BaseURLlessFileFallsThroughToDefault(t *testing.T) {
 	start := t.TempDir()
 	// A token-only file holds no base_url: the walk continues and, with nothing
 	// else, the default backstops.
-	if err := os.WriteFile(filepath.Join(start, auth.CredentialsFileName), []byte("token=gf_only\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(start, rcfile.FileName), []byte("token=gf_only\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -253,9 +253,9 @@ func TestResolveBaseURL_UnreadableFileFailsLoudNoDefault(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected a read error, got nil (must not fall through to the default)")
 	}
-	var re *auth.ReadError
+	var re *rcfile.ReadError
 	if !errors.As(err, &re) {
-		t.Fatalf("expected *auth.ReadError, got %T: %v", err, err)
+		t.Fatalf("expected *rcfile.ReadError, got %T: %v", err, err)
 	}
 }
 
@@ -296,7 +296,7 @@ func TestResolveBaseURL_BaseURLErrorCarriesNoSecret(t *testing.T) {
 	stubBaseURLEnv(t, "")
 	secret := "gf_super_secret_token"
 	start := t.TempDir()
-	path := filepath.Join(start, auth.CredentialsFileName)
+	path := filepath.Join(start, rcfile.FileName)
 	content := "token=" + secret + "\nbase_url=api.glassfrog.com\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)

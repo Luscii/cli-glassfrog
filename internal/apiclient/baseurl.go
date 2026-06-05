@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Luscii/cli-glassfrog/internal/auth"
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
 // Connection-configuration constants for base URL resolution, centralized here
@@ -32,6 +32,12 @@ const (
 	// info.contact.url (risk H-1). It is valid by construction and never
 	// re-validated, so the chain always yields a value.
 	DefaultBaseURL = "https://glassfrog.com/api/v5"
+
+	// baseURLKey is the .glassfrogrc key carrying the base URL, read through the
+	// generic rcfile walk. It lives here, with the other base-URL connection
+	// constants, rather than in internal/auth — auth owns the token key, apiclient
+	// owns the base-URL key. [ASSUMED], jointly held with Credential Storage (006).
+	baseURLKey = "base_url"
 )
 
 // BaseURLSource names where a resolved base URL came from. Unlike auth.Source
@@ -131,8 +137,8 @@ func ResolveBaseURLFromOS(flagValue string) (BaseURL, error) {
 // GLASSFROG_BASE_URL, then the nearest .glassfrogrc base_url up the tree (and the
 // home file), then the built-in default — and returns the first source that
 // yields a usable value (ADR-2). It reads GLASSFROG_BASE_URL through the env seam
-// and the file rung through internal/auth's shared reader (ResolveBaseURLFile);
-// startDir and homeDir are injected so the file walk is hermetic.
+// and the file rung through the generic internal/rcfile walk (rcfile.Resolve over
+// the base_url key); startDir and homeDir are injected so the walk is hermetic.
 //
 // "Usable" means an absolute URL carrying an http or https scheme (ADR-4). A
 // whitespace-only flag/env/file value is treated as absent and falls through; a
@@ -163,10 +169,10 @@ func ResolveBaseURL(flagValue, startDir, homeDir string) (BaseURL, error) {
 		return BaseURL{Value: envValue, Source: SourceEnvironment}, nil
 	}
 
-	// Rung 3: the nearest .glassfrogrc base_url up the tree, then home. A typed
-	// read/format error from the shared reader fails loud (no fall-through to the
-	// default); a base_url-less or missing file is skipped inside the walk.
-	fileValue, filePath, found, err := auth.ResolveBaseURLFile(startDir, homeDir)
+	// Rung 3: the nearest .glassfrogrc base_url up the tree, then home, via the
+	// generic rcfile walk. A typed read/format error fails loud (no fall-through
+	// to the default); a base_url-less or missing file is skipped inside the walk.
+	fileValue, filePath, found, err := rcfile.Resolve(startDir, homeDir, baseURLKey)
 	if err != nil {
 		return BaseURL{}, err
 	}

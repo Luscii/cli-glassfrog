@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Luscii/cli-glassfrog/internal/auth"
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 	"github.com/cucumber/godog"
 )
 
@@ -71,7 +71,7 @@ func (w *baseURLWorld) seed(dir, content string) (string, error) {
 	if _, err := w.mkdir(dir); err != nil {
 		return "", err
 	}
-	path := filepath.Join(dir, auth.CredentialsFileName)
+	path := filepath.Join(dir, rcfile.FileName)
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return "", fmt.Errorf("seed %s: %w", path, err)
 	}
@@ -200,7 +200,7 @@ func (w *baseURLWorld) givenNearestUnreadable() error {
 	// A directory at the .glassfrogrc path makes os.ReadFile fail deterministically
 	// across platforms (a path-only error, not os.ErrNotExist) — the fail-loud read
 	// branch without OS-dependent 0o000 semantics (LEARNINGS).
-	path := filepath.Join(w.currDir, auth.CredentialsFileName)
+	path := filepath.Join(w.currDir, rcfile.FileName)
 	if _, err := w.mkdir(path); err != nil {
 		return err
 	}
@@ -342,9 +342,9 @@ func (w *baseURLWorld) thenNotEnvSource() error {
 }
 
 func (w *baseURLWorld) thenReadErrorNamingFile() error {
-	var re *auth.ReadError
+	var re *rcfile.ReadError
 	if !errors.As(w.err, &re) {
-		return fmt.Errorf("expected a *auth.ReadError, got %T: %v", w.err, w.err)
+		return fmt.Errorf("expected a *rcfile.ReadError, got %T: %v", w.err, w.err)
 	}
 	if re.Path != w.currPath {
 		return fmt.Errorf("ReadError.Path = %q, want %q", re.Path, w.currPath)
