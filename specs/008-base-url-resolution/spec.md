@@ -21,7 +21,7 @@ This slice deliberately covers **only the base URL**. The other half of Connecti
 - When a base URL is requested, the system resolves it from the first available source in a fixed precedence order: the command flag, then the environment variable, then the config file, then the built-in default.
 - When the command flag holds a non-empty value, the system uses it and consults no other source.
 - When the flag is absent or empty and the environment variable holds a non-empty value, the system uses it and does not read any config file.
-- When neither the flag nor the environment variable yields a value, the system searches for a config file starting in the current working directory and ascending through each parent directory to the filesystem root, then the home-directory config file — the same file and walk path Credential Discovery uses. The nearest file that yields a usable base URL wins (nearest-wins).
+- When neither the flag nor the environment variable yields a value, the system searches for a config file starting in the current working directory and ascending through each parent directory to the filesystem root, then the home-directory config file as a final fallback — consulted once: if the home directory itself lies on that walk-up path, it is used at its natural position rather than a second time. This is the same file and walk path Credential Discovery uses. The nearest file that yields a usable base URL wins (nearest-wins).
 - When no flag, environment variable, or config file yields a usable base URL, the system uses the built-in default base URL. Base URL Resolution always yields a value — there is no "no base URL found" outcome.
 
 ### Reading & extraction
@@ -68,7 +68,7 @@ This slice deliberately covers **only the base URL**. The other half of Connecti
 
 ## Integration Boundaries
 
-- **Credential Discovery (sibling capability, shared file & walk)**: shares the `.glassfrogrc` file, the location convention (working-directory walk-up to root, then home-directory file), and the file format. Base URL Resolution reads its own base-URL key independently of the token key; an absent key at a location means "nothing here," and the search continues.
+- **Credential Discovery (sibling capability, shared file & walk)**: shares the `.glassfrogrc` file, the location convention (working-directory walk-up to root, then the home-directory file as a de-duplicated final fallback), and the file format. Base URL Resolution reads its own base-URL key independently of the token key; an absent key at a location means "nothing here," and the search continues.
 - **Credential Storage (sibling capability, shared contract)**: writes the `.glassfrogrc` file. If it later persists a base-URL value, the two must agree on the key name. This slice only ever reads the file.
 - **Command-line invocation (upstream input)**: reads the base-URL flag, the highest-precedence source.
 - **Environment (upstream input)**: reads the base-URL environment variable; an AI agent's runtime may set it to point at an endpoint without touching disk.
@@ -183,7 +183,7 @@ Then no outbound connection or API call is made during resolution.
 - **Flag name** `[ASSUMED]`: the command flag is `--base-url`. (Adjustable without changing any behavior.) Note: unlike Credential Discovery, which deferred its `--token` flag, the flag is in scope here because the feature model lists it as the top-precedence source for the base URL.
 - **Built-in default value** `[ASSUMED]`: the default base URL is the Glassfrog API v5 server URL declared in `spec/glassfrog-api-v5.yaml`'s `servers:` block. The exact string is pinned from the spec during planning. (Not yet hardcoded anywhere in the codebase.)
 - **"Usable" base URL**: a value is usable when it is non-empty, non-whitespace, and is an absolute URL carrying an `http` or `https` scheme. Whitespace-only values are treated as absent and fall through; a non-empty value that is not an `http(s)` URL (a scheme-less host, or a non-`http` scheme) is malformed and reported as a format error rather than skipped.
-- **File and walk path**: the config file, its name, and the walk path (working-directory ascent to the filesystem root, then the home-directory file) are exactly those Credential Discovery uses. (Same path, per the defining conversation.)
+- **File and walk path**: the config file, its name, and the walk path (working-directory ascent to the filesystem root, then the home-directory file as a final fallback, de-duplicated so a home directory on the ascent path is consulted once in place) are exactly those Credential Discovery uses. (Same path, per the defining conversation.)
 
 ---
 
