@@ -20,7 +20,7 @@ This accord pins the contracts the base-URL half of Connection Configuration exp
 | `--base-url` | command flag (value) | 1 (highest) | `[ASSUMED]` The base URL, supplied at invocation. A non-empty value short-circuits all other sources. Its cobra registration is deferred to the consuming command; the resolver accepts the value as an input now. |
 | `GLASSFROG_BASE_URL` | environment variable | 2 | `[ASSUMED]` A non-empty value (after trimming) short-circuits the file search. Empty, unset, or whitespace-only → ignored, search proceeds (uniform "usable" rule). |
 | `.glassfrogrc` `base_url` | file (`key=value`) | 3 | `[ASSUMED]` Read from the same file Credential Discovery (005) locates: nearest in the current directory's ancestry wins, then the home-directory file as a final fallback (consulted once — not re-read if it already appeared on the walk-up path). |
-| built-in default | compile-time constant | 4 (backstop) | **`https://glassfrog.com/api/v5`** — pinned from `spec/glassfrog-api-v5.yaml` (servers `url: /api/v5` resolved against the documented host `https://glassfrog.com`). Always valid by construction; guarantees resolution always yields a value. |
+| built-in default | compile-time constant | 4 (backstop) | a fixed constant **`https://glassfrog.com/api/v5`** — the `/api/v5` path is from `spec/glassfrog-api-v5.yaml`'s `servers` block; the host `https://glassfrog.com` is *inferred* from `info.contact.url` (not a normative OpenAPI base for server-URL resolution — an assumption, see risk H-1). Always valid by construction; guarantees resolution always yields a value. |
 
 ### `.glassfrogrc` `base_url` key `[ASSUMED]`
 
