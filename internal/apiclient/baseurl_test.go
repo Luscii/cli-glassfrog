@@ -319,12 +319,12 @@ func TestIsUsableURL_AcceptRejectBoundary(t *testing.T) {
 		{"https://glassfrog.com/api/v5", true},
 		{"http://localhost:8080", true},
 		{"https://glassfrog.com", true},
-		{"api.glassfrog.com", false},        // scheme-less host
+		{"api.glassfrog.com", false},          // scheme-less host
 		{"ftp://glassfrog.com/api/v5", false}, // non-http(s) scheme
-		{"https://", false},                  // scheme but no host
-		{"://glassfrog.com", false},          // no scheme
-		{"glassfrog", false},                 // bare word
-		{"http://", false},                   // no host
+		{"https://", false},                   // scheme but no host
+		{"://glassfrog.com", false},           // no scheme
+		{"glassfrog", false},                  // bare word
+		{"http://", false},                    // no host
 	}
 	for _, c := range cases {
 		if got := isUsableURL(c.value); got != c.want {
