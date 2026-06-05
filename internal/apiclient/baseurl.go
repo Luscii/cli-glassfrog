@@ -10,8 +10,9 @@ import (
 )
 
 // Connection-configuration constants for base URL resolution, centralized here
-// as the single source of truth (the .glassfrogrc base_url file key lives in
-// internal/auth beside the token key — a file-format detail).
+// as the single source of truth — including the .glassfrogrc base_url file key
+// (apiclient owns the base-URL key; internal/auth owns the token key; the generic
+// file mechanics live in internal/rcfile).
 //
 // The default URL value is fixed; the env var and flag names are [ASSUMED] CLI
 // conventions (not in the API spec), pending reconciliation with Credential
@@ -144,7 +145,7 @@ func ResolveBaseURLFromOS(flagValue string) (BaseURL, error) {
 // whitespace-only flag/env/file value is treated as absent and falls through; a
 // non-empty value that is not a usable URL fails loud with a typed BaseURLError
 // naming the source, with NO fall-through to a lower-precedence source. A file
-// that exists but cannot be read or parsed surfaces internal/auth's typed
+// that exists but cannot be read or parsed surfaces internal/rcfile's typed
 // read/format error (also no fall-through). The built-in default is valid by
 // construction and never re-validated, so the chain always yields a value.
 //

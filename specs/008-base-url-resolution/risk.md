@@ -7,6 +7,8 @@
 **Matrix**: default 3×3 traffic-light — no project-level acceptability matrix found in PROJECT.md
 **Degradation flags**: none — spec, plan, and interface all present. PROJECT.md has no Regulatory Context, so no IEC 14971 bridge is included.
 
+> **Post-implementation amendment (2026-06-06)** — After the slice shipped, the shared `.glassfrogrc` read/parse/walk was extracted into a dedicated **`internal/rcfile`** package; `internal/auth` (token) and `internal/apiclient` (base URL) are consumers, and the `base_url` key constant lives in `internal/apiclient`. This does not change any hazard severity or residual below. It *strengthens* two controls: H-2 (token leak) — secret hygiene is now structural, since `rcfile.Resolve(…, key)` returns only the requested key's value; and H-3 (regressing the shared parser) — the token and base-URL reads now provably share one code path (`rcfile`), so they cannot drift. Concrete location references in the controls below are updated; see `.score/memory/DECISIONS.md` and plan.md ADR-3 (amended).
+
 ---
 
 ## Risk Register
@@ -35,7 +37,7 @@ No residual **Red**. Two residual **Yellow** (H-1, H-6) — acceptable with the 
 
 ### H-2 — Token leak through the shared reader
 **Severity: High** (secret exposure) — the `.glassfrogrc` holds the token; a base-URL reader that returned or logged the whole parsed file could leak it. **Probability: Low** — ADR-3 specifies a narrow seam returning only `base_url`.
-- **RC-3**: the `auth` base-URL seam returns only the `base_url` value (and path), never the token; a test asserts the token never appears in the value or any error from this path (tasks T001 acceptance + risk note).
+- **RC-3**: the shared reader call (`rcfile.Resolve(startDir, homeDir, "base_url")`) returns only the `base_url` value (and path), never the token — structural, since the call yields only the requested key's value; a test asserts the token never appears in the value or any error from this path (tasks T001 acceptance + risk note).
 - **Residual: Green**.
 
 ### H-3 — Regression in the shared `parseCredentials`
@@ -45,7 +47,7 @@ No residual **Red**. Two residual **Yellow** (H-1, H-6) — acceptable with the 
 
 ### H-4 — Malformed base URL routes to a bad endpoint
 **Severity: Medium** — a bad endpoint fails requests at the connection-context/request layer (read-time); it does not corrupt governance. **Probability: Low** — ADR-4 validates each non-empty value as an absolute `http(s)` URL and fails loud naming the source.
-- **RC-5**: `http(s)` validation at resolution; a malformed value yields a typed `BaseURLError` naming the source with no fall-through (interface § Error Communication; ADR-4). *Coverage:* the malformed case is exercised at the acceptance layer for flag, env, **and file** sources (feature scenarios "A malformed flag value fails loudly", "A malformed environment value names the environment variable", "A malformed config-file value fails loudly naming the file") and required at the unit layer by tasks T002 ("malformed-per-source incl. file"). The remaining error surface, an unparseable `.glassfrogrc`, is the shared 005 reader's `*FormatError`, already covered by the `internal/auth` reader's tests.
+- **RC-5**: `http(s)` validation at resolution; a malformed value yields a typed `BaseURLError` naming the source with no fall-through (interface § Error Communication; ADR-4). *Coverage:* the malformed case is exercised at the acceptance layer for flag, env, **and file** sources (feature scenarios "A malformed flag value fails loudly", "A malformed environment value names the environment variable", "A malformed config-file value fails loudly naming the file") and required at the unit layer by tasks T002 ("malformed-per-source incl. file"). The remaining error surface, an unparseable `.glassfrogrc`, is the shared reader's `*FormatError`, already covered by the shared reader's tests (now `internal/rcfile`).
 - **Residual: Green**.
 
 ### H-5 — Broken file mistaken for absence → silent wrong default
@@ -55,7 +57,7 @@ No residual **Red**. Two residual **Yellow** (H-1, H-6) — acceptable with the 
 
 ### H-6 — `base_url` key contract drift with Credential Storage (006)
 **Severity: Medium** — a key mismatch means a stored base URL is silently never read, and the default is used instead. **Probability: Medium** — 006 is unbuilt and the `base_url` key is `[ASSUMED]`, not yet reconciled.
-- **RC-7**: `base_url` is a centralized `[ASSUMED]` constant in `internal/auth`; the read side uses the one shared parser; reconcile the key with Credential Storage before either capability ships (plan ADR-3, Integration Design).
+- **RC-7**: `base_url` is a centralized `[ASSUMED]` constant in `internal/apiclient` (as built; originally planned in `internal/auth`); the read side uses the one shared parser (`internal/rcfile`); reconcile the key with Credential Storage before either capability ships (plan ADR-3, Integration Design).
 - **Residual: Yellow** — accepted with justification: no writer consumes the key yet (006 unbuilt), and the shared-constant + shared-parser design makes reconciliation a single-point change. Track until 006 reconciles.
 
 ### H-7 — Silent URL normalization

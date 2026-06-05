@@ -11,6 +11,10 @@ This accord pins the contracts the base-URL half of Connection Configuration exp
 
 ---
 
+> **Post-implementation amendment (2026-06-06)** — "the one shared parser / reader seam" referenced below is, as built, the dedicated **`internal/rcfile`** package (extracted from `internal/auth` after the slice shipped; `auth` and `apiclient` are consumers). The contracts in this accord are unchanged: one parser, no second reader, the typed read/format errors, and "the reader returns only the requested key's value, never the token." That last guarantee is now *structural* — `rcfile.Resolve(startDir, homeDir, "base_url")` returns only the base_url value. The `base_url` key constant lives in `internal/apiclient`. See `.score/memory/DECISIONS.md` and plan.md ADR-3 (amended).
+
+---
+
 ## Surface
 
 ### Configuration inputs
