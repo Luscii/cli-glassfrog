@@ -26,7 +26,9 @@ This document captures the solutions and capabilities for the Glassfrog CLI, org
 ## Connection Configuration
 > Problem: Undefined Connection Settings — the CLI doesn't know which token or base URL to use, or where to read them from (affects: Practitioner)
 
-- Connection Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), read the value from the same npmrc-style credentials file that Credential Discovery locates (nearest-wins), then combine it with the discovered token to form the single connection context each request uses
+- Base URL Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), read the value from the same npmrc-style credentials file that Credential Discovery locates (nearest-wins), resolving its value independently of the token
+- Connection Context Assembly — combine the resolved base URL with the discovered token into the single connection context each request uses
+  + depends-on: Base URL Resolution
   + depends-on: Credential Discovery
 
 ## Self-Service Reads
@@ -36,9 +38,26 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 
 - Identity Read — a `me` command that prints the authenticated actor (person/agent + organization) the token resolves to. Spec: `GET /me` → `getMe` (`spec/glassfrog-api-v5.yaml:966`); supports `?include=roles` to embed the requester's roles
   + depends-on: Request Authentication
+  + depends-on: Request Execution
 - My Roles — list the roles the authenticated practitioner fills via a primary, non-discarded assignment (token-scoped, not the org-wide `GET /roles`). Spec: `GET /me/roles` → `listMyRoles` (`spec/glassfrog-api-v5.yaml:1003`); paginated
   + depends-on: Request Authentication
+  + depends-on: Request Execution
 - My Actions — list the actions owned by roles the practitioner fills. Spec: `GET /me/actions` → `listMyActions` (`spec/glassfrog-api-v5.yaml:1092`); paginated, `?status=` filter
   + depends-on: Request Authentication
+  + depends-on: Request Execution
 - My Projects — list the projects owned by roles the practitioner fills. Spec: `GET /me/projects` → `listMyProjects` (`spec/glassfrog-api-v5.yaml:1040`); paginated, `?status=` filter
   + depends-on: Request Authentication
+  + depends-on: Request Execution
+
+## API Client
+> Problem: No Shared API Client — the CLI can resolve a connection context but has no shared way to issue a request and apply the API's response, error, paging, and rate-limit conventions, so every endpoint command would reinvent transport plumbing (affects: AI agent, Practitioner, Maintainer)
+
+- Request Execution — send an authenticated request through the resolved connection context to the Glassfrog API and return the parsed response or a typed transport error; the single seam every endpoint command calls through
+  + depends-on: Connection Context Assembly
+  + depends-on: Request Authentication
+- API Error Extraction — interpret a non-2xx Glassfrog response into a typed error carrying the API's status and error detail, so callers receive a structured cause rather than a raw response
+  + depends-on: Request Execution
+- Pagination — follow the API's paging to retrieve a complete result set or signal the boundary, so list commands never silently truncate
+  + depends-on: Request Execution
+- Rate-Limit Handling — honor the API's per-org rate limit (429 + rate-limit headers) with backoff so request volume stays within limits
+  + depends-on: Request Execution

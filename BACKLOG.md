@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-04T22:48:28 | Framework: MoSCoW | Items: 12
+> Generated: 2026-06-06T09:49:36 | Framework: MoSCoW | Items: 17
 
 ### 1. Command Registration
 
@@ -51,46 +51,85 @@
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: Proves identity on each API call; builds after Credential Discovery, which it consumes the resolved token from. Gates every self-service read (#9–#12).
+- **Rationale**: Proves identity on each API call; builds after Credential Discovery, which it consumes the resolved token from. Gates every self-service read (#11–#14) and Request Execution.
 - **Dependencies**: → requires: Credential Discovery
 - **Status**: specified:007-request-authentication
 
-### 8. Connection Resolution
+### 8. Base URL Resolution
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: Completes the client foundation — resolves the base URL + token into the connection context every API call needs, so it precedes the self-service reads. Sibling of Request Authentication (both consume Credential Discovery); orderable in either position relative to #7.
-- **Dependencies**: → requires: Credential Discovery
-- **Status**: pending
+- **Rationale**: Resolves the effective endpoint by precedence (flag > env > config > default) — the base-URL portion of connection setup. Reuses Credential Discovery's `.glassfrogrc` file and nearest-wins walk, but resolves its value independently. Already specified as 008.
+- **Status**: specified:008-base-url-resolution
 
-### 9. Identity Read
+### 9. Connection Context Assembly
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The smallest end-to-end read that proves the whole chain (`GET /me` → `getMe`); the spec calls it the first call a consumer makes to orient itself, so it leads the read surface. Parallelizable with #10–#12 (no inter-read dependency).
-- **Dependencies**: → requires: Request Authentication
+- **Rationale**: Combines the resolved base URL with the discovered token into the single connection context every request uses. Gates Request Execution, so it must be specified before the API client.
+- **Dependencies**: → requires: Base URL Resolution; → requires: Credential Discovery
 - **Status**: pending
 
-### 10. My Roles
+### 10. Request Execution
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The single seam every endpoint command calls through — sends the authenticated request and returns a parsed response or a typed transport error. Gates all reads, so it leads the API Client and precedes Identity Read.
+- **Dependencies**: → requires: Connection Context Assembly; → requires: Request Authentication
+- **Status**: pending
+
+### 11. Identity Read
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The smallest end-to-end read that proves the whole chain (`GET /me` → `getMe`); the first call a consumer makes to orient itself, so it leads the read surface. Now gated on Request Execution. Parallelizable with #12–#14 (no inter-read dependency).
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 12. My Roles
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Named in the ROADMAP Now slice ("/me, my roles"), so it follows Identity Read; the chain is already proven, making this an extension. Parallelizable with the other reads.
-- **Dependencies**: → requires: Request Authentication
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
 
-### 11. My Actions
+### 13. My Actions
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Extends the "what's mine" surface beyond the proven slice; no dependency on the other reads, so its position reflects priority, not build order.
-- **Dependencies**: → requires: Request Authentication
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
 
-### 12. My Projects
+### 14. My Projects
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Completes the "what's mine" surface; last of the parallelizable reads by priority, with no inter-read dependency.
-- **Dependencies**: → requires: Request Authentication
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 15. API Error Extraction
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Turns a non-2xx response into a typed error carrying the API's status and detail; pairs with the Next-tier Opaque Failures problem, so it ranks below the Must-Have reads. Not required for the first read slice — Request Execution already surfaces transport and status failures.
+- **Dependencies**: → requires: Request Execution
+- **Status**: pending
+
+### 16. Pagination
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Follows the API's paging so list commands never silently truncate; pairs with the Next-tier Silent Truncation problem. Not needed for `/me` (a single resource), so it ranks after the read slice.
+- **Dependencies**: → requires: Request Execution
+- **Status**: pending
+
+### 17. Rate-Limit Handling
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Honors the per-org rate limit (429 + rate-limit headers) with backoff; pairs with the Next-tier Getting Throttled problem. Ranks after the Must-Have reads.
+- **Dependencies**: → requires: Request Execution
 - **Status**: pending
