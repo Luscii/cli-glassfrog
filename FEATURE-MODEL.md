@@ -26,7 +26,9 @@ This document captures the solutions and capabilities for the Glassfrog CLI, org
 ## Connection Configuration
 > Problem: Undefined Connection Settings — the CLI doesn't know which token or base URL to use, or where to read them from (affects: Practitioner)
 
-- Connection Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), read the value from the same npmrc-style credentials file that Credential Discovery locates (nearest-wins), then combine it with the discovered token to form the single connection context each request uses
+- Base URL Resolution — resolve the effective base URL by precedence (command flag > environment variable > config file > built-in default), read the value from the same npmrc-style credentials file that Credential Discovery locates (nearest-wins), resolving its value independently of the token
+- Connection Context Assembly — combine the resolved base URL with the discovered token into the single connection context each request uses
+  + depends-on: Base URL Resolution
   + depends-on: Credential Discovery
 
 ## Self-Service Reads
@@ -51,7 +53,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 > Problem: No Shared API Client — the CLI can resolve a connection context but has no shared way to issue a request and apply the API's response, error, paging, and rate-limit conventions, so every endpoint command would reinvent transport plumbing (affects: AI agent, Practitioner, Maintainer)
 
 - Request Execution — send an authenticated request through the resolved connection context to the Glassfrog API and return the parsed response or a typed transport error; the single seam every endpoint command calls through
-  + depends-on: Connection Resolution
+  + depends-on: Connection Context Assembly
   + depends-on: Request Authentication
 - API Error Extraction — interpret a non-2xx Glassfrog response into a typed error carrying the API's status and error detail, so callers receive a structured cause rather than a raw response
   + depends-on: Request Execution

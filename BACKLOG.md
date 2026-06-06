@@ -59,24 +59,22 @@
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The base-URL half of Connection Resolution — resolves the effective endpoint by precedence (flag > env > config > default). Reuses Credential Discovery's `.glassfrogrc` file and nearest-wins walk, but resolves its value independently. Already specified as 008.
-- **Decomposed from**: Connection Resolution
+- **Rationale**: Resolves the effective endpoint by precedence (flag > env > config > default) — the base-URL portion of connection setup. Reuses Credential Discovery's `.glassfrogrc` file and nearest-wins walk, but resolves its value independently. Already specified as 008.
 - **Status**: specified:008-base-url-resolution
 
 ### 9. Connection Context Assembly
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The remaining half of Connection Resolution — combines the resolved base URL with the discovered token into the single connection context every request uses. Gates Request Execution, so it must be specified before the API client.
+- **Rationale**: Combines the resolved base URL with the discovered token into the single connection context every request uses. Gates Request Execution, so it must be specified before the API client.
 - **Dependencies**: → requires: Base URL Resolution; → requires: Credential Discovery
-- **Decomposed from**: Connection Resolution
 - **Status**: pending
 
 ### 10. Request Execution
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The single seam every endpoint command calls through — sends the authenticated request and returns a parsed response or a typed transport error. Gates all reads, so it leads the API Client and precedes Identity Read. (FEATURE-MODEL declares depends-on Connection Resolution; mapped here to its Connection Context Assembly half after the #8 decomposition.)
+- **Rationale**: The single seam every endpoint command calls through — sends the authenticated request and returns a parsed response or a typed transport error. Gates all reads, so it leads the API Client and precedes Identity Read.
 - **Dependencies**: → requires: Connection Context Assembly; → requires: Request Authentication
 - **Status**: pending
 
