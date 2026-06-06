@@ -74,9 +74,9 @@ func TestResolve_EnvFirstShortCircuitsFiles(t *testing.T) {
 
 	// Tripwire: an unreadable .glassfrogrc (a directory) at the nearest search
 	// location. If a regression makes resolve consult the filesystem despite the
-	// env hit, readCredentialsFile fails on this path and the error surfaces
-	// below — so "short-circuits all file reads" is actually enforced, not just
-	// implied by the output.
+	// env hit, the rcfile walk fails on this path and the error surfaces below —
+	// so "short-circuits all file reads" is actually enforced, not just implied
+	// by the output.
 	startDir := filepath.Join(home, "work")
 	if err := os.MkdirAll(filepath.Join(startDir, credentialsFileName), 0o755); err != nil {
 		t.Fatal(err)
@@ -293,80 +293,7 @@ func TestResolve_MalformedFileFailsLoudNotAbsence(t *testing.T) {
 	}
 }
 
-// candidateDirs is the de-duplicated search order. These cases pin the two
-// correctness traps the plan flags: a home directory that lies on the ascent
-// path is listed once, and the walk-up stops at the filesystem root (no
-// infinite loop, no duplicate root entry).
-func TestCandidateDirs_HomeOnAscentPathDeduped(t *testing.T) {
-	home := filepath.Clean(t.TempDir())
-	start := filepath.Join(home, "a", "b")
-
-	dirs := candidateDirs(start, home)
-
-	if count := countOccurrences(dirs, home); count != 1 {
-		t.Errorf("home %s appears %d times in %v, want exactly 1", home, count, dirs)
-	}
-	// home is consulted once, at its natural ascent position — the walk-up then
-	// continues above it to the root, so home is NOT the final entry here.
-	if hasDuplicates(dirs) {
-		t.Errorf("candidate list has duplicates: %v", dirs)
-	}
-}
-
-func TestCandidateDirs_HomeAppendedWhenDistinct(t *testing.T) {
-	start := filepath.Clean(t.TempDir())
-	home := filepath.Clean(t.TempDir())
-
-	dirs := candidateDirs(start, home)
-
-	if dirs[0] != start {
-		t.Errorf("first candidate = %q, want start %q", dirs[0], start)
-	}
-	if dirs[len(dirs)-1] != home {
-		t.Errorf("last candidate = %q, want home %q", dirs[len(dirs)-1], home)
-	}
-}
-
-func TestCandidateDirs_StopsAtRootNoDuplicates(t *testing.T) {
-	start := filepath.Clean(t.TempDir())
-
-	dirs := candidateDirs(start, "")
-
-	// The ascent terminates at the filesystem root exactly once.
-	root := "/"
-	for d := start; ; {
-		parent := filepath.Dir(d)
-		if parent == d {
-			root = d
-			break
-		}
-		d = parent
-	}
-	if countOccurrences(dirs, root) != 1 {
-		t.Errorf("root %s should appear exactly once in %v", root, dirs)
-	}
-	if hasDuplicates(dirs) {
-		t.Errorf("candidate list has duplicates: %v", dirs)
-	}
-}
-
-func countOccurrences(s []string, target string) int {
-	n := 0
-	for _, v := range s {
-		if v == target {
-			n++
-		}
-	}
-	return n
-}
-
-func hasDuplicates(s []string) bool {
-	seen := map[string]bool{}
-	for _, v := range s {
-		if seen[v] {
-			return true
-		}
-		seen[v] = true
-	}
-	return false
-}
+// The .glassfrogrc nearest-wins walk and its candidateDirs search order now live
+// in internal/rcfile; their unit tests live there too. These auth tests cover
+// the token resolver's own behaviour: the env short-circuit, mapping rcfile's
+// walk result to a Resolution, and fail-loud on a broken file.

@@ -9,4 +9,4 @@
 | 005-credential-discovery | Complete | document | 2026-06-04T23:10:00 |
 | 006-credential-storage | Complete | document | 2026-06-04T23:10:00 |
 | 007-request-authentication | Complete | document | 2026-06-04T23:10:00 |
-| 008-base-url-resolution | Analyzed | risk | 2026-06-04T23:14:59 |
+| 008-base-url-resolution | Complete | validate | 2026-06-06T01:13:04 |

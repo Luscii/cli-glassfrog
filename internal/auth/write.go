@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
 // credentialsFileMode is the owner-read/write-only permission a credentials
@@ -35,7 +37,7 @@ const (
 // returns a *ReadError (a missing file unwraps to os.ErrNotExist), a malformed
 // file a *FormatError, and a parsed-but-tokenless file (token, false, nil).
 func ReadCredentialsFile(path string) (token string, found bool, err error) {
-	return readCredentialsFile(path)
+	return rcfile.ReadValue(path, tokenKey)
 }
 
 // ErrTokenNotSingleLine reports that a token passed to WriteCredentials contained
@@ -101,9 +103,9 @@ func WriteCredentials(path, token string) error {
 		// Validate the exact bytes we are about to merge through the shared
 		// parser, so the read and write sides cannot drift and validation can't
 		// race a concurrent edit (no re-read between check and merge); a
-		// malformed file aborts with no write. parseCredentials does no I/O, so
-		// the only error it yields is a *FormatError.
-		if _, _, perr := parseCredentials(path, existing); perr != nil {
+		// malformed file aborts with no write. rcfile.Parse does no I/O, so the
+		// only error it yields is a *FormatError.
+		if _, perr := rcfile.Parse(path, existing); perr != nil {
 			return perr // *FormatError → no write
 		}
 	case errors.Is(readErr, fs.ErrNotExist):

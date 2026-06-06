@@ -4,115 +4,44 @@
 // walk-up of .glassfrogrc files, then the home-directory file (Credential
 // Discovery, 005). It registers no command and prints nothing; Request
 // Authentication (007) consumes the Resolution it returns, and Credential
-// Storage (006) will add the writer beside the shared file-format reader so the
-// read and write sides cannot drift.
+// Storage (006) adds the writer beside the shared file-format reader so the read
+// and write sides cannot drift.
+//
+// The .glassfrogrc file format, parse, and nearest-wins walk are owned by the
+// generic internal/rcfile package — token is just one of its keys (base URL is
+// another). auth is a consumer: it reads the "token" key and adds the secret
+// hygiene the token demands.
 //
 // Secret hygiene is a package-wide invariant: the token value never appears in
 // any error message, log line, or other output. Errors carry only the offending
 // file path.
 package auth
 
-import (
-	"fmt"
-	"os"
-	"strings"
-)
+import "github.com/Luscii/cli-glassfrog/internal/rcfile"
 
-// credentialsFileName and envTokenVar are the [ASSUMED] file name and
-// environment variable for token discovery, centralized here as the single
-// source of truth shared with Credential Storage (006). Both are provisional
-// pending reconciliation with 006 before either capability ships.
+// credentialsFileName re-exports rcfile.FileName: auth reads and writes the same
+// .glassfrogrc the rcfile package defines. envTokenVar and tokenKey are auth's
+// own (token-specific) constants — the env variable and the file key it reads.
+// All three are [ASSUMED], jointly held with Credential Storage (006).
 const (
-	credentialsFileName = ".glassfrogrc"
+	credentialsFileName = rcfile.FileName
 	envTokenVar         = "GLASSFROG_TOKEN"
 
-	// tokenKey is the .glassfrogrc key carrying the credential. Other keys are
-	// ignored (forward-compatible).
+	// tokenKey is the .glassfrogrc key carrying the credential.
 	tokenKey = "token"
 )
 
-// FormatError reports that a candidate .glassfrogrc exists and was read but
-// could not be parsed — it held a non-blank, non-comment line with no '='. It
-// names only the path, never the file's contents, so a broken credential fails
-// loud without leaking the token.
-type FormatError struct {
-	Path string
-}
-
-func (e *FormatError) Error() string {
-	return fmt.Sprintf("credentials file %s is malformed: a non-comment line is not a key=value pair", e.Path)
-}
-
-// ReadError reports that a candidate .glassfrogrc could not be read (e.g.
-// permission denied, or — distinguishable via errors.Is(err, os.ErrNotExist) —
-// simply absent). It wraps the underlying filesystem error, which names only
-// the path, never any token.
-type ReadError struct {
-	Path string
-	Err  error
-}
-
-func (e *ReadError) Error() string {
-	return fmt.Sprintf("credentials file %s could not be read: %v", e.Path, e.Err)
-}
-
-func (e *ReadError) Unwrap() error { return e.Err }
-
-// readCredentialsFile reads the .glassfrogrc at path and returns the token under
-// the "token" key. It is the shared file-format reader (ADR-1/ADR-3) that
-// Credential Storage's writer must round-trip with.
-//
-// Parsing rules (the .glassfrogrc structural contract):
-//   - blank lines and lines whose first non-whitespace character is '#' are
-//     ignored;
-//   - every other line is split on its first '=', with key and value trimmed of
-//     surrounding whitespace; unknown keys are ignored;
-//   - a non-blank, non-comment line without '=' makes the file malformed,
-//     returning a *FormatError rather than being silently skipped;
-//   - a missing or unreadable file returns a *ReadError (a missing file unwraps
-//     to os.ErrNotExist so the caller can treat absence as "skip").
-//
-// found is false when the file parses but carries no usable token — no token
-// key, or a value that is empty/whitespace-only after trimming. That is a normal
-// outcome, not an error.
-func readCredentialsFile(path string) (token string, found bool, err error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", false, &ReadError{Path: path, Err: err}
-	}
-	return parseCredentials(path, data)
-}
-
-// parseCredentials applies the .glassfrogrc structural contract to data already
-// read from path, returning the token under the "token" key. It is the shared
-// parse step: readCredentialsFile feeds it bytes from disk, and Credential
-// Storage's writer feeds it the same bytes it is about to merge — so validation
-// and merge operate on one snapshot and cannot diverge under a concurrent edit
-// (no re-read TOCTOU). path is used only for error messages, never the contents.
-//
-// It performs no I/O, so the only error it can return is a *FormatError (a
-// non-blank, non-comment line without '='); a *ReadError is the reader's concern.
-func parseCredentials(path string, data []byte) (token string, found bool, err error) {
-	for _, raw := range strings.Split(string(data), "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		eq := strings.IndexByte(line, '=')
-		if eq < 0 {
-			// A non-blank, non-comment line that is not a key=value pair makes
-			// the file unparseable — fail loud rather than guess (CONSTITUTION
-			// III). The line content is deliberately omitted from the error.
-			return "", false, &FormatError{Path: path}
-		}
-		key := strings.TrimSpace(line[:eq])
-		value := strings.TrimSpace(line[eq+1:])
-		if key == tokenKey {
-			token = value
-		}
-	}
-
-	// A whitespace-only value trims to "", so an empty token reads as "no token
-	// present" (found = false) — a blank credential never counts as usable.
-	return token, token != "", nil
-}
+// FormatError and ReadError are the .glassfrogrc file errors. They are owned by
+// rcfile (the generic file concern) and re-exported here as aliases so auth's
+// credential-domain consumers — Credential Storage's command layer, which
+// discriminates a malformed file from a write failure — keep referring to them
+// as auth.FormatError / auth.ReadError. The aliases point at the one canonical
+// type, so errors.As across the two package names is the same check.
+type (
+	// FormatError reports a malformed .glassfrogrc (a non-comment line without
+	// '='). It names only the path, never the token.
+	FormatError = rcfile.FormatError
+	// ReadError reports a .glassfrogrc that could not be read (a missing file
+	// unwraps to os.ErrNotExist). It names only the path, never the token.
+	ReadError = rcfile.ReadError
+)

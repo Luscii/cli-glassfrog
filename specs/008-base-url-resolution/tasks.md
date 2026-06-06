@@ -6,9 +6,13 @@
 
 ---
 
+> **Post-implementation amendment (2026-06-06)** — After this slice shipped, the generic `.glassfrogrc` read/parse/walk was extracted into a dedicated **`internal/rcfile`** package; `internal/auth` (token) and `internal/apiclient` (base URL) consume it, and the `base_url` key constant lives in `internal/apiclient`. So the as-shipped T001 functions named below (`parseFields`/`readBaseURLFile`/`ResolveBaseURLFile` inside `internal/auth`) no longer exist as such — the file rung is now `rcfile.Resolve(startDir, homeDir, "base_url")`. Behavior and acceptance criteria are unchanged; only the home of the shared reader moved. Recorded in `.score/memory/DECISIONS.md`; ADR-3 of plan.md is amended.
+
+---
+
 ## Dependency Graph
 
-Phase 1: `base_url` file read in `internal/auth` (1 task, no phase dependencies) [Shared]
+Phase 1: `base_url` file read via the shared reader — as shipped in `internal/auth`, now `internal/rcfile` (1 task, no phase dependencies) [Shared]
 Phase 2: Base URL resolver + precedence + validation in `internal/apiclient` (1 task, depends on Phase 1) [Shared]
 Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
@@ -16,7 +20,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 > Every task is `[Shared]`: base URL resolution is infrastructure serving all three user scenarios (flag-override / default-out-of-the-box / project-local-precedence) rather than any single one.
 >
-> **Cross-spec note**: this slice reuses Credential Discovery's (005) one shared `.glassfrogrc` parser + `candidateDirs` walk — implemented and validated Ready on main — and lives in `internal/apiclient`, the package Request Authentication (007) created. The `base_url` file key, `GLASSFROG_BASE_URL`, and the `--base-url` flag name are `[ASSUMED]` CLI conventions — reconcile the file key with Credential Storage (006). The built-in default `https://glassfrog.com/api/v5` is a fixed constant — the `/api/v5` path from `spec/glassfrog-api-v5.yaml`, the host inferred from `info.contact.url` (risk H-1).
+> **Cross-spec note**: this slice reuses Credential Discovery's (005) one shared `.glassfrogrc` parser + `candidateDirs` walk — implemented and validated Ready on main — and the resolver lives in `internal/apiclient`, the package Request Authentication (007) created. (The shared parser/walk itself was later extracted into `internal/rcfile` — see amendment — so 005's token reader and this base-URL read share one package rather than one being nested in the other.) The `base_url` file key, `GLASSFROG_BASE_URL`, and the `--base-url` flag name are `[ASSUMED]` CLI conventions — reconcile the file key with Credential Storage (006). The built-in default `https://glassfrog.com/api/v5` is a fixed constant — the `/api/v5` path from `spec/glassfrog-api-v5.yaml`, the host inferred from `info.contact.url` (risk H-1).
 
 ---
 
@@ -28,10 +32,10 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ---
 
-## Phase 1: `base_url` file read in `internal/auth` [Shared]
+## Phase 1: `base_url` file read via the shared `.glassfrogrc` reader [Shared]
 
-- [ ] **T001** [Shared] Add a network-free, secret-safe `base_url` file read to `internal/auth`, reusing the shared parser and walk — RED-first unit tests
-  - **Scope**: In `internal/auth`, add the `base_url` file-key constant beside `tokenKey`. Add an exported function that resolves the `base_url` value from the nearest `.glassfrogrc` over the **existing** `candidateDirs` walk (current directory → ancestors → home, nearest-wins, home-dedupe) and the **existing** `parseCredentials` step — returning `(value string, path string, found bool, err error)`. The **token is never returned** through this path and never appears in any error (secret hygiene; plan ADR-3). It performs no URL validation (the raw string is returned; validation is Phase 2's concern) and makes no network call. Generalize `parseCredentials` to capture the `base_url` key alongside `token` without widening what the token reader exposes — no second `.glassfrogrc` parser is written.
+- [x] **T001** [Shared] Add a network-free, secret-safe `base_url` file read, reusing the shared parser and walk — RED-first unit tests — 19 unit tests (file reader + walk + secret-hygiene tripwires). *As shipped:* generalized `parseCredentials` into a shared `parseFields` pass in `internal/auth` (token reader unchanged), added `baseURLKey`, `readBaseURLFile`, exported `ResolveBaseURLFile`. *Later refactored (2026-06-06, see amendment):* the generic read/parse/walk moved to `internal/rcfile` (`Parse`/`Read`/`ReadValue`/`Resolve`); `base_url` key ownership moved to `internal/apiclient`; secret hygiene is now structural (`rcfile.Resolve(…, key)` returns only that key's value).
+  - **Scope** *(original instruction; the as-built location was later refactored to `internal/rcfile` — see amendment)*: Add the `base_url` file-key constant. Add an exported function that resolves the `base_url` value from the nearest `.glassfrogrc` over the **existing** `candidateDirs` walk (current directory → ancestors → home, nearest-wins, home-dedupe) and the **existing** parse step — returning `(value string, path string, found bool, err error)`. The **token is never returned** through this path and never appears in any error (secret hygiene; plan ADR-3). It performs no URL validation (the raw string is returned; validation is Phase 2's concern) and makes no network call. Reuse the one shared parser to capture the `base_url` key alongside `token` without widening what the token reader exposes — no second `.glassfrogrc` parser is written. *(As realized: this is `rcfile.Resolve(startDir, homeDir, "base_url")`, with the `base_url` key constant in `internal/apiclient`.)*
   - **Acceptance criteria**:
     - The reader returns the nearest file's `base_url` value and that file's path; nearest-wins and home-dedupe match the token walk (reuses `candidateDirs`)
     - A file that exists and parses but has no `base_url` entry → `found=false`; the walk continues to the next location (does not stop at it)
@@ -46,7 +50,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: Base URL resolver + precedence + validation in `internal/apiclient` [Shared]
 
-- [ ] **T002** [Shared] Implement the precedence resolver (flag → env → file → default) with `http(s)` validation and the code-free `BaseURL` result, RED-first
+- [x] **T002** [Shared] Implement the precedence resolver (flag → env → file → default) with `http(s)` validation and the code-free `BaseURL` result, RED-first — 18 unit tests (each rung, malformed-per-source, short-circuit tripwires, verbatim pass-through, determinism, URL-validity boundary table, production seam); added `BaseURL`/`BaseURLSource`/`BaseURLError`, centralized `GLASSFROG_BASE_URL`/`base-url`/`DefaultBaseURL` constants, pure `ResolveBaseURL` + `ResolveBaseURLFromOS` seam
   - **Scope**: In `internal/apiclient`, define `BaseURL{Value, Source, Path}` and a `Source` enum (`Flag`, `Environment`, `File`, `Default` — **no `None`**). Add centralized constants: `GLASSFROG_BASE_URL` (env var, `[ASSUMED]`), the `--base-url` flag name (`[ASSUMED]`), and the **pinned** default `https://glassfrog.com/api/v5`. Implement a pure `ResolveBaseURL(flagValue, startDir, homeDir) → (BaseURL, error)`: try the flag, then `GLASSFROG_BASE_URL`, then T001's `base_url` file walk, then the default. **Usable** = an absolute URL with an `http`/`https` scheme; a whitespace-only value is absent (fall through); a non-empty value that is not an `http(s)` URL is a typed code-free `BaseURLError` naming the source (`flag` / `GLASSFROG_BASE_URL` / the file path) with **no fall-through**. The default is known-valid and not re-validated; the chain always yields a value. The value is passed through verbatim (no trailing-slash/scheme normalization). Add a thin production seam binding `os.Getenv`/`os.Getwd`/`os.UserHomeDir` and the flag value. No exit code, no `os.Exit`, no command surface, no `--base-url` cobra registration (deferred to the consuming command).
   - **Acceptance criteria**:
     - Flag set (valid) → `BaseURL{Source: Flag}`, no other source consulted; env set (valid), no flag → `Source: Environment`, no file read; nearest file `base_url` (valid), no flag/env → `Source: File` with the path; nothing usable → `Source: Default` with the pinned default
@@ -63,7 +67,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 3: Executable acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the 008 driving scenarios pass as executable acceptance via godog, driving `ResolveBaseURL` over temp dirs with injected roots and a controlled flag/env
+- [x] **T003** [Shared] Make the 008 driving scenarios pass as executable acceptance via godog, driving `ResolveBaseURL` over temp dirs with injected roots and a controlled flag/env — 10 behavioral scenarios pass in a new `TestBaseURLFeatures` suite scoped to base-url-resolution.feature; 4 `@validation` scenarios kept `@wip`; both apiclient suites verified reporting independent counts (10 + 8). NB: behavioral scenarios arrived already un-`@wip` from the scenarios skill — nothing to remove
   - **Scope**: Add godog step definitions for `features/undefined-connection-settings/base-url-resolution.feature` (all three Rule blocks), driving `ResolveBaseURL` over temp directory trees with injected roots, a controlled `GLASSFROG_BASE_URL`, and a supplied flag value. Assert flag/env/file/default precedence, nearest-wins, malformed-naming-the-source (flag, env, **and file**), empty-env fall-through, file-without-`base_url` fall-through, unreadable-file error, and the default backstop. Remove `@wip` from the passing behavioral scenarios; keep the four `@validation` scenarios (always-yields-a-value / deterministic / no-writes / no-network) `@wip` (held out for validate). **Suite scoping (LEARNINGS)**: the `internal/apiclient` godog suite now serves two feature files (007's `request-authentication.feature` and this one) — point the suite's `Paths` at the **specific feature files**, not the `features/` directory, so un-wipping one spec's scenarios can't break another suite.
   - **Acceptance criteria**:
     - Every non-`@validation` 008 scenario (flag wins / malformed flag / built-in default / env wins / nearest file wins / no-base_url skip / empty env ignored / unreadable file / malformed env names source / malformed file value names file) has an executable, passing path

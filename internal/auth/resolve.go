@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
 // Source names where a resolved credential came from. SourceNone is the zero
@@ -82,11 +82,12 @@ func Resolve() (Resolution, error) {
 
 // resolve walks the precedence chain — environment variable, then the nearest
 // .glassfrogrc up the directory tree from startDir, then the home file — and
-// returns the first source that yields a usable token (ADR-2). A present-but-
-// tokenless file is skipped; a missing file is skipped; an unreadable or
-// unparseable file fails loud with a typed error naming the path (never falling
-// through to another source). Nothing found anywhere is Source: None with no
-// error. The token value never appears in any error.
+// returns the first source that yields a usable token (ADR-2). The file rung is
+// rcfile.Resolve over the "token" key: a present-but-tokenless file is skipped, a
+// missing file is skipped, and an unreadable or unparseable file fails loud with
+// rcfile's typed error naming the path (never falling through to another source).
+// Nothing found anywhere is Source: None with no error. The token value never
+// appears in any error.
 func resolve(startDir, homeDir string) (Resolution, error) {
 	if token := getenv(envTokenVar); strings.TrimSpace(token) != "" {
 		// A usable environment value (non-empty after trimming) is used as-is
@@ -96,53 +97,12 @@ func resolve(startDir, homeDir string) (Resolution, error) {
 		return Resolution{Token: token, Source: SourceEnvironment}, nil
 	}
 
-	for _, dir := range candidateDirs(startDir, homeDir) {
-		path := filepath.Join(dir, credentialsFileName)
-		token, found, err := readCredentialsFile(path)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue // missing at this location → try the next
-			}
-			return Resolution{}, err // unreadable/unparseable → fail loud
-		}
-		if !found {
-			continue // exists but holds no usable token → skip to the next source
-		}
+	token, path, found, err := rcfile.Resolve(startDir, homeDir, tokenKey)
+	if err != nil {
+		return Resolution{}, err // unreadable/unparseable → fail loud
+	}
+	if found {
 		return Resolution{Token: token, Source: SourceFile, Path: path}, nil
 	}
-
 	return Resolution{Source: SourceNone}, nil
-}
-
-// candidateDirs builds the ordered, de-duplicated directory search list: the
-// start directory, each ancestor up to the filesystem root, then the home
-// directory if it was not already visited on the ascent. De-duplication keeps a
-// home directory that lies on the ascent path from being read twice and is read
-// at its natural walk-up position.
-func candidateDirs(startDir, homeDir string) []string {
-	var dirs []string
-	seen := map[string]bool{}
-	add := func(d string) {
-		if d == "" || seen[d] {
-			return
-		}
-		seen[d] = true
-		dirs = append(dirs, d)
-	}
-
-	if startDir != "" {
-		dir := filepath.Clean(startDir)
-		for {
-			add(dir)
-			parent := filepath.Dir(dir)
-			if parent == dir { // reached the filesystem root — stop, no infinite loop
-				break
-			}
-			dir = parent
-		}
-	}
-	if homeDir != "" {
-		add(filepath.Clean(homeDir))
-	}
-	return dirs
 }
