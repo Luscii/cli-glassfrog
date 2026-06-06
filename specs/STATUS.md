@@ -10,3 +10,4 @@
 | 006-credential-storage | Complete | document | 2026-06-04T23:10:00 |
 | 007-request-authentication | Complete | document | 2026-06-04T23:10:00 |
 | 008-base-url-resolution | Complete | validate | 2026-06-06T01:13:04 |
+| 009-connection-context-assembly | Analyzed | risk | 2026-06-06T10:35:28 |
