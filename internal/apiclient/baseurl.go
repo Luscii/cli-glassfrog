@@ -78,9 +78,11 @@ func (s BaseURLSource) String() string {
 // http.Client/transport that 007's AuthTransport wraps). Value, Source, and Path
 // are all safe to display — the base URL is not a secret.
 type BaseURL struct {
-	// Value is the resolved base URL, always set on the success path. It is
-	// passed through exactly as given — never normalized (no trailing-slash
-	// rewrite, no scheme coercion).
+	// Value is the resolved base URL, always set on the success path. It is not
+	// normalized — no trailing-slash rewrite, no scheme coercion. Flag and env
+	// values are used exactly as given; a file-sourced value has only its
+	// surrounding whitespace trimmed by the .glassfrogrc parser (rcfile.Parse),
+	// never any change to the URL itself.
 	Value string
 	// Source is which rung supplied Value.
 	Source BaseURLSource

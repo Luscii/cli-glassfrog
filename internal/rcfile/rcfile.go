@@ -33,7 +33,7 @@ type FormatError struct {
 }
 
 func (e *FormatError) Error() string {
-	return fmt.Sprintf("config file %s is malformed: a non-comment line is not a key=value pair", e.Path)
+	return fmt.Sprintf("settings file %s is malformed: a non-comment line is not a key=value pair", e.Path)
 }
 
 // ReadError reports that a candidate .glassfrogrc could not be read (e.g.
@@ -46,7 +46,7 @@ type ReadError struct {
 }
 
 func (e *ReadError) Error() string {
-	return fmt.Sprintf("config file %s could not be read: %v", e.Path, e.Err)
+	return fmt.Sprintf("settings file %s could not be read: %v", e.Path, e.Err)
 }
 
 func (e *ReadError) Unwrap() error { return e.Err }
