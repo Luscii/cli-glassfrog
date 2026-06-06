@@ -155,12 +155,18 @@ func TestReadValue_MissingFileIsReadError(t *testing.T) {
 }
 
 func TestSettings_ValueUsabilityRule(t *testing.T) {
-	s := Settings{"a": "x", "blank": "", "missing-absent": ""}
+	s := Settings{"a": "x", "blank": "", "ws": "   \t "}
 	if v, ok := s.Value("a"); !ok || v != "x" {
 		t.Errorf("Value(a) = (%q, %v), want (x, true)", v, ok)
 	}
 	if _, ok := s.Value("blank"); ok {
 		t.Error("Value(blank) found = true, want false for an empty value")
+	}
+	// A whitespace-only value is treated as absent even when Settings is built
+	// directly (not via Parse, which would have trimmed it) — the method enforces
+	// its own "usable after trimming" contract.
+	if _, ok := s.Value("ws"); ok {
+		t.Error("Value(ws) found = true, want false for a whitespace-only value")
 	}
 	if _, ok := s.Value("absent"); ok {
 		t.Error("Value(absent) found = true, want false for a missing key")

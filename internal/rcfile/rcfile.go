@@ -62,7 +62,12 @@ type Settings map[string]string
 // blank one.
 func (s Settings) Value(key string) (value string, found bool) {
 	value = s[key]
-	return value, value != ""
+	// Trim only the usability test, not the returned value (which is reported
+	// verbatim). Parse already trims stored values, but Settings is exported and
+	// may be built directly, so the method enforces its own "usable = non-empty
+	// after trimming" contract rather than relying on the parser — matching the
+	// token resolver's predicate.
+	return value, strings.TrimSpace(value) != ""
 }
 
 // Parse applies the .glassfrogrc structural contract to data already read from
