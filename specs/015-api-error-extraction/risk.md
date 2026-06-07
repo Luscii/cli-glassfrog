@@ -48,7 +48,7 @@
 
 **Source**: spec.md § Non-Behaviors (429 backoff deferred to 017); CONSTITUTION X; checklist.md cross-spec sequencing note.
 
-**Description**: 015 extracts a `429` into a typed error and maps it to `APIError`(3) but does **not** back off — backoff is Rate-Limit Handling (017), which is Should-tier and ranks after the Must-tier reads. So the org-throttle window 010's H-6 identified persists through 015 unchanged: reads built on the seam before 017 lands ignore `Retry-After`, and exceeding the per-org rolling 1-hour limit throttles the **entire organization**.
+**Description**: 015 extracts a `429`, classifies it to `RateLimited`(5) (a distinct, scriptable exit code), but does **not** back off — backoff is Rate-Limit Handling (017), which is Should-tier and ranks after the Must-tier reads. So the org-throttle window 010's H-6 identified persists through 015 unchanged: reads built on the seam before 017 lands ignore `Retry-After`, and exceeding the per-org rolling 1-hour limit throttles the **entire organization**.
 
 **Severity**: High — blast radius is the whole org.
 

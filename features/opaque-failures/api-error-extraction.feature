@@ -104,6 +104,13 @@ Feature: Opaque Failures — API Error Extraction
       When the command maps the failure to an exit code
       Then the command will exit with code 4
 
+    # Source: 015-api-error-extraction — Proposed: 429 exits with the rate-limit code (plan ADR-3)
+    @wip
+    Scenario: A rate-limited response exits with the rate-limit code
+      Given a command received a non-2xx response with status 429
+      When the command maps the failure to an exit code
+      Then the command will exit with code 5
+
     # Source: 015-api-error-extraction — Proposed: non-permission non-2xx keeps the general API exit code (plan ADR-3)
     @wip
     Scenario: A non-permission API error exits with the general API code

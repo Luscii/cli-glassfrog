@@ -42,18 +42,18 @@ Input is 010's `*ResponseError{StatusCode, Header, Body}` — unchanged; 015 add
 
 | Symbol | Change | Description |
 |---|---|---|
-| `Outcome` enum (`dispatch.go`) | **+ `PermissionError`** | A new category (plus its `String()` arm) for an API auth/membership rejection (401/403). The producer 004 reserved code 4 for now exists. |
-| `ExitCode` (`exitcode.go`) | **+ `case PermissionError: codePermissionError`** | Maps the new category to the already-pinned constant `codePermissionError = 4`. Stays a pure mapper; `default → 1` fail-safe unchanged. No code renumbered. |
-| `classifyClientError` (`clienterror.go`) | **status split** | For a `*ProblemError`/`*ResponseError`: **401 or 403 → `PermissionError`**(4); everything else (incl. **429**) → `APIError`(3). Checked before the generic `*ResponseError` arm given the wrapping. Keeps its `len`+comma-ok table-test exhaustiveness guard. |
-| `formatClientErrorMessage` (`me.go`) | **detail surfacing + next step** | For the refined error: when `DetailSynthesized == false`, render the API's `Detail` (and `Title` when useful); when `DetailSynthesized == true`, render the existing `"the API returned a non-2xx response: status N"` fallback wording. **Append a next-step hint** so the arm matches its siblings and CONSTITUTION II ("…and the next step") — at minimum for `PermissionError` (401/403): "check the token's access / membership". Token-free (response-side fields only). |
+| `Outcome` enum (`dispatch.go`) | **+ `PermissionError`, + `RateLimited`** | Two new categories (each with its `String()` arm): `PermissionError` for an API auth/membership rejection (401/403), `RateLimited` for a `429`. The constants 004 reserved (codes 4 and 5) now have producers. |
+| `ExitCode` (`exitcode.go`) | **+ `case PermissionError: codePermissionError`, + `case RateLimited: codeRateLimited`** | Maps the new categories to the already-pinned constants `codePermissionError = 4` and `codeRateLimited = 5`. Stays a pure mapper; `default → 1` fail-safe unchanged. No code renumbered. |
+| `classifyClientError` (`clienterror.go`) | **status split** | For a `*ProblemError`/`*ResponseError`: **401 or 403 → `PermissionError`**(4); **429 → `RateLimited`**(5); everything else → `APIError`(3). Checked before the generic `*ResponseError` arm given the wrapping. Keeps its `len`+comma-ok table-test exhaustiveness guard. |
+| `formatClientErrorMessage` (`me.go`) | **detail surfacing + next step** | For the refined error: when `DetailSynthesized == false`, render the API's `Detail` (and `Title` when useful); when `DetailSynthesized == true`, render the existing `"the API returned a non-2xx response: status N"` fallback wording. **Append a next-step hint** so the arm matches its siblings and CONSTITUTION II ("…and the next step") — for `PermissionError` (401/403): "check the token's access / membership"; for `RateLimited` (429): "the API is rate-limiting; retry later". Token-free (response-side fields only). |
 | `reportClientError` (`me.go`) | **refine once** | Before format+classify, refines a `*ResponseError` into a `*ProblemError` via `ExtractProblem` (guarding against double-refinement), so the typed error travels up the chain and message+category are computed from the same value. |
 
 ### Status → Outcome → exit-code mapping (consumer side)
 
 | API status | `Outcome` | Exit code | Note |
 |---|---|---|---|
-| 401, 403 | `PermissionError` | **4** | The split this slice adds — fills the reserved permission code. |
-| 429 | `APIError` | 3 | Stays `APIError`(3) in this slice. Landed 017 does the retry/backoff but defers the 429→rate-limit(5) *classification* to 015 — an **open scope decision** (PR #37); code 5 stays reserved until assigned. |
+| 401, 403 | `PermissionError` | **4** | The permission split this slice adds — fills reserved code 4. |
+| 429 | `RateLimited` | **5** | The rate-limit split this slice adds — fills reserved code 5. Landed 017 owns the retry/backoff and its spec defers this *classification* to 015; 015 classifies (exit 5), 017 handles (retry). |
 | Any other non-2xx (400, 404, 5xx, …) | `APIError` | 3 | The residual generic "API error" bucket, now carrying the API's detail in its message. |
 
 **Example (shapes, not literal values)**:
@@ -69,6 +69,7 @@ body status mismatch: ExtractProblem(&ResponseError{403, hdr, `{"status":401,"de
                        → &ProblemError{StatusCode:403 /*authoritative*/, Detail:"Forbidden", DetailSynthesized:false, BodyStatus:&401, <wraps re>}   // 401 carried as metadata only
 // consumer:
 classifyClientError(&ProblemError{StatusCode:403, …})  → PermissionError   → ExitCode → 4   (message: detail + "check the token's access / membership")
+classifyClientError(&ProblemError{StatusCode:429, …})  → RateLimited       → ExitCode → 5   (message: detail + "the API is rate-limiting; retry later")
 classifyClientError(&ProblemError{StatusCode:404, …})  → APIError          → ExitCode → 3   (message: API detail, or "status 404" fallback when DetailSynthesized)
 ```
 
@@ -92,14 +93,14 @@ classifyClientError(&ProblemError{StatusCode:404, …})  → APIError          �
 
 | Condition | Message (stderr) | Outcome → exit code |
 |---|---|---|
-| `DetailSynthesized == false` (API detail parsed) | the API's `detail` (and `title` where useful) — the API's own cause — **+ a next-step hint** (≥ for 401/403: "check the token's access / membership") | 401/403 → `PermissionError`(4); else → `APIError`(3) |
+| `DetailSynthesized == false` (API detail parsed) | the API's `detail` (and `title` where useful) — the API's own cause — **+ a next-step hint** (401/403: "check the token's access / membership"; 429: "the API is rate-limiting; retry later") | 401/403 → `PermissionError`(4); 429 → `RateLimited`(5); else → `APIError`(3) |
 | `DetailSynthesized == true` (body unparseable) | fallback: `"the API returned a non-2xx response: status N"` — **+ the same next-step hint** | same as above (status drives the code regardless of body parseability) |
 
 The consumer keys the message on `DetailSynthesized` (the provenance marker), **not** on whether `Detail` is empty — the fallback always fills `Detail`, so emptiness can't distinguish the two. The next-step hint satisfies CONSTITUTION II ("…and the next step") and matches the sibling `formatClientErrorMessage` arms (auth → "run `glassfrog auth login`", transport → "check connectivity", base-URL → "correct --base-url").
 
 **Detail is response-side only**: the surfaced `detail`/`title` come from the API's reply; the `X-Auth-Token` is a *request* header and is never echoed, so no 015 output can carry the token. Pinned by a token-never-in-output test over `ProblemError.Error()` and the rendered message (mirrors 010's test).
 
-**Code-free at the producer; consumer maps**: `ExtractProblem`/`ProblemError` carry no exit code (continuing the producer-classifies/consumer-maps split — 002/004/005/007/008/009/010/011). The reserved code 4 is taken at `internal/cli`'s single `ExitCode` registry, not in `apiclient`. 429 stays `APIError`(3) in this slice (landed 017 owns the retry/backoff and defers the 429→rate-limit(5) classification to 015 — an open scope decision, PR #37); 403 maps to `PermissionError`(4), **not** to plan-availability guidance (the Unsignalled Plan Limits problem owns that messaging).
+**Code-free at the producer; consumer maps**: `ExtractProblem`/`ProblemError` carry no exit code (continuing the producer-classifies/consumer-maps split — 002/004/005/007/008/009/010/011). The reserved codes 4 and 5 are taken at `internal/cli`'s single `ExitCode` registry, not in `apiclient`. 429 → `RateLimited`(5) (landed 017 owns the retry/backoff and its spec defers this classification to 015 — 015 classifies, 017 handles); 403 maps to `PermissionError`(4), **not** to plan-availability guidance (the Unsignalled Plan Limits problem owns that messaging).
 
 ---
 
@@ -107,6 +108,6 @@ The consumer keys the message on `DetailSynthesized` (the provenance marker), **
 
 - **Joins 010's `apiclient` error family**: `ProblemError` follows the `<noun>Error`, `errors.As`-able, `Unwrap`-able, token-free shape of `ResponseError`/`TransportError`/`DecodeError`/`AuthError`/`BaseURLError`. It wraps `010`'s `ResponseError` (the value 010's accord built), so this accord is the refinement 010's Consistency Notes forecast ("015 refines it into typed API/permission errors").
 - **Deliberate `Problem` naming** (deviation from the spec's "API error" wording): the Go symbols use `ProblemError`/`ExtractProblem` rather than `APIError`/`ExtractAPIError` to avoid colliding with the `cli.APIError` *Outcome* and to keep the `classifyClientError` mapping legible (a `*apiclient.APIError → PermissionError` mapping would read as a contradiction). The capability/spec name stays "API Error Extraction"; only the symbols change.
-- **Reuses 011's shared read-surface helpers, doesn't fork them**: `classifyClientError`, `formatClientErrorMessage`, and `reportClientError` are the single chain 011 introduced and 012–014 reuse verbatim; 015 grows them in place (additive — only 401/403 change category, 3→4) rather than adding a parallel path. The exit-code split mirrors how 013's `validateStatus` and 011's `validateInclude` extended the shared surface.
-- **Fills the reserved code 4, no renumber**: `PermissionError`(4) takes the constant 004 published and 011's comments forecast. The 429→rate-limit(5) split is **not** taken here — landed 017 defers that classification to 015 and this slice leaves 429 at `APIError`(3) (open scope decision, PR #37), so code 5 stays reserved. No existing code is renumbered (004's "Extension" rule).
+- **Reuses 011's shared read-surface helpers, doesn't fork them**: `classifyClientError`, `formatClientErrorMessage`, and `reportClientError` are the single chain 011 introduced and 012–014 reuse verbatim; 015 grows them in place (additive — only 401/403 and 429 change category) rather than adding a parallel path. The exit-code split mirrors how 013's `validateStatus` and 011's `validateInclude` extended the shared surface.
+- **Fills the reserved codes 4 and 5, no renumber**: `PermissionError`(4) and `RateLimited`(5) take the constants 004 published and 011's comments forecast ("015/017 split 401/403→permission(4) and 429→rate-limit(5)"). 015 is the producer landed 017's spec defers the 429→rate-limit(5) classification to (017 owns the retry/backoff handling). No existing code is renumbered (004's "Extension" rule).
 - **No command, no new configuration**: like 005/006/007/008/009/010, this slice registers no cobra command and prints nothing of its own; invocation and instructional surfaces are N/A, and there is no new `.glassfrogrc` key, env var, or flag (the fallback-detail wording is a fixed `[ASSUMED]` constant). The fifth specification touchpoint in this project; no `accords/` directory exists, so there are no cross-spec accord patterns to align against.
