@@ -10,7 +10,7 @@
 
 **Prerequisites (external)**:
 - **010 Request Execution — implemented ✓** on `main` (`apiclient.NewClientFromOS`, `Execute`, `Request`, typed errors).
-- **011 Identity Read scaffolding — recorded, not yet implemented**: the runnable `me` command, the persistent root `--base-url`, the shared `classifyClientError(err) Outcome` helper, and the `internal/glassfrog` schema package (`Role{ID,Name}`). T002/T003 depend on these; if 011 implements first, 012 builds on them, otherwise 012 creates them to 011's recorded contract.
+- **011 Identity Read scaffolding — implemented on `main` ✓**: the runnable `me` command, the persistent root `--base-url`, the shared `classifyClientError(err) Outcome` helper, and the `internal/glassfrog` schema package (`Role{ID,Name}`) all exist (`internal/cli/me.go`, `internal/cli/clienterror.go`, `internal/glassfrog/`; 011 Complete/validate). T002/T003 build on them directly — no creation-vs-reuse contingency.
 
 ```
 Phase 1: Schema growth      (1 task, depends on internal/glassfrog existing) [US2, US3]
@@ -38,7 +38,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
     - `incomplete` is true iff `Meta.Pagination.HasNextPage`
     - A decode test feeds a real `{"data":[…],"meta":{"pagination":{"per_page":N,"has_next_page":true,"next_cursor":"abc"}}}` payload and asserts `HasNextPage` decoded `true` (so `incomplete()` returns true), `NextCursor` decoded `"abc"`, and the role `description`/`purpose` fields populated — pinning the snake_case JSON tags
     - Unit tests: multi-role, empty list, null purpose, a role with neither domains nor accountabilities, field-absence guarantee
-  - **Dependencies**: `internal/glassfrog` existing (011) — or create it to 011's recorded contract
+  - **Dependencies**: `internal/glassfrog` (011, implemented on `main`)
   - **Plan reference**: Phase 1, ADR-4
   - **Interface references**: interface-cli.md: Surface (output format)
   - **Scenario references**: my-roles.feature: "A projected role shows its essentials only", "The default output contains no raw API envelope"

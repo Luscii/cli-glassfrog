@@ -19,7 +19,7 @@
 | H-5 | Roles shown that aren't the caller's (wrong endpoint / over-exposure) | spec Non-Behaviors (token-scoped, no selector); CONSTITUTION I | Medium | Low | RC-5 | Green |
 | H-6 | Absence indicators misread as real data | spec § Output; CONSTITUTION VIII | Low | Low | RC-6 | Green |
 | H-7 | Shared-scaffolding divergence with Identity Read (011) — *reconciled* | plan ADR-2 / Risks | Medium | Medium | RC-7 | Green |
-| H-8 | Built against 011's unbuilt scaffolding (010 now implemented) | plan Phase 0 / Risks | Low | Medium | RC-8 | Green |
+| H-8 | Built against an unbuilt dependency — *resolved* (010 + 011 both implemented) | plan Phase 0 / Risks | Low | Low | RC-8 | Green |
 
 No residual risk is Red.
 
@@ -62,16 +62,16 @@ Parallel sessions (011/012) could create divergent versions of the `me` command,
 - **RC-7**: Conformance to 011's recorded DECISIONS contract; 012 introduces no divergent mapping, so the value-pinning exit-code test (011) has nothing to reject. The one residual coordination item is the registration guard permitting `me` runnable-with-children (tracked in the plan).
 - **Residual: Green** — the divergence is resolved, not merely controlled.
 
-### H-8 — Built against an unbuilt dependency
-010 (Request Execution) is now **implemented** on `main` ✓. The remaining unbuilt dependency is **011's scaffolding** (the runnable `me` command, `classifyClientError`, the root `--base-url`, `internal/glassfrog`) — recorded but not yet implemented; building T002/T003 before it lands fails. **Severity Low** (schedule, not runtime safety). **Probability Medium** (011 is ahead on `main` and will likely implement first).
-- **RC-8**: Phase 0 lists both prerequisites; T002/T003 are gated on 011's scaffolding; T001 (schema growth) proceeds as soon as `internal/glassfrog` exists. If 012 reaches implementation first, it creates the shared pieces to 011's recorded contract.
-- **Residual: Green** — sequencing is explicit; no runtime safety impact.
+### H-8 — Built against an unbuilt dependency  *(RESOLVED 2026-06-07)*
+Both prerequisites are now **implemented on `main`** ✓ — 010 (Request Execution) and 011's scaffolding (the runnable `me` command, `classifyClientError`, the root `--base-url`, `internal/glassfrog`; 011 Complete/validate). **No unbuilt dependency remains**, so the former sequencing hazard (building T002/T003 before the scaffolding landed) no longer applies. **Severity Low** (was schedule-only, never runtime safety).
+- **RC-8**: T002/T003 build directly on the landed 010 seam and 011 scaffolding; T001 (schema growth) extends the existing `internal/glassfrog`.
+- **Residual: Green** — dependency satisfied; closed.
 
 ---
 
 ## Residual Risk Summary
 
-8 hazards, 8 controls, 0 Red. **H-3 (error next-step) is resolved** — the cause+next-step rule was applied to interface-cli § Error Communication and the spec failure accord. **H-7 (divergence with 011) is reconciled** — 012 conforms to 011's landed mapping/scaffolding. The remaining Yellows (H-1 silent truncation, H-2 token leak) are acceptable with their documented controls; H-8 (depends on 011's scaffolding) is a sequencing item, not a runtime risk.
+8 hazards, 8 controls, 0 Red. **H-3 (error next-step) is resolved** — the cause+next-step rule was applied to interface-cli § Error Communication and the spec failure accord. **H-7 (divergence with 011) is reconciled** — 012 conforms to 011's landed mapping/scaffolding. The remaining Yellows (H-1 silent truncation, H-2 token leak) are acceptable with their documented controls; H-8 (the 011-scaffolding dependency) is resolved — both 010 and 011 are implemented on `main`.
 
 ## Traceability Index
 
