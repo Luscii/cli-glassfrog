@@ -11,7 +11,7 @@
 Phase 1: Shared list envelope + the `internal/paging` walker (2 tasks, no phase dependencies) [Shared]
 Phase 2: Executable acceptance + 010 comment correction (2 tasks, depends on Phase 1) [Shared]
 
-4 tasks total | 0 phases parallelizable (T004 parallel within Phase 2) | Builder: pipeline (role-based aware)
+4 tasks total | phases run sequentially (Phase 2 depends on Phase 1); within Phase 2, T004 can run parallel to T003 | Builder: pipeline (role-based aware)
 
 > Every task is `[Shared]`: the walker is infrastructure serving all three user scenarios (one-walker-returns-the-complete-set / a-cut-short-walk-returns-the-partial-set-flagged-incomplete / a-partial-set-is-never-presented-as-complete) rather than any single one.
 >
