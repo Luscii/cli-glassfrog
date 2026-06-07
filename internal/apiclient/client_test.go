@@ -95,6 +95,18 @@ func TestNewClientNilBasePanics(t *testing.T) {
 	_, _ = NewClient(completeContext(secretToken), nil)
 }
 
+func TestNewClientNilBasePanicsEvenWithBaseURLError(t *testing.T) {
+	// The nil-base precondition is checked before the base-URL fail-fast, so a
+	// wiring bug panics deterministically and is never masked by a BaseURLErr.
+	defer func() {
+		if recover() == nil {
+			t.Fatal("NewClient did not panic on a nil base when BaseURLErr was also set")
+		}
+	}()
+	ctx := ConnectionContext{BaseURLErr: &BaseURLError{Source: "--base-url"}}
+	_, _ = NewClient(ctx, nil)
+}
+
 func TestNewClientSetsRequestTimeout(t *testing.T) {
 	client, err := NewClient(completeContext(secretToken), &fakeBase{})
 	if err != nil {

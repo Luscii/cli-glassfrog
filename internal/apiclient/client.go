@@ -65,15 +65,18 @@ type Client struct {
 // Precondition: base is required and must be non-nil; a nil base is a wiring bug
 // and panics (fail-fast — no nil-default, per DECISIONS/PR #20). Defaulting to
 // http.DefaultTransport would silently give this layer an untimed transport it
-// must not own.
+// must not own. The nil check runs first, unconditionally — a wiring bug must
+// fail the same way whether or not the context also carries a base-URL error.
 func NewClient(ctx ConnectionContext, base http.RoundTripper) (*Client, error) {
+	if base == nil {
+		// Argument precondition, checked before any other branch so the panic is
+		// deterministic and a nil transport is never masked by a base-URL error.
+		panic("apiclient.NewClient: base must not be nil")
+	}
 	if ctx.BaseURLErr != nil {
 		// Base-URL fail-fast: no usable endpoint, so build nothing and return the
 		// carried error verbatim. The token is never inspected on this branch.
 		return nil, ctx.BaseURLErr
-	}
-	if base == nil {
-		panic("apiclient.NewClient: base must not be nil")
 	}
 
 	replay := func() (auth.Resolution, error) { return ctx.Cred, ctx.CredErr }
@@ -91,8 +94,14 @@ func NewClient(ctx ConnectionContext, base http.RoundTripper) (*Client, error) {
 //
 // The base transport is a clone of the standard transport's defaults (connection
 // pooling, dial/TLS handshake timeouts) owned by this client, not the shared
-// http.DefaultTransport — the per-request ceiling is the Client's Timeout.
+// http.DefaultTransport — the per-request ceiling is the Client's Timeout. If a
+// dependency has replaced http.DefaultTransport with a non-*http.Transport, the
+// type assertion would panic, so fall back to using it directly rather than
+// failing a legitimate construction; the Client's Timeout still bounds it.
 func NewClientFromOS(ctx ConnectionContext) (*Client, error) {
-	base := http.DefaultTransport.(*http.Transport).Clone()
+	base := http.DefaultTransport
+	if t, ok := base.(*http.Transport); ok {
+		base = t.Clone()
+	}
 	return NewClient(ctx, base)
 }
