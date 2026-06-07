@@ -73,7 +73,7 @@ Phase 2: Executable acceptance + 010 comment correction (2 tasks, depends on Pha
   - **Scenario references**: pagination.feature: all 016 behavioral Rule-block scenarios
   - **Risk**: ⚠️ Suite scoping — point `Paths` at the single feature file, not the directory. ⚠️ Step-vocabulary — grep existing `sc.Step(` registrations in sibling suites and match phrasing before adding bindings; helpers return errors, never panic.
 
-- [ ] **T004** [Shared] [P] Correct 010's stale "Link/paging headers" comment to "decoded body `meta.pagination`"
+- [x] **T004** [Shared] [P] Correct 010's stale "Link/paging headers" comment to "decoded body `meta.pagination`" — `execute.go` `Response` doc now states 016 reads paging from the body's `meta.pagination` via `glassfrog.Page[T]`, not a header; comment-only, no behavior change
   - **Scope**: Amend the comment in `internal/apiclient/execute.go` (the `Response` doc and any inline note) that says Pagination (016) "reads Link/paging headers" — the v5 API carries paging in the **response body** at `meta.pagination`, which the walker decodes via an enveloped target; `Response` exposes only status+headers. A comment-only change; no behavior, no signature, no test changes. (Optionally note the correction where 010's plan/interface text is co-located, if a docs sweep is in scope — otherwise leave the spec artifacts as historical record.)
   - **Acceptance criteria**:
     - `execute.go`'s comment no longer claims 016 reads paging from a response header; it states paging is read from the decoded body's `meta.pagination`
