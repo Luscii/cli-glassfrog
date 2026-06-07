@@ -203,6 +203,11 @@ func TestRunMyRoles_NonStatus2xxIsAPIError(t *testing.T) {
 	if !strings.Contains(stderr, "403") {
 		t.Errorf("stderr should name the 403 status, got %q", stderr)
 	}
+	// F-1 (validate round 1): the non-2xx message names the status AND a concrete,
+	// generic next step — without interpreting the status into a specific meaning.
+	if !strings.Contains(stderr, "retry") {
+		t.Errorf("the non-2xx message should carry a generic next step, got %q", stderr)
+	}
 }
 
 func TestRunMyRoles_UndecodableBodyIsRuntimeError(t *testing.T) {
@@ -218,6 +223,11 @@ func TestRunMyRoles_UndecodableBodyIsRuntimeError(t *testing.T) {
 	}
 	if strings.TrimSpace(stderr) == "" {
 		t.Error("a decode failure should be reported on stderr")
+	}
+	// F-1 (validate round 1): the decode-failure message names the cause (shape
+	// mismatch) AND the next step (report it).
+	if !strings.Contains(stderr, "report it") {
+		t.Errorf("the decode-failure message should carry a next step, got %q", stderr)
 	}
 }
 
