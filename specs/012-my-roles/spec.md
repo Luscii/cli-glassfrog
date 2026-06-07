@@ -8,7 +8,7 @@
 
 ## System Overview
 
-My Roles is a self-service read command in the **Self-Service Reads** slice — the "what's mine" surface. It lets a practitioner (usually via an AI agent) list the roles they personally fill, without naming themselves: the token already scopes the call to one person in one organization. It maps to exactly one endpoint — `GET /me/roles` → `listMyRoles` (`spec/glassfrog-api-v5.yaml:1003`) — which returns the roles the requester fills through a *primary, non-discarded* assignment. This is deliberately narrower than the org-wide `GET /roles`: it answers "what do I hold here," the read half of VISION success #2 (an agent reads a practitioner's roles, then submits a proposal).
+My Roles is a self-service read command in the **Self-Service Reads** slice — the "what's mine" surface. It lets a practitioner (usually via an AI agent) list the roles they personally fill, without naming themselves: the token already scopes the call to one person in one organization. It maps to exactly one endpoint — `GET /me/roles` → `listMyRoles` (`spec/glassfrog-api-v5.yaml:1005`) — which returns the roles the requester fills through a *primary, non-discarded* assignment. This is deliberately narrower than the org-wide `GET /roles`: it answers "what do I hold here," the read half of VISION success #2 (an agent reads a practitioner's roles, then submits a proposal).
 
 It is an endpoint command sitting on the proven transport chain: it hands a request to **Request Execution (010)** and reads identity through **Request Authentication (007)**, which attaches the token and owns the no-token fail-safe. It does not re-implement transport, identity, base-URL resolution, or exit-code mapping — those are owned upstream (010, 007, 008/009, 004). Its own job is small: build the `me roles` request, ask the seam to send it, and turn the outcome into a concise projection of the practitioner's roles or a named failure.
 
@@ -33,8 +33,8 @@ It is an endpoint command sitting on the proven transport chain: it hands a requ
 ### Failure
 
 - When no usable token is available, the system surfaces the authentication fail-safe's refusal and exits non-zero with a not-authenticated outcome, pointing the operator at how to store a credential; it reuses the shared not-authenticated message rather than inventing its own.
-- When the request cannot reach or complete at the wire (connection, DNS, TLS, timeout), the system surfaces the transport failure by name and exits with the runtime-failure code.
-- When the API answers with a non-2xx response, the system reports that the read failed, naming the HTTP status, and exits with the runtime-failure code; it does not interpret which kind of API error it was.
+- When the request cannot reach or complete at the wire (connection, DNS, TLS, timeout), the system surfaces the transport failure by name and exits non-zero with the network-unavailable outcome (distinct from a usage or API failure).
+- When the API answers with a non-2xx response, the system reports that the read failed, naming the HTTP status, and exits non-zero with the generic API-error outcome; it does not interpret which kind of API error it was.
 - Whatever the failure, the message names both what went wrong and a concrete next step the operator can take (Action Transparency), and never includes the token.
 
 ---
@@ -111,13 +111,13 @@ And no role data is printed
 Given a valid token but the API is unreachable (connection, DNS, TLS, or timeout)
 When the user runs `glassfrog me roles`
 Then the system reports the transport failure by name on stderr
-And the command exits with the runtime-failure code
+And the command exits with the network-unavailable code
 
 **Scenario: The API answers with a non-2xx status**
 Given a valid token but the API returns a non-2xx response
 When the user runs `glassfrog me roles`
 Then the system reports that the read failed and names the HTTP status
-And the command exits with the runtime-failure code
+And the command exits with the API-error code
 
 ### Edge cases
 
@@ -164,7 +164,7 @@ And the partial list cannot be read as the complete set
 
 ## Ambiguity Warnings
 
-1. **[NEEDS CLARIFICATION] Incompleteness signal form**: the spec requires that an incomplete result be signalled but does not fix *how* (a stderr note, a trailing line, a count like "showing N of more"). The Shaper should choose a form that is both agent-parseable and human-legible, consistent with the default projection.
+*None outstanding.* (The incompleteness-signal form, formerly open here, is now resolved — see Clarifications.)
 
 ---
 
@@ -173,3 +173,4 @@ And the partial list cannot be read as the complete set
 ### Session 2026-06-07
 
 - **Default projection content**: Per role, the projection shows name, purpose, the role's accountabilities and domains (each as its description text), and a minimal identifier (kept unobtrusive but present for agent follow-up calls). Fillers, tags, and classification flags are excluded from the default view. The precise field labelling still syncs with the reshaped-projection convention Identity Read (011) is establishing in parallel; the field *selection* above is fixed.
+- **Incompleteness signal form**: resolved during interface design — when more roles exist than the first response carried (`meta.pagination.has_next_page`), the command writes a single explicit note to **stderr** and still exits 0 (pinned in `interface-cli.md` § Interactions). The *behavior* (must signal, never silent) was already locked in the Behavioral Accord; only the form was open, and it is now fixed.

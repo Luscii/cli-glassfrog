@@ -33,13 +33,13 @@ A practitioner with more roles than one API page receives a list that looks comp
 - **Residual: Yellow** (High×Low) — acceptable: the signal converts a silent truncation into a visible, exit-0-with-note boundary; complete paging is a known later capability.
 
 ### H-2 — Token leakage
-My Roles is the first command on the live request path, where the `X-Auth-Token` is most exposed to tracing/logging. **Severity High**: secret disclosure (CONSTITUTION II). **Probability Low**: the command never reads the token — 010's replay thunk and 007 own its only path.
+My Roles sits on the live request path, where the `X-Auth-Token` is most exposed to tracing/logging. **Severity High**: secret disclosure (CONSTITUTION II). **Probability Low**: the command never reads the token — 010's replay thunk and 007 own its only path.
 - **RC-2**: The command never reads `ctx.Cred.Token`; errors carry only the response side and a network-level cause; a token-never-in-output test covers stdout and stderr across every branch (plan § Cross-cutting; scenario discipline inherited from 010).
 - **Residual: Yellow** (High×Low) — acceptable with the no-token-path control and the explicit output test.
 
 ### H-3 — Unrecoverable error (missing next step)  *(RESOLVED 2026-06-07)*
 Three of six error conditions (`APIError`, `NetworkUnavailable`, decode `RuntimeError`) originally named a cause but no next step, so an AI-agent operator might not know how to recover — contradicting Action Transparency (II). **Severity Medium**: the agent acts on incomplete failure information. **Probability Medium** (pre-fix): half the error surface was affected.
-- **RC-3 (applied)**: Every error message now names both the cause and a concrete next step (403 → "you may lack permission"; transport → "check network/base URL"; decode → "API response shape changed — report it") — pinned in interface-cli § Error Communication and the spec § Behavioral Accord → Failure (the round-2 checklist P0 fix).
+- **RC-3 (applied)**: Every error message now names both the cause and a concrete next step (non-2xx → names the HTTP status + a generic recovery step, without interpreting the status; transport → "check network/base URL"; decode → "API response shape changed — report it") — pinned in interface-cli § Error Communication and the spec § Behavioral Accord → Failure (the round-2 checklist P0 fix).
 - **Residual: Green** — RC-3 is in place; no longer an open item for implementation.
 
 ### H-4 — Org-wide throttling

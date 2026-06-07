@@ -38,11 +38,11 @@ Round 3 re-derives against the artifacts after they were **conformed to Identity
 → **interface-cli.md § Surface / spec.md § Output**: The default output is a reshaped, line-oriented projection — structured, but not a formal machine-parseable format, and it does not name the invoked operation (`GET /me/roles`). The formal agent-parseable form (`--output json`) is deliberately deferred to the Unconsumable Output capability. Confirm the line-oriented projection is sufficient for the Now slice, or that this gap is consciously accepted until Unconsumable Output lands. *(Open by design — developer's call.)*
 
 **P1** | CONSTITUTION.md X. Respect API Limits: "backing off on `429` responses"
-→ **plan.md ADR-3 / interface-cli.md § Error Communication**: A `429` is surfaced generically as `APIError`→code 3 (now with a "wait before retrying" next step) but with no `Retry-After`/backoff; backoff is deferred to Rate-Limit Handling (017). No retry loop exists (one bounded attempt), so the specific anti-pattern X names is absent. Confirm the deferral to 017 is acceptable for the first read slice. *(Open by design — developer's call.)*
+→ **plan.md ADR-3 / interface-cli.md § Error Communication**: A `429` is surfaced generically as `APIError`→code 3 (status named, generic next step, no status interpretation) but with no `Retry-After`/backoff; backoff is deferred to Rate-Limit Handling (017). No retry loop exists (one bounded attempt), so the specific anti-pattern X names is absent. Confirm the deferral to 017 is acceptable for the first read slice. *(Open by design — developer's call.)*
 
 ### Passing
 
-**P0** | I. Spec Fidelity → `me roles` maps to `GET /me/roles` (`listMyRoles`, spec.yaml:1003); no invented endpoints, parameters, or behaviors. PASS.
+**P0** | I. Spec Fidelity → `me roles` maps to `GET /me/roles` (`listMyRoles`, spec.yaml:1005); no invented endpoints, parameters, or behaviors. PASS.
 
 **P0** | II. Action Transparency (error transparency) → every error condition in interface-cli.md § Error Communication now names both a cause and a concrete next step, and never includes the token; the rule is also stated in spec.md § Failure. PASS. *(was P0 fail in round 1)*
 
