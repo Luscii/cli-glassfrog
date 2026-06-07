@@ -27,14 +27,14 @@ The parts (all in `internal/apiclient`):
       if err is not a 429 *ResponseError:  return resp, err  ── success / transport / decode / other non-2xx pass THROUGH
       if !isSafeMethod(req.Method):         return resp, err  ── writes: surface the 429 on first occurrence (ADR-3)
       if attempt == policy.MaxAttempts:     return resp, err  ── attempts exhausted → surface the raw 429 (ADR-2)
-      wait := retryAfter(respErr.Header)  or policy.FallbackBackoff   ── honor Retry-After (int seconds), else fallback
+      wait := parseRetryAfter(respErr.Header)  or policy.FallbackBackoff   ── honor Retry-After (int seconds), else fallback
       if waited + wait > policy.MaxTotalWait: return resp, err        ── would exceed budget → give up, no further sleep
       fprintf(progress, "rate limited; waiting %s before retry %d/%d", wait, attempt+1, MaxAttempts)  ── stderr, no secret
       sleep(wait); waited += wait
 ```
 
 - **`isSafeMethod(method)`** — `GET`/`HEAD` are retryable; anything else surfaces the 429 unretried (idempotency). Read off `Request.Method`.
-- **`retryAfter(header)`** — parses `Retry-After` as a non-negative integer number of seconds (the spec's `RetryAfter` schema is `integer`); absent / non-integer / negative → "unusable", caller falls back to `FallbackBackoff`.
+- **`parseRetryAfter(header)`** — parses `Retry-After` as a non-negative integer number of seconds (the spec's `RetryAfter` schema is `integer`); absent / non-integer / negative → "unusable", caller falls back to `FallbackBackoff`.
 
 The read seam (today 011's `runMe`, which calls `client.Execute(cfg.reqCtx, req, &me)` directly) routes that single call through the `RetryExecutor`, threading the `sleep` and stderr seams. Because the read surface shares one send shape, future reads (013/014 when built, and the rest of 012–017's pattern) adopt the same wrapper — the retry lives in one `apiclient` helper, not re-inlined per command (the `classifyClientError` "one place, never drifts" discipline). Each `Execute` remains one timed attempt; the sleep happens **between** attempts, outside any single attempt's `client.Timeout`.
 
@@ -66,7 +66,7 @@ The read seam (today 011's `runMe`, which calls `client.Execute(cfg.reqCtx, req,
 
 **Decision**: Option 1. `MaxAttempts`, `MaxTotalWait`, `FallbackBackoff` are named `[ASSUMED]` constants (exact values and any future configurability deferred, as 008 deferred the default URL and 010 the timeout). The budget bounds **accumulated sleep** (not wall-clock incl. requests) — simple, and a single `Retry-After` larger than the remaining budget triggers give-up rather than a truncated sleep.
 
-**Consequences**: Every call returns in bounded time; most transient 429s resolve transparently. A surfaced 429 is the *unchanged* `*ResponseError` (status + rate-limit headers + body intact for 015). `retryAfter` parses non-negative integer seconds only (the spec's schema); HTTP-date form is not produced by this API and is treated as "unusable → fallback" (a tunable robustness detail, not a behavior gap). *Feature-local beyond the tunable-constants point 008/010 already set.*
+**Consequences**: Every call returns in bounded time; most transient 429s resolve transparently. A surfaced 429 is the *unchanged* `*ResponseError` (status + rate-limit headers + body intact for 015). `parseRetryAfter` parses non-negative integer seconds only (the spec's schema); HTTP-date form is not produced by this API and is treated as "unusable → fallback" (a tunable robustness detail, not a behavior gap). *Feature-local beyond the tunable-constants point 008/010 already set.*
 
 ### ADR-3: Only safe (idempotent) methods auto-retry; non-safe requests surface the 429 on first occurrence
 
@@ -134,7 +134,7 @@ The read seam (today 011's `runMe`, which calls `client.Execute(cfg.reqCtx, req,
 
 Three phases, linear. Depends only on landed code: 010 (`Client`, `Execute`, `Request`, `ResponseError{StatusCode,Header,Body}`) and 011 (`runMe` send site). Purely additive in `internal/apiclient`; the only edit to landed code is routing the read send through the new executor.
 
-- **Phase 1 — policy + helpers**: define the code-free `RetryPolicy` (`MaxAttempts`/`MaxTotalWait`/`FallbackBackoff` as named `[ASSUMED]` constants), `isSafeMethod`, and `retryAfter` (non-negative integer seconds; absent/negative/non-integer → unusable). RED-first unit tests: safe vs non-safe methods; `retryAfter` parses `"42"`, rejects `""`/`"-1"`/`"abc"`/HTTP-date. *Depends on: nothing new.*
+- **Phase 1 — policy + helpers**: define the code-free `RetryPolicy` (`MaxAttempts`/`MaxTotalWait`/`FallbackBackoff` as named `[ASSUMED]` constants), `isSafeMethod`, and `parseRetryAfter` (non-negative integer seconds; absent/negative/non-integer → unusable). RED-first unit tests: safe vs non-safe methods; `parseRetryAfter` parses `"42"`, rejects `""`/`"-1"`/`"abc"`/HTTP-date. *Depends on: nothing new.*
 - **Phase 2 — `RetryExecutor`**: the bounded loop over `client.Execute` with injected `sleep` + progress `io.Writer` (fail-fast on nil). Inspect `*ResponseError`+429; honor `Retry-After`/fallback; enforce both caps; surface the raw 429 on exhaustion/over-budget/non-safe; pass every non-429 outcome through unchanged; emit the secret-free note per wait. RED-first unit tests over the fake base + recording sleep + buffer for every branch, including the attempts-cap and total-wait-cap **tripwires** and the token-never-in-output assertion. *Depends on: Phase 1.*
 - **Phase 3 — wire the read path + executable acceptance**: route 011's `runMe` send through the `RetryExecutor` (thread `sleep`=`time.Sleep`, progress=`cmd.ErrOrStderr()` in the production seam; tests bind fakes); confirm a 429-then-200 `me` run renders the projection after one bounded wait and a non-429 `me` run is unchanged. godog step definitions for the driving scenarios in the new `internal/apiclient` feature file. *Depends on: Phase 2.*
 
