@@ -6,7 +6,7 @@
 
 ---
 
-This accord pins the operator-facing command that lists the roles the authenticated practitioner fills (`GET /me/roles`, token-scoped). It is the project's **first command to issue a real Glassfrog API call**. It pins the **invocation surface** — the command, its flag, the default projection output, the incompleteness signal, and the exit codes. The request seam it calls through is pinned in 010's `interface-spec.md`; the resolved base URL and token arrive pre-assembled in the `ConnectionContext` (009).
+This accord pins the operator-facing command that lists the roles the authenticated practitioner fills (`GET /me/roles`, token-scoped). It pins the **invocation surface** — the command, its flag, the default projection output, the incompleteness signal, and the exit codes. The request seam it calls through is pinned in 010's `interface-spec.md`; the resolved base URL and token arrive pre-assembled in the `ConnectionContext` (009).
 
 ---
 

@@ -3,10 +3,10 @@
 Feature: Self-Service Reads — My Roles
   The practitioner — usually via an AI agent — wants to read "what's mine"
   without naming themselves: the stored token already scopes the call to one
-  person in one organization. My Roles is the first self-service read and the
-  first command to issue a real Glassfrog API call: `glassfrog me roles` sends
-  GET /me/roles and prints a reshaped projection of the roles the practitioner
-  fills, or fails with a named error and the right exit code.
+  person in one organization. My Roles is a self-service read on the proven
+  transport chain: `glassfrog me roles` sends GET /me/roles and prints a
+  reshaped projection of the roles the practitioner fills, or fails with a
+  named error and the right exit code.
   (affects: Practitioner)
 
   Rule: List my roles with one command, without identifying myself
