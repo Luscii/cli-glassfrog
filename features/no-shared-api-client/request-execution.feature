@@ -14,7 +14,6 @@ Feature: No Shared API Client — Request Execution
     # I want one seam I can hand a request to and get back a parsed response or a typed error.
 
     # Source: 010-request-execution — Scenario: 2xx response decoded into a supplied target
-    @wip
     Scenario: A successful response is decoded into the caller's target
       Given a client had been built from a complete connection context
       And the API would return a 200 response with a JSON body
@@ -23,7 +22,6 @@ Feature: No Shared API Client — Request Execution
       And the body will be decoded into the target
 
     # Source: 010-request-execution — Scenario: 2xx response with no decode target (bodyless)
-    @wip
     Scenario: A bodyless success returns status and headers without decoding
       Given a client had been built from a complete connection context
       And the API would return a 204 response with no body
@@ -32,7 +30,6 @@ Feature: No Shared API Client — Request Execution
       And no body will be decoded
 
     # Source: 010-request-execution — Scenario: identity is carried by the authenticated transport
-    @wip
     Scenario: The request is authenticated by the transport
       Given a client had been built from a connection context carrying a present token
       When an endpoint command executes a request
@@ -53,7 +50,6 @@ Feature: No Shared API Client — Request Execution
     # I want transport failures, non-2xx responses, and decode failures surfaced as distinct, typed outcomes.
 
     # Source: 010-request-execution — Scenario: transport failure at the wire
-    @wip
     Scenario: A wire failure is surfaced as a transport error
       Given a client had been built from a complete connection context
       And the API could not be reached
@@ -62,7 +58,6 @@ Feature: No Shared API Client — Request Execution
       And no response or decoded body will be returned
 
     # Source: 010-request-execution — Scenario: non-2xx response is short-circuited
-    @wip
     Scenario: A non-2xx response is surfaced as a generic response error
       Given a client had been built from a complete connection context
       And the API would return a 403 response with a body
@@ -72,7 +67,6 @@ Feature: No Shared API Client — Request Execution
       And the error will not be classified by failure kind
 
     # Source: 010-request-execution — Scenario: base-URL problem refuses before sending
-    @wip
     Scenario: A base-URL problem is refused before sending
       Given a connection context had carried a base-URL error
       When an endpoint command builds a client for the request
@@ -80,7 +74,6 @@ Feature: No Shared API Client — Request Execution
       And no client will be built and no request will reach the API
 
     # Source: 010-request-execution — Scenario: 2xx body cannot be decoded into the supplied target
-    @wip
     Scenario: An undecodable success body is surfaced as a decode error
       Given a client had been built from a complete connection context
       And the API would return a 200 response whose body does not match the target
@@ -88,7 +81,6 @@ Feature: No Shared API Client — Request Execution
       Then a decode error will be returned rather than a success
 
     # Source: 010-request-execution — Scenario: hung connection fails on the request timeout
-    @wip
     Scenario: A hung connection fails on the request timeout
       Given a client had been built from a complete connection context
       And the API accepts the connection but never responds
@@ -97,7 +89,6 @@ Feature: No Shared API Client — Request Execution
       And a transport error will be returned without a retry
 
     # Source: 010-request-execution — Scenario: no usable token — the transport's fail-safe is propagated
-    @wip
     Scenario: A missing token refuses the request without sending
       Given a client had been built from a connection context with a usable base URL but no token
       When an endpoint command executes a request
@@ -133,7 +124,6 @@ Feature: No Shared API Client — Request Execution
     # I want the status code and response headers exposed on both the success and the non-2xx outcome.
 
     # Source: 010-request-execution — Scenario: 429 is surfaced as a non-2xx carrying its rate-limit headers
-    @wip
     Scenario: A 429 carries its rate-limit headers
       Given a client had been built from a complete connection context
       And the API would return a 429 rate-limit response
