@@ -14,7 +14,6 @@ Feature: Self-Service Reads — My Actions
     # I want to list the actions owned by the roles I fill.
 
     # Source: 013-my-actions — Scenario: list the practitioner's actions
-    @wip
     Scenario: The actions projection lists the practitioner's actions
       Given a complete connection context with a present, valid token
       And the API would return one page of actions the practitioner owns
@@ -24,7 +23,6 @@ Feature: Self-Service Reads — My Actions
       And the command will exit successfully
 
     # Source: 013-my-actions — Scenario: no matching actions
-    @wip
     Scenario: No matching actions reports an empty list, not a failure
       Given a complete connection context with a present, valid token
       And the practitioner owns no actions matching the request
@@ -33,7 +31,6 @@ Feature: Self-Service Reads — My Actions
       And the command will exit successfully
 
     # Source: 013-my-actions — Scenario: no usable token
-    @wip
     Scenario: A missing token is refused before sending
       Given a connection context with a usable base URL but no usable token
       When the operator runs the my-actions command
@@ -42,7 +39,6 @@ Feature: Self-Service Reads — My Actions
       And no unauthenticated request will be sent
 
     # Source: 013-my-actions — Scenario: API responds with a non-2xx
-    @wip
     Scenario: A non-2xx response is surfaced, not classified
       Given a complete connection context with a present, valid token
       And the API would answer the my-actions read with a non-2xx response
@@ -52,7 +48,6 @@ Feature: Self-Service Reads — My Actions
       And it will exit with a non-success result
 
     # Proposed (architecture-informed): plan ADR/Cross-cutting — a wire failure is a distinct transport outcome
-    @wip
     Scenario: A network failure is surfaced as a transport outcome
       Given a complete connection context with a usable base URL
       And the API could not be reached
@@ -62,7 +57,6 @@ Feature: Self-Service Reads — My Actions
       And it will not retry
 
     # Proposed (architecture-informed): reused 011 error mapping — an undecodable 2xx is a distinct internal-error outcome
-    @wip
     Scenario: An undecodable response is surfaced as an internal error
       Given a complete connection context with a present, valid token
       And the API would return a 200 response whose body does not match the actions shape
@@ -71,7 +65,6 @@ Feature: Self-Service Reads — My Actions
       And it will exit with the internal-error result rather than a success
 
     # Proposed (architecture-informed): reused 011 error mapping — a malformed base URL is observable at the CLI surface
-    @wip
     Scenario: A malformed base URL is refused before sending
       Given a connection context carrying a base-URL error from a malformed configured value
       When the operator runs the my-actions command
@@ -80,7 +73,6 @@ Feature: Self-Service Reads — My Actions
       And no request will reach the API
 
     # Proposed (guard-derived): interface error table — the CredentialError outcome (exit 1) had no acceptance coverage (analyze K5, added during PR review)
-    @wip
     Scenario: A malformed credentials file fails the read loudly
       Given a connection context whose credentials file is malformed
       When the operator runs the my-actions command
@@ -118,7 +110,6 @@ Feature: Self-Service Reads — My Actions
     # I want to filter the list by status (e.g. only current).
 
     # Source: 013-my-actions — Scenario: filter by a supported status
-    @wip
     Scenario: A supported status filters the request
       Given a complete connection context with a present, valid token
       When the operator runs the my-actions command with the status filter "current"
@@ -127,7 +118,6 @@ Feature: Self-Service Reads — My Actions
       And only the actions the API returns for that filter will be rendered
 
     # Source: 013-my-actions — Scenario: invalid status value is rejected before any request
-    @wip
     Scenario: An unsupported status value is rejected before any request
       Given a complete connection context with a present, valid token
       When the operator runs the my-actions command with a status value outside the spec's vocabulary
@@ -148,7 +138,6 @@ Feature: Self-Service Reads — My Actions
     # I want a clear signal when more results exist beyond the page I received.
 
     # Source: 013-my-actions — Scenario: more results than one page
-    @wip
     Scenario: A further page is signalled, not fetched
       Given a complete connection context with a present, valid token
       And the API would return a first page reporting that more results are available

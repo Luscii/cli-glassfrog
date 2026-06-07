@@ -31,6 +31,13 @@ func Assemble() *cobra.Command {
 	// sends GET /me/roles and prints the roles the practitioner fills. Reuses the
 	// same productionSeam (assemble + newClient) and the inherited --base-url.
 	MustRegister(meCmd, newMyRolesCommand(productionSeam{}))
+	// My Actions (013): the `actions` leaf under `me`, a sibling of `roles`.
+	// `me actions [--status <s>]` sends GET /me/actions and prints the actions the
+	// practitioner's roles own, optionally filtered by status. (The 013 spec prose
+	// says "my actions"; the implemented convention is `me actions` under `me`,
+	// mirroring `me roles` — see .score/memory/LEARNINGS.md.) Reuses the same
+	// productionSeam and the inherited --base-url.
+	MustRegister(meCmd, newMyActionsCommand(productionSeam{}))
 	// Help & Version (003): tune the assembled root's help/version rendering —
 	// unify --version with the version command, hide framework built-ins, keep
 	// standard alphabetical listing. Applied after wiring so it configures the

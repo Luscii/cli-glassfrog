@@ -28,6 +28,7 @@ const meSecretToken = "gf_live_secret123"
 type cannedTransport struct {
 	calls     int
 	lastQuery url.Values
+	lastPath  string
 	status    int
 	body      string
 	netErr    error
@@ -36,6 +37,7 @@ type cannedTransport struct {
 func (c *cannedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	c.calls++
 	c.lastQuery = req.URL.Query()
+	c.lastPath = req.URL.Path
 	if c.netErr != nil {
 		return nil, c.netErr
 	}
