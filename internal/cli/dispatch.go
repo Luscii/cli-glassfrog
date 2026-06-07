@@ -23,6 +23,27 @@ type commandUsageError struct{ err error }
 func (e *commandUsageError) Error() string { return e.err.Error() }
 func (e *commandUsageError) Unwrap() error { return e.err }
 
+// outcomeError carries an explicit operational Outcome on dispatch's error
+// channel, for the categories dispatch cannot re-derive from an untyped error.
+// commandUsageError handles the UsageError case; outcomeError generalizes it to
+// the operational categories a resolved action produces (APIError,
+// NetworkUnavailable) — introduced with the first command that classifies API
+// client outcomes (Identity Read 011). Dispatch unwraps it to return the carried
+// Outcome verbatim, so Exit-Code Convention maps it to the right code (3/6)
+// rather than collapsing every action failure to RuntimeError(1).
+//
+// The command writes its own controlled, token-free message before returning
+// this (it sets SilenceErrors), so dispatch only reads the category — it never
+// re-renders. Success and UsageError keep their existing channels (nil and
+// *commandUsageError); RuntimeError still travels as a bare error.
+type outcomeError struct {
+	outcome Outcome
+	err     error
+}
+
+func (e *outcomeError) Error() string { return e.err.Error() }
+func (e *outcomeError) Unwrap() error { return e.err }
+
 // Outcome is the code-free classification dispatch assigns to an invocation.
 // It names *what kind* of outcome occurred — never a process exit code (that
 // is Exit-Code Convention's concern) and never a rendered message (Help &
@@ -186,6 +207,14 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 			var ue *commandUsageError
 			if errors.As(err, &ue) {
 				return UsageError, err
+			}
+			// An action may classify its own failure into an operational category
+			// dispatch cannot re-derive (APIError, NetworkUnavailable) by returning
+			// a *outcomeError; honor the carried category so Exit-Code Convention
+			// maps it (3/6) rather than the RuntimeError(1) catch-all.
+			var oe *outcomeError
+			if errors.As(err, &oe) {
+				return oe.outcome, err
 			}
 			return RuntimeError, err
 		}
