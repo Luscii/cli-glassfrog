@@ -30,12 +30,13 @@ func (e *commandUsageError) Unwrap() error { return e.err }
 // category to a process code via ExitCode (exitcode.go) without re-deriving it
 // from an untyped error (ADR-1).
 //
-// The category names only outcomes that have a producer today: Success,
-// UsageError, and RuntimeError. The operational categories the spec reserves
-// (API / permission / rate-limit / network-unavailable, codes 3–6) gain an
-// Outcome value only when their producer — the future API client — lands and
-// classifies them (ADR-2); their codes are already published as constants in
-// exitcode.go.
+// The category named outcomes with a producer today: Success, UsageError, and
+// RuntimeError were the original three; Identity Read (011) is the first
+// consuming command, so it adds the operational categories its API-client
+// errors produce — NetworkUnavailable and APIError (codes 6 and 3, which 004
+// reserved). The remaining reserved categories (permission/rate-limit, codes
+// 4/5) gain an Outcome value when their producer lands (API Error Extraction
+// 015 / Rate-Limit Handling 017), splitting APIError without renumbering.
 type Outcome int
 
 const (
@@ -52,6 +53,18 @@ const (
 	// catch-all internal-error code 1 (ADR-3); the error itself still travels
 	// via Run's error return.
 	RuntimeError
+	// NetworkUnavailable means the API could not be reached at the wire
+	// (connection/DNS/TLS/timeout). Produced by the read surface classifying an
+	// *apiclient.TransportError (011, ADR-3/4); Exit-Code Convention maps it to
+	// the reserved code 6.
+	NetworkUnavailable
+	// APIError means the API answered with a non-2xx status. It is the generic,
+	// uninterpreted "general API error" bucket — produced by classifying an
+	// *apiclient.ResponseError (011, ADR-4). Exit-Code Convention maps it to the
+	// reserved code 3. API Error Extraction (015) / Rate-Limit Handling (017)
+	// later split 401/403→permission(4) and 429→rate-limit(5) at the same
+	// registry, without renumbering 3.
+	APIError
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -63,6 +76,10 @@ func (o Outcome) String() string {
 		return "UsageError"
 	case RuntimeError:
 		return "RuntimeError"
+	case NetworkUnavailable:
+		return "NetworkUnavailable"
+	case APIError:
+		return "APIError"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs

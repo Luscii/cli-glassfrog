@@ -16,21 +16,48 @@ var publishedCodes = map[string]int{
 	"network-unavailable": codeNetworkUnavailable,
 }
 
-// ExitCode maps the categories that have producers today: Success→0,
-// UsageError→2, and RuntimeError→1. The operational categories (codes 3–6) have
-// no Outcome value yet (ADR-2), so they are pinned at the constant level only.
-// Asserting RuntimeError→1 directly here keeps this suite the change-detector
-// for the producer-backed category→code arms — independent of the indirect
-// coverage via runToExitCode and the BDD scenarios.
+// ExitCode maps the categories that have producers today: the original three
+// (Success→0, UsageError→2, RuntimeError→1) plus the two Identity Read (011)
+// added as the first consuming command (NetworkUnavailable→6, APIError→3). The
+// still-reserved categories (permission 4, rate-limited 5) have no Outcome value
+// yet, so they are pinned at the constant level only.
+//
+// outcomeCodes mirrors the producer-backed category→code arms by name; the
+// length check plus the comma-ok lookup catch an arm being dropped or added
+// (without them, dropping Success→0 would pass silently because a missing key
+// reads back as the zero value 0, which equals its expected code — PR #10
+// LEARNINGS, the zero-valued-expectation trap).
+var outcomeCodes = map[Outcome]int{
+	Success:            0,
+	UsageError:         2,
+	RuntimeError:       1,
+	APIError:           3,
+	NetworkUnavailable: 6,
+}
+
 func TestExitCode_ProducerBackedCategories(t *testing.T) {
-	if got := ExitCode(Success); got != 0 {
-		t.Errorf("ExitCode(Success) = %d, want 0", got)
+	want := map[Outcome]int{
+		Success:            0,
+		UsageError:         2,
+		RuntimeError:       1,
+		APIError:           3,
+		NetworkUnavailable: 6,
 	}
-	if got := ExitCode(UsageError); got != 2 {
-		t.Errorf("ExitCode(UsageError) = %d, want 2", got)
+	if len(outcomeCodes) != len(want) {
+		t.Errorf("outcomeCodes has %d entries, want %d — a producer-backed category was added or removed without updating this test", len(outcomeCodes), len(want))
 	}
-	if got := ExitCode(RuntimeError); got != 1 {
-		t.Errorf("ExitCode(RuntimeError) = %d, want 1", got)
+	for o, w := range want {
+		got, ok := outcomeCodes[o]
+		if !ok {
+			t.Errorf("category %v is missing from outcomeCodes", o)
+			continue
+		}
+		if got != w {
+			t.Errorf("outcomeCodes[%v] = %d, want %d", o, got, w)
+		}
+		if mapped := ExitCode(o); mapped != w {
+			t.Errorf("ExitCode(%v) = %d, want %d", o, mapped, w)
+		}
 	}
 }
 
