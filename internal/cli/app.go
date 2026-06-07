@@ -20,8 +20,17 @@ func Assemble() *cobra.Command {
 	MustRegister(root, newAuthCommand(productionSeam{}))
 	// Identity Read (011): the `me` command — the first end-to-end API read.
 	// productionSeam binds AssembleFromOS + NewClientFromOS (the real transport);
-	// me reads the persistent --base-url flag the root declares.
-	MustRegister(root, newMeCommand(productionSeam{}))
+	// me reads the persistent --base-url flag the root declares. me is registered
+	// as a leaf FIRST (while childless), so the guard sees a valid runnable leaf;
+	// My Roles' `roles` child is attached AFTER, so the guard validates the child
+	// and `me` becomes both runnable and a parent without tripping the
+	// leaf-xor-group rule (which only fires at a command's own registration).
+	meCmd := newMeCommand(productionSeam{})
+	MustRegister(root, meCmd)
+	// My Roles (012): the `roles` leaf under the runnable `me` command. `me roles`
+	// sends GET /me/roles and prints the roles the practitioner fills. Reuses the
+	// same productionSeam (assemble + newClient) and the inherited --base-url.
+	MustRegister(meCmd, newMyRolesCommand(productionSeam{}))
 	// Help & Version (003): tune the assembled root's help/version rendering —
 	// unify --version with the version command, hide framework built-ins, keep
 	// standard alphabetical listing. Applied after wiring so it configures the
