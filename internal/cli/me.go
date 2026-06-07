@@ -209,11 +209,22 @@ func formatClientErrorMessage(err error) string {
 	}
 	var responseErr *apiclient.ResponseError
 	if errors.As(err, &responseErr) {
-		return fmt.Sprintf("the API returned a non-2xx response: status %d", responseErr.StatusCode)
+		// Name the status (the cause) AND a GENERIC next step. The next step is
+		// deliberately not tailored to the status — a per-status meaning (401 →
+		// re-authenticate, 429 → back off) is API Error Extraction (015) / Rate-Limit
+		// Handling (017)'s concern, and interpreting the status here would breach the
+		// spec Non-Behavior. A generic "check access and retry, or consult the status"
+		// hint satisfies Action Transparency (cause + next step) without that
+		// interpretation. Shared by `me` and `me roles`.
+		return fmt.Sprintf("the API returned a non-2xx response: status %d — the API rejected the read; check that the token has access and retry, or consult the status code", responseErr.StatusCode)
 	}
 	var decodeErr *apiclient.DecodeError
 	if errors.As(err, &decodeErr) {
-		return fmt.Sprintf("could not decode the API response: %s", decodeErr.Error())
+		// Name the shape mismatch (the cause) AND the next step: a 2xx body that will
+		// not decode usually means the API shape drifted, so the operator's recourse
+		// is to report it. The underlying parse error is kept (path/cause only, never
+		// the token) for diagnostics.
+		return fmt.Sprintf("the API response did not match the expected shape — this may be an API change; report it (%s)", decodeErr.Error())
 	}
 	// Base-URL configuration error from client construction. This mirrors
 	// classifyClientError's base-URL arms (which map all of these to UsageError),
