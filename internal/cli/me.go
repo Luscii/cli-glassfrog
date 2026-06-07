@@ -258,7 +258,9 @@ func newMeCommand(seam meSeam) *cobra.Command {
 			// lookup failure here is a wiring bug, not operator input.
 			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
 			if err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), "could not read the --base-url flag")
+				// The entrypoint discards Run's returned error, so include the cause
+				// here or this wiring bug surfaces as a bare exit code.
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
 			outcome, oerr := runMe(meConfig{
