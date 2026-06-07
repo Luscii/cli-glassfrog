@@ -58,7 +58,7 @@
 **Risk Level**: Yellow (Medium × Medium)
 
 **Controls**:
-- **RC-2**: `errors.As(&AuthError)` runs **before** any wrapping; the `AuthError` is propagated unchanged, everything else becomes `TransportError`. Pinned by the no-token-context scenario asserting the returned error is `*AuthError`, not `*TransportError`.
+- **RC-2**: `errors.As(err, &authErr)` runs **before** any wrapping; the `AuthError` is propagated unchanged, everything else becomes `TransportError`. Pinned by the no-token-context scenario asserting the returned error is `*AuthError`, not `*TransportError`.
 
 **Residual Risk**: Green (Medium × Low) — the discrimination is explicit and test-pinned.
 
@@ -215,7 +215,7 @@
 | ID | Mitigates | Grounding |
 |---|---|---|
 | RC-1 | H-1 | plan.md § Cross-cutting (secret hygiene — 010 never reads the token; replay thunk only) |
-| RC-2 | H-2 | plan.md § ADR-4 (`errors.As(*AuthError)` before wrapping) |
+| RC-2 | H-2 | plan.md § ADR-4 (`errors.As(err, &authErr)` before wrapping) |
 | RC-3 | H-3 | plan.md § ADR-3 (status-class short-circuit to generic `ResponseError`, no decode) |
 | RC-4 | H-4 | plan.md § Cross-cutting (single `defer resp.Body.Close()` on every branch) |
 | RC-5 | H-5 | plan.md § ADR-4 (client-level `requestTimeout`, one bounded attempt) |

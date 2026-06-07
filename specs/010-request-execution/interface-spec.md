@@ -55,12 +55,13 @@ All are returned as `error` from `Execute` (or `NewClient`), discriminable via `
 
 **Example (shapes, not literal values)**:
 ```
-2xx + target:    Execute(ctx, Request{Method:"GET", Path:"/me"}, &me)  → &Response{StatusCode:200, Header:{…}}, nil   // me populated
-2xx no target:   Execute(ctx, Request{Method:"GET", Path:"/health"}, nil) → &Response{StatusCode:204, Header:{…}}, nil // no decode
-non-2xx:         Execute(ctx, Request{Method:"GET", Path:"/me"}, &me)  → nil, &ResponseError{StatusCode:403, Header:{…}, Body:[…]}
-transport:       Execute(ctx, …)                                      → nil, &TransportError{cause: dial tcp …: connection refused}
-no token:        Execute(ctx, …)                                      → nil, &AuthError{Kind: NoCredentials}            // from 007
-base-URL error:  NewClient(ctx, base)                                 → nil, &BaseURLError{…}                          // built nothing
+// ctx = the assembled ConnectionContext (009); reqCtx = the per-request context.Context.
+build:           client, err := NewClient(ctx, base)                                → err is ctx.BaseURLErr when the endpoint is unusable (built nothing)
+2xx + target:    client.Execute(reqCtx, Request{Method:"GET", Path:"/me"}, &me)      → &Response{StatusCode:200, Header:{…}}, nil   // me populated
+2xx no target:   client.Execute(reqCtx, Request{Method:"GET", Path:"/health"}, nil)  → &Response{StatusCode:204, Header:{…}}, nil   // no decode
+non-2xx:         client.Execute(reqCtx, Request{Method:"GET", Path:"/me"}, &me)      → nil, &ResponseError{StatusCode:403, Header:{…}, Body:[…]}
+transport:       client.Execute(reqCtx, …)                                          → nil, &TransportError{cause: dial tcp …: connection refused}
+no token:        client.Execute(reqCtx, …)                                          → nil, &AuthError{Kind: NoCredentials}            // from 007
 ```
 
 ---
