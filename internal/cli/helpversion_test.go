@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/spf13/cobra"
 )
 
@@ -132,6 +133,21 @@ func TestHelpFlagStillRenders(t *testing.T) {
 func TestCommandSortingEnabled(t *testing.T) {
 	if !cobra.EnableCommandSorting {
 		t.Fatal("cobra.EnableCommandSorting must stay true for alphabetical listings (ADR-1)")
+	}
+}
+
+// Identity Read (011, ADR-2) adds the persistent --base-url flag to the root, so
+// root help now carries a global-flags section naming it. 003's narrowed
+// non-behavior permits this: the flag is optional documentation data, not new
+// required data. Pinning its presence keeps the ADR-2 decision honest — removing
+// the global flag (or renaming it away from apiclient.FlagBaseURL) fails here.
+func TestRootHelpShowsBaseURLGlobalFlag(t *testing.T) {
+	out, outcome := runAssembled(t, "0.0.0-dev", "--help")
+	if outcome != Success {
+		t.Fatalf("--help outcome = %v, want Success", outcome)
+	}
+	if !strings.Contains(out, "--"+apiclient.FlagBaseURL) {
+		t.Fatalf("root help should document the global --%s flag, got:\n%s", apiclient.FlagBaseURL, out)
 	}
 }
 
