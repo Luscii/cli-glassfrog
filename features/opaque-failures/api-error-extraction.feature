@@ -104,6 +104,13 @@ Feature: Opaque Failures — API Error Extraction
       When the command maps the failure to an exit code
       Then the command will exit with code 4
 
+    # Source: 015-api-error-extraction — Proposed: non-permission non-2xx keeps the general API exit code (plan ADR-3)
+    @wip
+    Scenario: A non-permission API error exits with the general API code
+      Given a command received a non-2xx response with status 404
+      When the command maps the failure to an exit code
+      Then the command will exit with code 3
+
   Rule: A usable error is produced even when the body is unreadable
     # In order to still get a usable error when a gateway returns junk instead of a Problem Details body,
     # as an AI agent,
