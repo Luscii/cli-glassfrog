@@ -339,8 +339,11 @@ func (w *myRolesWorld) rolesPrintedToStdout() error {
 }
 
 func (w *myRolesWorld) incompleteNoteOnStderr() error {
-	if !strings.Contains(w.stderr, "incomplete") {
-		return fmt.Errorf("an incomplete-result note should be written to stderr:\n%s", w.stderr)
+	// interface-cli pins the note text verbatim; compare the full stderr line
+	// against the constant (trailing newline trimmed) so wording drift fails the
+	// acceptance, not just an absent substring.
+	if strings.TrimRight(w.stderr, "\n") != incompleteRolesNote {
+		return fmt.Errorf("stderr should be exactly the pinned incompleteness note %q, got %q", incompleteRolesNote, w.stderr)
 	}
 	if strings.Contains(w.stdout, "incomplete") {
 		return fmt.Errorf("the incompleteness note must not appear on stdout:\n%s", w.stdout)

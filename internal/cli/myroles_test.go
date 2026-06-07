@@ -117,9 +117,12 @@ func TestRunMyRoles_HasNextPageSignalsIncompleteOnStderr(t *testing.T) {
 	if !strings.Contains(stdout, "Marketing Lead") {
 		t.Errorf("the received roles should still print to stdout:\n%s", stdout)
 	}
-	// Incompleteness note on stderr, never interleaved into stdout.
-	if !strings.Contains(stderr, "incomplete") {
-		t.Errorf("an incompleteness note should be written to stderr, got %q", stderr)
+	// Incompleteness note on stderr, never interleaved into stdout. Pin the EXACT
+	// note text (interface-cli specifies it verbatim) so wording can't drift
+	// silently — Fprintln appends a trailing newline, so the line equals the
+	// constant plus "\n".
+	if stderr != incompleteRolesNote+"\n" {
+		t.Errorf("stderr should be exactly the pinned incompleteness note, got %q", stderr)
 	}
 	if strings.Contains(stdout, "incomplete") {
 		t.Errorf("the incompleteness note must not appear on stdout:\n%s", stdout)

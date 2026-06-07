@@ -170,7 +170,7 @@ func writeRoleSection(b *strings.Builder, header string, items []string) {
 // incomplete reports whether the API signalled that more roles exist than this
 // (first) response carried — i.e. Meta.Pagination.HasNextPage. The command turns
 // a true result into the single stderr incompleteness note (still exit 0); this
-// slice never follows pagination (deferred to 016).
+// command never follows pagination (deferred to 016).
 func incomplete(resp glassfrog.MyRolesResponse) bool {
 	return resp.Meta.Pagination.HasNextPage
 }
