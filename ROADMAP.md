@@ -1,12 +1,12 @@
 # Glassfrog CLI — Roadmap
 
-This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection) and the first self-service reads plus client-hardening (pagination, rate limits) are in flight. With those wrapping up, Now broadens beyond the live work-front to take on the things that make the tool usable and shippable: agent-legible output, packaging it as a self-contained executable, and the CI/release pipeline that guards every change. Next shapes failure legibility and the full read surface; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
+This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection) and the self-service reads have shipped end-to-end, with client-hardening (pagination, rate limits) still in flight. With those wrapping up, Now broadens beyond the live work-front to take on the things that make the tool usable and shippable: agent-legible output, packaging it as a self-contained executable, and the CI/release pipeline that guards every change. Next shapes failure legibility and the full read surface; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
 
 The three top-level areas — *Project Foundation*, *Client Foundation*, and *Endpoint Commands* — are organizational parents; their sixteen child problems are what's sequenced below.
 
 ## Now
 
-The live work-front (in-flight reads and client-hardening) plus the output, distribution, and pipeline work that makes the tool usable and shippable.
+The shipped reads and in-flight client-hardening, plus the output, distribution, and pipeline work that makes the tool usable and shippable.
 
 1. **No Runnable CLI** *(Project Foundation)* — nothing can be built or run until the CLI exists as a runnable skeleton with a command framework; hard prerequisite for every other problem. (addressed)
 2. **Unauthenticated Access** *(Client Foundation)* — every command depends on a proven org + person identity; without it nothing reaches the API. (addressed)
