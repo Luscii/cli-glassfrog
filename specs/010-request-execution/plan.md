@@ -38,7 +38,7 @@ internal/apiclient                      (Connection Configuration / API Client; 
        }
         │
   (*Client).Execute(reqCtx, descriptor, target?) (Response, error)         ── the single seam  [ADR-1]
-    │  build URL = join(ctx.BaseURL.Value, path) + query; build *http.Request(method, body, reqCtx)
+    │  build URL = join(client.baseURL, path) + query; build *http.Request(method, body, reqCtx)   ── baseURL captured at NewClient
     │  resp, err := client.Do(req)                            ── AuthTransport attaches X-Auth-Token / refuses
     ├─ err is *AuthError      → return it unchanged           ── 007's fail-safe, propagated     [ADR-4]
     ├─ err (other)            → return TransportError{cause}  ── network-unavailable             [ADR-3]
@@ -140,7 +140,7 @@ The client is built once and threaded; resolution already happened once at assem
 Three phases, linear. Depends only on landed code: 007 (`NewAuthTransport`, `AuthError`, `AuthHeaderName`), 009 (`ConnectionContext`, `Cred`, `BaseURLErr`), 008 (`BaseURL.Value`). Purely additive in `internal/apiclient` — no existing file is modified.
 
 - **Phase 1 — request descriptor + `Client` + `NewClient`/`NewClientFromOS`**: define the code-free request descriptor (method, path, query, body, optional target) and the `Client`. `NewClient(ctx, base)` implements the base-URL fail-fast (return `ctx.BaseURLErr` verbatim, build nothing) and, on the usable branch, builds the `*http.Client` with the timeout and `NewAuthTransport(base, replayThunk)` over the injected base transport; `NewClientFromOS(ctx)` binds the real base transport and delegates. Fail-fast on a nil injected base (no nil-default — PR #20/LEARNINGS). RED-first unit tests: refuses on `BaseURLErr`; builds on a usable base URL; the replay thunk drives the `AuthTransport` (header attached for a present credential, observed on the fake base). *Depends on: 007/008/009 (landed).*
-- **Phase 2 — `Execute`**: URL join (`ctx.BaseURL.Value` + path + query), `*http.Request` build with the caller `context.Context` and body, exactly one `client.Do`, and the full outcome mapping — 2xx decode-into-target / no-target skip; non-2xx → `ResponseError{status,headers,body}` (no decode); 2xx-undecodable → `DecodeError`; `errors.As(err, &authErr)` propagation; other error → `TransportError`; body always closed. RED-first unit tests over the fake/tripwire base `RoundTripper` for every branch, plus the one-attempt tripwire and the timeout case. *Depends on: Phase 1.*
+- **Phase 2 — `Execute`**: URL join (the `Client`'s captured base URL + path + query), `*http.Request` build with the caller `context.Context` and body, exactly one `client.Do`, and the full outcome mapping — 2xx decode-into-target / no-target skip; non-2xx → `ResponseError{status,headers,body}` (no decode); 2xx-undecodable → `DecodeError`; `errors.As(err, &authErr)` propagation; other error → `TransportError`; body always closed. RED-first unit tests over the fake/tripwire base `RoundTripper` for every branch, plus the one-attempt tripwire and the timeout case. *Depends on: Phase 1.*
 - **Phase 3 — executable acceptance**: godog step definitions for the driving scenarios (2xx decoded; 2xx bodyless no-target; identity carried by the transport; transport failure; non-2xx short-circuit; base-URL refusal; undecodable 2xx; timeout; 429 carrying rate-limit headers; no-token fail-safe propagated), in the new `internal/apiclient` suite pointed at this spec's own feature file. *Depends on: Phase 2.*
 
 ---
