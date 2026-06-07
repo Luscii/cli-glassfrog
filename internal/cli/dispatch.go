@@ -23,6 +23,27 @@ type commandUsageError struct{ err error }
 func (e *commandUsageError) Error() string { return e.err.Error() }
 func (e *commandUsageError) Unwrap() error { return e.err }
 
+// outcomeError carries an explicit operational Outcome on dispatch's error
+// channel, for the categories dispatch cannot re-derive from an untyped error.
+// commandUsageError handles the UsageError case; outcomeError generalizes it to
+// the operational categories a resolved action produces (APIError,
+// NetworkUnavailable) — introduced with the first command that classifies API
+// client outcomes (Identity Read 011). Dispatch unwraps it to return the carried
+// Outcome verbatim, so Exit-Code Convention maps it to the right code (3/6)
+// rather than collapsing every action failure to RuntimeError(1).
+//
+// The command writes its own controlled, token-free message before returning
+// this (it sets SilenceErrors), so dispatch only reads the category — it never
+// re-renders. Success and UsageError keep their existing channels (nil and
+// *commandUsageError); RuntimeError still travels as a bare error.
+type outcomeError struct {
+	outcome Outcome
+	err     error
+}
+
+func (e *outcomeError) Error() string { return e.err.Error() }
+func (e *outcomeError) Unwrap() error { return e.err }
+
 // Outcome is the code-free classification dispatch assigns to an invocation.
 // It names *what kind* of outcome occurred — never a process exit code (that
 // is Exit-Code Convention's concern) and never a rendered message (Help &
@@ -30,12 +51,13 @@ func (e *commandUsageError) Unwrap() error { return e.err }
 // category to a process code via ExitCode (exitcode.go) without re-deriving it
 // from an untyped error (ADR-1).
 //
-// The category names only outcomes that have a producer today: Success,
-// UsageError, and RuntimeError. The operational categories the spec reserves
-// (API / permission / rate-limit / network-unavailable, codes 3–6) gain an
-// Outcome value only when their producer — the future API client — lands and
-// classifies them (ADR-2); their codes are already published as constants in
-// exitcode.go.
+// The category named outcomes with a producer today: Success, UsageError, and
+// RuntimeError were the original three; Identity Read (011) is the first
+// consuming command, so it adds the operational categories its API-client
+// errors produce — NetworkUnavailable and APIError (codes 6 and 3, which 004
+// reserved). The remaining reserved categories (permission/rate-limit, codes
+// 4/5) gain an Outcome value when their producer lands (API Error Extraction
+// 015 / Rate-Limit Handling 017), splitting APIError without renumbering.
 type Outcome int
 
 const (
@@ -52,6 +74,18 @@ const (
 	// catch-all internal-error code 1 (ADR-3); the error itself still travels
 	// via Run's error return.
 	RuntimeError
+	// NetworkUnavailable means the API could not be reached at the wire
+	// (connection/DNS/TLS/timeout). Produced by the read surface classifying an
+	// *apiclient.TransportError (011, ADR-3/4); Exit-Code Convention maps it to
+	// the reserved code 6.
+	NetworkUnavailable
+	// APIError means the API answered with a non-2xx status. It is the generic,
+	// uninterpreted "general API error" bucket — produced by classifying an
+	// *apiclient.ResponseError (011, ADR-4). Exit-Code Convention maps it to the
+	// reserved code 3. API Error Extraction (015) / Rate-Limit Handling (017)
+	// later split 401/403→permission(4) and 429→rate-limit(5) at the same
+	// registry, without renumbering 3.
+	APIError
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -63,6 +97,10 @@ func (o Outcome) String() string {
 		return "UsageError"
 	case RuntimeError:
 		return "RuntimeError"
+	case NetworkUnavailable:
+		return "NetworkUnavailable"
+	case APIError:
+		return "APIError"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs
@@ -169,6 +207,14 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 			var ue *commandUsageError
 			if errors.As(err, &ue) {
 				return UsageError, err
+			}
+			// An action may classify its own failure into an operational category
+			// dispatch cannot re-derive (APIError, NetworkUnavailable) by returning
+			// a *outcomeError; honor the carried category so Exit-Code Convention
+			// maps it (3/6) rather than the RuntimeError(1) catch-all.
+			var oe *outcomeError
+			if errors.As(err, &oe) {
+				return oe.outcome, err
 			}
 			return RuntimeError, err
 		}

@@ -160,19 +160,22 @@ func newAuthLoginCommand(seam loginSeam) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// The entrypoint discards Run's returned error, so each generic message
+			// below includes the cause or these wiring bugs surface as a bare exit
+			// code. The seam errors here are OS/stdin failures — never the token.
 			inputs, err := seam.gatherInputs(args)
 			if err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), "could not read the token input")
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the token input: %v\n", err)
 				return err
 			}
 			home, err := seam.homeDir()
 			if err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), "could not determine the home directory")
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not determine the home directory: %v\n", err)
 				return err
 			}
 			start, err := seam.startDir()
 			if err != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), "could not determine the working directory")
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not determine the working directory: %v\n", err)
 				return err
 			}
 			outcome, oerr := runLogin(loginConfig{
