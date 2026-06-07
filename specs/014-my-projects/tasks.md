@@ -31,7 +31,7 @@ Phase 2: The `my projects` command — `newMyProjectsCommand` + `runMyProjects` 
 
 ## Phase 1: `glassfrog.Project` schema [Shared]
 
-- [ ] **T001** [Shared] [P] Add `Project` to `internal/glassfrog` and decode it through the shared list envelope — RED-first unit tests
+- [x] **T001** [Shared] [P] Add `Project` to `internal/glassfrog` and decode it through the shared list envelope — RED-first unit tests — 4 scenarios referenced; `internal/glassfrog/projects.go` + `projects_test.go`, reused shared `Pagination`/envelope
   - **Scope**: Add a `Project` struct to `internal/glassfrog`: `ID` (`proj_…`), `Status` (the status enum), `Description`, `RoleID` (`role_…`, **nullable** — null for non-role-owned projects), `Tags []string`, `HasSubProjects`, `HasActions`, plus `IndividualInitiative`, `ParentProjectID` (nullable), `CreatedAt`/`UpdatedAt`, `Link` (nullable), `Note` (nullable) decoded but not projected. Decode `GET /me/projects` through the **shared** list envelope `{ Data []Project; Meta{ Pagination } }` and the shared `Pagination` struct (reuse 012/013's types — do not redefine). The `sub_projects`/`actions` embed arrays are **not** modelled (no `?include` on this operation — ADR-2). Decoding tolerates unknown/extra fields. No transport, no cobra, no exit codes; the token is never a field.
   - **Acceptance criteria**:
     - A single-page `GET /me/projects` fixture decodes into the envelope with `Data` populated and `Meta.Pagination.HasNextPage == false`
