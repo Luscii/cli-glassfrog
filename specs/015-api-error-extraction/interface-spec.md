@@ -19,7 +19,7 @@ This accord pins the Go API surface of API Error Extraction: the **`ProblemError
 
 | Function | Signature (shape) | Description |
 |---|---|---|
-| `ExtractProblem` | `(re *ResponseError) *ProblemError` | The pure extraction. Best-effort-parses `re.Body` as an RFC 9457 Problem Details document, **never gated on `Content-Type`**, and returns a `*ProblemError` carrying the **authoritative** status (`re.StatusCode`), the extracted `Type`/`Title`/`Detail` when present, and the wrapped `*ResponseError`. **Total**: it never returns an error and never panics — an empty / non-JSON / HTML / member-missing body degrades to a status-derived fallback `Detail` with the raw body preserved (ADR-2). Reads only the response-side `ResponseError`; never the request token. |
+| `ExtractProblem` | `(re *ResponseError) *ProblemError` | The pure extraction. Best-effort-parses `re.Body` as an RFC 9457 Problem Details document, **never gated on `Content-Type`**, and returns a `*ProblemError` carrying the **authoritative** status (`re.StatusCode`), the extracted `Type`/`Title`/`Detail` and `BodyStatus` when present, and the wrapped `*ResponseError`. **Total**: it never returns an error and never panics — an empty / non-JSON / HTML / member-missing body degrades to a status-derived fallback `Detail` (with `DetailSynthesized = true`) and the raw body preserved (ADR-2). On a parseable detail it sets `DetailSynthesized = false`; on a parseable body `status` it sets `BodyStatus`. Reads only the response-side `ResponseError`; never the request token. |
 
 ### Output contract — `ProblemError` (typed, code-free)
 
@@ -30,7 +30,9 @@ The refined non-2xx error. Wraps the originating `*ResponseError` so `errors.As(
 | `StatusCode` | `int` | The **authoritative** HTTP status (from the wrapped `ResponseError`). The body's own `status` member never overrides this (ADR-2). |
 | `Type` | `string` | RFC 9457 `type` (a URI, default `about:blank`). Empty when the body wasn't parseable. |
 | `Title` | `string` | RFC 9457 `title` (short summary). Empty when not parseable. |
-| `Detail` | `string` | RFC 9457 `detail` (occurrence-specific explanation) when parseable; otherwise a **fallback** derived from the status (e.g. `http.StatusText(StatusCode)`). Always non-empty for a known status. |
+| `Detail` | `string` | RFC 9457 `detail` (occurrence-specific explanation) when the body parsed and carried one; otherwise a **status-derived fallback** (e.g. `http.StatusText(StatusCode)`). Always non-empty for a known status. **Read `DetailSynthesized` to tell which it is** — the field alone does not distinguish API-provided detail from the fallback. |
+| `DetailSynthesized` | `bool` | **Provenance marker**: `false` when `Detail` is the API's own parsed `detail`; `true` when `Detail` is the status-derived fallback (no parseable API detail). The consumer keys its message on this — `true` ⇒ render the `"status N"` fallback wording, `false` ⇒ render the API's detail. (Resolves the No-Fabricated-Data ambiguity: a synthesized detail is never presented as the API's own words.) |
+| `BodyStatus` | `int` (optional, e.g. `*int`) | The body's RFC 9457 `status` member when the body parsed and carried one; **unset/nil otherwise**. Carried as **metadata only** — never authoritative, never overrides `StatusCode` (ADR-2). Present so a consumer can observe a body-vs-HTTP status disagreement (the spec/feature "carried as metadata only" assertion). |
 | `Body` / `Header` | `[]byte` / `http.Header` | The raw body and response headers, via the wrapped `*ResponseError` (so 016 still reads paging headers, and the raw body/extension members stay available). |
 | `Error() string` | — | A token-free message naming the status and the `Detail`. `Unwrap()` returns the wrapped `*ResponseError`. |
 
@@ -43,7 +45,7 @@ Input is 010's `*ResponseError{StatusCode, Header, Body}` — unchanged; 015 add
 | `Outcome` enum (`dispatch.go`) | **+ `PermissionError`** | A new category (plus its `String()` arm) for an API auth/membership rejection (401/403). The producer 004 reserved code 4 for now exists. |
 | `ExitCode` (`exitcode.go`) | **+ `case PermissionError: codePermissionError`** | Maps the new category to the already-pinned constant `codePermissionError = 4`. Stays a pure mapper; `default → 1` fail-safe unchanged. No code renumbered. |
 | `classifyClientError` (`clienterror.go`) | **status split** | For a `*ProblemError`/`*ResponseError`: **401 or 403 → `PermissionError`**(4); everything else (incl. **429, until 017**) → `APIError`(3). Checked before the generic `*ResponseError` arm given the wrapping. Keeps its `len`+comma-ok table-test exhaustiveness guard. |
-| `formatClientErrorMessage` (`me.go`) | **detail surfacing** | For the refined error, renders the API's `Detail` (and `Title` when useful), falling back to the existing `"the API returned a non-2xx response: status N"` wording when no detail was parseable. Token-free (response-side fields only). |
+| `formatClientErrorMessage` (`me.go`) | **detail surfacing + next step** | For the refined error: when `DetailSynthesized == false`, render the API's `Detail` (and `Title` when useful); when `DetailSynthesized == true`, render the existing `"the API returned a non-2xx response: status N"` fallback wording. **Append a next-step hint** so the arm matches its siblings and CONSTITUTION II ("…and the next step") — at minimum for `PermissionError` (401/403): "check the token's access / membership". Token-free (response-side fields only). |
 | `reportClientError` (`me.go`) | **refine once** | Before format+classify, refines a `*ResponseError` into a `*ProblemError` via `ExtractProblem` (guarding against double-refinement), so the typed error travels up the chain and message+category are computed from the same value. |
 
 ### Status → Outcome → exit-code mapping (consumer side)
@@ -58,16 +60,16 @@ Input is 010's `*ResponseError{StatusCode, Header, Body}` — unchanged; 015 add
 ```
 // re = the *ResponseError 010 returned for a non-2xx.
 valid problem+json:  ExtractProblem(&ResponseError{404, hdr, `{"type":"about:blank","title":"Not Found","status":404,"detail":"Not Found"}`})
-                       → &ProblemError{StatusCode:404, Type:"about:blank", Title:"Not Found", Detail:"Not Found", <wraps re>}
+                       → &ProblemError{StatusCode:404, Type:"about:blank", Title:"Not Found", Detail:"Not Found", DetailSynthesized:false, BodyStatus:&404, <wraps re>}
 empty body:          ExtractProblem(&ResponseError{500, hdr, ``})
-                       → &ProblemError{StatusCode:500, Detail:"Internal Server Error" /*fallback*/, <wraps re>}
+                       → &ProblemError{StatusCode:500, Detail:"Internal Server Error", DetailSynthesized:true /*fallback*/, BodyStatus:nil, <wraps re>}
 HTML gateway body:   ExtractProblem(&ResponseError{502, hdr, `<html>…</html>`})
-                       → &ProblemError{StatusCode:502, Detail:"Bad Gateway" /*fallback*/, <wraps re>}
+                       → &ProblemError{StatusCode:502, Detail:"Bad Gateway", DetailSynthesized:true /*fallback*/, BodyStatus:nil, <wraps re>}
 body status mismatch: ExtractProblem(&ResponseError{403, hdr, `{"status":401,"detail":"Forbidden"}`})
-                       → &ProblemError{StatusCode:403 /*authoritative*/, Detail:"Forbidden", <wraps re>}   // 401 carried as metadata only
+                       → &ProblemError{StatusCode:403 /*authoritative*/, Detail:"Forbidden", DetailSynthesized:false, BodyStatus:&401, <wraps re>}   // 401 carried as metadata only
 // consumer:
-classifyClientError(&ProblemError{StatusCode:403, …})  → PermissionError   → ExitCode → 4
-classifyClientError(&ProblemError{StatusCode:404, …})  → APIError          → ExitCode → 3
+classifyClientError(&ProblemError{StatusCode:403, …})  → PermissionError   → ExitCode → 4   (message: detail + "check the token's access / membership")
+classifyClientError(&ProblemError{StatusCode:404, …})  → APIError          → ExitCode → 3   (message: API detail, or "status 404" fallback when DetailSynthesized)
 ```
 
 ---
@@ -90,8 +92,10 @@ classifyClientError(&ProblemError{StatusCode:404, …})  → APIError          �
 
 | Condition | Message (stderr) | Outcome → exit code |
 |---|---|---|
-| Non-2xx with a parseable `detail` | the API's `detail` (and `title` where useful) — the API's own cause | 401/403 → `PermissionError`(4); else → `APIError`(3) |
-| Non-2xx with an unparseable body | fallback: `"the API returned a non-2xx response: status N"` | same as above (status drives the code regardless of body parseability) |
+| `DetailSynthesized == false` (API detail parsed) | the API's `detail` (and `title` where useful) — the API's own cause — **+ a next-step hint** (≥ for 401/403: "check the token's access / membership") | 401/403 → `PermissionError`(4); else → `APIError`(3) |
+| `DetailSynthesized == true` (body unparseable) | fallback: `"the API returned a non-2xx response: status N"` — **+ the same next-step hint** | same as above (status drives the code regardless of body parseability) |
+
+The consumer keys the message on `DetailSynthesized` (the provenance marker), **not** on whether `Detail` is empty — the fallback always fills `Detail`, so emptiness can't distinguish the two. The next-step hint satisfies CONSTITUTION II ("…and the next step") and matches the sibling `formatClientErrorMessage` arms (auth → "run `glassfrog auth login`", transport → "check connectivity", base-URL → "correct --base-url").
 
 **Detail is response-side only**: the surfaced `detail`/`title` come from the API's reply; the `X-Auth-Token` is a *request* header and is never echoed, so no 015 output can carry the token. Pinned by a token-never-in-output test over `ProblemError.Error()` and the rendered message (mirrors 010's test).
 

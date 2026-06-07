@@ -16,8 +16,8 @@
 |---|---|---|---|---|---|---|---|
 | H-1 | `ExtractProblem` panics / returns nil on a malformed body → the failure re-opacifies (crash or no error) | spec.md § Behavioral Accord (degradation); plan.md § ADR-2 | High | Medium | Red | RC-1 | Yellow |
 | H-2 | `429` not honored → whole organization throttled (carried from 010 H-6) | spec.md § Non-Behaviors; CONSTITUTION X; checklist.md | High | Medium | Red | RC-2 | **Yellow (conditional)** |
-| H-3 | Status-derived fallback `Detail` mistaken for the API's own words (fabrication) | plan.md § ADR-2; checklist.md P1 (VIII) | Medium | Medium | Yellow | RC-3 | **Yellow (pending control)** |
-| H-4 | API-error message gives the cause but no next step → operator can't determine recovery | interface-spec.md § Error Communication; checklist.md P1 (II) | Medium | Medium | Yellow | RC-4 | **Yellow (pending control)** |
+| H-3 | Status-derived fallback `Detail` mistaken for the API's own words (fabrication) | plan.md § ADR-2; checklist.md P1 (VIII) | Medium | Medium | Yellow | RC-3 | Green *(controlled — round 2)* |
+| H-4 | API-error message gives the cause but no next step → operator can't determine recovery | interface-spec.md § Error Communication; checklist.md P1 (II) | Medium | Medium | Yellow | RC-4 | Green *(controlled — round 2)* |
 | H-5 | Classifier ordering bug → 401/403 fall through to `APIError`(3), permission distinction lost | plan.md § ADR-1/ADR-3 / Risks; interface-spec.md | Medium | Medium | Yellow | RC-5 | Green |
 | H-6 | Body `status` member overrides the HTTP status → misclassification | spec.md § Behavioral Accord (status authority); plan.md § ADR-2 | Medium | Low | Green | RC-6 | Green |
 | H-7 | 401/403 exit-code change (3→4) breaks a caller scripting on exit 3 | tasks.md T002; checklist.md / analyze.md cross-spec | Low | Low | Green | RC-7 | Green |
@@ -74,9 +74,9 @@
 **Risk Level**: Yellow (Medium × Medium)
 
 **Controls**:
-- **RC-3** *(partial — full control is the checklist-recommended addition)*: the fallback derives **only from the real HTTP status** (`http.StatusText`), never from invented API content, so it can never fabricate governance data. **Not yet controlled**: distinguishing the synthesized detail from an API-provided one. **Recommended (checklist P1):** a provenance marker on `ProblemError` (e.g. a `DetailSynthesized bool`) or fallback message phrasing that frames it as a status label ("no error detail provided (HTTP 502 Bad Gateway)").
+- **RC-3** *(controlled — round 2)*: the fallback derives **only from the real HTTP status** (`http.StatusText`), never from invented API content; **and** `ProblemError` now carries a **`DetailSynthesized bool`** provenance marker (true when `Detail` is the fallback, false when it is the API's own). The consumer keys its message on the flag, so a synthesized detail is never rendered as the API's words. (PR #37 triage addressed the checklist VIII P1.)
 
-**Residual Risk**: **Yellow (pending control)** (Medium × Low after RC-3) — the no-invented-content guarantee bounds it below Red, but the same-field ambiguity remains until the provenance marker lands. Recommend implementing the marker with this slice (it is cheap and closes the checklist VIII P1).
+**Residual Risk**: Green (Medium × Low) — the no-invented-content guarantee plus the explicit provenance marker close the same-field ambiguity; a test pins that a synthesized-detail case renders the fallback wording, not the synthesized text.
 
 ### H-4: API-error message gives the cause but no next step
 
@@ -91,9 +91,9 @@
 **Risk Level**: Yellow (Medium × Medium)
 
 **Controls**:
-- **RC-4** *(pending — the checklist-recommended addition)*: specify a next-step hint for the API-error message, at least for the permission class (401/403 → "check the token's access / membership"). Currently the `detail` provides the "what went wrong" half only.
+- **RC-4** *(controlled — round 2)*: the API-error message now appends a next-step hint, at minimum for the permission class (401/403 → "check the token's access / membership"), in `formatClientErrorMessage` (interface-spec.md § Error Communication; tasks T002). The `detail` provides "what went wrong"; the hint provides the next step. (PR #37 triage addressed the checklist II P1.)
 
-**Residual Risk**: **Yellow (pending control)** (Medium × Low once RC-4 lands) — the cause-surfacing is already a strict improvement over 011's bare "status N"; adding the next-step hint fully satisfies II. Recommend addressing with this slice.
+**Residual Risk**: Green (Medium × Low) — both halves of II are satisfied and the arm matches its siblings; a test pins that a permission case shows the next-step hint.
 
 ### H-5: Classifier ordering bug → 401/403 fall through to `APIError`(3)
 
@@ -125,9 +125,9 @@
 **Risk Level**: Green (Medium × Low)
 
 **Controls**:
-- **RC-6**: `ProblemError.StatusCode` is always set from the wrapped `ResponseError`'s HTTP status; the body `status` is carried as metadata only. Pinned by the status-mismatch driving scenario and the "produced status always equals the HTTP status" validation scenario.
+- **RC-6**: `ProblemError.StatusCode` is always set from the wrapped `ResponseError`'s HTTP status; the body `status` is carried as metadata only — **now in an explicit `BodyStatus` field** (added in the PR #37 triage round, which found the metadata had no home on the surface), so the "carried as metadata only" assertion is observable rather than unsatisfiable. Pinned by the status-mismatch driving scenario and the "produced status always equals the HTTP status" validation scenario.
 
-**Residual Risk**: Green — authoritative by construction, test-pinned.
+**Residual Risk**: Green — authoritative by construction, metadata exposed via `BodyStatus`, test-pinned.
 
 ### H-7: 401/403 exit-code change (3→4) breaks a caller scripting on exit 3
 
@@ -170,14 +170,17 @@
 | Level | Count | Hazards |
 |---|---|---|
 | Red (unacceptable) | 0 | — |
-| Yellow (justified / pending) | 4 | H-1, H-2, H-3, H-4 |
-| Green (accepted) | 4 | H-5, H-6, H-7, H-8 |
+| Yellow (justified) | 2 | H-1, H-2 |
+| Green (accepted) | 6 | H-3, H-4, H-5, H-6, H-7, H-8 |
 
-**Unacceptable risks**: None are Red *after controls*. Four residuals warrant attention:
+> **Round 2 (PR #37 triage):** H-3 (fallback-detail provenance) and H-4 (missing next-step) moved **Yellow → Green** — their recommended controls (the `DetailSynthesized` marker, the permission next-step hint) are now in the design (RC-3, RC-4). H-6's control gained the explicit `BodyStatus` field. Two residuals remain Yellow.
 
+**Unacceptable risks**: None are Red *after controls*. Two residuals warrant attention:
+
+- **H-1 (totality)** — controlled by design (the total `ExtractProblem` + the `@validation` "every non-2xx yields a typed error" test); Yellow only as the standing reminder that a future edit must not reintroduce a non-total path. Keep the test load-bearing.
 - **H-2 (`429` org-throttle)** — the carried-forward **developer decision** from 010 H-6, unchanged by 015: pull Rate-Limit Handling (017) forward of / alongside the reads, or record the low-volume acceptance. 015 neither worsens nor resolves it.
-- **H-3 (fallback-detail provenance)** and **H-4 (missing next-step)** — these are the two **checklist P1 findings** re-surfaced as domain risks. Both have a cheap, recommended control (a provenance marker; a permission next-step hint) that should land **with this slice** to fully satisfy CONSTITUTION VIII and II. They are Yellow *pending* those controls — close them in T001/T002 rather than deferring.
-- **H-1 (totality)** and **H-5 (classifier order)** — already controlled by design and test-pinned; keep the `@validation` totality test and the 401→PermissionError test load-bearing.
+
+*(H-3, H-4, H-5, H-6 are now Green; H-5's 401→PermissionError test stays load-bearing.)*
 
 ---
 
