@@ -109,7 +109,9 @@ func WithPageSize(n int) Option {
 func All[T any](reqCtx context.Context, ex Executor, req apiclient.Request, opts ...Option) Result[T] {
 	cfg := config{pageSize: defaultPageSize}
 	for _, opt := range opts {
-		opt(&cfg)
+		if opt != nil {
+			opt(&cfg) // skip a nil Option (common when building an option slice conditionally)
+		}
 	}
 
 	var (
@@ -120,9 +122,14 @@ func All[T any](reqCtx context.Context, ex Executor, req apiclient.Request, opts
 
 	for {
 		// Clone the caller's query per page so the shared url.Values is never
-		// mutated; set only per_page (+ cursor, after the first page).
+		// mutated; the walker is the SOLE owner of per_page and cursor. Drop any
+		// caller-supplied cursor before conditionally setting our own: otherwise a
+		// stray cursor in req.Query would survive into the first request (cursor is
+		// "" then, so the conditional set below never fires) and start the walk
+		// mid-stream — a partial set that reads as complete.
 		q := cloneQuery(req.Query)
 		q.Set("per_page", fmt.Sprintf("%d", cfg.pageSize))
+		q.Del("cursor")
 		if cursor != "" {
 			q.Set("cursor", cursor)
 		}

@@ -368,6 +368,49 @@ func TestAll_WithPageSizeOverridesPerPage(t *testing.T) {
 	}
 }
 
+func TestAll_DropsCallerSuppliedCursorOnFirstPage(t *testing.T) {
+	// The walker owns the cursor param: a stale cursor in the caller's query must
+	// not survive into the first request (which would start the walk mid-stream and
+	// make a partial set read as complete).
+	ex := &fakeExecutor{pages: map[string]fakePage{
+		"": {body: page(false, "", "A1")}, // canned page keyed on the empty (first) cursor
+	}}
+	callerQuery := url.Values{"cursor": []string{"stale123"}, "q": []string{"finance"}}
+	req := apiclient.Request{Method: "GET", Path: "/me/roles", Query: callerQuery}
+
+	res := All[glassfrog.Role](context.Background(), ex, req)
+
+	if !res.Complete || res.Stop != nil {
+		t.Fatalf("Complete=%v Stop=%v, want complete", res.Complete, res.Stop)
+	}
+	if got := ex.sentQueries[0].Get("cursor"); got != "" {
+		t.Errorf("first request carried cursor=%q, want none (caller's stale cursor must be dropped)", got)
+	}
+	if ex.sentQueries[0].Get("q") != "finance" {
+		t.Errorf("q=%q, want finance preserved (only cursor is the walker's to drop)", ex.sentQueries[0].Get("q"))
+	}
+	// The caller's own map is untouched.
+	if callerQuery.Get("cursor") != "stale123" {
+		t.Errorf("caller's req.Query cursor=%q, want untouched stale123", callerQuery.Get("cursor"))
+	}
+}
+
+func TestAll_NilOptionDoesNotPanic(t *testing.T) {
+	// A nil Option (common when appending conditionally) must be skipped, not invoked.
+	ex := &fakeExecutor{pages: map[string]fakePage{
+		"": {body: page(false, "", "A1")},
+	}}
+
+	res := All[glassfrog.Role](context.Background(), ex, apiclient.Request{Method: "GET", Path: "/me/roles"}, nil, WithPageSize(250), nil)
+
+	if !res.Complete {
+		t.Fatalf("Complete=false, want true")
+	}
+	if got := ex.sentQueries[0].Get("per_page"); got != "250" {
+		t.Errorf("per_page=%q, want 250 (valid option still applied alongside skipped nils)", got)
+	}
+}
+
 func TestAll_NilCallerQueryStillSetsPagingParams(t *testing.T) {
 	ex := &fakeExecutor{pages: map[string]fakePage{
 		"": {body: page(false, "", "A1")},
