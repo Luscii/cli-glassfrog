@@ -106,10 +106,10 @@ func TestMyActionsResponseDecodesSnakeCaseFields(t *testing.T) {
 		t.Errorf("parent_project_id = %q, want it populated (parent_project_id tag must bind)", first.ParentProjectID)
 	}
 	if first.CreatedAt != "2026-01-01T00:00:00Z" || first.UpdatedAt != "2026-01-02T00:00:00Z" {
-		t.Errorf("created_at/updated_at = %q/%q, want the timestamps (tags must bind)", first.CreatedAt, first.UpdatedAt)
+		t.Errorf("created_at/updated_at = %q/%q, want the timestamps (JSON tags must bind)", first.CreatedAt, first.UpdatedAt)
 	}
 	if first.TriggerEvent != "after the standup" || first.Note != "blocked on review" {
-		t.Errorf("trigger_event/note = %q/%q, want them populated (tags must bind)", first.TriggerEvent, first.Note)
+		t.Errorf("trigger_event/note = %q/%q, want them populated (JSON tags must bind)", first.TriggerEvent, first.Note)
 	}
 
 	// A null description decodes to the empty string; an empty tags array decodes

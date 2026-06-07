@@ -46,9 +46,9 @@ None.
 
 ## Driving Scenario Coverage
 
-**Status**: Pass (10 of 10 scenarios covered)
+**Status**: Pass (11 of 11 behavioral scenarios covered)
 
-Every driving scenario (spec.md) and architecture-informed behavioral scenario (feature file) referenced by the checked tasks has an identifiable code path, and all 11 behavioral scenarios pass executably via `TestMyActionsFeatures`.
+The spec's 7 driving/edge scenarios are concretized in the feature file (plus 4 architecture-informed scenarios) into **11 behavioral (non-`@wip`) scenarios**, each with an identifiable code path. All 11 pass executably via `TestMyActionsFeatures` (the table below lists one row per behavioral scenario).
 
 | Scenario | Status | Implementation |
 |---|---|---|
@@ -61,7 +61,8 @@ Every driving scenario (spec.md) and architecture-informed behavioral scenario (
 | invalid status rejected before any request | ✓ Covered | `runMyActions` step 1 (`validateStatus` before assemble) |
 | network failure (architecture-informed) | ✓ Covered | `*TransportError` → NetworkUnavailable, no retry |
 | undecodable response (architecture-informed) | ✓ Covered | `*DecodeError` → RuntimeError |
-| malformed base URL / credentials file (architecture-informed) | ✓ Covered | base-URL error → UsageError; `*AuthError{CredentialError}` → RuntimeError |
+| malformed base URL (architecture-informed) | ✓ Covered | base-URL error from `newClient` → UsageError, no request sent |
+| malformed credentials file (architecture-informed) | ✓ Covered | `*AuthError{CredentialError}` → RuntimeError |
 
 ---
 
