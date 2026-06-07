@@ -13,11 +13,11 @@ Phase 2: Exit-code surface — `Outcome`/`ExitCode` extension + `classifyClientE
 Phase 3: The `me` command — `newMeCommand` + `runMe` + `formatMe` + `validateInclude` + seam (1 task, depends on T001, T002, T003 **and 010 implemented**) [Shared]
 Phase 4: Wiring + executable acceptance via godog (1 task, depends on Phase 3) [Shared]
 
-5 tasks total | T001 and T003 are immediately startable; T002/T004/T005 gated on 010 | Builder: pipeline
+5 tasks total | T001/T003 startable immediately; T002/T004/T005 build on 010 (landed on main, #30) | Builder: pipeline
 
 > Every task is `[Shared]`: `me` is a single command serving all three user scenarios (confirm-token-and-learn-who/where, identity-plus-roles-in-one-read, tell-bad-token-from-network-failure) rather than decomposing per scenario; the schema, exit-code surface, and flag are shared infrastructure.
 >
-> **Hard cross-spec dependency — 010 (Request Execution) must be implemented first.** 010 is at "Analyzed" (designed through its pre-implementation guard, not yet built). T002's `classifyClientError` references 010's typed error types (`TransportError`/`ResponseError`/`DecodeError`), and T004 calls 010's `NewClientFromOS`/`Execute`/`Request` — neither compiles until 010's `internal/apiclient` code lands. **T001** (`internal/glassfrog`, a new leaf package) and **T003** (the `--base-url` root flag, which uses the already-landed `apiclient.FlagBaseURL`) have **no** 010 dependency and can start immediately. Build 011 on a branch that includes 010's implementation, or land 010 first.
+> **Cross-spec dependency — 010 (Request Execution), landed on main (#30).** T002's `classifyClientError` references 010's typed error types (`TransportError`/`ResponseError`/`DecodeError`), and T004 calls 010's `NewClientFromOS`/`Execute`/`Request` — both now compile against the `internal/apiclient` code on main, so cut the 011 base from current main and the dependency is satisfied. **T001** (`internal/glassfrog`, a new leaf package) and **T003** (the `--base-url` root flag, which uses `apiclient.FlagBaseURL`) have **no** 010 dependency in any case.
 >
 > **Not purely additive**: T002 and T003 modify existing files — `internal/cli/dispatch.go` (the `Outcome` enum) and `internal/cli/exitcode.go` (the `ExitCode` registry) for T002; the root wiring (`app.go`/`root.go`) and the 003 help-regression tests for T003. This is the forecast extension: 011 is the first consuming command, so it populates the `Outcome` categories + codes 004 reserved and registers the connection flag 008/010 deferred.
 

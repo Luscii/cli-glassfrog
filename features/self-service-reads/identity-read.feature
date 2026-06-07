@@ -8,7 +8,7 @@ Feature: Self-Service Reads — Identity Read
   roles it fills. It is the first call an agent makes to orient itself.
   (affects: AI agent, Practitioner)
 
-  Rule: Confirm my token works and learn who I am and where
+  Rule: Confirm my token works and learn who I am and where I am
     # In order to confirm my token works and learn which actor and organization it resolves to,
     # as an AI agent making its first call,
     # I want to run one command that prints who I am and where I am.
