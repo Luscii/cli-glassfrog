@@ -138,6 +138,11 @@ func TestRunMyActions_SuccessMultiAction(t *testing.T) {
 	if tr.calls != 1 {
 		t.Errorf("transport called %d times, want exactly 1", tr.calls)
 	}
+	// The request goes to the /me/actions endpoint (a path regression would
+	// otherwise slip past the query/call-count assertions).
+	if !strings.HasSuffix(tr.lastPath, "/me/actions") {
+		t.Errorf("request path = %q, want it to end with /me/actions", tr.lastPath)
+	}
 	// No --status: no query parameters.
 	if got := tr.lastQuery.Encode(); got != "" {
 		t.Errorf("with no --status, no query should be sent, got %q", got)

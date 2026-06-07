@@ -11,10 +11,13 @@ package glassfrog
 // NOT bridge underscores, so an untagged RoleID would silently never bind to the
 // API's role_id. Decoding is tolerant of unknown/extra fields (forward-compatible).
 //
-// Description and ParentProjectID are nullable in the spec; a JSON null decodes
-// to the Go zero value (empty string), which the projection renders as the
-// em-dash placeholder. The token is never a field here — it is a request header,
-// not a response field, so secret hygiene holds by construction (CONSTITUTION II).
+// Description and ParentProjectID are both nullable in the spec; a JSON null
+// decodes to the Go zero value (empty string). They differ at the projection:
+// Description is projected, so a null/empty Description renders as the em-dash
+// placeholder; ParentProjectID is only decoded (not projected), so its null
+// simply stays an empty string and is never rendered. The token is never a field
+// here — it is a request header, not a response field, so secret hygiene holds by
+// construction (CONSTITUTION II).
 //
 // Permissions is decoded as a free-form map rather than a named type: the My
 // Actions read never projects it, and modelling it would couple this leaf schema
