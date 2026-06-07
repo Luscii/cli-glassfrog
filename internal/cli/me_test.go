@@ -297,6 +297,11 @@ func TestRunMe_NonStatus2xxIsAPIError(t *testing.T) {
 	if !strings.Contains(stderr, "401") {
 		t.Errorf("stderr should surface the status code, got %q", stderr)
 	}
+	// Action Transparency: the message names the cause (status) AND a concrete,
+	// generic next step — without interpreting the status (no per-status meaning).
+	if !strings.Contains(stderr, "retry") {
+		t.Errorf("the non-2xx message should carry a generic next step, got %q", stderr)
+	}
 }
 
 func TestRunMe_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
@@ -375,6 +380,11 @@ func TestRunMe_UndecodableBodyIsRuntimeError(t *testing.T) {
 	}
 	if strings.TrimSpace(stderr) == "" {
 		t.Error("a decode failure should be reported on stderr")
+	}
+	// Action Transparency: the message names the cause (shape mismatch) AND the
+	// next step (report it).
+	if !strings.Contains(stderr, "report it") {
+		t.Errorf("the decode-failure message should carry a next step, got %q", stderr)
 	}
 }
 

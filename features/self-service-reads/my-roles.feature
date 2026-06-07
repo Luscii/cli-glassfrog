@@ -15,7 +15,6 @@ Feature: Self-Service Reads — My Roles
     # I want to list my roles with one command, without having to identify myself.
 
     # Source: 012-my-roles — Scenario: List the roles I fill
-    @wip
     Scenario: The roles the practitioner fills are listed
       Given a complete connection context with a stored token
       And the API would return the roles the practitioner fills
@@ -24,7 +23,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 0
 
     # Source: 012-my-roles — Scenario: The practitioner fills no roles
-    @wip
     Scenario: An empty role list is a clean success
       Given a complete connection context with a stored token
       And the API would return no roles for the practitioner
@@ -33,7 +31,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 0
 
     # Source: 012-my-roles — Scenario: No usable token
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When the practitioner runs "glassfrog me roles"
@@ -42,7 +39,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 2
 
     # Source: 012-my-roles — Scenario: The API cannot be reached
-    @wip
     Scenario: A wire failure is reported as a transport failure
       Given a complete connection context with a stored token
       And the API could not be reached
@@ -51,7 +47,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 6
 
     # Source: 012-my-roles — Scenario: The API answers with a non-2xx status
-    @wip
     Scenario: A non-2xx response reports the read failed with its status
       Given a complete connection context with a stored token
       And the API would return a 403 response
@@ -60,7 +55,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 3
 
     # Source: 012-my-roles — Scenario: Extra arguments are rejected without an API call
-    @wip
     Scenario: A stray argument is rejected before any API call
       Given a complete connection context with a stored token
       When the practitioner runs "glassfrog me roles extra-argument"
@@ -69,7 +63,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 2
 
     # Source: 012-my-roles — Scenario: A malformed base URL is refused before any call (architecture-informed: plan ADR-3 / interface base-URL error path)
-    @wip
     Scenario: A malformed base URL is refused before any call
       Given a connection context carrying a base-URL configuration error
       When the practitioner runs "glassfrog me roles"
@@ -78,7 +71,6 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 2
 
     # Source: 012-my-roles — Scenario: An unparseable response body fails loudly (architecture-informed: plan ADR-3 / interface decode-error path)
-    @wip
     Scenario: An unparseable response body fails loudly
       Given a complete connection context with a stored token
       And the API would return a 200 response whose body cannot be parsed
@@ -92,7 +84,6 @@ Feature: Self-Service Reads — My Roles
     # I want each role returned as a concise, parseable projection carrying its name, purpose, and identifier.
 
     # Source: 012-my-roles — Scenario: A projected role carries its essentials, not the raw payload
-    @wip
     Scenario: A projected role shows its essentials only
       Given a complete connection context with a stored token
       And the API would return a role named "Marketing Lead" with a purpose, two domains, and three accountabilities
@@ -114,7 +105,6 @@ Feature: Self-Service Reads — My Roles
     # I want the command to tell me when the list it printed is incomplete rather than silently truncating it.
 
     # Source: 012-my-roles — Scenario: More roles exist than one response carried
-    @wip
     Scenario: An incomplete list is signalled, not silently truncated
       Given a complete connection context with a stored token
       And the API would return a first page reporting that more roles exist
