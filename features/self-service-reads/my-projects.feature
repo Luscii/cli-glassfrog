@@ -79,6 +79,15 @@ Feature: Self-Service Reads — My Projects
       And the message will explain the next step to correct the configured base URL
       And no request will reach the API
 
+    # Proposed (guard-derived): interface error table — the CredentialError outcome (exit 1) had no acceptance coverage (analyze K5, added during PR review)
+    @wip
+    Scenario: A malformed credentials file fails the read loudly
+      Given a connection context whose credentials file is malformed
+      When the operator runs the my-projects command
+      Then the command will surface a credential-file error naming the file
+      And the message will explain the next step to fix or re-create the file
+      And it will exit with the internal-error result
+
     # Proposed (architecture-informed): plan Data Model — Project.role_id is nullable (non-role-owned projects)
     @wip
     Scenario: A project with no owning role renders an explicit no-role marker

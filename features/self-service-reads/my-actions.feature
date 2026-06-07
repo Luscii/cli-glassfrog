@@ -79,6 +79,15 @@ Feature: Self-Service Reads — My Actions
       And the message will explain the next step to correct the configured base URL
       And no request will reach the API
 
+    # Proposed (guard-derived): interface error table — the CredentialError outcome (exit 1) had no acceptance coverage (analyze K5, added during PR review)
+    @wip
+    Scenario: A malformed credentials file fails the read loudly
+      Given a connection context whose credentials file is malformed
+      When the operator runs the my-actions command
+      Then the command will surface a credential-file error naming the file
+      And the message will explain the next step to fix or re-create the file
+      And it will exit with the internal-error result
+
     # Source: 013-my-actions — Scenario: the command re-resolves nothing
     @validation @wip
     Scenario: The command resolves nothing itself
