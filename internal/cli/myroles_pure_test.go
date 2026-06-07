@@ -11,14 +11,10 @@ import (
 func roleWith(id, name, purpose string, domains, accountabilities []string) glassfrog.Role {
 	r := glassfrog.Role{ID: id, Name: name, Purpose: purpose}
 	for _, d := range domains {
-		r.Domains = append(r.Domains, struct {
-			Description string `json:"description"`
-		}{Description: d})
+		r.Domains = append(r.Domains, glassfrog.Domain{Description: d})
 	}
 	for _, a := range accountabilities {
-		r.Accountabilities = append(r.Accountabilities, struct {
-			Description string `json:"description"`
-		}{Description: a})
+		r.Accountabilities = append(r.Accountabilities, glassfrog.Accountability{Description: a})
 	}
 	return r
 }

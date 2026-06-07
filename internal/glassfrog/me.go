@@ -65,16 +65,28 @@ type Membership struct {
 // the API carries more per item, but the My Roles projection shows description
 // only. Fillers, tags, and classification flags are deliberately absent — the
 // projection never surfaces them (spec Non-Behaviors), so they are not fields.
+// Domain and Accountability are distinct named types (not a shared one) — they
+// are different governance concepts that will grow independently as the schema
+// does, and naming them avoids forcing callers/tests to repeat an anonymous
+// struct literal.
 type Role struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Purpose          string `json:"purpose"`
-	Accountabilities []struct {
-		Description string `json:"description"`
-	} `json:"accountabilities"`
-	Domains []struct {
-		Description string `json:"description"`
-	} `json:"domains"`
+	ID               string           `json:"id"`
+	Name             string           `json:"name"`
+	Purpose          string           `json:"purpose"`
+	Accountabilities []Accountability `json:"accountabilities"`
+	Domains          []Domain         `json:"domains"`
+}
+
+// Accountability is an ongoing activity a Role is accountable for. The My Roles
+// projection surfaces only its Description; the API carries more, ignored here.
+type Accountability struct {
+	Description string `json:"description"`
+}
+
+// Domain is an area of authority a Role controls. The My Roles projection
+// surfaces only its Description; the API carries more, ignored here.
+type Domain struct {
+	Description string `json:"description"`
 }
 
 // Pagination is the shared list-pagination model carried in a list read's
@@ -82,8 +94,8 @@ type Role struct {
 // read, and reused verbatim by My Actions (013) and My Projects (014) — never a
 // second pagination type; DECISIONS 2026-06-07). PerPage is the page size the
 // API applied; HasNextPage reports that more results exist than this response
-// carried; NextCursor is the ?cursor= value the next page would use. This slice
-// decodes NextCursor but does not yet use it — following pagination is the
+// carried; NextCursor is the ?cursor= value the next page would use. My Roles
+// (012) decodes NextCursor but does not yet use it — following pagination is the
 // deferred Pagination capability (016); 012 signals incompleteness only.
 type Pagination struct {
 	PerPage     int    `json:"per_page"`
