@@ -51,10 +51,53 @@ type Membership struct {
 	AccessLevel    string `json:"access_level"`
 }
 
-// Role is the minimal role shape the ?include=roles embed projects: ID (role_ /
-// circle_ handle) and Name. My Roles (012) grows THIS type to the full role
-// shape — never a second role type (ADR-1).
+// Role is the shared role shape. The ?include=roles embed (011) projects only
+// ID (role_ / circle_ handle) and Name; My Roles (012) grew THIS SAME type with
+// the full GET /me/roles shape — Purpose plus the role's Domains and
+// Accountabilities — rather than defining a second role type (ADR-1, ADR-4).
+// Decoding is tolerant of extra fields, so the minimal embed and the fuller
+// /me/roles body share one type: the embed simply leaves the grown fields at
+// their zero values. Every field carries an explicit snake_case JSON tag —
+// encoding/json is case-insensitive but does NOT bridge underscores, so an
+// untagged field would silently never bind to the API's snake_case name.
+//
+// Domains and Accountabilities each surface only the item's Description text;
+// the API carries more per item, but the My Roles projection shows description
+// only. Fillers, tags, and classification flags are deliberately absent — the
+// projection never surfaces them (spec Non-Behaviors), so they are not fields.
 type Role struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Purpose          string `json:"purpose"`
+	Accountabilities []struct {
+		Description string `json:"description"`
+	} `json:"accountabilities"`
+	Domains []struct {
+		Description string `json:"description"`
+	} `json:"domains"`
+}
+
+// Pagination is the shared list-pagination model carried in a list read's
+// meta.pagination (created here by My Roles (012), the first paginated /me*
+// read, and reused verbatim by My Actions (013) and My Projects (014) — never a
+// second pagination type; DECISIONS 2026-06-07). PerPage is the page size the
+// API applied; HasNextPage reports that more results exist than this response
+// carried; NextCursor is the ?cursor= value the next page would use. This slice
+// decodes NextCursor but does not yet use it — following pagination is the
+// deferred Pagination capability (016); 012 signals incompleteness only.
+type Pagination struct {
+	PerPage     int    `json:"per_page"`
+	HasNextPage bool   `json:"has_next_page"`
+	NextCursor  string `json:"next_cursor"`
+}
+
+// MyRolesResponse is the GET /me/roles body: the {data: [Role], meta:
+// {pagination}} list envelope. It references the shared named Pagination type
+// (not an anonymous struct) so the same envelope shape is reused by later list
+// reads. Decoding is tolerant of unknown/extra fields.
+type MyRolesResponse struct {
+	Data []Role `json:"data"`
+	Meta struct {
+		Pagination Pagination `json:"pagination"`
+	} `json:"meta"`
 }
