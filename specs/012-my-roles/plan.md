@@ -39,7 +39,8 @@ internal/cli
 
   internal/glassfrog (011 schema package)
     Role{ID,Name}  ──grown by 012──►  Role{ID,Name,Purpose,Accountabilities[],Domains[]}   (one shared type)
-    + MyRolesResponse{Data []Role, Meta{Pagination{HasNextPage,PerPage}}}                  (012 adds)
+    + Pagination{PerPage,HasNextPage,NextCursor}  (012 adds — shared, reused by 013/014)
+    + MyRolesResponse{Data []Role, Meta{Pagination}}                                       (012 adds)
 ```
 
 Everything 012 touches is additive: a `roles` leaf under `me`, growth of the shared `Role` type plus a `/me/roles` response wrapper, and a pure projection renderer. The boundary is the **CLI invocation surface** (`me roles`, stdout projection, stderr failures, exit codes). The exact projected-field labelling and the incompleteness-signal form are the interface skill's concern.
@@ -100,7 +101,7 @@ No new `Outcome` value and no `ExitCode` edit are introduced by 012 — the cate
 **Context**: `Execute` decodes the 2xx body into a caller `out any` (JSON). 011 created `internal/glassfrog` with a minimal `Role{ID,Name}` and recorded that **My Roles grows the SAME type** (never a second Role). The `/me/roles` body is `{ data: [Role], meta: { pagination } }`.
 
 **Options considered**:
-1. **Grow the shared `internal/glassfrog.Role`** (add `Purpose`, `Accountabilities []{Description}`, `Domains []{Description}` with JSON tags) and add a `MyRolesResponse{ Data []Role; Meta{ Pagination{ HasNextPage, PerPage } } }` wrapper in the same package; feed it to a pure `formatMyRoles(resp) string` and a pure `incomplete(meta) bool` (reads `HasNextPage`).
+1. **Grow the shared `internal/glassfrog.Role`** (add `Purpose`, `Accountabilities []{Description}`, `Domains []{Description}` with JSON tags), define a reusable named `Pagination{ PerPage, HasNextPage, NextCursor }` (the shared list-pagination model 013/014 reuse — created here per the 013 DECISIONS contract, matching the API's `Pagination` schema incl. `next_cursor`), and add a `MyRolesResponse{ Data []Role; Meta{ Pagination Pagination } }` wrapper referencing it; feed it to a pure `formatMyRoles(resp) string` and a pure `incomplete(meta) bool` (reads `HasNextPage`). `NextCursor` is decoded but unused until Pagination (016).
 2. **A command-local decode DTO** (012's pre-conformance assumption) — rejected: 011 explicitly homes read models in `internal/glassfrog` as shared types; a local DTO duplicates `Role` and forks the schema.
 
 **Decision**: Option 1. The grown `Role` carries the projected fields (decoding is tolerant of unknown/extra fields, so `me`'s minimal use and `me roles`' fuller use share one type); `MyRolesResponse` is the decode target. `formatMyRoles` renders the projection (name + `role_…` id; `Purpose:`; `Domains:` then `Accountabilities:`, each header always present, `(none)` when empty; `(no purpose set)` for null; `No roles.` for empty). `incomplete` derives from `Meta.Pagination.HasNextPage`.
@@ -138,7 +139,7 @@ No new `Outcome` value and no `ExitCode` edit are introduced by 012 — the cate
 Three phases plus an external prerequisite. All 012 work is additive in `internal/cli` and `internal/glassfrog` (plus the feature file).
 
 - **Phase 0 — prerequisites**: 010 (Request Execution) is **implemented** ✓. 011's scaffolding — the runnable `me` command, the persistent root `--base-url`, `classifyClientError`, and `internal/glassfrog` (`Role{ID,Name}`) — is **recorded but not yet implemented**; T-2/T-3 depend on it. *(If 011 implements first, 012 builds on it; if 012 reaches implementation first, it creates those pieces to 011's recorded contract, then 011 conforms.)*
-- **Phase 1 — schema growth (T-1)**: grow `internal/glassfrog.Role` with `Purpose`, `Accountabilities []{Description}`, `Domains []{Description}` (JSON-tagged, tolerant of extra fields) and add `MyRolesResponse{Data, Meta{Pagination{HasNextPage, PerPage}}}`; pure `formatMyRoles` + `incomplete`, unit-tested. Independent of the command wiring; can start as soon as `internal/glassfrog` exists. *Depends on: 011's `internal/glassfrog` (or creates it to contract).*
+- **Phase 1 — schema growth (T-1)**: grow `internal/glassfrog.Role` with `Purpose`, `Accountabilities []{Description}`, `Domains []{Description}` (JSON-tagged, tolerant of extra fields), define the reusable named `Pagination{PerPage, HasNextPage, NextCursor}` (shared with 013/014, matching the API schema), and add `MyRolesResponse{Data, Meta{Pagination}}` referencing it; pure `formatMyRoles` + `incomplete`, unit-tested. Independent of the command wiring; can start as soon as `internal/glassfrog` exists. *Depends on: 011's `internal/glassfrog` (or creates it to contract).*
 - **Phase 2 — the `me roles` command (T-2)**: register the `roles` `NoArgs` leaf under `me`; `RunE` → seam → `runMyRoles` running the build-once flow (`AssembleFromOS(rootFlag)` → `NewClientFromOS` → `Execute GET /me/roles` into `MyRolesResponse`), mapping errors via **011's `classifyClientError`**, projecting to stdout, and writing the incompleteness note to stderr. Hermetic tests over a fake base transport for every branch. *Depends on: Phase 1, 010 (done), 011's `classifyClientError` + runnable `me` + root flag.*
 - **Phase 3 — executable acceptance (T-3)**: godog step definitions for `my-roles.feature` with a fake base transport and canned payloads; assert projected fields, absences, the incompleteness note, and per-scenario exit codes (0/1/2/3/6). *Depends on: Phase 2.*
 
