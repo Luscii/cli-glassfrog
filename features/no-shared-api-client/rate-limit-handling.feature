@@ -16,7 +16,6 @@ Feature: No Shared API Client — Rate-Limit Handling
     # I want the CLI to honor the API's Retry-After and re-attempt automatically, within sane bounds.
 
     # Source: 017-rate-limit-handling — Scenario: a single 429 is honored and the retry succeeds
-    @wip
     Scenario: A 429 is honored and the retry succeeds
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 429 with "Retry-After: 2" then a 200 response
@@ -25,7 +24,6 @@ Feature: No Shared API Client — Rate-Limit Handling
       And the eventual 200 response will be returned
 
     # Source: 017-rate-limit-handling — Scenario: a non-429 outcome passes straight through
-    @wip
     Scenario: A response that is not a 429 is returned without waiting
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 200 response
@@ -34,7 +32,6 @@ Feature: No Shared API Client — Rate-Limit Handling
       And no wait will be imposed and only one attempt will be made
 
     # Source: 017-rate-limit-handling — Scenario: a 429 without Retry-After uses the fallback backoff
-    @wip
     Scenario: A 429 without a usable Retry-After uses the fallback backoff
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 429 with no Retry-After then a 200 response
@@ -43,7 +40,6 @@ Feature: No Shared API Client — Rate-Limit Handling
       And the eventual 200 response will be returned
 
     # Source: 017-rate-limit-handling — Scenario: a transport error is not retried
-    @wip
     Scenario: A transport error is returned without a retry
       Given a retrying executor wrapping a client built from a complete connection context
       And the API could not be reached
@@ -52,7 +48,6 @@ Feature: No Shared API Client — Rate-Limit Handling
       And no wait will be imposed and only one attempt will be made
 
     # Source: 017-rate-limit-handling — Scenario: a non-429 non-2xx is passed through, not retried
-    @wip
     Scenario: A non-429 non-2xx response is passed through without retrying
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 403 response
@@ -61,7 +56,6 @@ Feature: No Shared API Client — Rate-Limit Handling
       And no wait will be imposed and only one attempt will be made
 
     # Source: 017-rate-limit-handling — Scenario: a non-safe request is not auto-retried on a 429
-    @wip
     Scenario: A write is not auto-retried on a 429
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 429 response
@@ -91,7 +85,6 @@ Feature: No Shared API Client — Rate-Limit Handling
     # I want the wait capped in both attempts and total time, with the 429 surfaced once the cap is hit.
 
     # Source: 017-rate-limit-handling — Scenario: caps reached — the 429 is surfaced unchanged
-    @wip
     Scenario: The 429 is surfaced when attempts are exhausted
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 429 on every attempt
@@ -124,7 +117,6 @@ Feature: No Shared API Client — Rate-Limit Handling
     # I want a short, non-secret note on stderr each time it waits before retrying.
 
     # Source: 017-rate-limit-handling — Scenario: a wait note is emitted to stderr before re-attempting
-    @wip
     Scenario: A progress note is written to stderr before re-attempting
       Given a retrying executor wrapping a client built from a complete connection context
       And the API would return a 429 with "Retry-After: 5" then a 200 response
