@@ -17,3 +17,4 @@
 | 013-my-actions | Analyzed | analyze | 2026-06-07T12:35:56 |
 | 014-my-projects | Analyzed | analyze | 2026-06-07T12:38:00 |
 | 016-pagination | Analyzed | risk | 2026-06-07T16:53:11 |
+| 017-rate-limit-handling | Analyzed | risk | 2026-06-07T17:25:00 |
