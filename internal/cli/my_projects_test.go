@@ -340,7 +340,10 @@ func TestRunMyProjects_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T)
 }
 
 func TestRunMyProjects_NonStatus2xxIsAPIError(t *testing.T) {
-	tr := &cannedTransport{status: 403, body: `{"error":"forbidden"}`}
+	// A genuinely generic non-2xx (500): 401/403/429 now split into
+	// PermissionError/RateLimited (API Error Extraction 015), so a 5xx represents
+	// the residual generic APIError bucket this test pins.
+	tr := &cannedTransport{status: 500, body: `{"error":"server error"}`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	outcome, stdout, stderr := runMyProjectsOver(t, seam, "")
@@ -350,8 +353,8 @@ func TestRunMyProjects_NonStatus2xxIsAPIError(t *testing.T) {
 	if strings.TrimSpace(stdout) != "" {
 		t.Errorf("no projection should print on a non-2xx, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "403") {
-		t.Errorf("stderr should name the 403 status, got %q", stderr)
+	if !strings.Contains(stderr, "500") {
+		t.Errorf("stderr should name the 500 status, got %q", stderr)
 	}
 	// The non-2xx message names the status AND a generic next step — without
 	// interpreting the status into a specific meaning (015/017's concern).
@@ -437,7 +440,7 @@ func TestMyProjectsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 		{"has-next-success", &cannedTransport{status: 200, body: projectsBodyHasNext}, validMeContext(), nil, nil, Success, 0},
 		{"filtered-success", &cannedTransport{status: 200, body: projectsBodyMulti}, validMeContext(), nil, []string{"--status", "current"}, Success, 0},
 		{"unsupported-status", &cannedTransport{status: 200, body: projectsBodyMulti}, validMeContext(), nil, []string{"--status", "in-progress"}, UsageError, 2},
-		{"api-error", &cannedTransport{status: 403, body: `{}`}, validMeContext(), nil, nil, APIError, 3},
+		{"api-error", &cannedTransport{status: 500, body: `{}`}, validMeContext(), nil, nil, APIError, 3},
 		{"network-unavailable", &cannedTransport{netErr: errors.New("connection refused")}, validMeContext(), nil, nil, NetworkUnavailable, 6},
 		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, RuntimeError, 1},
 		{"stray-arg", &cannedTransport{status: 200, body: projectsBodyMulti}, validMeContext(), nil, []string{"extra"}, UsageError, 2},

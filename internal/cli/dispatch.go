@@ -81,11 +81,21 @@ const (
 	NetworkUnavailable
 	// APIError means the API answered with a non-2xx status. It is the generic,
 	// uninterpreted "general API error" bucket — produced by classifying an
-	// *apiclient.ResponseError (011, ADR-4). Exit-Code Convention maps it to the
-	// reserved code 3. API Error Extraction (015) / Rate-Limit Handling (017)
-	// later split 401/403→permission(4) and 429→rate-limit(5) at the same
-	// registry, without renumbering 3.
+	// *apiclient.ResponseError (011, ADR-4) whose status is neither 401/403 nor
+	// 429. Exit-Code Convention maps it to the reserved code 3.
 	APIError
+	// PermissionError means the API rejected the call as an auth/membership
+	// failure (HTTP 401 or 403). Produced by API Error Extraction (015) splitting
+	// APIError on the status the *apiclient.ProblemError carries (ADR-3);
+	// Exit-Code Convention maps it to the reserved code 4. (403 plan-limit
+	// messaging stays with Unsignalled Plan Limits — 015 carries it generically.)
+	PermissionError
+	// RateLimited means the API rejected the call for exceeding the rate limit
+	// (HTTP 429). Produced by API Error Extraction (015) splitting APIError on the
+	// status (ADR-3); Exit-Code Convention maps it to the reserved code 5. 015
+	// only classifies the 429 — Rate-Limit Handling (017) owns the retry/backoff
+	// above the Execute seam; 015 never sleeps or retries.
+	RateLimited
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -101,6 +111,10 @@ func (o Outcome) String() string {
 		return "NetworkUnavailable"
 	case APIError:
 		return "APIError"
+	case PermissionError:
+		return "PermissionError"
+	case RateLimited:
+		return "RateLimited"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs

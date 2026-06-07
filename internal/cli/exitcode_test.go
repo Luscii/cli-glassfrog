@@ -17,10 +17,10 @@ var publishedCodes = map[string]int{
 }
 
 // ExitCode maps the categories that have producers today: the original three
-// (Success→0, UsageError→2, RuntimeError→1) plus the two Identity Read (011)
-// added as the first consuming command (NetworkUnavailable→6, APIError→3). The
-// still-reserved categories (permission 4, rate-limited 5) have no Outcome value
-// yet, so they are pinned at the constant level only.
+// (Success→0, UsageError→2, RuntimeError→1), the two Identity Read (011) added as
+// the first consuming command (NetworkUnavailable→6, APIError→3), and the two
+// API Error Extraction (015) added by splitting APIError on the status
+// (PermissionError→4, RateLimited→5 — codes 004 reserved, now live).
 //
 // outcomeCodes mirrors the producer-backed category→code arms by name; the
 // length check plus the comma-ok lookup catch an arm being dropped or added
@@ -32,6 +32,8 @@ var outcomeCodes = map[Outcome]int{
 	UsageError:         2,
 	RuntimeError:       1,
 	APIError:           3,
+	PermissionError:    4,
+	RateLimited:        5,
 	NetworkUnavailable: 6,
 }
 
@@ -41,6 +43,8 @@ func TestExitCode_ProducerBackedCategories(t *testing.T) {
 		UsageError:         2,
 		RuntimeError:       1,
 		APIError:           3,
+		PermissionError:    4,
+		RateLimited:        5,
 		NetworkUnavailable: 6,
 	}
 	if len(outcomeCodes) != len(want) {

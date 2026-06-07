@@ -47,11 +47,15 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 6
 
     # Source: 012-my-roles — Scenario: The API answers with a non-2xx status
+    # Uses a 500 (generic server error) as the representative non-2xx: API Error
+    # Extraction (015) split 401/403→permission(4) and 429→rate-limit(5), so a
+    # 5xx is the faithful sample for the residual generic APIError(3) this
+    # scenario pins.
     Scenario: A non-2xx response reports the read failed with its status
       Given a complete connection context with a stored token
-      And the API would return a 403 response
+      And the API would return a 500 response
       When the practitioner runs "glassfrog me roles"
-      Then stderr will report that the read failed and name the 403 status
+      Then stderr will report that the read failed and name the 500 status
       And the command will exit with code 3
 
     # Source: 012-my-roles — Scenario: Extra arguments are rejected without an API call
