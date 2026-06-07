@@ -287,9 +287,10 @@ func (w *reqWorld) thenHeaderAttachedByTransport() error {
 }
 
 func (w *reqWorld) thenClientDoesNotAttach() error {
-	// The header originates from 007's AuthTransport: the Request descriptor
-	// exposes no header field, so Execute cannot attach the credential itself —
-	// the only X-Auth-Token the base saw is the one the transport set.
+	// The guarantee is that Execute never reads the token (it has no access — only
+	// the replay thunk inside 007's AuthTransport does) and relies on the transport
+	// to attach the header, so the only X-Auth-Token the base saw is the one
+	// AuthTransport set.
 	if w.responding == nil || w.responding.gotToken != w.token {
 		return errors.New("the credential was not attached by the transport")
 	}

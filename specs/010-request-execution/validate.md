@@ -89,7 +89,7 @@ Every driving scenario referenced by the checked tasks (T001–T003) has an iden
 | Must not retry, back off, sleep, or treat 429 specially | ✓ Absent | Single `c.httpClient.Do`; no `for`/retry/sleep/backoff; 429 handled by the same generic non-2xx branch |
 | Must not decide exit code or user-facing message | ✓ Absent | No `os.Exit`, no printing; all outcomes code-free |
 | Must not decode a non-2xx body into the target, nor force decode without a target | ✓ Absent | Non-2xx returns before any decode; `out == nil` drains without decoding |
-| Must not print/log/expose the token | ✓ Absent | `ctx.Cred.Token` never read (only a doc-comment mention); errors carry net cause / response side / parse cause — `TestExecuteNoErrorRendersTheToken` pins it |
+| Must not print/log/expose the token | ✓ Absent | `ctx.Cred.Token` never read (only a doc-comment mention); errors carry net cause / response side / parse cause — `TestExecuteErrorsNeverRenderTheToken` pins it |
 | Must not prompt interactively | ✓ Absent | No prompting anywhere on the path |
 
 ---
@@ -112,7 +112,7 @@ These scenarios were held out from the Builder. Each was traced to a code path b
 |---|---|---|
 | Request Execution re-resolves nothing | ✓ Satisfied | `client.go`/`execute.go` read no flag/env/credentials file — grep confirms no `os.`/`getenv`/`rcfile`/`auth.Resolve`; base URL comes only from the captured `c.baseURL`, identity only from the AuthTransport replay thunk |
 | Exactly one send attempt per request | ✓ Satisfied | Single `c.httpClient.Do(httpReq)` in `execute.go`; no loop/retry/backoff. Corroborated by the call-counting tripwire (`TestExecuteMakesExactlyOneAttempt`, and the no-retry assertion on the timeout and 429 tests) |
-| The token value never appears in produced output | ✓ Satisfied | 010 never reads `ctx.Cred.Token`; `TransportError` wraps a net cause, `ResponseError` carries the response side, `DecodeError` names a parse cause. Corroborated by `TestExecuteNoErrorRendersTheToken` across all three error types |
+| The token value never appears in produced output | ✓ Satisfied | 010 never reads `ctx.Cred.Token`; `TransportError` wraps a net cause, `ResponseError` carries the response side, `DecodeError` names a parse cause. Corroborated by `TestExecuteErrorsNeverRenderTheToken` across all three error types |
 | A non-2xx body is never decoded into the success target | ✓ Satisfied | The non-2xx branch reads the body into `ResponseError.Body` and returns before reaching any decode; `out` is never touched. Corroborated by `TestExecuteNon2xxIsGenericResponseError` asserting the target stays empty |
 
 > Note: the 4 `@validation` scenarios carry no godog step definitions (held out by design), so they are verified by inspection, not execution — consistent with validate's inspection-based baseline.

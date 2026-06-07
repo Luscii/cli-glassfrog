@@ -301,7 +301,7 @@ func TestExecuteSendsAuthenticatedRequest(t *testing.T) {
 	}
 }
 
-func TestExecuteNoErrorRendersTheToken(t *testing.T) {
+func TestExecuteErrorsNeverRenderTheToken(t *testing.T) {
 	const token = "gf_live_secret123"
 	ctx := completeContext(token)
 
