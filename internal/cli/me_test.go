@@ -182,8 +182,29 @@ func TestValidateInclude(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unsupported --include target should be rejected")
 	}
-	if !strings.Contains(err.Error(), "actions") {
-		t.Errorf("the usage error should name the unsupported target, got %q", err.Error())
+	if !strings.Contains(err.Error(), `"actions"`) {
+		t.Errorf("the usage error should quote the unsupported target, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "target ") || strings.Contains(err.Error(), "targets ") {
+		t.Errorf("a single unsupported target should use the singular noun, got %q", err.Error())
+	}
+
+	// --include is a string slice: multiple unsupported targets must each be
+	// quoted individually with a plural noun — not the whole list quoted as one
+	// bogus target.
+	multi := validateInclude([]string{"projects", "actions"})
+	if multi == nil {
+		t.Fatal("multiple unsupported targets should be rejected")
+	}
+	msg := multi.Error()
+	if !strings.Contains(msg, "targets ") {
+		t.Errorf("multiple unsupported targets should use the plural noun, got %q", msg)
+	}
+	if !strings.Contains(msg, `"actions"`) || !strings.Contains(msg, `"projects"`) {
+		t.Errorf("each unsupported target should be quoted individually, got %q", msg)
+	}
+	if strings.Contains(msg, `"projects, actions"`) || strings.Contains(msg, `"actions, projects"`) {
+		t.Errorf("the comma-joined list should not be quoted as a single target, got %q", msg)
 	}
 }
 

@@ -102,11 +102,14 @@ func runMe(cfg meConfig) (Outcome, error) {
 	return Success, nil
 }
 
-// validateInclude rejects an unsupported --include target against the spec's
-// include set, returning a usage error NAMING the offending target — before any
+// validateInclude rejects unsupported --include targets against the spec's
+// include set, returning a usage error NAMING each offending target — before any
 // context assembly or request (the 002 invalid-input convention). An empty list
-// (the flag absent) is valid. Targets are checked in stable order so the message
-// is deterministic.
+// (the flag absent) is valid. --include is a string slice, so more than one
+// unsupported target can be supplied at once; each is quoted individually and the
+// noun agrees in number, so a multi-target rejection reads cleanly rather than
+// quoting the whole comma-joined list as a single bogus target. Targets are
+// reported in stable (sorted) order so the message is deterministic.
 func validateInclude(targets []string) error {
 	var unsupported []string
 	for _, t := range targets {
@@ -118,9 +121,17 @@ func validateInclude(targets []string) error {
 		return nil
 	}
 	sort.Strings(unsupported)
+	quoted := make([]string, len(unsupported))
+	for i, t := range unsupported {
+		quoted[i] = fmt.Sprintf("%q", t)
+	}
+	noun := "target"
+	if len(unsupported) > 1 {
+		noun = "targets"
+	}
 	return fmt.Errorf(
-		"unsupported --include target %q — supported: %s",
-		strings.Join(unsupported, ", "), strings.Join(supportedIncludeNames(), ", "),
+		"unsupported --include %s %s — supported: %s",
+		noun, strings.Join(quoted, ", "), strings.Join(supportedIncludeNames(), ", "),
 	)
 }
 
