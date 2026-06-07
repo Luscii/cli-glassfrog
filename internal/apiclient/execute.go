@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -90,9 +91,11 @@ func (e *DecodeError) Unwrap() error { return e.cause }
 // The response body is always closed on every branch (no fd/connection leak). 010
 // never reads the token — identity rides 007's AuthTransport, wired at NewClient.
 func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Response, error) {
-	urlStr := joinURL(c.baseURL, req.Path)
-	if len(req.Query) > 0 {
-		urlStr += "?" + req.Query.Encode()
+	urlStr, err := buildURL(c.baseURL, req.Path, req.Query)
+	if err != nil {
+		// The base URL is 008-validated as parseable, so this is a guard: a base
+		// that won't parse is a build-time failure, not a wire failure.
+		return nil, &TransportError{cause: err}
 	}
 
 	httpReq, err := http.NewRequestWithContext(reqCtx, req.Method, urlStr, req.Body)
@@ -138,12 +141,30 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 	return response, nil
 }
 
-// joinURL joins the captured base URL with the request path as 008 resolved the
-// base (pass-through-as-given): a single slash between them, with no
-// normalization of the base itself. An empty path yields the base unchanged.
-func joinURL(base, path string) string {
-	if path == "" {
-		return base
+// buildURL joins the captured base URL with the request path and query as 008
+// resolved the base (pass-through-as-given). It parses the base so a base that
+// carries its own query string or fragment is handled correctly rather than
+// mangled: req.Path is appended onto the base's path component only (a single
+// slash between them, no normalization), req.Query is merged with any query the
+// base already carried, and the base's fragment is preserved. An empty path
+// leaves the base path unchanged. The base is 008-validated as a parseable
+// absolute URL; a parse failure is returned as a guard.
+func buildURL(base, path string, query url.Values) (string, error) {
+	u, err := url.Parse(base)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSuffix(base, "/") + "/" + strings.TrimPrefix(path, "/")
+	if path != "" {
+		u.Path = strings.TrimSuffix(u.Path, "/") + "/" + strings.TrimPrefix(path, "/")
+	}
+	if len(query) > 0 {
+		merged := u.Query() // the base's own query params, if any
+		for key, vals := range query {
+			for _, v := range vals {
+				merged.Add(key, v)
+			}
+		}
+		u.RawQuery = merged.Encode()
+	}
+	return u.String(), nil
 }

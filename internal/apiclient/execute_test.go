@@ -358,6 +358,34 @@ func TestExecuteJoinsURLWithQuery(t *testing.T) {
 	}
 }
 
+func TestExecuteJoinsURLPreservingBaseQueryAndFragment(t *testing.T) {
+	// A base that carries its own query string and fragment is accepted by
+	// isUsableURL (scheme+host only). The path must be appended onto the base's
+	// path component, req.Query merged with the base's existing query, and the
+	// fragment preserved — not mangled by string concatenation.
+	var gotURL string
+	base := capturingBase(func(req *http.Request) { gotURL = req.URL.String() })
+	ctx := ConnectionContext{
+		BaseURL: BaseURL{Value: "https://example.com/api/v5?token=abc#frag", Source: SourceEnvironment},
+		Cred:    auth.Resolution{Token: secretToken, Source: auth.SourceFile},
+	}
+	client := mustClient(t, ctx, base)
+
+	_, err := client.Execute(
+		context.Background(),
+		Request{Method: http.MethodGet, Path: "/roles", Query: map[string][]string{"page": {"2"}}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	// q.Encode() sorts keys, so page precedes token; the fragment is reattached.
+	want := "https://example.com/api/v5/roles?page=2&token=abc#frag"
+	if gotURL != want {
+		t.Fatalf("request URL = %q, want %q", gotURL, want)
+	}
+}
+
 // capturingBase adapts an inspect func into a base RoundTripper returning a bare
 // 200, so a test can assert what request was built.
 func capturingBase(inspect func(*http.Request)) http.RoundTripper {
