@@ -23,9 +23,9 @@ import (
 //   - *apiclient.AuthError{CredentialError} → RuntimeError (a malformed .glassfrogrc — an internal failure)
 //   - *apiclient.TransportError        → NetworkUnavailable (the wire failed)
 //   - *apiclient.ProblemError / *apiclient.ResponseError → branch on the status
-//        (API Error Extraction 015, ADR-3): 401/403 → PermissionError (code 4),
-//        429 → RateLimited (code 5), everything else → APIError (the generic
-//        non-2xx, code 3)
+//     (API Error Extraction 015, ADR-3): 401/403 → PermissionError (code 4),
+//     429 → RateLimited (code 5), everything else → APIError (the generic
+//     non-2xx, code 3)
 //   - *apiclient.DecodeError           → RuntimeError (a 2xx body that would not parse — a contract failure)
 //   - a base-URL error (*apiclient.BaseURLError or an internal/rcfile read/format
 //     error surfaced as ctx.BaseURLErr) → UsageError (a correctable endpoint input)
