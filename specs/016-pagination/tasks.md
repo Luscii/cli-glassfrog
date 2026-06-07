@@ -31,7 +31,7 @@ Phase 2: Executable acceptance + 010 comment correction (2 tasks, depends on Pha
 
 ## Phase 1: Shared list envelope + the `internal/paging` walker [Shared]
 
-- [ ] **T001** [Shared] Add (reuse-or-create) the shared `glassfrog.Pagination` and the generic `glassfrog.Page[T]` list envelope
+- [x] **T001** [Shared] Add (reuse-or-create) the shared `glassfrog.Pagination` and the generic `glassfrog.Page[T]` list envelope — `Pagination` reused from 012 (now landed); added generic `Page[T]`+`Meta` in new `page.go`, 2 decode tests (envelope + absent-meta)
   - **Scope**: In `internal/glassfrog` (the leaf schema package — imports nothing internal), add the generic list envelope `Page[T any]{ Data []T \`json:"data"\`; Meta Meta \`json:"meta"\` }` where `Meta` is `{ Pagination Pagination \`json:"pagination"\` }`, over the shared `Pagination{ PerPage int \`json:"per_page"\`; HasNextPage bool \`json:"has_next_page"\`; NextCursor string \`json:"next_cursor"\` }`. **Reuse-or-create**: if a concurrently-landed paginated read (012–014) already added `Pagination`, reuse it; otherwise create it (DECISIONS §109 first-to-land rule). Decoding must be tolerant of an **absent** `meta.pagination` (it decodes to the zero value → `HasNextPage=false`, the non-paginated-endpoint case). No logic, no internal imports.
   - **Acceptance criteria**:
     - `glassfrog.Page[T any]` and `glassfrog.Pagination` exist with the JSON tags above; `T` is the only per-read variable (`Page[Role]`, `Page[Action]`, …)
