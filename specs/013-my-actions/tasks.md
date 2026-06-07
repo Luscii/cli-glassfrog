@@ -32,7 +32,7 @@ Phase 3: The `my actions` command — `newMyActionsCommand` + `runMyActions` + `
 
 ## Phase 1: `glassfrog.Action` schema [Shared]
 
-- [ ] **T001** [Shared] [P] Add `Action` to `internal/glassfrog` and decode it through the shared list envelope — RED-first unit tests
+- [x] **T001** [Shared] [P] Add `Action` to `internal/glassfrog` and decode it through the shared list envelope — RED-first unit tests — 3 decode tests; reused 012's `Pagination`; envelope named `MyActionsResponse` mirroring `MyRolesResponse`
   - **Scope**: Add an `Action` struct to `internal/glassfrog`: `ID` (`actn_…`), `Status` (the status enum), `Description` (nullable), `RoleID` (`role_…`), `Tags []string`, plus `IndividualInitiative`, `ParentProjectID` (nullable), `CreatedAt`/`UpdatedAt`, and optional `Permissions`/`TriggerEvent`/`Note` decoded but not projected. Decode `GET /me/actions` through the shared list envelope `{ Data []Action; Meta{ Pagination } }` and the `Pagination` struct (`PerPage`, `HasNextPage`, `NextCursor`). **Reuse** `glassfrog.Pagination` and the envelope from My Roles (012) if present; if 012 has not landed, introduce them here as shared `glassfrog` types (not 013-local). Decoding tolerates unknown/extra fields. No transport, no cobra, no exit codes; the token is never a field.
   - **Acceptance criteria**:
     - A single-page `GET /me/actions` fixture decodes into the envelope with `Data` populated and `Meta.Pagination.HasNextPage == false`
