@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"context"
 	"errors"
-	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/auth"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
@@ -57,15 +59,49 @@ func TestClassifyClientError_Table(t *testing.T) {
 	}
 }
 
-// The AuthError arm must be discriminated before the rcfile arms: a
-// CredentialError wraps an rcfile read/format error (via Unwrap), so without the
-// ordering it would be mislabelled a base-URL UsageError instead of the
-// RuntimeError a malformed credentials file warrants. Pin a wrapped
-// CredentialError carrying a real rcfile cause.
+// The AuthError arm must be discriminated before the rcfile arms. In production a
+// CredentialError IS an *AuthError whose Unwrap() exposes the rcfile read/format
+// error the credential resolver returned — so errors.As can see BOTH an
+// *AuthError and an *rcfile.ReadError in the same chain. If the classifier
+// checked the rcfile arms first, that error would be mislabelled a base-URL
+// UsageError instead of the RuntimeError a malformed credentials file warrants.
+//
+// Build the REAL shape via the authenticated-transport path (the same way Execute
+// surfaces it): a context carrying an rcfile CredErr, run through NewClient +
+// Execute, whose auth fail-safe wraps the rcfile error as *AuthError{CredentialError}
+// before any request is sent. This is what makes the test meaningful — a
+// nil-cause AuthError (the earlier version) matched neither rcfile arm and passed
+// trivially regardless of ordering.
 func TestClassifyClientError_AuthBeforeRcfile(t *testing.T) {
-	wrapped := fmt.Errorf("auth resolution failed: %w",
-		&apiclient.AuthError{Kind: apiclient.CredentialError})
-	if got := classifyClientError(wrapped); got != RuntimeError {
-		t.Errorf("a wrapped CredentialError = %v, want RuntimeError (AuthError must win over the rcfile arms)", got)
+	rcErr := &rcfile.ReadError{Path: "/home/u/.glassfrogrc", Err: errors.New("permission denied")}
+	ctx := apiclient.ConnectionContext{
+		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
+		Cred:    auth.Resolution{Source: auth.SourceNone},
+		CredErr: rcErr, // AuthTransport wraps this as *AuthError{CredentialError}
+	}
+	// The base transport is required by NewClient but never reached — the auth
+	// fail-safe fires before any send.
+	client, err := apiclient.NewClient(ctx, &cannedTransport{})
+	if err != nil {
+		t.Fatalf("NewClient errored: %v", err)
+	}
+	_, execErr := client.Execute(context.Background(), apiclient.Request{Method: http.MethodGet, Path: "/me"}, nil)
+	if execErr == nil {
+		t.Fatal("Execute should surface the credential fail-safe error")
+	}
+
+	// The chain genuinely matches BOTH types — without this overlap the ordering
+	// test would be vacuous.
+	var authErr *apiclient.AuthError
+	var rcReadErr *rcfile.ReadError
+	if !errors.As(execErr, &authErr) {
+		t.Fatalf("error chain should contain an *AuthError, got %v", execErr)
+	}
+	if !errors.As(execErr, &rcReadErr) {
+		t.Fatalf("error chain should ALSO unwrap to the *rcfile.ReadError, got %v", execErr)
+	}
+
+	if got := classifyClientError(execErr); got != RuntimeError {
+		t.Errorf("classifyClientError = %v, want RuntimeError (AuthError must win over the rcfile arms)", got)
 	}
 }
