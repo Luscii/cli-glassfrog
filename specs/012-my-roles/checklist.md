@@ -48,7 +48,7 @@ Round 3 re-derives against the artifacts after they were **conformed to Identity
 
 **P0** | III. Fail Safe, Not Silent → read-only; every fork fails loud; an empty list is an explicit success. PASS.
 
-**P0** | IV. Test-Driven Development → tasks.md mandates RED-first tests (T003/T004) + a godog suite (T005); acceptance scenarios exist in `my-roles.feature` ahead of code. PASS.
+**P0** | IV. Test-Driven Development → tasks.md mandates RED-first tests (T001 schema/renderer, T002 command) + a godog suite (T003); acceptance scenarios exist in `my-roles.feature` ahead of code. PASS.
 
 **P0** | V. Composition over Monolith → additive command consuming the shared `apiclient` seam; one `MustRegister` line; no unrelated command edited. PASS.
 

@@ -42,7 +42,7 @@ No cross-artifact findings in any round. Round 3 re-derives after the artifacts 
 
 - **K1** spec § Driving Scenarios → my-roles.feature — all 8 spec driving scenarios have a Gherkin equivalent (+2 validation, +2 architecture-informed). PASS.
 - **K2** spec § Integration Boundaries → interface files — the one external surface (CLI) has interface-cli.md; internal consumed seams (010/007/004) are justified-absent. PASS.
-- **K3** plan § Phases → tasks — Phases 1/2/3 decompose into T001–T005; Phase 0 is an external prerequisite carried into the tasks dependency graph. PASS.
+- **K3** plan § Phases → tasks — Phases 1/2/3 decompose into T001–T003 (schema growth / command / acceptance); Phase 0 is an external prerequisite carried into the tasks dependency graph. PASS.
 - **K4** plan § Components → tasks § Scope — every component has an implementing task. PASS.
 - **K5** interface-cli § Surface → my-roles.feature — every surface and exit-code path has scenario coverage. PASS.
 - **K6** spec § User Scenarios → interface-cli § Surface — all three user flows have interface coverage. PASS.

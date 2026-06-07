@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|---|
 | H-1 | A partial role list is presented as the complete set (silent truncation) | spec Non-Behaviors (no page-following); CONSTITUTION VI | High | Low | RC-1 | Yellow |
 | H-2 | The API token leaks into stdout or an error line | plan § Cross-cutting / Risks | High | Low | RC-2 | Yellow |
-| H-3 | An error the agent can't recover from — no next step given | interface § Error Communication; checklist P0 (II) | Medium | Medium | RC-3 | Yellow |
+| H-3 | An error the agent can't recover from — no next step given — *resolved* | interface § Error Communication; checklist P0 (II) | Medium | Medium | RC-3 | Green |
 | H-4 | Contributing to org-wide throttling on `429` | interface/plan ADR-3; CONSTITUTION X | Medium | Low | RC-4 | Green |
 | H-5 | Roles shown that aren't the caller's (wrong endpoint / over-exposure) | spec Non-Behaviors (token-scoped, no selector); CONSTITUTION I | Medium | Low | RC-5 | Green |
 | H-6 | Absence indicators misread as real data | spec § Output; CONSTITUTION VIII | Low | Low | RC-6 | Green |
@@ -37,10 +37,10 @@ My Roles is the first command on the live request path, where the `X-Auth-Token`
 - **RC-2**: The command never reads `ctx.Cred.Token`; errors carry only the response side and a network-level cause; a token-never-in-output test covers stdout and stderr across every branch (plan § Cross-cutting; scenario discipline inherited from 010).
 - **Residual: Yellow** (High×Low) — acceptable with the no-token-path control and the explicit output test.
 
-### H-3 — Unrecoverable error (missing next step)
-Three of six error conditions (`APIError`, `NetworkUnavailable`, decode `RuntimeError`) currently name a cause but no next step, so an AI-agent operator may not know how to recover — contradicting Action Transparency (II). **Severity Medium**: the agent acts on incomplete failure information. **Probability Medium**: half the error surface is affected.
-- **RC-3**: Every error message names both the cause and a concrete next step (e.g. 403 → "you may lack permission"; transport → "check network/base URL"; decode → "API response shape changed — report it"). This is the checklist P0 fix.
-- **Residual: Yellow** pre-fix (Medium×Medium); **Green** once RC-3 is applied. Flagged for resolution before implementation.
+### H-3 — Unrecoverable error (missing next step)  *(RESOLVED 2026-06-07)*
+Three of six error conditions (`APIError`, `NetworkUnavailable`, decode `RuntimeError`) originally named a cause but no next step, so an AI-agent operator might not know how to recover — contradicting Action Transparency (II). **Severity Medium**: the agent acts on incomplete failure information. **Probability Medium** (pre-fix): half the error surface was affected.
+- **RC-3 (applied)**: Every error message now names both the cause and a concrete next step (403 → "you may lack permission"; transport → "check network/base URL"; decode → "API response shape changed — report it") — pinned in interface-cli § Error Communication and the spec § Behavioral Accord → Failure (the round-2 checklist P0 fix).
+- **Residual: Green** — RC-3 is in place; no longer an open item for implementation.
 
 ### H-4 — Org-wide throttling
 A `429` is surfaced generically with no `Retry-After`/backoff (deferred to 017). **Severity Medium**: throttling affects the whole org. **Probability Low**: exactly one attempt per invocation — no retry loop, so no request storm originates here (the specific anti-pattern X names is absent).
