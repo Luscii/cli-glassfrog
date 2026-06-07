@@ -64,7 +64,7 @@ All consistency checks pass — the artifacts make compatible claims.
 ## Checklist Correlation
 
 - The **H1 finding** (executor name drift, resolved this session) does **not** overlap either checklist finding — it is a coherence/terminology concern, not a constitution check.
-- No analyze finding overlaps the two remaining checklist P2s (the exit-code-5 deferral to 015; the free-form progress-note format). Those are vertical (constitution) advisories with no horizontal-consistency counterpart — the artifacts agree *with each other* about both deferrals (spec Non-Behaviors, plan ADR-5, and interface Error Communication all consistently defer 429 classification to 015).
+- No analyze finding overlaps the two remaining checklist P2s (the exit-code-5 deferral to 015; the free-form progress-note format — the latter being 017's own future hardening, not a 015 concern). Those are vertical (constitution) advisories with no horizontal-consistency counterpart — and the artifacts agree *with each other* on the one cross-spec deferral they do make: spec Non-Behaviors, plan ADR-5, and interface Error Communication all consistently defer 429 *classification* to 015.
 
 ---
 

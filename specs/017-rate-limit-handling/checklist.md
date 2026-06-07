@@ -17,7 +17,7 @@
 | P2 (consider) | 4 | 2 | 2 |
 | **Total** | **15** | **13** | **2** |
 
-No P0 or P1 failures. **Principle X (Respect API Limits) — the principle this feature exists to satisfy — passes**: 017 is the capability that closes the 429-backoff gap 011's checklist recorded as a P2 cross-spec deferral. Two P2 advisories remain, both in Action Transparency (II) / Respect API Limits (X) and both justified deferrals to API Error Extraction (015) — neither re-shapes the spec or blocks implementation.
+No P0 or P1 failures. **Principle X (Respect API Limits) — the principle this feature exists to satisfy — passes**: 017 is the capability that closes the 429-backoff gap 011's checklist recorded as a P2 cross-spec deferral. Two P2 advisories remain, both in Action Transparency (II) / Respect API Limits (X), with **distinct owners**: (1) the exit-code-5 deferral is a cross-spec deferral to API Error Extraction (015); (2) the progress-note format is 017's own future hardening. Neither re-shapes the spec or blocks implementation.
 
 ---
 
@@ -70,5 +70,7 @@ Four broad MUST principles were calibrated to this feature before evaluation:
 ## Notes for the developer
 
 - **Principle X passes** — 017 delivers the 429-backoff behavior the constitution requires and that 011's checklist deferred here. This is the headline result.
-- The two P2 advisories are both **justified cross-spec deferrals to API Error Extraction (015)**: (1) the capped-out 429 exits 3, not the reserved 5, until 015 types it; (2) the free-form progress-note format. Neither is a MUST violation; both are recorded for traceability and a future hardening pass.
+- The two P2 advisories have **distinct owners** — neither is a MUST violation, both are recorded for traceability:
+  - **(1) capped-out 429 exits 3, not the reserved 5** → a justified **cross-spec deferral to API Error Extraction (015)**, which types the non-2xx and adds code 5 (ADR-5).
+  - **(2) free-form progress-note format** → **017's own future hardening**, *not* a 015 concern (015 types API responses, not the stderr note). The follow-up is to pin the note's stability/structure in a test (see the P2 finding above); owner is this capability / a later 017 hardening pass.
 - No finding blocks implementation.
