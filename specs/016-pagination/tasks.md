@@ -61,7 +61,7 @@ Phase 2: Executable acceptance + 010 comment correction (2 tasks, depends on Pha
 
 ## Phase 2: Executable acceptance + 010 comment correction [Shared]
 
-- [ ] **T003** [Shared] Make the 016 driving scenarios pass via godog in a new `internal/paging` suite scoped to its own feature file
+- [x] **T003** [Shared] Make the 016 driving scenarios pass via godog in a new `internal/paging` suite scoped to its own feature file — new `pagination_bdd_test.go` suite (Paths→pagination.feature only), 10 behavioral scenarios pass (10 scenarios, 42 steps); 3 `@validation` scenarios kept `@wip` for validate; cancellation scenario implemented; reuses the unit-test fake Executor
   - **Scope**: Add godog step definitions for `features/silent-truncation/pagination.feature` (all three Rule blocks) in a **new** `internal/paging` godog suite whose `Paths` names **only** that feature file (LEARNINGS: a suite points at its own file, never the `features/` directory). Drive `paging.All[T]` over a **fake `Executor`** returning canned pages keyed by `cursor` (single-page / multi-page / non-paginated / empty / query-preservation / mid-walk-429 / first-page-failure / malformed-cursor / cancellation). Step helpers return errors, never panic (LEARNINGS). Remove `@wip` from the behavioral scenarios; keep the three `@validation` scenarios `@wip` (held out for validate). The proposed `@wip` "A cancelled request context stops the walk with the partial set" scenario is implemented unless the developer dropped it during preview.
   - **Acceptance criteria**:
     - Every non-`@validation` 016 scenario has an executable, passing path against the fake `Executor`

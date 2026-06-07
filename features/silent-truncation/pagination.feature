@@ -15,7 +15,6 @@ Feature: Silent Truncation — Pagination
     # I want one walker I can hand a list request to and get back the complete set in API order.
 
     # Source: 016-pagination — Scenario: a single page completes the set
-    @wip
     Scenario: A single page completes the set
       Given a list endpoint whose first response reported no further pages
       When a list command walks the endpoint
@@ -23,7 +22,6 @@ Feature: Silent Truncation — Pagination
       And it will issue no further request
 
     # Source: 016-pagination — Scenario: multiple pages assembled into a complete set
-    @wip
     Scenario: Multiple pages are assembled into a complete set
       Given a list endpoint with three pages of results
       When a list command walks the endpoint
@@ -31,7 +29,6 @@ Feature: Silent Truncation — Pagination
       And it will return a complete result carrying all records from the three pages in API order
 
     # Source: 016-pagination — Scenario: a non-paginated endpoint returns in one response
-    @wip
     Scenario: A non-paginated endpoint returns in one response
       Given a list endpoint whose response carried no pagination block
       When a list command walks the endpoint
@@ -39,14 +36,12 @@ Feature: Silent Truncation — Pagination
       And it will issue no cursor request
 
     # Source: 016-pagination — Scenario: an empty result set is a complete answer
-    @wip
     Scenario: An empty result set is a complete answer
       Given a list endpoint whose first response carried no records and reported no further pages
       When a list command walks the endpoint
       Then the walker will return a complete result carrying no records
 
     # Source: 016-pagination — Scenario: the caller's other query parameters are preserved across pages
-    @wip
     Scenario: The caller's query parameters are preserved across pages
       Given a list request carrying a search filter and an include set
       When the walker requests each subsequent page
@@ -75,7 +70,6 @@ Feature: Silent Truncation — Pagination
     # I want the partial set I gathered, clearly flagged as incomplete with the reason — not an all-or-nothing failure.
 
     # Source: 016-pagination — Scenario: a mid-walk page failure yields a partial set flagged incomplete
-    @wip
     Scenario: A mid-walk page failure yields a partial set flagged incomplete
       Given a walk that had already gathered two pages
       And the next page request fails with a 429 rate-limit response
@@ -85,7 +79,6 @@ Feature: Silent Truncation — Pagination
       And the partial set will not be presented as complete
 
     # Source: 016-pagination — Scenario: a first-page failure yields an empty set flagged incomplete
-    @wip
     Scenario: A first-page failure yields an empty set flagged incomplete
       Given a list endpoint whose first page request fails
       When a list command walks the endpoint
@@ -93,7 +86,6 @@ Feature: Silent Truncation — Pagination
       And it will not report success
 
     # Source: 016-pagination — Scenario: has_next_page true but a blank cursor does not loop
-    @wip
     Scenario: A blank cursor under has_next_page does not loop
       Given a page that reported a further page but carried a blank or absent cursor
       When the walker inspects the page
@@ -101,7 +93,6 @@ Feature: Silent Truncation — Pagination
       And it will return the records gathered so far flagged incomplete, naming the malformed-paging boundary
 
     # Source: 016-pagination — Scenario: has_next_page true but a repeated cursor does not loop
-    @wip
     Scenario: A repeated cursor under has_next_page does not loop
       Given a page that reported a further page but carried a cursor identical to the one just used
       When the walker inspects the page
@@ -110,7 +101,6 @@ Feature: Silent Truncation — Pagination
 
     # Source: 016-pagination — Scenario: a mid-walk page failure yields a partial set flagged incomplete
     # [proposed by skill — from plan Cross-cutting: a cancelled request context propagates as the stop cause]
-    @wip
     Scenario: A cancelled request context stops the walk with the partial set
       Given a walk in progress that had gathered one page
       And the request context is cancelled before the next page
