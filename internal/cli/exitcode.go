@@ -6,22 +6,24 @@ package cli
 // loudly there, so it can never happen silently.
 //
 // Per ADR-2 the full 0–6 convention is published now, but the live Outcome enum
-// (dispatch.go) carries a category only once its producer exists. So codes 3–6
-// are reserved for the future API client: when it lands it will add
-// APIError/PermissionError/RateLimited/NetworkUnavailable to the Outcome enum
-// and the matching cases to ExitCode below — at this one registry site, each
-// taking its already-reserved code. Existing codes are never renumbered
-// (interface-cli.md "Extension"). The asymmetry — codes exist as constants
-// before their categories exist as enum values — is intentional, not
-// incomplete.
+// (dispatch.go) carries a category only once its producer exists. Identity Read
+// (011) is the first consuming command: it added APIError(3) and
+// NetworkUnavailable(6) to the Outcome enum and their cases to ExitCode below.
+// Codes 4 (permission) and 5 (rate-limited) stay reserved until their producers
+// land — API Error Extraction (015) and Rate-Limit Handling (017) split
+// APIError(3) into 401/403→permission(4) and 429→rate-limit(5) at this one
+// registry site, each taking its already-reserved code. Existing codes are
+// never renumbered (interface-cli.md "Extension"). The remaining asymmetry —
+// codes 4/5 exist as constants before their categories exist as enum values —
+// is intentional, not incomplete.
 const (
 	codeSuccess            = 0 // a command completed, or help/listing/--version resolved
 	codeInternalError      = 1 // safety net: a resolved action failed, a panic, or any unmapped/future category
 	codeUsageError         = 2 // unknown command, unknown/missing flag, or unexpected positional argument
-	codeAPIError           = 3 // reserved — future API client: a general API error
+	codeAPIError           = 3 // a generic non-2xx API response (Identity Read 011 onward)
 	codePermissionError    = 4 // reserved — future API client: auth/membership rejection
 	codeRateLimited        = 5 // reserved — future API client: rate limit exceeded
-	codeNetworkUnavailable = 6 // reserved — future API client: the API could not be reached
+	codeNetworkUnavailable = 6 // the API could not be reached at the wire (Identity Read 011 onward)
 )
 
 // ExitCode maps a code-free Outcome category (dispatch.go) to its process exit
@@ -41,6 +43,10 @@ func ExitCode(o Outcome) int {
 		return codeUsageError
 	case RuntimeError:
 		return codeInternalError
+	case APIError:
+		return codeAPIError
+	case NetworkUnavailable:
+		return codeNetworkUnavailable
 	default:
 		return codeInternalError
 	}
