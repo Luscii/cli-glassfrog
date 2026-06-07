@@ -33,7 +33,7 @@ Phase 4: Wiring + executable acceptance via godog (1 task, depends on Phase 3) [
 
 ## Phase 1: `internal/glassfrog` schema package [Shared]
 
-- [ ] **T001** [Shared] [P] Add the `internal/glassfrog` API-schema package with the `GET /me` decode targets — RED-first unit tests
+- [x] **T001** [Shared] [P] Add the `internal/glassfrog` API-schema package with the `GET /me` decode targets — RED-first unit tests — 4 unit tests (identity, roles embed, no-embed, unknown-field tolerance); leaf package, no internal imports
   - **Scope**: Create a new leaf package `internal/glassfrog` holding plain JSON-tagged structs decoded from API responses: `MeResponse{ Actor; Organization; Membership; Roles []Role }`, `Actor{ ID; Name; Kind }` (`Kind` is `human`|`agent`; `CreatedAt`/`UpdatedAt` decoded but unused), `Organization{ ID; Name }`, `Membership{ AccessLevel }` (plus `ID`/`ActorID`/`OrganizationID` decoded), and a **minimal** `Role{ ID; Name }`. Decoding must tolerate unknown/extra fields (forward-compatible). No transport, no cobra, no exit codes — the package imports nothing internal (so `cli` and `apiclient` can both import it without a cycle). The token is never a field here.
   - **Acceptance criteria**:
     - A `GET /me` JSON fixture decodes into `MeResponse` with `Actor`/`Organization`/`Membership` populated
