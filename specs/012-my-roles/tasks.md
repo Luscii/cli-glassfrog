@@ -58,7 +58,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
   - **Scenario references**: my-roles.feature: "The roles the practitioner fills are listed", "An empty role list is a clean success", "A missing token fails as a not-authenticated usage error", "A wire failure is reported as a transport failure", "A non-2xx response reports the read failed with its status", "A stray argument is rejected before any API call", "A malformed base URL is refused before any call", "An unparseable response body fails loudly", "An incomplete list is signalled, not silently truncated"
   - **Risk**: ⚠️ Depends on 011's scaffolding being implemented (or created to contract)
 
-- [ ] **T003** [Shared] godog acceptance suite for My Roles
+- [x] **T003** [Shared] godog acceptance suite for My Roles — suite points only at my-roles.feature; 10 spec/validation-informed scenarios pass (51 steps), the 2 @validation scenarios held @wip; fake base transport, no real network/rc, token-never-in-output asserted in the When step
   - **Scope**: A godog suite pointed at **its own** `features/self-service-reads/my-roles.feature`, step definitions backed by a fake base transport returning canned `/me/roles` payloads (multi-role, empty, has-next-page) and contexts for the failure branches. Step helpers return errors, never panic; reuse existing `internal/cli` step vocabulary where present. Remove `@wip` as scenarios pass.
   - **Acceptance criteria**:
     - The suite runs only `my-roles.feature` (never the whole `features/` tree)
