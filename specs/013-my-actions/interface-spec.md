@@ -28,10 +28,10 @@ Plain JSON-tagged structs decoded from API responses. No transport, no cobra, no
 | Symbol | Signature (shape) | Description |
 |---|---|---|
 | `validateStatus` (NEW, shared with 014) | `(status string) error` | Rejects a non-empty `--status` value outside the spec's status set (`{archived, cancelled, completed, current, scheduled, someday, waiting}`), returning a usage error naming the value and the supported set — **before** any context assembly or request. An empty/absent value passes (no constraint). The set is sourced from the spec enum. |
-| `newMyActionsCommand` | `(seam myActionsSeam) *cobra.Command` | The guard-registered `actions` leaf (`Use:"actions"`, `Args: cobra.NoArgs`, non-empty `Short`, `SilenceErrors`/`SilenceUsage`) attached to the `me` parent (012); local `--status` flag; reads the persistent `--base-url` value; delegates to `runMyActions`. Wired once under `me` in `Assemble()`. |
+| `newMyActionsCommand` | `(seam meSeam) *cobra.Command` | The guard-registered `actions` leaf (`Use:"actions"`, `Args: cobra.NoArgs`, non-empty `Short`, `SilenceErrors`/`SilenceUsage`) attached to the `me` parent (012); local `--status` flag; reads the persistent `--base-url` value; delegates to `runMyActions`. Wired once under `me` in `Assemble()`. |
 | `runMyActions` | `(cfg myActionsConfig) (Outcome, error)` | Pure over injected values (the `runMe` shape): `validateStatus` → assemble context → build client → `Execute` → `formatMyActions` on success / `classifyClientError` on a typed error. Writes the projection to `cfg.stdout`, messages to `cfg.stderr`; returns the code-free `Outcome` the command maps onto dispatch's error channel. |
 | `formatMyActions` | `(list <glassfrog list-of-Action>) string` | Pure projection renderer (`013/interface-cli.md` defines the fields/order, the empty-result line, and the "more available" signal driven by `Meta.Pagination.HasNextPage`). Unit-tested in isolation. |
-| `myActionsSeam` | interface: assemble the `ConnectionContext` from a base-URL flag value, and build a `*apiclient.Client` over a base `http.RoundTripper` | Production binds `apiclient.AssembleFromOS` + `apiclient.NewClientFromOS`; tests bind a fake transport returning canned `GET /me/actions` responses (ADR-4). Mirrors 011's `meSeam`; exact method set is a build detail. |
+| seam (REUSED — 011's `meSeam`) | interface: assemble the `ConnectionContext` from a base-URL flag value, and build a `*apiclient.Client` over a base `http.RoundTripper` | `my actions` **reuses 011's `meSeam`** rather than defining its own `myActionsSeam` — its needs are identical to `me`/`me roles` (assemble + newClient). Production binds `apiclient.AssembleFromOS` + `apiclient.NewClientFromOS`; tests bind a fake transport returning canned `GET /me/actions` responses (ADR-4). |
 
 ### Consumed unchanged (not defined here)
 
@@ -45,7 +45,7 @@ Plain JSON-tagged structs decoded from API responses. No transport, no cobra, no
 if err := validateStatus(statusFlag); err != nil { return UsageError, err }   // before any I/O
 ctx    := seam.assemble(baseURLFlag)                                          // apiclient.AssembleFromOS
 client, err := seam.newClient(ctx)                                            // apiclient.NewClientFromOS → err is ctx.BaseURLErr when endpoint unusable
-var list glassfrog.ActionList                                                 // {Data []Action, Meta{Pagination}}  (envelope reused from 012)
+var list glassfrog.MyActionsResponse                                          // {Data []Action, Meta{Pagination}}  (envelope shape reused from 012)
 resp, err := client.Execute(reqCtx,
                apiclient.Request{Method:"GET", Path:"/me/actions", Query:{"status": statusFlag}},  // Query omitted when --status absent
                &list)                                                         // 2xx → list populated; non-2xx → *ResponseError; etc.
