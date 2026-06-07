@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
@@ -37,6 +38,11 @@ type meSeam interface {
 	// newClient builds the request client once over the assembled context (010).
 	// A context with no usable endpoint returns its base-URL error verbatim.
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
+	// sleep is the backoff clock Rate-Limit Handling (017) waits on between bounded
+	// 429 retries: production binds time.Sleep; tests bind a recording fake that
+	// never blocks, so the retry caps are asserted in milliseconds (CONSTITUTION
+	// IV). Injected here alongside the other OS-touching resolvers.
+	sleep() func(time.Duration)
 }
 
 // productionSeam (defined for loginSeam in authlogin_seam.go) also satisfies
@@ -49,6 +55,10 @@ func (productionSeam) assemble(baseURL string) apiclient.ConnectionContext {
 func (productionSeam) newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error) {
 	return apiclient.NewClientFromOS(ctx)
 }
+
+// sleep binds the real clock for 017's backoff between retries (ADR-4). Tests
+// bind a recording fake via their own seam, so no suite ever waits real seconds.
+func (productionSeam) sleep() func(time.Duration) { return time.Sleep }
 
 // meConfig carries everything runMe needs, gathered by the command's RunE.
 // Keeping runMe a function of injected values (not the seam alone) makes the
@@ -65,10 +75,13 @@ type meConfig struct {
 
 // runMe is the pure orchestration the command delegates to (ADR-5): validate the
 // include targets fail-fast, assemble the context once, build the client once,
-// send GET /me once, and render the projection on success or classify+report the
-// typed error otherwise. It returns the code-free Outcome the command maps onto
-// dispatch's error channel; it never emits an exit code, never retries, and
-// never reads the token — the projection renders response-side fields only.
+// send GET /me through the retry executor, and render the projection on success
+// or classify+report the typed error otherwise. It returns the code-free Outcome
+// the command maps onto dispatch's error channel; it never emits an exit code and
+// never reads the token — the projection renders response-side fields only. The
+// send routes through 017's RetryExecutor, so a transient 429 is ridden out within
+// bounded caps; a capped-out 429 surfaces as the unchanged *ResponseError and
+// classifyClientError still maps it to APIError(3) (ADR-5, unchanged).
 func runMe(cfg meConfig) (Outcome, error) {
 	// 1. Validate --include BEFORE any assembly or request (fail-fast usage
 	//    error, no wasted call — pinned by a tripwire transport in the tests).
@@ -86,14 +99,19 @@ func runMe(cfg meConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 3. Send exactly one GET /me, decoding the 2xx body into the projection
-	//    target. include=roles is added only when requested.
+	// 3. Send GET /me through the retry executor (017), decoding the 2xx body into
+	//    the projection target. include=roles is added only when requested. The
+	//    executor wraps the client once with the default policy, the injected sleep
+	//    seam, and the command's stderr as the secret-free progress sink; a transient
+	//    429 is ridden out within bounded caps. A capped-out 429 surfaces unchanged
+	//    and is classified exactly as before (APIError(3), ADR-5).
 	req := apiclient.Request{Method: http.MethodGet, Path: "/me"}
 	if includeRoles {
 		req.Query = url.Values{"include": []string{"roles"}}
 	}
+	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 	var me glassfrog.MeResponse
-	if _, err := client.Execute(cfg.reqCtx, req, &me); err != nil {
+	if _, err := exec.Execute(cfg.reqCtx, req, &me); err != nil {
 		return reportClientError(cfg.stderr, err)
 	}
 

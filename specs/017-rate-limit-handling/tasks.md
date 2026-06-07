@@ -64,7 +64,7 @@ Phase 3: Wire the `me` read path through the executor + executable acceptance vi
 
 ## Phase 3: Wire the read path + executable acceptance [Shared]
 
-- [ ] **T003** [P] [Shared] Route 011's `runMe` send through the retry executor, threading `time.Sleep` and the command's stderr in production — RED-first unit tests over a fake transport + fake sleep
+- [x] **T003** [P] [Shared] Route 011's `runMe` send through the retry executor, threading `time.Sleep` and the command's stderr in production — RED-first unit tests over a fake transport + fake sleep — `me.go` (seam `sleep()` method, executor at the send site); new 429-then-200 `me` test, existing branches unchanged
   - **Scope**: In `internal/cli/me.go`, route `runMe`'s single `client.Execute(cfg.reqCtx, req, &me)` through `apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, sleep, cfg.stderr).Execute(...)`. Thread the `sleep func(time.Duration)` seam into `meConfig`/`meSeam` so it is injectable: the `productionSeam` binds `time.Sleep` and the command binds `cmd.ErrOrStderr()` as the progress sink (the existing `cfg.stderr`); tests bind a recording fake-sleep + buffer. `classifyClientError` is **unchanged** (a surfaced 429 stays `APIError(3)` — ADR-5). The projection rendering and every other branch stay as-is.
   - **Acceptance criteria**:
     - `runMe` sends through the `RetryExecutor`, not the bare `client.Execute`; the production seam binds `time.Sleep` and the command's stderr
