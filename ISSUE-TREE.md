@@ -22,7 +22,7 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Unconsumable Output — results aren't shaped for an AI agent to parse reliably or for a human to read
     + affects: AI agent
     + affects: Practitioner
-    + candidate: Dual output — emit JSON for agents and a human-readable format for people
+    + candidate: --output flag — caller selects the output format per invocation: human-readable (full/compact), JSON, possibly YAML
   * Opaque Failures — when a call fails, the caller can't tell what went wrong or what to do next
     + affects: AI agent
     + affects: Practitioner
