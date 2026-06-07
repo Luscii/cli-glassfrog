@@ -75,7 +75,7 @@ The token takes exactly one path — the replay thunk 010 hands to 007's `AuthTr
 1. **A persistent flag on the root command** — registered once in `Assemble()`/root construction, inherited by every current and future subcommand. One registration, no duplication; base URL is global connection config. Wart: it also appears (inert) on `version`/`auth`.
 2. **A local flag on `me`** (or a shared `addBaseURLFlag(cmd)` registrar each API command calls) — keeps the flag off non-API commands, but every API command must opt in, and the flag definition risks drifting across call sites.
 
-**Decision**: Option 1. Register `--base-url` as a persistent flag on the root in the wiring layer; `me` (and 012–017) read its resolved value via cobra's flag inheritance and pass it to `AssembleFromOS`. The flag name/usage string come from the existing `apiclient.FlagBaseURL` constant so the precedence-chain rung and the registered flag can't drift.
+**Decision**: Option 1. Register `--base-url` as a persistent flag on the root in the wiring layer; `me` (and 012–017) read its resolved value via cobra's flag inheritance and pass it to `AssembleFromOS`. The flag *name* comes from the existing `apiclient.FlagBaseURL` constant so the precedence-chain rung and the registered flag name can't drift; the usage/help string is an implementation detail kept consistent with the spec.
 
 **Consequences**: One flag definition for the whole CLI; adding an API command needs no flag wiring. `Assemble()`/root construction is no longer flag-free — a regression for 003's help tests (root help now shows a global-flags section), so those tests are updated in the same change (it is allowed: 003's narrowed non-behavior forbids only new *required* documentation data, and a persistent flag with a description is optional). The inert appearance on `version`/`auth` is accepted. *Precedent-setting: global connection options (starting with `--base-url`) are persistent root flags; API commands read them by inheritance, not by re-registering.*
 
@@ -185,4 +185,4 @@ Four phases, mostly linear. **Upstream dependency (satisfied)**: 010 (`NewClient
 - **The full `Role` shape** (accountabilities, domains, assignments) — My Roles (012) grows `glassfrog.Role`; `me --include roles` projects only id+name.
 - **The exact Go API shapes** — the seam interface, `--include` flag spelling, `Request`/`MeResponse`/`Role` struct fields and JSON tags, and the projection layout — `/score:interface` pins these (the CLI + specification boundaries).
 - **Executable Gherkin** — `/score:scenarios` turns the driving scenarios into `features/self-service-reads/identity-read.feature`.
-- **010's `apiclient` implementation** — a separate spec (010) already designed through its pre-implementation guard; 011 consumes it unchanged.
+- **010's `apiclient` implementation** — a separate spec (010), implemented and landed on main (#30); 011 consumes it unchanged.

@@ -5,7 +5,7 @@
 **Generated**: 2026-06-07
 **Artifacts loaded**: spec.md, plan.md, interface-cli.md, interface-spec.md, PROJECT.md
 **Acceptability matrix**: default 3×3 traffic-light — no project-level matrix found in PROJECT.md
-**Degradation flags**: none (full upstream artifact set present). Note: 010 (Request Execution) is the upstream code dependency and is designed-but-not-implemented; this is a build-sequencing risk captured in plan.md/tasks.md, not a domain hazard.
+**Degradation flags**: none (full upstream artifact set present). Note: 010 (Request Execution) is the upstream code dependency, now implemented and landed on main (#30); building 011 from current main satisfies it. This is a build-sequencing concern captured in plan.md/tasks.md, not a domain hazard.
 
 ---
 

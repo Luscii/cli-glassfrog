@@ -25,7 +25,7 @@ glassfrog me [--include <target>]
 | Flag | Scope | Value | Description |
 |---|---|---|---|
 | `--include` | local to `me` | `roles` | Opt-in: embed the requester's roles in the same read (maps to the API's `?include=roles`). Default absent → identity only. An unsupported target is rejected before any request (see Error Communication). |
-| `--base-url` | **persistent, on the root** | a URL | The Glassfrog API base URL — the highest-precedence rung of base-URL resolution (008: flag → `GLASSFROG_BASE_URL` → `.glassfrogrc base_url` → built-in default). Registered once on the root and inherited by every API command (ADR-2); its name/usage come from the `apiclient.FlagBaseURL` constant. |
+| `--base-url` | **persistent, on the root** | a URL | The Glassfrog API base URL — the highest-precedence rung of base-URL resolution (008: flag → `GLASSFROG_BASE_URL` → `.glassfrogrc base_url` → built-in default). Registered once on the root and inherited by every API command (ADR-2); its name comes from the `apiclient.FlagBaseURL` constant, while the usage/help string is an implementation detail kept consistent with the spec. |
 
 ### Output — the identity projection (success, stdout)
 
