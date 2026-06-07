@@ -38,6 +38,14 @@ func Assemble() *cobra.Command {
 	// mirroring `me roles` — see .score/memory/LEARNINGS.md.) Reuses the same
 	// productionSeam and the inherited --base-url.
 	MustRegister(meCmd, newMyActionsCommand(productionSeam{}))
+	// My Projects (014): the `projects` leaf under `me`, a sibling of `roles` and
+	// `actions`. `me projects [--status <s>]` sends GET /me/projects and prints the
+	// projects the practitioner's roles own, optionally filtered by status. (The
+	// 014 spec prose says "my projects"; the implemented convention is `me projects`
+	// under `me`, mirroring `me roles`/`me actions` — see .score/memory/LEARNINGS.md.)
+	// Reuses the same productionSeam and the inherited --base-url; it adds no
+	// --include flag (/me/projects offers no include — ADR-2).
+	MustRegister(meCmd, newMyProjectsCommand(productionSeam{}))
 	// Help & Version (003): tune the assembled root's help/version rendering —
 	// unify --version with the version command, hide framework built-ins, keep
 	// standard alphabetical listing. Applied after wiring so it configures the
