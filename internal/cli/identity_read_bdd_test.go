@@ -317,8 +317,20 @@ func (w *meWorld) noRequestReachedAPI() error {
 }
 
 func (w *meWorld) surfacedNon2xxWithStatus() error {
-	if w.outcome != APIError || w.exitCode != 3 {
-		return fmt.Errorf("outcome=%v exit=%d, want APIError/3", w.outcome, w.exitCode)
+	// "surface the non-2xx outcome with its status code": an API-side failure
+	// category (not transport, not success) that carries the status. The 401 in
+	// this scenario now classifies to PermissionError/4 (API Error Extraction 015
+	// split 401/403→permission, 429→rate-limit); a residual non-2xx is APIError/3.
+	// Assert any of the API-family non-success categories rather than pinning the
+	// pre-015 APIError/3, which the split intentionally changed.
+	switch w.outcome {
+	case APIError, PermissionError, RateLimited:
+		// the API answered with a non-2xx — the distinction the scenario draws
+	default:
+		return fmt.Errorf("outcome=%v exit=%d, want an API non-2xx category (APIError/PermissionError/RateLimited)", w.outcome, w.exitCode)
+	}
+	if w.exitCode == 0 {
+		return fmt.Errorf("a non-2xx outcome must exit non-success, got exit=%d", w.exitCode)
 	}
 	if !strings.Contains(w.stderr, fmt.Sprintf("%d", w.transport.status)) {
 		return fmt.Errorf("stderr should surface the status code %d:\n%s", w.transport.status, w.stderr)

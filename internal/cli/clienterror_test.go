@@ -26,7 +26,15 @@ func TestClassifyClientError_Table(t *testing.T) {
 		{"no-credentials-is-usage", &apiclient.AuthError{Kind: apiclient.NoCredentials}, UsageError},
 		{"credential-error-is-runtime", &apiclient.AuthError{Kind: apiclient.CredentialError}, RuntimeError},
 		{"transport-is-network-unavailable", &apiclient.TransportError{}, NetworkUnavailable},
-		{"response-is-api-error", &apiclient.ResponseError{StatusCode: 404}, APIError},
+		{"response-404-is-api-error", &apiclient.ResponseError{StatusCode: 404}, APIError},
+		{"response-500-is-api-error", &apiclient.ResponseError{StatusCode: 500}, APIError},
+		{"response-401-is-permission", &apiclient.ResponseError{StatusCode: 401}, PermissionError},
+		{"response-403-is-permission", &apiclient.ResponseError{StatusCode: 403}, PermissionError},
+		{"response-429-is-rate-limited", &apiclient.ResponseError{StatusCode: 429}, RateLimited},
+		{"problem-401-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 401}), PermissionError},
+		{"problem-403-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}), PermissionError},
+		{"problem-429-is-rate-limited", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}), RateLimited},
+		{"problem-404-is-api-error", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}), APIError},
 		{"decode-is-runtime", &apiclient.DecodeError{StatusCode: 200}, RuntimeError},
 		{"base-url-error-is-usage", &apiclient.BaseURLError{Source: "--base-url"}, UsageError},
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
@@ -48,7 +56,7 @@ func TestClassifyClientError_Table(t *testing.T) {
 	// category's only row, this list and the produced set diverge and the test
 	// fails loud (the comma-ok half: a category missing from `produced` is named
 	// explicitly rather than passing silently).
-	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError}
+	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited}
 	if len(produced) != len(wantProduced) {
 		t.Errorf("classifier produced %d distinct outcomes across the table, want %d (a category lost or gained coverage)", len(produced), len(wantProduced))
 	}

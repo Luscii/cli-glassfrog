@@ -140,7 +140,10 @@ func (w *myProjectsWorld) contextNoToken() error {
 }
 
 func (w *myProjectsWorld) apiAnswersNon2xx() error {
-	w.transport = &cannedTransport{status: 403, body: `{"error":"forbidden"}`}
+	// A genuinely generic non-2xx (500): API Error Extraction (015) split
+	// 401/403→permission(4) and 429→rate-limit(5), so a 5xx is the faithful
+	// representative of "a non-2xx response" surfaced as the generic APIError.
+	w.transport = &cannedTransport{status: 500, body: `{"error":"server error"}`}
 	return nil
 }
 
@@ -281,8 +284,8 @@ func (w *myProjectsWorld) surfacesGenericNon2xx() error {
 	if w.outcome != APIError {
 		return fmt.Errorf("a non-2xx should surface the generic APIError outcome, got %v", w.outcome)
 	}
-	if !strings.Contains(w.stderr, "403") {
-		return fmt.Errorf("the message should carry the status (403), got %q", w.stderr)
+	if !strings.Contains(w.stderr, "500") {
+		return fmt.Errorf("the message should carry the status (500), got %q", w.stderr)
 	}
 	return nil
 }

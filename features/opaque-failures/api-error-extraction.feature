@@ -14,7 +14,6 @@ Feature: Opaque Failures — API Error Extraction
     # I want a non-2xx response turned into a typed error carrying the API's status and human-readable detail.
 
     # Source: 015-api-error-extraction — Scenario: a valid Problem Details body is extracted
-    @wip
     Scenario: A valid Problem Details body is extracted
       Given a non-2xx response had a valid RFC 9457 Problem Details body
       When the system interprets the non-2xx outcome
@@ -22,7 +21,6 @@ Feature: Opaque Failures — API Error Extraction
       And the error will carry the extracted detail, title, and type
 
     # Source: 015-api-error-extraction — Scenario: a 404 surfaces the API's own detail
-    @wip
     Scenario: A 404 surfaces the API's own detail
       Given a non-2xx response had status 404 and a detail of "Not Found"
       When the system interprets the non-2xx outcome
@@ -30,7 +28,6 @@ Feature: Opaque Failures — API Error Extraction
       And the error will carry the detail "Not Found"
 
     # Source: 015-api-error-extraction — Scenario: a 429 is extracted but not backed off
-    @wip
     Scenario: A 429 is extracted without backoff
       Given a non-2xx response had status 429 with rate-limit headers
       When the system interprets the non-2xx outcome
@@ -38,7 +35,6 @@ Feature: Opaque Failures — API Error Extraction
       And the system will not sleep, back off, or retry
 
     # Source: 015-api-error-extraction — Scenario: a 403 is carried generically
-    @wip
     Scenario: A 403 is carried generically
       Given a non-2xx response had status 403 from a plan-gated endpoint
       When the system interprets the non-2xx outcome
@@ -67,7 +63,6 @@ Feature: Opaque Failures — API Error Extraction
     # I want the API's own detail and title surfaced as named fields, with the raw body still available when I need more.
 
     # Source: 015-api-error-extraction — Scenario: extension members are preserved without being promoted
-    @wip
     Scenario: Extension members are preserved without being promoted
       Given a non-2xx Problem Details body had extension members beyond the standard four
       When the system interprets the non-2xx outcome
@@ -75,7 +70,6 @@ Feature: Opaque Failures — API Error Extraction
       And the raw body will be preserved so the extension members remain available
 
     # Source: 015-api-error-extraction — Scenario: body status disagrees with the HTTP status
-    @wip
     Scenario: The HTTP status wins over a disagreeing body status
       Given a non-2xx response had HTTP status 403 and a body status of 401
       When the system interprets the non-2xx outcome
@@ -91,28 +85,24 @@ Feature: Opaque Failures — API Error Extraction
       And the body status will appear only as carried metadata
 
     # Source: 015-api-error-extraction — Proposed: the API detail reaches the operator message (plan ADR-4)
-    @wip
     Scenario: The API detail appears in the failure message
       Given a command received a non-2xx response with a detail of "Token lacks access to this circle"
       When the command reports the failure to the operator
       Then the failure message will contain "Token lacks access to this circle"
 
     # Source: 015-api-error-extraction — Proposed: 401 and 403 exit with the permission code (plan ADR-3)
-    @wip
     Scenario: An authorization failure exits with the permission code
       Given a command received a non-2xx response with status 403
       When the command maps the failure to an exit code
       Then the command will exit with code 4
 
     # Source: 015-api-error-extraction — Proposed: 429 exits with the rate-limit code (plan ADR-3)
-    @wip
     Scenario: A rate-limited response exits with the rate-limit code
       Given a command received a non-2xx response with status 429
       When the command maps the failure to an exit code
       Then the command will exit with code 5
 
     # Source: 015-api-error-extraction — Proposed: non-permission non-2xx keeps the general API exit code (plan ADR-3)
-    @wip
     Scenario: A non-permission API error exits with the general API code
       Given a command received a non-2xx response with status 404
       When the command maps the failure to an exit code
@@ -124,7 +114,6 @@ Feature: Opaque Failures — API Error Extraction
     # I want the system to fall back to the HTTP status rather than failing to produce any error at all.
 
     # Source: 015-api-error-extraction — Scenario: an empty body degrades to the HTTP status
-    @wip
     Scenario: An empty body degrades to the HTTP status
       Given a non-2xx response had status 500 and no body
       When the system interprets the non-2xx outcome
@@ -133,7 +122,6 @@ Feature: Opaque Failures — API Error Extraction
       And the raw body will be preserved
 
     # Source: 015-api-error-extraction — Scenario: a non-JSON gateway body degrades gracefully
-    @wip
     Scenario: A non-JSON gateway body degrades gracefully
       Given a non-2xx response had status 502 with an HTML body
       When the system interprets the non-2xx outcome
