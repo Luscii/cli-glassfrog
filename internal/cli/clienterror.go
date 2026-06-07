@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
@@ -21,7 +22,10 @@ import (
 //   - *apiclient.AuthError{NoCredentials}   → UsageError (not authenticated — a correctable invocation)
 //   - *apiclient.AuthError{CredentialError} → RuntimeError (a malformed .glassfrogrc — an internal failure)
 //   - *apiclient.TransportError        → NetworkUnavailable (the wire failed)
-//   - *apiclient.ResponseError         → APIError (a generic non-2xx; 015/017 refine it later)
+//   - *apiclient.ProblemError / *apiclient.ResponseError → branch on the status
+//        (API Error Extraction 015, ADR-3): 401/403 → PermissionError (code 4),
+//        429 → RateLimited (code 5), everything else → APIError (the generic
+//        non-2xx, code 3)
 //   - *apiclient.DecodeError           → RuntimeError (a 2xx body that would not parse — a contract failure)
 //   - a base-URL error (*apiclient.BaseURLError or an internal/rcfile read/format
 //     error surfaced as ctx.BaseURLErr) → UsageError (a correctable endpoint input)
@@ -53,9 +57,24 @@ func classifyClientError(err error) Outcome {
 		return NetworkUnavailable
 	}
 
+	// A non-2xx, whether still the bare *ResponseError or refined into a
+	// *ProblemError (which wraps it), matches here — errors.As reaches the wrapped
+	// value and its StatusCode is the authoritative HTTP status (ExtractProblem
+	// never promotes a disagreeing body status). Branching on the status IN this
+	// one arm — rather than a separate *ProblemError arm before a bare
+	// *ResponseError arm — sidesteps the wrapping discrimination-order hazard: the
+	// switch's default IS the generic-APIError bucket, so a 401/403/429 can never
+	// fall through to it (plan Risks). API Error Extraction (015) split (ADR-3).
 	var responseErr *apiclient.ResponseError
 	if errors.As(err, &responseErr) {
-		return APIError
+		switch responseErr.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return PermissionError
+		case http.StatusTooManyRequests:
+			return RateLimited
+		default:
+			return APIError
+		}
 	}
 
 	var decodeErr *apiclient.DecodeError
