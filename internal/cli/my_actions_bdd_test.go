@@ -211,6 +211,9 @@ func (w *myActionsWorld) requestWentToEndpoint() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("exactly one request should reach the my-actions endpoint, got %d calls", w.transport.calls)
 	}
+	if !strings.HasSuffix(w.transport.lastPath, "/me/actions") {
+		return fmt.Errorf("the request should go to the /me/actions endpoint, got path %q", w.transport.lastPath)
+	}
 	return nil
 }
 
