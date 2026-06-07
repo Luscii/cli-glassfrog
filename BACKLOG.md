@@ -92,7 +92,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Named in the ROADMAP Now slice ("/me, my roles"), so it follows Identity Read; the chain is already proven, making this an extension. Parallelizable with the other reads.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:012-my-roles
 
 ### 13. My Actions
 
