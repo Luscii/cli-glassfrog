@@ -45,7 +45,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 2: me roles command [US1]
 
-- [ ] **T002** [US1] The `roles` subcommand under the runnable `me` command
+- [x] **T002** [US1] The `roles` subcommand under the runnable `me` command — `roles` leaf wired under `me` (registered as leaf first, child attached after, so the guard permits runnable-with-children); reuses meSeam, classifyClientError, inherited --base-url. Hermetic per-branch tests + token-never-in-output + registration/Assemble tests pass, no findings
   - **Scope**: Register a `roles` `NoArgs` leaf under 011's runnable `me` command (guard-registered, non-empty `Short`; confirm the guard permits `me` runnable-with-children). A thin `RunE` over an injected seam delegates to a pure `runMyRoles(cfg)`: read the inherited root `--base-url`, `AssembleFromOS(flag)` → `NewClientFromOS(ctx)` → `Execute(reqCtx, Request{Method:"GET", Path:"/me/roles"}, &resp)`; on success `formatMyRoles` → stdout and, when `incomplete`, the note → stderr; on error route through **011's `classifyClientError`** → `Outcome` → exit code (no inline `errors.As` chain, no new category). Never reads the token.
   - **Acceptance criteria**:
     - `glassfrog me roles` on a multi-role context prints the projection and exits 0; an empty context prints `No roles.` and exits 0
