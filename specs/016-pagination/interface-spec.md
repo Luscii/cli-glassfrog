@@ -52,7 +52,7 @@ The generic list envelope `All` decodes each page into. Reuse-or-create per the 
 
 | Type | Shape | Returned (as `Result.Stop`) when |
 |---|---|---|
-| `*MalformedPageError` | `{ Page int }` | A page reports `has_next_page=true` but carries a blank/absent `next_cursor` — the walker stops rather than re-issuing with an empty cursor or looping (ADR-5). `Page` is the 1-based page index at which the malformed paging was seen. Carries no status, so a consumer's `classifyClientError` maps it via `default → RuntimeError(1)`. |
+| `*MalformedPageError` | `{ Page int }` | A page reports `has_next_page=true` but the cursor does not advance — `next_cursor` is blank/absent **or identical to the cursor just used** — so the walker stops rather than re-issuing or looping (ADR-5). `Page` is the 1-based page index at which the non-advancing cursor was seen. Carries no status, so a consumer's `classifyClientError` maps it via `default → RuntimeError(1)`. |
 
 **Example (shapes, not literal values)**:
 ```
@@ -81,7 +81,7 @@ non-paginated:paging.All[glassfrog.Role](reqCtx, ex, req)   // response has no m
 
 **Page size**: defaults to **500** (the API max — fewer round-trips against the rolling rate limit, spec decision 4). `WithPageSize(n)` overrides; `n` is sent as-is (no clamp).
 
-**Completion vs. continuation**: after appending a page's `Data` — if `Meta.Pagination.HasNextPage` is `false` (including the zero-value case where the body had no `meta.pagination`), the walk completes (`Complete:true`). If `true` and `NextCursor` is non-blank, the loop continues with that cursor. If `true` and `NextCursor` is blank/absent, the walk stops with a `*MalformedPageError` — it does **not** re-issue with an empty cursor and does **not** loop (ADR-5). There is no fixed page/item cap (unbounded; a `WithMaxPages` option is a deferred future addition).
+**Completion vs. continuation**: after appending a page's `Data` — if `Meta.Pagination.HasNextPage` is `false` (including the zero-value case where the body had no `meta.pagination`), the walk completes (`Complete:true`). If `true` and `NextCursor` **advances** (non-blank and different from the cursor just used), the loop continues with that cursor. If `true` but the cursor does **not** advance — `NextCursor` is blank/absent **or equal to the cursor just used** — the walk stops with a `*MalformedPageError` — it does **not** re-issue and does **not** loop (ADR-5). The walker tracks the prior cursor to make this comparison; the repeated-cursor case guards against an API that ignores an unrecognized `cursor` param (the `cursor`-vs-`after` ambiguity) returning the same page forever. There is no fixed page/item cap (unbounded; a `WithMaxPages` option is a deferred future addition).
 
 **Stop-and-retain on failure**: if any page's `Execute` returns an error (transport, non-2xx incl. `429`, decode, or a propagated `AuthError`), the walk stops and returns the records gathered so far with `Complete:false` and `Stop` set to that error — the partial set is **retained**, never discarded (spec decision 2). A cancelled `reqCtx` surfaces from `Execute` as the `Stop` cause the same way.
 
@@ -99,7 +99,7 @@ non-paginated:paging.All[glassfrog.Role](reqCtx, ex, req)   // response has no m
 |---|---|
 | Walk reaches `has_next_page=false` (or no `meta.pagination`) | `Result{Records, Complete:true, Stop:nil, Pages}`. |
 | Page `Execute` returns a typed error (transport / non-2xx / decode / auth) | `Result{Records:<gathered so far>, Complete:false, Stop:<that 010 error>, Pages}`. Partial set retained. |
-| `has_next_page=true` + blank/absent `next_cursor` | `Result{Records:<gathered so far>, Complete:false, Stop:&MalformedPageError{Page}, Pages}`. No loop. |
+| `has_next_page=true` + non-advancing cursor (blank/absent **or** equal to the prior cursor) | `Result{Records:<gathered so far>, Complete:false, Stop:&MalformedPageError{Page}, Pages}`. No loop. |
 | First page fails | `Result{Records:[], Complete:false, Stop:<error>, Pages:1}`. |
 | `reqCtx` cancelled mid-walk | Surfaces as the `Execute` error in `Stop`; partial set retained. |
 

@@ -31,7 +31,7 @@ Like its siblings API Error Extraction (015) and Rate-Limit Handling (017), Pagi
 ### Incomplete walks — never silently truncate
 
 - When a page request fails mid-walk (a transport error, or a non-2xx response such as a `429` rate-limit), the system stops walking and reports the records gathered so far **flagged as incomplete**, carrying the failure that stopped it — so the caller keeps the partial set it did retrieve but can never read it as the whole.
-- When a page reports `has_next_page` true but supplies no usable `next_cursor` (absent or blank), the system does not re-issue with an empty cursor and does not loop; it stops and reports the records gathered so far flagged as incomplete, naming the malformed-paging boundary.
+- When a page reports `has_next_page` true but the cursor does not advance — `next_cursor` is absent, blank, or identical to the cursor just used — the system does not re-issue and does not loop; it stops and reports the records gathered so far flagged as incomplete, naming the malformed-paging boundary. (A repeated cursor is treated the same as a blank one: re-sending it would fetch the same page forever.)
 - The system never reports a partial result as complete: every outcome states whether the set is complete, and every incomplete outcome carries the reason the walk stopped.
 
 ### Surfacing the outcome
@@ -119,10 +119,16 @@ And does not report success.
 
 ### Edge cases
 
-**Scenario: has_next_page true but no usable cursor does not loop**
+**Scenario: has_next_page true but a blank cursor does not loop**
 Given a page that reports `has_next_page` true but carries an absent or blank `next_cursor`
 When the walker inspects it
 Then it does not re-issue with an empty cursor and does not loop
+And stops, reporting the records gathered so far flagged as incomplete, naming the malformed-paging boundary.
+
+**Scenario: has_next_page true but a repeated cursor does not loop**
+Given a page that reports `has_next_page` true but carries a `next_cursor` identical to the cursor just used
+When the walker inspects it
+Then it does not re-issue the same cursor and does not loop
 And stops, reporting the records gathered so far flagged as incomplete, naming the malformed-paging boundary.
 
 **Scenario: an empty result set is a complete answer**
@@ -167,7 +173,7 @@ And the walker reads no flag, environment variable, or credentials file directly
 - **Enveloped decode target** `[ASSUMED]`: the caller supplies a decode target shaped as the list envelope (`data` array plus `meta.pagination`), so the walker can read both the records and the paging state from each decoded response. The exact target shape is a planning detail; the behavior — read `data` and `meta.pagination` — is fixed.
 - **Page-size default and override**: the walker defaults the page size to the API maximum (500) to minimize round-trips, and the operator may override it; for now the override is exposed only as a command-line flag (not env or config). The default value and the flag's name/shape are interface/planning details; the behavior (large default, caller-overridable, no silent clamp) is fixed.
 - **Cursor parameter name** `[ASSUMED]`: the next page is requested by passing the prior response's `next_cursor` as the `cursor` query parameter, per the spec's defined `Cursor` parameter and the `Pagination` schema's "Pass as `?cursor=`" note. The spec's prose intro also mentions an `after` parameter; this is treated as a spec inconsistency resolved in favor of the defined `cursor` parameter, and is worth confirming against the live API.
-- **Unbounded walk with a non-advancing-cursor guard**: the walk has no fixed maximum page count — it runs until the API reports `has_next_page` false — but a page claiming more results without a usable `next_cursor` is treated as a malformed-paging boundary and stops the walk (flagged incomplete) rather than looping. A hard ceiling was considered and intentionally not imposed.
+- **Unbounded walk with a non-advancing-cursor guard**: the walk has no fixed maximum page count — it runs until the API reports `has_next_page` false — but a page claiming more results while the cursor fails to advance (a `next_cursor` that is absent, blank, **or identical to the one just used**) is treated as a malformed-paging boundary and stops the walk (flagged incomplete) rather than looping. The repeated-cursor case matters because an API that ignores an unrecognized `cursor` parameter (see the cursor-name assumption above) would otherwise return the same page — with the same non-blank cursor — indefinitely. A hard ceiling was considered and intentionally not imposed.
 - **Partial-result outcome shape** `[ASSUMED]`: the names of the complete/partial outcome and the incompleteness flag are adjustable at planning without changing behavior; the behavior (records + complete flag + stopping cause) is fixed.
 - **Composition with Rate-Limit Handling (017)**: when 017 exists, its backoff lives inside the per-page send through 010, so the walker sees either a resolved page or a final failure and never sleeps or retries itself. Documented so 016 and 017 do not both try to own retry.
 

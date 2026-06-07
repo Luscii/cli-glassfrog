@@ -13,7 +13,7 @@
 | H-ID | Hazard | Source | Severity | Probability | Controls | Residual |
 |---|---|---|---|---|---|---|
 | H-1 | A partial result is rendered as the complete set (a consumer ignores `Complete`/`Stop`) | spec Non-Behaviors; plan ADR-3/Risks; CONSTITUTION VI | High | Low | RC-1, RC-2 | Yellow |
-| H-2 | Infinite loop / duplicate explosion on a **non-advancing** cursor (blank **or repeated**) | spec edge scenario; plan ADR-5 | High | Low | RC-3, RC-4 | Yellow |
+| H-2 | Infinite loop / duplicate explosion on a **non-advancing** cursor (blank **or repeated**) | spec edge scenarios; plan ADR-5 | High | Low | RC-3, RC-4 | Green |
 | H-3 | Rate-limit exhaustion mid-walk on a large result set (`429`) | plan Cross-cutting/Risks; checklist X note; CONSTITUTION X | Medium | Medium | RC-5, RC-6 | Yellow |
 | H-4 | The caller's other query params (`q`/`include`) dropped when re-issuing a page | spec Non-Behaviors; plan ADR-4 | Medium | Low | RC-7 | Green |
 | H-5 | Records reordered, de-duplicated, or transformed across pages | spec Non-Behaviors; plan ADR-2; CONSTITUTION I/VIII | Medium | Low | RC-8 | Green |
@@ -22,9 +22,9 @@
 | H-8 | The generic `Page[T]` divergence forks a second envelope / `Pagination` across 012–014 | plan ADR-2/Risks; DECISIONS §109 | Low | Medium | RC-11 | Green |
 | H-9 | `cursor` is the wrong param name (spec prose says `after`) — paging silently fails to advance | spec Assumption; plan Risks; checklist I note | High | Low | RC-12, RC-4 | Yellow |
 
-No residual risk is Red. Four Yellows (H-1, H-2, H-3, H-6, H-9 — see note) are acceptable with the documented controls below.
+No residual risk is Red. Four Yellows (H-1, H-3, H-6, H-9) are acceptable with the documented controls below.
 
-> **Key risk-driven recommendation (H-2):** broaden the non-advancing-cursor guard. ADR-5 as written stops only when `next_cursor` is **blank**. A `next_cursor` that is **non-blank but identical to the cursor just used** — which a wrong param name (H-9) or a buggy API can produce — would *not* trip the blank-only guard, and the walker would re-request the same page forever, accumulating duplicates. Strengthening the guard to "stop when the cursor does not advance (blank **or** equal to the prior cursor)" closes both the loop hazard and H-9's worst case. Recommended for ADR-5 / task T002.
+> **Key risk-driven control, now APPLIED (H-2):** the non-advancing-cursor guard was broadened in the contract (PR #36 review #1). ADR-5/T002/interface/spec now stop the walk when `next_cursor` is blank/absent **or identical to the cursor just used**, not only when blank — so an API that ignores an unrecognized `cursor` param (the H-9 wrong-name case) or a buggy `has_next_page` cannot loop the walker on a repeated page. This drops H-2 to **Green** and caps H-9's worst case at a flagged-incomplete stop. The walker tracks the prior cursor and the repeated-cursor tripwire is pinned in T002.
 
 ---
 
@@ -38,9 +38,9 @@ A consumer that does `if res.Stop != nil { return }` (the Go reflex) discards `r
 
 ### H-2 — Non-advancing cursor loop
 `has_next_page=true` with a cursor that never advances makes the walker re-request indefinitely. **Severity High**: an unbounded loop (hang) and/or duplicate-record explosion; `Pages` grows without limit. **Probability Low**: requires a malformed/ignoring API response — but H-9 (wrong param name) is a concrete path to exactly this.
-- **RC-3**: The guard stops the walk with a typed `MalformedPageError` rather than re-issuing (plan ADR-5; spec edge scenario; interface § error type).
-- **RC-4**: A call-counting tripwire test pins "does not loop" (task T002). **Recommended broadening**: the guard should treat a `next_cursor` equal to the prior cursor as non-advancing too, not only a blank one (see the boxed recommendation) — otherwise an ignoring API loops past the blank-only guard.
-- **Residual: Yellow** (High×Low) — acceptable with the guard; **Green once the guard is broadened to repeated-cursor** as recommended. Flagged so the developer folds it into ADR-5/T002.
+- **RC-3**: The guard stops the walk with a typed `MalformedPageError` when the cursor does not advance — blank/absent **or identical to the cursor just used** — rather than re-issuing (plan ADR-5; spec edge scenarios "blank cursor does not loop" / "repeated cursor does not loop"; interface § error type). The walker tracks the prior cursor to make the comparison.
+- **RC-4**: Call-counting tripwire tests pin "does not loop" for **both** the blank and the repeated-cursor variants (task T002).
+- **Residual: Green** (High×Low) — the broadened guard makes the loop structurally impossible for blank and repeated cursors alike; applied in the contract (PR #36 review #1), not deferred.
 
 ### H-3 — Rate-limit exhaustion mid-walk
 A multi-page walk issues N requests; on a Free-plan org (50 req/hr) or a very large set, the rolling budget can be exhausted partway, returning `429`. **Severity Medium**: an incomplete read — but a *flagged* one, not corruption. **Probability Medium**: large orgs / Free plan / 017 not yet built.
@@ -76,8 +76,8 @@ An endpoint that returns no `meta.pagination` (the org role tree) must complete 
 ### H-9 — Wrong cursor parameter name
 The v5 spec's prose intro pages with `after`, but the defined `Cursor` parameter is `name: cursor` and the `Pagination` schema says "Pass as `?cursor=`". If `cursor` is wrong and the API ignores it, the walk fails to advance — either stopping at page 1 (looking complete = **silent truncation**, the VI harm) or looping on a repeated cursor (H-2). **Severity High**: silent under-fetch presented as complete. **Probability Low**: two of three spec sources say `cursor`.
 - **RC-12**: Verify the param name against the live API before consumers ship (plan Risks; checklist I note) — a one-line change if wrong.
-- **RC-4** (shared): the broadened non-advancing-cursor guard bounds the loop variant of this failure to a flagged-incomplete stop rather than an infinite loop.
-- **Residual: Yellow** (High×Low) — acceptable with the verification control; the broadened guard removes the loop variant. Track until confirmed against the live API.
+- **RC-4** (shared, applied): the broadened non-advancing-cursor guard (now in the contract) bounds the *loop* variant of this failure to a flagged-incomplete stop. The remaining exposure is the *single-page* variant — if a wrong `cursor` is silently ignored and the API returns one page with `has_next_page=false`, the walk completes under-fetched. Only live-API verification (RC-12) closes that.
+- **Residual: Yellow** (High×Low) — acceptable: the loop variant is closed by the broadened guard; the single-page under-fetch variant is held by the verification control. Track until `cursor` is confirmed against the live API.
 
 ---
 
@@ -86,10 +86,10 @@ The v5 spec's prose intro pages with `after`, but the defined `Cursor` parameter
 | Residual | Count | Hazards |
 |---|---|---|
 | Red | 0 | — |
-| Yellow | 4 | H-1 (partial-as-complete, consumer boundary), H-2 (cursor loop — Green once guard broadened), H-3 (rate-limit mid-walk), H-6 (token leak), H-9 (wrong param name) |
-| Green | 5 | H-4, H-5, H-7, H-8 (+ H-2 after the recommended guard broadening) |
+| Yellow | 4 | H-1 (partial-as-complete, consumer boundary), H-3 (rate-limit mid-walk), H-6 (token leak), H-9 (wrong param name — single-page under-fetch variant) |
+| Green | 5 | H-2 (non-advancing-cursor loop — guard now broadened to blank OR repeated), H-4, H-5, H-7, H-8 |
 
-*(The register lists five Yellow rows; H-2 is counted Yellow pending the recommended guard broadening, after which it is Green.)* Using the default 3×3 traffic-light matrix — no project-level matrix in PROJECT.md. No residual risk is unacceptable (Red). The Yellows are inherent to a feature that walks a remote, rate-limited API and hands results to a separate consumer — each is reduced by a documented control, and two (H-2, H-9) are tightened by the single recommended change: broaden the non-advancing-cursor guard to catch a repeated cursor, not just a blank one.
+Using the default 3×3 traffic-light matrix — no project-level matrix in PROJECT.md. No residual risk is unacceptable (Red). The Yellows are inherent to a feature that walks a remote, rate-limited API and hands results to a separate consumer — each is reduced by a documented control. H-2 is now **Green**: the non-advancing-cursor guard was broadened (PR #36 review #1) to stop on a blank **or repeated** cursor, closing the loop hazard and the loop variant of H-9.
 
 ---
 
@@ -97,7 +97,7 @@ The v5 spec's prose intro pages with `after`, but the defined `Cursor` parameter
 
 **Hazards → source**
 - H-1 → spec § Non-Behaviors ("must not report partial as complete"); plan ADR-3 / Risks; CONSTITUTION VI
-- H-2 → spec § Driving Scenarios (edge: non-advancing cursor); plan ADR-5
+- H-2 → spec § Driving Scenarios (edge: blank cursor / repeated cursor); plan ADR-5
 - H-3 → plan § Cross-cutting / Risks (017 composition); checklist X note; CONSTITUTION X
 - H-4 → spec § Non-Behaviors (query params); plan ADR-4
 - H-5 → spec § Non-Behaviors (no reorder/dedup); plan ADR-2; CONSTITUTION I/VIII
@@ -109,7 +109,7 @@ The v5 spec's prose intro pages with `after`, but the defined `Cursor` parameter
 **Controls → architectural grounding**
 - RC-1, RC-6 → plan ADR-3 (`Result[T]` partial-flagged-incomplete)
 - RC-2 → interface § Error Communication (consumer render + stderr signal)
-- RC-3, RC-4 → plan ADR-5 (`MalformedPageError` guard; **broaden to repeated-cursor**); task T002 tripwire
+- RC-3, RC-4 → plan ADR-5 (`MalformedPageError` guard; non-advancing = blank **or repeated** cursor); task T002 blank + repeated tripwires
 - RC-5, RC-7 → plan ADR-4 (default 500; clone-query, set only `per_page`+`cursor`)
 - RC-8 → plan ADR-2 (concatenate in API order, no transform); `@validation` scenario
 - RC-9 → plan § Cross-cutting (no token path); task T002 token-never-rendered test

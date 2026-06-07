@@ -31,7 +31,7 @@ Single interface file and single feature file — no check scaling. The full pip
 
 ### Passed (6/6)
 
-- **K1** spec § Driving Scenarios ↔ feature — all 8 driving scenarios (3 happy, 2 error, 3 edge) and all 3 validation scenarios have a Gherkin equivalent with a matching `# Source:` comment. No driving scenario is unrepresented.
+- **K1** spec § Driving Scenarios ↔ feature — all 9 driving scenarios (3 happy, 2 error, 4 edge — the non-advancing-cursor edge is split into blank and repeated variants) and all 3 validation scenarios have a Gherkin equivalent with a matching `# Source:` comment. No driving scenario is unrepresented.
 - **K2** spec § Integration Boundaries ↔ interface file presence — the one external/specification surface (the `internal/paging` package API) has `interface-spec.md`; the remaining boundaries are internal Go collaborators (010, `glassfrog`, consumers, 015/017), legitimately needing no interface file.
 - **K3** plan § Implementation Strategy/Phases ↔ tasks — both plan phases decompose into tasks: Phase 1 → T001, T002; Phase 2 → T003, T004.
 - **K4** plan § System Architecture/Components ↔ tasks § Scope — every plan component has an implementing task: the envelope/`Pagination` (T001), the walker and its types (T002), the godog suite (T003), the `execute.go` comment correction (T004).

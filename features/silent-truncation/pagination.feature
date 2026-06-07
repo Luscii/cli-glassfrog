@@ -92,12 +92,20 @@ Feature: Silent Truncation — Pagination
       Then the walker will return an empty result flagged incomplete carrying the failure
       And it will not report success
 
-    # Source: 016-pagination — Scenario: has_next_page true but no usable cursor does not loop
+    # Source: 016-pagination — Scenario: has_next_page true but a blank cursor does not loop
     @wip
-    Scenario: A page promising more results without a usable cursor does not loop
-      Given a page that reported a further page but carried no usable cursor
+    Scenario: A blank cursor under has_next_page does not loop
+      Given a page that reported a further page but carried a blank or absent cursor
       When the walker inspects the page
       Then it will not re-issue a request with an empty cursor and will not loop
+      And it will return the records gathered so far flagged incomplete, naming the malformed-paging boundary
+
+    # Source: 016-pagination — Scenario: has_next_page true but a repeated cursor does not loop
+    @wip
+    Scenario: A repeated cursor under has_next_page does not loop
+      Given a page that reported a further page but carried a cursor identical to the one just used
+      When the walker inspects the page
+      Then it will not re-issue the same cursor and will not loop
       And it will return the records gathered so far flagged incomplete, naming the malformed-paging boundary
 
     # Source: 016-pagination — Scenario: a mid-walk page failure yields a partial set flagged incomplete
