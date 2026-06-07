@@ -465,3 +465,20 @@ func TestMyActionsCommand_MeIsRunnableWithActionsChild(t *testing.T) {
 		t.Error("the actions child should carry an action")
 	}
 }
+
+// The full Assemble wiring must not panic — pins that the production wiring of
+// `me` + `me actions` (alongside `me roles`) passes the registration guard end
+// to end, and that `me actions` resolves through the guard.
+func TestAssemble_WiresMeActionsWithoutPanic(t *testing.T) {
+	root := Assemble()
+	actionsCmd, _, err := root.Find([]string{"me", "actions"})
+	if err != nil || actionsCmd == nil || actionsCmd.Name() != "actions" {
+		t.Fatalf("Assemble should wire `me actions`, got %v (err %v)", actionsCmd, err)
+	}
+	// The sibling `me roles` must still resolve — wiring one leaf does not
+	// disturb the other under `me`.
+	rolesCmd, _, err := root.Find([]string{"me", "roles"})
+	if err != nil || rolesCmd == nil || rolesCmd.Name() != "roles" {
+		t.Fatalf("Assemble should still wire `me roles` alongside `me actions`, got %v (err %v)", rolesCmd, err)
+	}
+}
