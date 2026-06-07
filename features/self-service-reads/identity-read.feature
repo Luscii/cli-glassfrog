@@ -14,7 +14,6 @@ Feature: Self-Service Reads — Identity Read
     # I want to run one command that prints who I am and where I am.
 
     # Source: 011-identity-read — Scenario: me prints the resolved identity
-    @wip
     Scenario: The identity projection prints actor, organization, and access
       Given a complete connection context with a present, valid token
       And the API would return the actor "Alice Smith", organization "Acme", and access level "admin"
@@ -25,7 +24,6 @@ Feature: Self-Service Reads — Identity Read
       And the command will exit successfully
 
     # Source: 011-identity-read — Scenario: me distinguishes a human from an agent
-    @wip
     Scenario: An agent token is reported as an agent
       Given a complete connection context whose token resolves to an agent actor
       And the agent actor has an "agt_" id
@@ -63,7 +61,6 @@ Feature: Self-Service Reads — Identity Read
     # I want to opt into embedding my roles in the same `me` read.
 
     # Source: 011-identity-read — Scenario: me embeds roles on request
-    @wip
     Scenario: Requested roles are embedded in the projection
       Given a complete connection context with a present, valid token
       And the actor fills the roles "Marketing Lead" and "Treasurer"
@@ -72,7 +69,6 @@ Feature: Self-Service Reads — Identity Read
       And the projection will list each role's id and name alongside the identity facts
 
     # Source: 011-identity-read — Scenario: roles embed requested but the actor fills none
-    @wip
     Scenario: An empty roles embed omits the roles section
       Given a complete connection context whose actor fills no roles
       When the operator runs the me command with the roles embed requested
@@ -80,7 +76,6 @@ Feature: Self-Service Reads — Identity Read
       And it will omit the roles section rather than printing an empty list
 
     # Source: 011-identity-read — Scenario: an unsupported include target is rejected before any request
-    @wip
     Scenario: An unsupported include target is rejected before any request
       Given a complete connection context with a present, valid token
       When the operator runs the me command requesting an include target the spec does not define
@@ -93,7 +88,6 @@ Feature: Self-Service Reads — Identity Read
     # I want the `me` command to surface the transport-versus-response distinction Request Execution already draws.
 
     # Source: 011-identity-read — Scenario: an unusable token surfaces a non-2xx outcome
-    @wip
     Scenario: An unusable token surfaces a non-2xx outcome
       Given a complete connection context whose token is expired or wrong
       And the API would answer with a 401 response
@@ -103,7 +97,6 @@ Feature: Self-Service Reads — Identity Read
       And it will exit with a non-success result
 
     # Source: 011-identity-read — Scenario: a transport failure is surfaced as transport, not as a response
-    @wip
     Scenario: A network failure is surfaced as a transport outcome
       Given a complete connection context with a usable base URL
       And the API could not be reached
@@ -113,7 +106,6 @@ Feature: Self-Service Reads — Identity Read
       And it will not retry
 
     # Source: 011-identity-read — Scenario: no usable token — the fail-safe is propagated
-    @wip
     Scenario: A missing token is refused before sending
       Given a connection context with a usable base URL but no usable token
       When the operator runs the me command
@@ -131,7 +123,6 @@ Feature: Self-Service Reads — Identity Read
       And it will not turn it into a specific, interpreted API error message
 
     # Proposed (architecture-informed): plan ADR-4 — an undecodable 2xx is a distinct exit-code outcome the spec did not enumerate
-    @wip
     Scenario: An undecodable response is surfaced as an internal error
       Given a complete connection context with a present, valid token
       And the API would return a 200 response whose body does not match the identity shape
@@ -140,7 +131,6 @@ Feature: Self-Service Reads — Identity Read
       And it will exit with the internal-error result rather than a success
 
     # Proposed (architecture-informed): plan ADR-4 — a malformed base URL is a distinct exit-code outcome observable at the CLI surface
-    @wip
     Scenario: A malformed base URL is refused before sending
       Given a connection context carrying a base-URL error from a malformed configured value
       When the operator runs the me command
@@ -149,7 +139,6 @@ Feature: Self-Service Reads — Identity Read
       And no request will reach the API
 
     # Proposed (guard-derived): interface error table — the CredentialError outcome (exit 1) had no acceptance coverage (analyze K5)
-    @wip
     Scenario: A malformed credentials file fails the read loudly
       Given a connection context whose credentials file is malformed
       When the operator runs the me command
