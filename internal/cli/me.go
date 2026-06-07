@@ -12,6 +12,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 	"github.com/spf13/cobra"
 )
 
@@ -203,13 +204,23 @@ func formatClientErrorMessage(err error) string {
 	if errors.As(err, &decodeErr) {
 		return fmt.Sprintf("could not decode the API response: %s", decodeErr.Error())
 	}
+	// Base-URL configuration error from client construction. This mirrors
+	// classifyClientError's base-URL arms (which map all of these to UsageError),
+	// so the category and the next-step hint stay symmetric: a malformed
+	// configured value (*BaseURLError) AND an unreadable/malformed .glassfrogrc
+	// the base-URL resolver surfaced (*rcfile.ReadError / *rcfile.FormatError) all
+	// name the source and the correction step. The rcfile arms sit AFTER the
+	// AuthError check above, so a credential-file rcfile error (wrapped in
+	// *AuthError) keeps its credentials-file hint and only base-URL-path rcfile
+	// errors reach here. Each error's text names path/source only, never the token.
 	var baseURLErr *apiclient.BaseURLError
-	if errors.As(err, &baseURLErr) {
-		return fmt.Sprintf("%s — correct --base-url, GLASSFROG_BASE_URL, or the .glassfrogrc base_url", baseURLErr.Error())
+	var rcReadErr *rcfile.ReadError
+	var rcFormatErr *rcfile.FormatError
+	if errors.As(err, &baseURLErr) || errors.As(err, &rcReadErr) || errors.As(err, &rcFormatErr) {
+		return fmt.Sprintf("%s — correct --base-url, GLASSFROG_BASE_URL, or the .glassfrogrc base_url", err.Error())
 	}
-	// An rcfile read/format error surfaced on the base-URL path, or any other
-	// unexpected error: surface it verbatim (the internal/rcfile and apiclient
-	// contracts keep these path/cause-only, never the token).
+	// Any other unexpected error: surface it verbatim (the apiclient contracts keep
+	// these path/cause-only, never the token).
 	return err.Error()
 }
 

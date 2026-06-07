@@ -13,6 +13,7 @@ import (
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
 const meSecretToken = "gf_live_secret123"
@@ -373,6 +374,37 @@ func TestRunMe_BaseURLErrorIsUsageError(t *testing.T) {
 	}
 	if tr.calls != 0 {
 		t.Errorf("transport was called %d times; a base-URL error must not send", tr.calls)
+	}
+}
+
+// A base-URL error surfaced as an rcfile read/format error (an unreadable or
+// malformed .glassfrogrc base_url) is classified UsageError AND must carry the
+// same next-step correction hint as a *BaseURLError — the two are symmetric in
+// classifyClientError, so formatClientErrorMessage must give both the hint
+// rather than printing a bare err.Error(). Pins both rcfile shapes.
+func TestRunMe_BaseURLRcfileErrorIsUsageErrorWithNextStep(t *testing.T) {
+	for name, rcErr := range map[string]error{
+		"format": &rcfile.FormatError{Path: "/home/u/.glassfrogrc"},
+		"read":   &rcfile.ReadError{Path: "/home/u/.glassfrogrc", Err: errors.New("permission denied")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tr := &cannedTransport{status: 200, body: meBodyAlice}
+			seam := &fakeMeSeam{ctx: apiclient.ConnectionContext{}, newClientErr: rcErr, transport: tr}
+
+			outcome, _, stderr := runMeOver(t, seam)
+			if outcome != UsageError {
+				t.Fatalf("outcome = %v, want UsageError", outcome)
+			}
+			if !strings.Contains(stderr, ".glassfrogrc") {
+				t.Errorf("stderr should name the configured file, got %q", stderr)
+			}
+			if !strings.Contains(stderr, "--base-url") || !strings.Contains(stderr, "GLASSFROG_BASE_URL") {
+				t.Errorf("stderr should carry the base-URL correction next step, got %q", stderr)
+			}
+			if tr.calls != 0 {
+				t.Errorf("transport was called %d times; a base-URL error must not send", tr.calls)
+			}
+		})
 	}
 }
 
