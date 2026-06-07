@@ -13,3 +13,4 @@
 | 009-connection-context-assembly | Complete | validate | 2026-06-06T11:54:15 |
 | 010-request-execution | Complete | validate | 2026-06-07T09:48:00 |
 | 011-identity-read | Analyzed | risk | 2026-06-07T10:03:36 |
+| 012-my-roles | Analyzed | analyze | 2026-06-07T10:16:10 |
