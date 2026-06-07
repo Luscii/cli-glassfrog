@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,10 @@ func TestParseRetryAfter(t *testing.T) {
 		{name: "negative", value: "-1", header: true, wantDur: 0, wantOK: false},
 		{name: "non-integer", value: "abc", header: true, wantDur: 0, wantOK: false},
 		{name: "http-date form", value: "Wed, 21 Oct 2015 07:28:00 GMT", header: true, wantDur: 0, wantOK: false},
+		// A value so large it would overflow time.Duration when scaled to seconds is
+		// unusable — never honored as a negative/garbage wait that bypasses the budget.
+		{name: "overflows time.Duration", value: "99999999999999", header: true, wantDur: 0, wantOK: false},
+		{name: "largest non-overflowing", value: strconv.FormatInt(maxRetryAfterSeconds, 10), header: true, wantDur: time.Duration(maxRetryAfterSeconds) * time.Second, wantOK: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

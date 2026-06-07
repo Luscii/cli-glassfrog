@@ -5,10 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
 )
+
+// maxRetryAfterSeconds is the largest whole-second Retry-After that still fits in
+// a time.Duration (int64 nanoseconds) once scaled by time.Second. A larger value
+// would overflow to a negative/garbage duration — bypassing the total-wait budget
+// (a negative wait never exceeds it) and sleeping immediately — so parseRetryAfter
+// treats anything above this as unusable and falls back to the bounded backoff.
+const maxRetryAfterSeconds = int64(math.MaxInt64) / int64(time.Second)
 
 // The retry-policy caps are named [ASSUMED] constants — like 010's requestTimeout
 // (the only other tunable this package introduces), their values and eventual
@@ -67,18 +75,22 @@ func isSafeMethod(method string) bool {
 // of seconds (the spec's RetryAfter schema is integer — spec/glassfrog-api-v5.yaml).
 // It returns (duration, true) for a usable value ("0" is usable and means retry
 // immediately) and (0, false) for an absent / empty / non-integer / negative /
-// HTTP-date value — "unusable", so the caller falls back to FallbackBackoff. It
-// never sleeps a garbage duration (parser-robustness, companion to the URL-parse
-// LEARNINGS).
+// overflowing / HTTP-date value — "unusable", so the caller falls back to
+// FallbackBackoff. It never sleeps a garbage duration (parser-robustness,
+// companion to the URL-parse LEARNINGS): it parses as int64 (platform-independent)
+// and rejects a value so large it would overflow time.Duration when scaled to
+// seconds — an overflow would wrap to a negative/garbage wait that bypasses the
+// total-wait budget.
 func parseRetryAfter(h http.Header) (time.Duration, bool) {
 	v := h.Get("Retry-After")
 	if v == "" {
 		return 0, false
 	}
-	secs, err := strconv.Atoi(v)
-	if err != nil || secs < 0 {
-		// Non-integer (incl. the HTTP-date form this API does not produce) or a
-		// negative count: unusable. Fall back to the bounded backoff.
+	secs, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || secs < 0 || secs > maxRetryAfterSeconds {
+		// Non-integer (incl. the HTTP-date form this API does not produce), a
+		// negative count, or a value that would overflow time.Duration: unusable.
+		// Fall back to the bounded backoff.
 		return 0, false
 	}
 	return time.Duration(secs) * time.Second, true
