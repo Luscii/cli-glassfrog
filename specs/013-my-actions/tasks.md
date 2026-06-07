@@ -48,7 +48,7 @@ Phase 3: The `my actions` command — `newMyActionsCommand` + `runMyActions` + `
 
 ## Phase 2: `--status` validation [Shared]
 
-- [ ] **T002** [Shared] [P] Add the shared `validateStatus` + spec-sourced status set — RED-first unit tests
+- [x] **T002** [Shared] [P] Add the shared `validateStatus` + spec-sourced status set — RED-first unit tests — 4 tests; lives in `internal/cli/status.go` (shared with 014); set sourced from the spec `status` enum
   - **Scope**: Add a pure `validateStatus(status string) error` (in `internal/cli`, reusable by 014) that checks a non-empty `--status` value against the spec's status set `{archived, cancelled, completed, current, scheduled, someday, waiting}` (sourced from the `spec/glassfrog-api-v5.yaml` `status` enum). An unsupported value returns a usage error naming the value and listing the supported set; an empty/absent value passes (no constraint). The validator performs no I/O — it runs before any context assembly or request.
   - **Acceptance criteria**:
     - Each of the seven supported statuses passes
