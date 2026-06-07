@@ -205,8 +205,8 @@
 |---|---|---|
 | RC-1 | H-1 | plan.md § ADR-2 (total, fail-soft `ExtractProblem`); tasks T001 degradation tests + `@validation` totality scenario |
 | RC-2 | H-2 | plan.md § Integration Design (no retry; preserve 429 + rate-limit headers for 017) |
-| RC-3 | H-3 | plan.md § ADR-2 (fallback derives from real status only) + checklist-recommended provenance marker (pending) |
-| RC-4 | H-4 | interface-spec.md § Error Communication (detail surfaced) + checklist-recommended next-step hint (pending) |
+| RC-3 | H-3 | plan.md § ADR-2 (fallback derives from real status only) + the `DetailSynthesized` provenance marker (in the design) |
+| RC-4 | H-4 | interface-spec.md § Error Communication (detail surfaced) + the per-class next-step hint (in the design) |
 | RC-5 | H-5 | plan.md § ADR-1 (check `*ProblemError`/status before the generic arm); tasks T002 401→PermissionError test |
 | RC-6 | H-6 | plan.md § ADR-2 (HTTP status authoritative; body status metadata-only); status-mismatch + validation scenarios |
 | RC-7 | H-7 | exitcode.go/interface-spec.md (reserved published code 4, not a renumber) + PR-description visibility |

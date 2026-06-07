@@ -25,11 +25,11 @@ internal/apiclient                       (the extraction capability — produces
 
   ExtractProblem(re *ResponseError) *ProblemError          ── pure; never errors; response-side only
     │  parse re.Body as RFC 9457 problem+json (best-effort, NOT Content-Type-gated)
-    │    ├─ valid          → ProblemError{Status: re.StatusCode (authoritative), Type, Title, Detail, *ResponseError}
-    │    └─ unreadable     → ProblemError{Status: re.StatusCode, Detail: fallback(re.StatusCode), *ResponseError}
-    └─ body `status` member, if it disagrees with re.StatusCode → carried as metadata, NEVER overrides
+    │    ├─ valid          → ProblemError{StatusCode: re.StatusCode (authoritative), Type, Title, Detail, DetailSynthesized:false, BodyStatus, *ResponseError}
+    │    └─ unreadable     → ProblemError{StatusCode: re.StatusCode, Detail: fallback(re.StatusCode), DetailSynthesized:true, *ResponseError}
+    └─ body `status` member, if it disagrees with re.StatusCode → carried in BodyStatus (metadata), NEVER overrides
 
-  ProblemError ── wraps *ResponseError (Unwrap); carries Status + Type/Title/Detail; Body/Header via the wrapped value
+  ProblemError ── wraps *ResponseError (Unwrap); carries StatusCode + Type/Title/Detail + DetailSynthesized + BodyStatus; Body/Header via the wrapped value
 
          consumed by ──►
 
