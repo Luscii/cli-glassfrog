@@ -61,3 +61,38 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
   + depends-on: Request Execution
 - Rate-Limit Handling — honor the API's per-org rate limit (429 + rate-limit headers) with backoff so request volume stays within limits
   + depends-on: Request Execution
+
+## Output Formatting
+> Problem: Unconsumable Output — results aren't shaped for an AI agent to parse reliably or for a human to read (affects: AI agent, Practitioner)
+
+- Structured Serialization — render a command's result data as machine-readable JSON and YAML for agent consumption (VISION principle 3)
+- Templated Human Rendering — render human-readable output through a template mechanism, with built-in `full` and `compact` templates; the template seam is what later admits caller-supplied templates
+- Output Format Selection — an `--output` flag selecting the format per invocation (full | compact | json | yaml), with a default when omitted, dispatching the result to the matching renderer
+  + depends-on: Structured Serialization
+  + depends-on: Templated Human Rendering
+- User-Defined Template Output — accept a caller-supplied template file as the output format, rendered through the same template mechanism (future — lower priority per developer)
+  + depends-on: Templated Human Rendering
+
+## Self-Contained Distribution
+> Problem: Runtime-Dependent Distribution — the CLI can't run without a separately-installed runtime, so it won't run where operators need it (affects: Practitioner, AI agent, Maintainer)
+
+- Self-Contained Executable Build — cross-compile a single dependency-free binary per supported platform (macOS amd64/arm64, Linux amd64/arm64) that runs with no separately-installed runtime (CONSTITUTION XII)
+- Version Embedding — inject the release version at build time, falling back to Go module build info for `go install` source builds, so `--version` always reports a meaningful version
+  + depends-on: Self-Contained Executable Build
+- Automated Release Pipeline — on a version tag, build the platform binaries, package them as archives with a checksums file, and publish to GitHub Releases — automated, entirely within this repository
+  + depends-on: Self-Contained Executable Build
+- Install Script — a POSIX one-liner (hosted in this repo) that detects OS/arch, downloads the matching archive from Releases, verifies its checksum, and installs onto PATH; the primary path for Linux (and macOS) laptops and CI
+  + depends-on: Automated Release Pipeline
+- Homebrew Tap — a GoReleaser-published Homebrew cask committed within this repository (no separate tap repo), so macOS and Linux users can `brew install` / `brew upgrade`
+  + depends-on: Automated Release Pipeline
+- NPM Wrapper Package — an npm package that resolves and installs the correct platform binary (platform-specific optional dependencies with a postinstall fallback), so Node-based agent environments can `npx` / `npm i -g`
+  + depends-on: Automated Release Pipeline
+
+## GitHub Actions Pipeline
+> Problem: No Automated Pipeline — without CI/CD, every change is linted, tested, triaged, and released by hand, so regressions and inconsistencies can reach main and releases go out unguarded (affects: Maintainer)
+
+- PR Validation — on pull request, run lint and the test suite so changes are verified before merge
+- PR Administration — auto-apply administrative labels to pull requests for triage and release-note categorization
+- Main-Branch Verification — on merge to main, re-run the test suite as a post-merge safety check
+- Release Drafting — on merge to main, maintain a draft GitHub release with a label-driven semver bump and accumulated notes (release-drafter; not published); adjacent to Self-Contained Distribution's Automated Release Pipeline, which consumes the published tag to build and publish binaries
+  + depends-on: PR Administration
