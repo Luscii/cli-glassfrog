@@ -25,7 +25,7 @@ read command RunE (me / my roles / my actions / my projects)
   │  reads --output flag value (cobra inheritance)
   ▼
 output.ResolveFormat(flag, env, rcfile-walk)        [internal/output, NEW — mirrors apiclient.baseurl 008]
-  │   flag → GLASSFROG_OUTPUT → .glassfrgrc `output` → default `full`
+  │   flag → GLASSFROG_OUTPUT → .glassfrogrc `output` → default `full`
   │   present-but-invalid at ANY source → *output.FormatError{Source,Value}   ── fail-fast, before any request
   ▼  OutputFormat ∈ {Full, Compact, JSON, YAML}
 cli render-dispatch  (internal/cli, NEW shared helper)
@@ -105,7 +105,7 @@ Resolution happens **before** the request because the decode target depends on t
 
 ## Implementation Strategy
 
-Two phases. The upstream seams (`internal/output` 018, `internal/render` 019) must be **landed on main** before Phase 2 can wire end-to-end — see Risks; this mirrors how 019 was gated on the landed reads.
+Two phases. The upstream seams (`internal/output` 018, `internal/render` 019) are **landed on main** (#49/#50), so Phase 2 can wire end-to-end immediately — see Risks.
 
 **Phase 1 — Selection vocabulary + resolver (`internal/output`).** Add `OutputFormat{Full,Compact,JSON,YAML}`, case-insensitive parsing, `IsStructured()`, and the mapping to 018's `output.Format`. Implement `ResolveFormat` as a pure core over injected (flag, env, rcfile walk) plus the production OS/rcfile seam, mirroring `apiclient.baseurl`: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc` `output` → default `full`; `*output.FormatError{Source,Value}` on a present-but-invalid value at any source; surface `internal/rcfile` read/format errors. Centralize the flag/env/key constants. Pure unit tests for every precedence and error branch. *(Depends on `internal/rcfile`, landed; independent of 019.)*
 
@@ -115,7 +115,7 @@ Two phases. The upstream seams (`internal/output` 018, `internal/render` 019) mu
 
 ## Risks
 
-- **020 is gated on both 018 and 019 landing on main** (high likelihood, medium impact): the dispatch imports `output.RenderSuccess` (018) and `render.Render` (019), and Phase 2 rewires the post-019 read commands. On this branch neither is merged yet (the reads still carry inline `formatXxx`). *Mitigation*: Phase 1 (`internal/output` vocabulary + resolver) depends on neither and can proceed; Phase 2 sequences after both merge. The tasks skill should mark the cross-spec dependency and branch accordingly.
+- **020 builds on 018 and 019 — both now landed on main (#49/#50), dependency satisfied** (was a gating risk while they were in flight): the dispatch imports `output.RenderSuccess` (018) and `render.Render` (019), and Phase 2 rewires the post-019 read commands (which now call `render.Render`). With both seams on main, all tasks are unblocked; Phase 1 (`internal/output` vocabulary + resolver) had no upstream dependency regardless. *Residual note*: keep the dispatch the single importer of both packages (ADR-3) so the cross-package wiring stays in one place.
 - **The four reads each acquire a structured-vs-human branch** (medium likelihood, medium impact): if the dispatch is not shared, the branch duplicates four times and drifts. *Mitigation*: ADR-3's single generic dispatch; a registry-style test that every read routes all four formats keeps the surface uniform (the 019 exhaustiveness pattern).
 - **`full` default drifts when reads are rewired through the dispatch** (low likelihood, medium impact): re-routing the default path risks changing shipped output. *Mitigation*: the reads' existing golden/projection tests assert `full` stays byte-equivalent; `full` remains the resolved default when no source selects a format.
 - **An invalid value silently falls through instead of erroring** (low likelihood, medium impact): a resolver that treats present-but-invalid as absent would mask a typo'd env var or config and contradict the spec. *Mitigation*: ADR-4 distinguishes absent (skip) from present-but-invalid (error naming source), pinned by per-source error tests, mirroring 008.
