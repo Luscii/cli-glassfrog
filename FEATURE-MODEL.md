@@ -96,3 +96,37 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 - Main-Branch Verification — on merge to main, re-run the test suite as a post-merge safety check
 - Release Drafting — on merge to main, maintain a draft GitHub release with a label-driven semver bump and accumulated notes (release-drafter; not published); adjacent to Self-Contained Distribution's Automated Release Pipeline, which consumes the published tag to build and publish binaries
   + depends-on: PR Administration
+
+## Diagnostic Reporting
+> Problem: Opaque Failures — when a call fails, the caller can't tell what went wrong or what to do next (affects: AI agent, Practitioner)
+
+- Diagnostic Normalization — collapse transport failures, typed API errors, and usage errors into one consistent, actionable diagnostic carrying a cause, a category, and the next step the caller can take to resolve it (where one exists)
+  + depends-on: API Error Extraction
+  + depends-on: Request Execution
+- Output-Aware Failure Rendering — render the diagnostic in the selected `--output` format (human-readable cause + next-step on stderr for full/compact; a structured error envelope for json/yaml), paired with the conventional exit code, so failures are as legible and parseable as successful output
+  + depends-on: Diagnostic Normalization
+  + depends-on: Output Format Selection
+
+## Governance Reads
+> Problem: Governance Reads — read roles, circles, accountabilities, domains, policies, and projects (affects: Practitioner)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): circles and accountabilities have no standalone endpoint — circles are read through the role tree, and accountabilities are returned inline on role reads (`Role` always carries `accountabilities`, `domains`, and `fillers`), while tree reads gate them behind `?include=accountabilities`. The per-role reads (domains, policies, projects) take a `required` role-id path param, so they depend on Role Reads for the ids they consume. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Role Reads — list the organization's roles and read one by id: `GET /roles` → `listRoles` (`spec/glassfrog-api-v5.yaml:134`; paginated, optional `parent_role_id`/`person_id`/`has_subroles`/`tag` filters, embeds accountabilities/domains/fillers inline) and `GET /roles/{id}` → `getRole` (`spec/glassfrog-api-v5.yaml:201`; accountabilities/domains/fillers inline, `?include=assignments,subroles,parent_role,policies,notes,skills` for related resources). The org-wide role surface (vs. the token-scoped My Roles) and the source of the role ids the per-role reads consume
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Organization Tree — read the circle hierarchy: `GET /tree` → `getOrgTree` (`spec/glassfrog-api-v5.yaml:682`; the whole org, no role id required), `GET /roles/{id}/tree` → `getRoleTree` (`spec/glassfrog-api-v5.yaml:597`), and `GET /roles/{id}/subroles` → `listSubroles` (`spec/glassfrog-api-v5.yaml:250`); `?include` embeds accountabilities/domains/members per node
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Role Domains — list a role's domains and read one by id: `GET /roles/{id}/domains` → `listRoleDomains` (`spec/glassfrog-api-v5.yaml:2837`; requires role id) and `GET /domains/{id}` → `getDomain` (`spec/glassfrog-api-v5.yaml:2883`)
+  + depends-on: Role Reads
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Role Policies — list a role's policies and read one by id: `GET /roles/{id}/policies` → `listRolePolicies` (`spec/glassfrog-api-v5.yaml:2760`; requires role id) and `GET /policies/{id}` → `getPolicy` (`spec/glassfrog-api-v5.yaml:2806`)
+  + depends-on: Role Reads
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Role Projects — list a role's projects and read one by id: `GET /roles/{role_id}/projects` → `listRoleProjects` (`spec/glassfrog-api-v5.yaml:3274`; requires role id, optional `status`/`tag`/`include`) and `GET /projects/{id}` → `getProject` (`spec/glassfrog-api-v5.yaml:3502`)
+  + depends-on: Role Reads
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
