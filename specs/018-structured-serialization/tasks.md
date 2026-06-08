@@ -68,7 +68,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 3: Component-level acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the driving scenarios pass as executable component-level acceptance via a new godog suite over the `output` package
+- [x] **T003** [Shared] Make the driving scenarios pass as executable component-level acceptance via a new godog suite over the `output` package — `TestStructuredSerializationFeatures` (9 behavioral scenarios, 43 steps pass); 5 `@validation` scenarios kept `@wip`; suite `Paths` names only its own feature file; ADR-3/PROJECT.md-stack drift noted in LEARNINGS
   - **Scope**: Add godog step definitions for `features/unconsumable-output/structured-serialization.feature` in a **new** godog suite (e.g. `TestStructuredSerializationFeatures`) whose `Paths` names **only** that feature file (LEARNINGS: a suite points at its own file, never the `features/` directory). Drive `RenderSuccess`/`RenderError` directly with raw-byte and hand-built-envelope fixtures — there is no command to invoke (no CLI surface until 020), so steps exercise the package functions. Remove `@wip` from the behavioral scenarios (the spec-derived + architecture-informed); keep the `@validation` scenarios `@wip` (held for validate). Step helpers return errors, never panic; capture any output with a temp file, not `os.Pipe` (PR #10 LEARNINGS). Reuse existing `internal/cli`/package step phrasings where an assertion already exists (grep `sc.Step(` first).
   - **Acceptance criteria**:
     - Every non-`@validation` scenario in structured-serialization.feature has an executable, passing step path driven through `RenderSuccess`/`RenderError`
