@@ -99,7 +99,7 @@ Feature: Silent Truncation — Pagination
       Then it will not re-issue the same cursor and will not loop
       And it will return the records gathered so far flagged incomplete, naming the malformed-paging boundary
 
-    # Source: 016-pagination — Scenario: a mid-walk page failure yields a partial set flagged incomplete
+    # Source: 016-pagination — Scenario: a cancelled request context stops the walk with the partial set
     # [proposed by skill — from plan Cross-cutting: a cancelled request context propagates as the stop cause]
     Scenario: A cancelled request context stops the walk with the partial set
       Given a walk in progress that had gathered one page
