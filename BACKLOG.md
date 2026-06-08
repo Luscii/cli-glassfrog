@@ -161,7 +161,7 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The dependency-free binary (CONSTITUTION XII) and dependency root of Self-Contained Distribution — everything in the solution builds on it, so it leads the distribution work.
-- **Status**: pending
+- **Status**: specified:021-self-contained-executable-build
 
 ### 22. Automated Release Pipeline
 

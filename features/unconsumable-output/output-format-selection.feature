@@ -18,7 +18,6 @@ Feature: Unconsumable Output — Output Format Selection
     # I want to select --output json (or yaml) per invocation and receive that format.
 
     # Source: 020-output-format-selection — Scenario: --output json selects the JSON encoder
-    @wip
     Scenario: A json selector routes the result to the JSON encoder
       Given the authenticated read "glassfrog me" had produced a successful payload
       And the invocation passed "--output json"
@@ -27,7 +26,6 @@ Feature: Unconsumable Output — Output Format Selection
       And stdout will carry a single JSON document of the raw payload
 
     # Source: 020-output-format-selection — Scenario: format matching is case-insensitive
-    @wip
     Scenario: An uppercase selector selects the same format
       Given the read "glassfrog me" had produced a successful payload
       And the invocation passed "--output JSON"
@@ -36,7 +34,6 @@ Feature: Unconsumable Output — Output Format Selection
       And the result will be routed to the JSON encoder exactly as lowercase "json" would
 
     # Source: 020-output-format-selection — Scenario: an unknown format value fails fast
-    @wip
     Scenario: An unknown selector value fails before any request
       Given the invocation passed "--output xml"
       When the command is run
@@ -67,7 +64,6 @@ Feature: Unconsumable Output — Output Format Selection
     # I want to set the output format once via an environment variable or config file and have every command honor it.
 
     # Source: 020-output-format-selection — Scenario: omitting --output selects the default full template
-    @wip
     Scenario: Omitting the selector renders the default full format
       Given the read "glassfrog me" had produced a successful payload
       And no --output flag, GLASSFROG_OUTPUT value, or .glassfrogrc output value was present
@@ -76,7 +72,6 @@ Feature: Unconsumable Output — Output Format Selection
       And the result will be routed to the full human template
 
     # Source: 020-output-format-selection — Scenario: the flag overrides the environment variable and config file
-    @wip
     Scenario: The flag overrides the environment variable and config file
       Given GLASSFROG_OUTPUT held "yaml"
       And the .glassfrogrc output value held "compact"
@@ -86,7 +81,6 @@ Feature: Unconsumable Output — Output Format Selection
       And no lower-precedence source will be consulted
 
     # Source: 020-output-format-selection — Scenario: the config file supplies the format when flag and environment are absent
-    @wip
     Scenario: The config file supplies the format when flag and environment are absent
       Given no --output flag and no GLASSFROG_OUTPUT value were present
       And the nearest .glassfrogrc on the walk-up held output "compact"
@@ -95,7 +89,6 @@ Feature: Unconsumable Output — Output Format Selection
       And the result will be routed to the compact human template
 
     # Source: 020-output-format-selection — Scenario: an invalid value in a lower-precedence source surfaces loudly
-    @wip
     Scenario: An invalid environment value fails, naming its source
       Given no --output flag was present
       And GLASSFROG_OUTPUT held "xml"
@@ -105,7 +98,6 @@ Feature: Unconsumable Output — Output Format Selection
       And it will exit with the usage exit code 2
 
     # Proposed (architecture-informed): plan ADR-4 / interface-cli error table — an unreadable config surfaces loudly, mirroring --base-url
-    @wip
     Scenario: An unreadable config file fails resolution as a usage error
       Given no --output flag and no GLASSFROG_OUTPUT value were present
       And a .glassfrogrc on the walk-up could not be read or parsed
@@ -127,7 +119,6 @@ Feature: Unconsumable Output — Output Format Selection
     # I want to select the compact rendering that 019 built but the CLI did not yet expose.
 
     # Source: 020-output-format-selection — Scenario: --output compact makes the compact rendering reachable
-    @wip
     Scenario: A compact selector renders one line per record
       Given the read "glassfrog me roles" had produced several roles
       And the invocation passed "--output compact"

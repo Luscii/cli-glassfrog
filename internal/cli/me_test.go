@@ -13,6 +13,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
@@ -96,6 +97,18 @@ type fakeMeSeam struct {
 	newClientCalled  bool
 
 	slept []time.Duration // the 017 backoff waits the recording fake-sleep observed
+
+	// Output Format Selection (020) injected sources for resolveFormat: the env and
+	// .glassfrogrc output rungs the fake feeds to output.ResolveFormat alongside the
+	// flag value. All zero by default — env absent, file absent, no error — so a
+	// default-constructed fake resolves to FormatFull (the standing full path every
+	// pre-020 test exercises). A 020 test sets these to drive json/compact/yaml or a
+	// resolution error.
+	envOutput  string
+	fileOutput string
+	filePath   string
+	fileFound  bool
+	fileErr    error
 }
 
 func (s *fakeMeSeam) assemble(baseURL string) apiclient.ConnectionContext {
@@ -116,6 +129,15 @@ func (s *fakeMeSeam) newClient(ctx apiclient.ConnectionContext) (*apiclient.Clie
 // runMe is asserted in milliseconds (CONSTITUTION IV — no real sleep).
 func (s *fakeMeSeam) sleep() func(time.Duration) {
 	return func(d time.Duration) { s.slept = append(s.slept, d) }
+}
+
+// resolveFormat drives the real output.ResolveFormat precedence core (020) over the
+// fake's injected flag/env/file sources, so a 020 test exercises genuine parsing and
+// precedence without reading the real environment or ~/.glassfrogrc. A
+// default-constructed fake (all sources absent) yields FormatFull — the standing
+// full path every pre-020 test relies on for byte-equivalence.
+func (s *fakeMeSeam) resolveFormat(flagValue string) (output.OutputFormat, error) {
+	return output.ResolveFormat(flagValue, s.envOutput, s.fileOutput, s.filePath, s.fileFound, s.fileErr)
 }
 
 // validMeContext is a complete, usable context: a parseable base URL and a

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
@@ -29,6 +30,8 @@ import (
 //   - *apiclient.DecodeError           → RuntimeError (a 2xx body that would not parse — a contract failure)
 //   - a base-URL error (*apiclient.BaseURLError or an internal/rcfile read/format
 //     error surfaced as ctx.BaseURLErr) → UsageError (a correctable endpoint input)
+//   - *output.FormatError (an invalid --output/GLASSFROG_OUTPUT/.glassfrogrc output
+//     selector, 020) → UsageError (a correctable selection input)
 //   - anything else                    → RuntimeError (the fail-safe; never Success)
 //
 // Discrimination order matters: *AuthError is matched BEFORE *TransportError
@@ -96,6 +99,16 @@ func classifyClientError(err error) Outcome {
 	}
 	var rcFormatErr *rcfile.FormatError
 	if errors.As(err, &rcFormatErr) {
+		return UsageError
+	}
+
+	// Output Format Selection (020, ADR-4): a present-but-invalid --output /
+	// GLASSFROG_OUTPUT / .glassfrogrc output value, surfaced as *output.FormatError
+	// before any request. Symmetric with the base-URL arms above — a correctable
+	// selection input → UsageError, so an invalid selector's category and message
+	// agree and it exits with the conventional usage code (no new exit code).
+	var formatErr *output.FormatError
+	if errors.As(err, &formatErr) {
 		return UsageError
 	}
 
