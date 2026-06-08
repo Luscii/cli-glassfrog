@@ -50,7 +50,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 2: Unified error envelope [US3]
 
-- [ ] **T002** [US3] Add `ErrorEnvelope`/`ErrorDetail` and `RenderError` to `internal/output` — RED-first unit tests over hand-built envelopes
+- [x] **T002** [US3] Add `ErrorEnvelope`/`ErrorDetail` and `RenderError` to `internal/output` — RED-first unit tests over hand-built envelopes — 7 unit tests over hand-built envelopes; no classification, no apiclient import
   - **Scope**: In `internal/output`, define the unified `ErrorEnvelope` wrapping one `ErrorDetail` under an `error` key: `Message string` (always), `Kind string` (always — the lowercased taxonomy term), `Status int` (omitempty — HTTP status, non-2xx only), `Body json.RawMessage` (omitempty — the raw API error body verbatim, when present). Implement `RenderError(f Format, env ErrorEnvelope) ([]byte, error)` rendering the envelope in the active format (JSON marshal; YAML equivalent), with deterministic field order and a complete document or a render error — never a fragment. 018 owns the envelope **shape** and encoder only; it performs no classification. The typed-error→envelope *mapping* (kind from `classifyClientError`, status/body from `*ResponseError`) is **not** built here — it lands with 020 (ADR-4; interface-spec). Tests construct `ErrorEnvelope` values directly.
   - **Acceptance criteria**:
     - An envelope with `kind="api"`, a status, and a nested raw `body` renders as one valid JSON document carrying the raw body verbatim
