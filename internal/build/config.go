@@ -82,7 +82,7 @@ func LoadConfig() (Config, string, error) {
 	path := filepath.Join(root, ConfigFileName)
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return Config{}, path, fmt.Errorf("reading %s: %w", ConfigFileName, err)
+		return Config{}, path, fmt.Errorf("reading %s: %w", path, err)
 	}
 	cfg, err := ParseConfig(raw)
 	if err != nil {

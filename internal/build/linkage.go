@@ -65,9 +65,13 @@ func isLinuxLoader(dep string) bool {
 func extractDeps(goos, binPath string) ([]string, error) {
 	switch goos {
 	case "darwin":
-		out, err := exec.Command("otool", "-L", binPath).Output()
+		// CombinedOutput (not Output) so otool's stderr — where it reports a
+		// non-Mach-O binary, a missing file, etc. — is surfaced in the error;
+		// otool -L writes only stdout on success, and parseOtool keeps only
+		// tab-indented lines, so any stray stderr cannot pollute the parse.
+		out, err := exec.Command("otool", "-L", binPath).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("otool -L %s: %w", binPath, err)
+			return nil, fmt.Errorf("otool -L %s: %w\n%s", binPath, err, out)
 		}
 		return parseOtool(string(out), binPath), nil
 	case "linux":
