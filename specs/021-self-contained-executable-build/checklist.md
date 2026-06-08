@@ -29,11 +29,11 @@
 ### Passed (6/6 originally)
 
 - **P0 | III (Fail Safe, Not Silent)** — spec.md (driving scenario "a failed target fails the whole release build") + interface-spec.md (Error Communication: "build fails as a whole and emits no partial `dist/` set"; verification fails and names the violation). No swallowed errors, no partial state.
-- **P0 | IV (Test-Driven Development)** — user-facing build behaviors carry executable acceptance scenarios written before implementation (12 `@wip` scenarios in the feature file); tasks T002/T003 are the verifying tests.
+- **P0 | IV (Test-Driven Development)** — user-facing build behaviors carry executable acceptance scenarios written before implementation (12 `@wip` scenarios in the feature file); tasks T001 (config-guard) and T003 (self-containment verification) are the verifying tests.
 - **P0 | V (Composition over Monolith)** — plan ADR-1/ADR-2 keep the `.goreleaser` `builds` block and the verification tests as isolated, independently-testable parts; the verification reuses the `internal/cli/smoke_test.go` pattern without modifying unrelated command modules.
 - **P0 | XII (Standalone Executable) — no pre-installed runtime dependency** — spec Behavioral Accord + plan (CGO_ENABLED=0) require the artifact to depend only on host OS + network to the API.
-- **P0 | XII — clean-environment detection exists** — the self-containment verification (T002) runs a produced binary on a clean host of its target and asserts execution; scenarios pin it.
-- **P0 | XII — build emits no dependency-requiring artifact** — config-guard (T003, `CGO_ENABLED=0`) + per-platform OS-only linkage allowlist (interface-spec.md) reject any binary linking a non-OS library.
+- **P0 | XII — clean-environment detection exists** — the self-containment verification (T003) runs a produced binary on a clean host of its target and asserts execution; scenarios pin it.
+- **P0 | XII — build emits no dependency-requiring artifact** — config-guard (T001, `CGO_ENABLED=0`) + per-platform OS-only linkage allowlist (interface-spec.md) reject any binary linking a non-OS library.
 
 ## Done-Criteria Checks
 

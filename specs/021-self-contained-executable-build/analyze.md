@@ -35,13 +35,13 @@
 ### Findings
 
 **P1** | K5: interface-spec.md § Error Communication → features/…/self-contained-executable-build.feature
-> The interface defines a `goreleaser`-not-installed fallback ("the verification falls back to a host `go build` … does not error") as an Error-Communication surface, but no scenario covers it. Every other interface surface has scenario coverage; this robustness behavior of the verification does not. Low stakes — it is a test-infrastructure behavior rather than a product behavior, and T002's acceptance criteria already pin it ("runs under `go test` without `goreleaser` installed"). Consider adding a scenario, or accept the gap as deliberately out of product-scenario scope.
+> The interface defines a `goreleaser`-not-installed fallback ("the verification falls back to a host `go build` … does not error") as an Error-Communication surface, but no scenario covers it. Every other interface surface has scenario coverage; this robustness behavior of the verification does not. Low stakes — it is a test-infrastructure behavior rather than a product behavior, and T003's acceptance criteria already pin it ("runs under `go test` without `goreleaser` installed"). Consider adding a scenario, or accept the gap as deliberately out of product-scenario scope.
 
 ### Passed (5/6)
 
 - **K1** spec § Driving Scenarios → feature — all 7 driving scenarios (and all 3 validation scenarios) have Gherkin equivalents.
 - **K2** spec § Integration Boundaries → interface — the build's own surface is covered by interface-spec.md; the API (runtime), source tree (input), and 022/023 (downstream, future) boundaries are not build-time surfaces, a justified absence.
-- **K3** plan § Phases → tasks — Phase 1 → T001; Phase 2 → T002, T003.
+- **K3** plan § Phases → tasks — plan Phase 1 (build config) → T002; plan Phase 2 (verification) → T001 (config-guard) + T003 (self-containment). (tasks.md groups all three into one RED→GREEN increment.)
 - **K4** plan § Components → tasks § Scope — every component (config, invocations, run+linkage verification, config-guard) has an implementing task.
 - **K6** spec § User Scenarios → interface — all three user flows (bare-host run, ship-all-platforms, local build) have interface coverage.
 
@@ -52,7 +52,7 @@
 - **H1** Terminology — "self-contained", target/matrix, `CGO_ENABLED=0`, GoReleaser, `dist/`, self-containment verification / config-guard are used consistently across all artifacts.
 - **H2** Detail symmetry — spec↔plan and plan↔tasks are proportionate; no shared topic is 3×+ deeper on one side.
 - **H3** Scope alignment — spec capabilities, interface surfaces, and tasks describe the same scope (build + verify; no packaging, no version embedding).
-- **H4** Phase coverage — tasks cover both plan phases structurally; the dependency (Phase 2 → Phase 1; T002/T003 → T001) matches the plan.
+- **H4** Phase coverage — tasks cover both plan phases; the RED→GREEN chain T001 (config-guard, plan Phase 2) → T002 (config, plan Phase 1) → T003 (self-containment, plan Phase 2) deliberately interleaves the two phases for test-first ordering, so plan Phase 1's config (T002) lands between the two Phase 2 verification tasks. The interleave is intentional (CONSTITUTION IV/VII), not drift.
 
 ---
 
@@ -65,4 +65,4 @@
 ## Governance Notes
 
 - **All 16 base check types ran** — full artifact set present (spec, plan, 1 interface file, 1 feature file, tasks), so no checks were skipped for missing artifacts.
-- **Checklist context**: loaded — 6/7 pass, 1 P1 (CONSTITUTION VII).
+- **Checklist context**: loaded — 7/7 pass (the CONSTITUTION VII P1 was resolved via the tasks.md single-increment restructure).
