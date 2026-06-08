@@ -1,124 +1,20 @@
 package cli
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 )
 
-// roleWith builds a Role with the given fields for the pure-renderer tests.
-func roleWith(id, name, purpose string, domains, accountabilities []string) glassfrog.Role {
-	r := glassfrog.Role{ID: id, Name: name, Purpose: purpose}
-	for _, d := range domains {
-		r.Domains = append(r.Domains, glassfrog.Domain{Description: d})
-	}
-	for _, a := range accountabilities {
-		r.Accountabilities = append(r.Accountabilities, glassfrog.Accountability{Description: a})
-	}
-	return r
-}
+// The `me roles` full projection is now rendered through internal/render (019);
+// its byte-equivalence with the pre-019 formatMeRoles output (blocks separated by
+// a blank line, (no purpose set) / (none) absence markers, the No roles. empty
+// line) is pinned by that package's goldens (TestRender_RolesFull_*,
+// TestRender_EmptyResultSets_ExplicitLine). The end-to-end success path stays
+// covered by the me-roles BDD/unit suites.
 
-func respWith(roles ...glassfrog.Role) glassfrog.MyRolesResponse {
-	return glassfrog.MyRolesResponse{Data: roles}
-}
-
-// --- formatMeRoles ---------------------------------------------------------
-
-func TestFormatMeRoles_FullRole(t *testing.T) {
-	resp := respWith(roleWith(
-		"role_0123456789abcdef0123456789abcdef", "Marketing Lead", "A market that knows us",
-		[]string{"The marketing budget", "The brand guidelines"},
-		[]string{"Defining the campaign", "Reporting reach", "Maintaining the press list"},
-	))
-	out := formatMeRoles(resp)
-
-	for _, want := range []string{
-		"Marketing Lead (role_0123456789abcdef0123456789abcdef)",
-		"Purpose: A market that knows us",
-		"Domains:",
-		"- The marketing budget",
-		"- The brand guidelines",
-		"Accountabilities:",
-		"- Defining the campaign",
-		"- Maintaining the press list",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("projection missing %q:\n%s", want, out)
-		}
-	}
-
-	// Domains must render before Accountabilities (interface-cli, matches the web UI).
-	if strings.Index(out, "Domains:") > strings.Index(out, "Accountabilities:") {
-		t.Errorf("Domains should render before Accountabilities:\n%s", out)
-	}
-}
-
-func TestFormatMeRoles_NullPurpose(t *testing.T) {
-	out := formatMeRoles(respWith(roleWith("role_x", "Treasurer", "", nil, nil)))
-	if !strings.Contains(out, "Purpose: (no purpose set)") {
-		t.Errorf("a null/empty purpose should render `(no purpose set)`:\n%s", out)
-	}
-	// A whitespace-only purpose is also treated as unset.
-	out2 := formatMeRoles(respWith(roleWith("role_x", "Treasurer", "   ", nil, nil)))
-	if !strings.Contains(out2, "Purpose: (no purpose set)") {
-		t.Errorf("a whitespace-only purpose should render `(no purpose set)`:\n%s", out2)
-	}
-}
-
-// A role with neither domains nor accountabilities still renders both headers,
-// each followed by `(none)` — the structure is uniform for agent parsing.
-func TestFormatMeRoles_NoDomainsNoAccountabilities(t *testing.T) {
-	out := formatMeRoles(respWith(roleWith("role_x", "Treasurer", "Sound books", nil, nil)))
-	if !strings.Contains(out, "Domains:") || !strings.Contains(out, "Accountabilities:") {
-		t.Errorf("both headers should always render:\n%s", out)
-	}
-	if strings.Count(out, "(none)") != 2 {
-		t.Errorf("an empty section should render `(none)` under each header (want 2):\n%s", out)
-	}
-}
-
-func TestFormatMeRoles_MultipleRolesSeparatedByBlankLine(t *testing.T) {
-	resp := respWith(
-		roleWith("role_1", "Marketing Lead", "p1", []string{"d1"}, []string{"a1"}),
-		roleWith("role_2", "Treasurer", "p2", nil, nil),
-	)
-	out := formatMeRoles(resp)
-	if !strings.Contains(out, "Marketing Lead (role_1)") || !strings.Contains(out, "Treasurer (role_2)") {
-		t.Errorf("both role blocks should render:\n%s", out)
-	}
-	if !strings.Contains(out, "\n\n") {
-		t.Errorf("role blocks should be separated by a blank line:\n%s", out)
-	}
-	// No trailing blank line after the last block.
-	if strings.HasSuffix(out, "\n\n") {
-		t.Errorf("there should be no trailing blank line after the last block:\n%q", out)
-	}
-}
-
-func TestFormatMeRoles_EmptyList(t *testing.T) {
-	out := formatMeRoles(respWith())
-	if strings.TrimRight(out, "\n") != "No roles." {
-		t.Errorf("an empty role list should render exactly `No roles.`, got %q", out)
-	}
-}
-
-// The projection must never surface fillers, tags, or classification flags. They
-// are not fields on the shared Role, so the strongest guarantee is structural:
-// the rendered output contains none of those labels for any input.
-func TestFormatMeRoles_NeverShowsFillersTagsFlags(t *testing.T) {
-	out := formatMeRoles(respWith(roleWith(
-		"role_x", "Marketing Lead", "p", []string{"d1"}, []string{"a1"},
-	)))
-	for _, forbidden := range []string{"filler", "Filler", "tag", "Tag", "flag", "Flag"} {
-		if strings.Contains(out, forbidden) {
-			t.Errorf("projection must not surface %q:\n%s", forbidden, out)
-		}
-	}
-}
-
-// --- incomplete ------------------------------------------------------------
-
+// TestIncomplete pins the pagination incompleteness signal the command still
+// owns (orthogonal to rendering): more-roles-exist → the stderr note, exit 0.
 func TestIncomplete(t *testing.T) {
 	var withNext glassfrog.MyRolesResponse
 	withNext.Meta.Pagination.HasNextPage = true

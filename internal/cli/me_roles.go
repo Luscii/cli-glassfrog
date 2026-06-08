@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
 
@@ -52,10 +52,17 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// Render the reshaped projection to stdout (never the token). When the API
-	// reports more roles than this page carried, write the incompleteness note to
-	// stderr so the partial list is never read as complete — still exit 0.
-	fmt.Fprint(cfg.stdout, formatMeRoles(resp))
+	// Render the result to human text through the shared rendering seam (019),
+	// with the standing full format (the only format reachable until 020). The
+	// render is buffered: a built-in-template defect writes nothing to stdout and
+	// maps to RuntimeError(1); the seam renders only response-side fields, so the
+	// token never appears. When the API reports more roles than this page carried,
+	// write the incompleteness note to stderr so the partial list is never read as
+	// complete — still exit 0. The note rides orthogonally to which format produced
+	// the body.
+	if outcome, err := renderResult(cfg.stdout, cfg.stderr, render.ResourceRoles, resp); outcome != Success {
+		return outcome, err
+	}
 	if incomplete(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteRolesNote)
 	}
@@ -101,69 +108,6 @@ func newMeRolesCommand(seam meSeam) *cobra.Command {
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},
-	}
-}
-
-// formatMeRoles renders the reshaped `glassfrog me roles` projection (never raw
-// JSON; --output json is the deferred Unconsumable Output capability). It is
-// pure (MyRolesResponse → string) and surfaces only response-side fields, so the
-// token never appears. One block per role, blocks separated by a blank line:
-//
-//	<Role Name> (role_…)
-//	  Purpose: <purpose>          // (no purpose set) when null/empty
-//	  Domains:                    // header always renders
-//	    - <domain description>    //   (none) when the role has none
-//	  Accountabilities:           // header always renders, Domains-before-Accountabilities
-//	    - <accountability description>
-//
-// An empty list is the valid "you fill no roles" answer and renders exactly
-// `No roles.` (interface-cli). The role's fillers, tags, and classification
-// flags are never rendered (spec Non-Behaviors) — they are not even fields on
-// the shared Role type.
-func formatMeRoles(resp glassfrog.MyRolesResponse) string {
-	if len(resp.Data) == 0 {
-		return "No roles.\n"
-	}
-
-	blocks := make([]string, 0, len(resp.Data))
-	for _, r := range resp.Data {
-		var b strings.Builder
-		fmt.Fprintf(&b, "%s (%s)\n", r.Name, r.ID)
-
-		purpose := strings.TrimSpace(r.Purpose)
-		if purpose == "" {
-			purpose = "(no purpose set)"
-		}
-		fmt.Fprintf(&b, "  Purpose: %s\n", purpose)
-
-		domains := make([]string, len(r.Domains))
-		for i, d := range r.Domains {
-			domains[i] = d.Description
-		}
-		accountabilities := make([]string, len(r.Accountabilities))
-		for i, a := range r.Accountabilities {
-			accountabilities[i] = a.Description
-		}
-		writeRoleSection(&b, "Domains", domains)
-		writeRoleSection(&b, "Accountabilities", accountabilities)
-		blocks = append(blocks, b.String())
-	}
-	// Each block already ends in "\n"; joining with "\n" inserts one blank line
-	// between blocks and leaves no trailing blank line after the last.
-	return strings.Join(blocks, "\n")
-}
-
-// writeRoleSection writes a role's Domains/Accountabilities section: the header
-// always renders (uniform, agent-parseable structure), followed by the item
-// descriptions or `    (none)` when the role has none.
-func writeRoleSection(b *strings.Builder, header string, items []string) {
-	fmt.Fprintf(b, "  %s:\n", header)
-	if len(items) == 0 {
-		b.WriteString("    (none)\n")
-		return
-	}
-	for _, d := range items {
-		fmt.Fprintf(b, "    - %s\n", d)
 	}
 }
 

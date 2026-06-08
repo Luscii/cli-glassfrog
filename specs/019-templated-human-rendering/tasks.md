@@ -60,7 +60,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `me` full
   - **Scenario references**: templated-human-rendering.feature: "Full preserves the identity projection", "Full enumerates an embedded collection", "Absent embedded collection is omitted", "Render failure leaves stdout empty"
 
-- [ ] **T003** [Shared] [P] Rewire `me roles` to render via `render.Render(ResourceRoles, FormatFull, …)`; delete `formatMeRoles`
+- [x] **T003** [Shared] [P] Rewire `me roles` to render via `render.Render(ResourceRoles, FormatFull, …)`; delete `formatMeRoles` — me-roles godog suite stays green (populated + No roles. + incompleteness note); formatMeRoles + writeRoleSection + their pure tests removed (TestIncomplete retained)
   - **Scope**: In `internal/cli/me_roles.go`, replace `formatMeRoles(resp)` + write with `render.Render(render.ResourceRoles, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeRoles` and its helper `writeRoleSection` and their pure unit tests (superseded by T001's `roles` golden). The pagination incompleteness note path is unchanged.
   - **Acceptance criteria**:
     - `me roles` stdout is unchanged from pre-019 (populated and empty `No roles.` cases) — the `me_roles_bdd_test.go` godog suite stays green.
