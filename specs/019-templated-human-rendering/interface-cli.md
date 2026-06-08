@@ -3,11 +3,11 @@
 **Feature**: 019-templated-human-rendering
 **Role**: Crafter
 **Touchpoint**: CLI
-**Plan reference**: System Architecture + ADR-1/3/4 — the rendered human output the four read commands (`me`, `my roles`, `my actions`, `my projects`) now produce through the `internal/render` seam: the standing `full` format (field-equivalent to each read's pre-019 projection) and the defined-but-not-yet-selectable `compact` format.
+**Plan reference**: System Architecture + ADR-1/3/4 — the rendered human output the four read commands (`me`, `me roles`, `me actions`, `me projects`) now produce through the `internal/render` seam: the standing `full` format (field-equivalent to each read's pre-019 projection) and the defined-but-not-yet-selectable `compact` format.
 
 ---
 
-This accord pins the **rendered stdout surface** of the four read commands under 019. 019 **adds no command and no flag** — the commands, their args, and their `--include`/`--per-page` flags are unchanged (011–014); it changes only *how their successful result is rendered* (through `internal/render`, see `interface-spec.md`). The `--output` flag that will let an operator pick a format is **020's** surface. Until 020, every read renders **`full`**; **`compact`** is fully defined and tested here but reachable from no operator surface yet (Q1 resolution). JSON/YAML output is **018's** surface, not this one.
+This accord pins the **rendered stdout surface** of the four read commands under 019. 019 **adds no command and no flag** — the commands, their args, and their flags (`--include` on `me`; `--status` on `me actions`/`me projects`) are unchanged (011–014); it changes only *how their successful result is rendered* (through `internal/render`, see `interface-spec.md`). The `--output` flag that will let an operator pick a format is **020's** surface. Until 020, every read renders **`full`**; **`compact`** is fully defined and tested here but reachable from no operator surface yet (Q1 resolution). JSON/YAML output is **018's** surface, not this one.
 
 ---
 
@@ -18,9 +18,9 @@ No new commands or flags. The affected commands and their unchanged invocation:
 | Command | Synopsis | 019 effect |
 |---|---|---|
 | `glassfrog me` | `me [--include roles] [--base-url …]` | success body rendered via `render.Render(ResourceMe, FormatFull, …)` |
-| `glassfrog my roles` | `my roles [--per-page N] [--base-url …]` | success body rendered via `render.Render(ResourceRoles, FormatFull, …)` |
-| `glassfrog my actions` | `my actions [--per-page N] [--base-url …]` | success body rendered via `render.Render(ResourceActions, FormatFull, …)` |
-| `glassfrog my projects` | `my projects [--per-page N] [--base-url …]` | success body rendered via `render.Render(ResourceProjects, FormatFull, …)` |
+| `glassfrog me roles` | `me roles [--base-url …]` | success body rendered via `render.Render(ResourceRoles, FormatFull, …)` |
+| `glassfrog me actions` | `me actions [--status …] [--base-url …]` | success body rendered via `render.Render(ResourceActions, FormatFull, …)` |
+| `glassfrog me projects` | `me projects [--status …] [--base-url …]` | success body rendered via `render.Render(ResourceProjects, FormatFull, …)` |
 
 ### `full` format (standing output)
 
@@ -65,7 +65,7 @@ No new commands or flags. The affected commands and their unchanged invocation:
 | `actions` | `<action-id>  [<status>]  <description | —>` |
 | `projects` | `<project-id>  [<status>]  <description | —>` |
 
-**Example** (`my roles`, three roles):
+**Example** (`me roles`, three roles):
 ```
 # full (standing)                          # compact (defined, not yet selectable)
 Marketing Lead (role_abc)                   role_abc  Marketing Lead  domains=1  accountabilities=2
@@ -95,7 +95,7 @@ When a read returns zero records, the command emits an explicit per-command empt
 
 **Piping / scripting**: output stays plain text on stdout; `full` is the standing, byte-stable format an existing script already parses (no change). `compact` is denser but not reachable until 020 wires `--output` — so no script can depend on it yet.
 
-**Configuration precedence**: none introduced here. 019 hardcodes `full`; 020 will add `--output` (flag > env > default) and select the `Format`. The read commands keep reading `--base-url`/`--include`/`--per-page` exactly as before.
+**Configuration precedence**: none introduced here. 019 hardcodes `full`; 020 will add `--output` (flag > env > default) and select the `Format`. The read commands keep reading `--base-url`/`--include`/`--status` exactly as before.
 
 **Buffer-then-write**: the command renders the result into a buffer via `render.Render` and writes to stdout only on success (interface-spec.md); on a render error nothing is written to stdout and the command exits non-zero (below). Error output (auth/transport/API failures) is **not** rendered through a template — it keeps its existing cause-plus-next-step format on stderr (spec Non-Behavior).
 
