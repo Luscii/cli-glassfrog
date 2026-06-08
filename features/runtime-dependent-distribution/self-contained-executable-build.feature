@@ -4,8 +4,10 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
   The CLI can't run without a separately-installed runtime, so it won't run
   where operators need it. Self-Contained Executable Build cross-compiles a
   single dependency-free `glassfrog` binary per supported platform (macOS and
-  Linux, amd64 and arm64) from one source tree, and verifies each runs on a
-  clean host with only the OS and network — satisfying CONSTITUTION XII.
+  Linux, amd64 and arm64) from one source tree, and provides a per-target check
+  that a produced binary runs on a clean host with only the OS and network —
+  proven on at least the host target, with cross-target breadth deferred to 022
+  — satisfying CONSTITUTION XII.
   Packaging and publishing (022) and version embedding (023) build on it.
   (affects: Practitioner, AI agent, Maintainer)
 
