@@ -21,4 +21,4 @@
 | 017-rate-limit-handling | Complete | validate | 2026-06-07T18:45:00 |
 | 018-structured-serialization | Complete | validate | 2026-06-08T14:57:23 |
 | 019-templated-human-rendering | Ready | validate | 2026-06-08T14:00:00 |
-| 020-output-format-selection | Implemented | implement | 2026-06-08T16:30:00 |
+| 020-output-format-selection | Complete | validate | 2026-06-08T17:00:00 |
