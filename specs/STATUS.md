@@ -22,3 +22,4 @@
 | 018-structured-serialization | Complete | validate | 2026-06-08T14:57:23 |
 | 019-templated-human-rendering | Ready | validate | 2026-06-08T14:00:00 |
 | 020-output-format-selection | Analyzed | analyze | 2026-06-08T15:45:00 |
+| 021-self-contained-executable-build | Analyzed | analyze | 2026-06-08T16:35:00 |
