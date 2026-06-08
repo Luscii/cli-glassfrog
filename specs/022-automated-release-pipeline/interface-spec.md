@@ -3,7 +3,7 @@
 **Feature**: 022-automated-release-pipeline
 **Role**: Crafter
 **Touchpoint**: Specification
-**Plan reference**: System Architecture (the `.goreleaser` release sections + `.github/workflows/release.yml`); ADR-1 (extend `.goreleaser`), ADR-2 (`release: published` trigger, attach to existing release), ADR-3 (cross-target verify gate)
+**Plan reference**: System Architecture (the `.goreleaser.yaml` release sections + `.github/workflows/release.yml`); ADR-1 (extend `.goreleaser.yaml`), ADR-2 (`release: published` trigger, attach to existing release), ADR-3 (cross-target verify gate)
 
 ---
 
@@ -19,7 +19,7 @@ This feature is two declarative artifacts at the repo root, consumed by GitHub A
 | Local dry-run | `goreleaser release --snapshot --clean --skip=publish` | Produces `dist/` without a tag or upload — for verifying the archive/checksum layout locally. |
 | CI build invocation | `goreleaser release --clean --skip=publish` | Run at the release tag (checkout ref = the tag); builds + archives + checksums, no upload. |
 
-### `.goreleaser` sections added by 022
+### `.goreleaser.yaml` sections added by 022
 
 022 **adds** these top-level sections to the file 021 created. It does **not** modify `builds` or `builds.ldflags` (021 owns the matrix; 023 owns the ldflags version seam).
 
@@ -66,17 +66,17 @@ This feature is two declarative artifacts at the repo root, consumed by GitHub A
 | Any target fails to build/archive in `build` | `goreleaser release` exits non-zero → `build` fails → `verify` and `publish` never run → nothing uploaded (atomic, no partial release). |
 | Any `verify` matrix leg fails the self-containment check | that leg exits non-zero → `publish` (which `needs` the whole matrix) is skipped → nothing uploaded. Extends spec atomicity to "build-or-verification failure aborts." |
 | Trigger fires but no release object exists | not reachable for `release: published` (the event implies a published release). A raw tag push does **not** trigger the workflow. |
-| `.goreleaser` drift (lost target, `CGO_ENABLED=1`, missing `archives`/`checksum`/`release`) | the extended config-guard test fails in PR Validation (#24) before a release is ever cut. |
+| `.goreleaser.yaml` drift (lost target, `CGO_ENABLED=1`, missing `archives`/`checksum`/`release`) | the extended config-guard test fails in PR Validation (#24) before a release is ever cut. |
 | Re-run for an existing release | converges via `--clobber`; assets replaced, release body/status untouched. |
 
 ---
 
 ## Consistency Notes
 
-- **Sibling boundary (021 Self-Contained Executable Build):** this accord extends the `.goreleaser` file 021 defines and reuses 021's self-containment check verbatim (pointed at `dist/`). It must not redefine `builds`/`ldflags`. 022's implementation is gated on 021 landing.
+- **Sibling boundary (021 Self-Contained Executable Build):** this accord extends the `.goreleaser.yaml` file 021 defines and reuses 021's self-containment check verbatim (pointed at `dist/`). It must not redefine `builds`/`ldflags`. 022's implementation is gated on 021 landing.
 - **Sibling boundary (023 Version Embedding):** `builds.ldflags` is left untouched as 023's seam; archive/version naming flows from the tag GoReleaser reads.
 - **Sibling boundary (#30 Release Drafting):** #30 owns the release body, draft, and pre-release/latest status; this accord's `gh release upload --clobber` publish step is specifically chosen to preserve all three.
-- **Downstream consumers (#27 Install Script, #36 Homebrew Tap, #37 NPM Wrapper):** depend on the archive name template (`glassfrog_<version>_<os>_<arch>.tar.gz`) and the sha256 checksums file pinned here. Homebrew later adds a `brew` section to the same `.goreleaser`.
+- **Downstream consumers (#27 Install Script, #36 Homebrew Tap, #37 NPM Wrapper):** depend on the archive name template (`glassfrog_<version>_<os>_<arch>.tar.gz`) and the sha256 checksums file pinned here. Homebrew later adds a `brew` section to the same `.goreleaser.yaml`.
 - **Assumption — publish via `gh release upload` rather than `goreleaser release`:** GoReleaser OSS cannot resume-publish a pre-built, externally-verified `dist/`, and the spec requires verification *before* publish. `gh release upload --clobber` publishes the exact verified bytes and inherently preserves notes/status. The reference pipeline mixes `goreleaser release` (build) and `gh release upload` (extra assets) the same way. The `release` section is retained with `mode: keep-existing` as a defensive default for direct GoReleaser runs. The upload must be filtered to the archives + checksums file (see Surface — Job `publish`), never a bare `dist/*`, because `dist/` also holds GoReleaser metadata and build subdirectories.
 - **Assumption — runner labels** (`ubuntu-24.04-arm`, `macos-13`, `macos-14`): the chosen GitHub-hosted native-arch runners. Where a native runner is unavailable, QEMU emulation on a linux runner is the documented fallback (plan Risk).
 - **Conventions:** there is no `accords/` directory in this project; conventions are taken from PROJECT.md (Go CLI, GoReleaser per DECISIONS) and the maintainer's reference pipelines. No deviation from an established accord because none exists for release tooling yet — this accord sets the pattern.

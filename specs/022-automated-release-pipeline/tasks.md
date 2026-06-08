@@ -6,7 +6,7 @@
 
 ---
 
-> **Cross-spec gate**: every task here depends on **021 Self-Contained Executable Build** landing first — it provides the `.goreleaser` `builds` block this feature extends and the self-containment check Phase 3 reuses. 021 is currently `Analyzed`; do not start implementation until it is merged. Tasks below are ready to pick up the moment 021 lands.
+> **Cross-spec gate**: every task here depends on **021 Self-Contained Executable Build** landing first — it provides the `.goreleaser.yaml` `builds` block this feature extends and the self-containment check Phase 3 reuses. 021 is currently `Analyzed`; do not start implementation until it is merged. Tasks below are ready to pick up the moment 021 lands.
 
 ## Dependency Graph
 
@@ -20,14 +20,14 @@ Phase 3: Cross-Target Verification Gate (1 task, depends on Phase 2) [US1]
 
 **Pipeline mode**: `spec/022-automated-release-pipeline/base` → `spec/022-automated-release-pipeline/task-1`, `task-2`, `task-3`.
 
-The `base` branch must be cut from a main that already contains 021 (the `.goreleaser` `builds` block and the self-containment check). Other distribution specs (023, 027, 030, 036, 037) may build in parallel on their own base branches; this feature only hard-depends on 021.
+The `base` branch must be cut from a main that already contains 021 (the `.goreleaser.yaml` `builds` block and the self-containment check). Other distribution specs (023, 027, 030, 036, 037) may build in parallel on their own base branches; this feature only hard-depends on 021.
 
 ---
 
 ## Phase 1: Release Configuration [Shared]
 
-- [ ] **T001** [Shared] Extend `.goreleaser` with `archives`, `checksum`, and `release` sections (plus config-guard test)
-  - **Scope**: Add to 021's `.goreleaser` (do **not** touch `builds` or `builds.ldflags`): an `archives` entry (one `tar.gz` per target, name template `glassfrog_{{.Version}}_{{.Os}}_{{.Arch}}`, containing the `glassfrog` binary); a `checksum` entry (single sha256 file, default name `glassfrog_{{.Version}}_checksums.txt`); and a `release` entry with `mode: keep-existing`, `draft: false`, no `prerelease`/`make_latest` override. Extend 021's config-guard test (same change-detector rigor) to assert the three new sections are present and the build matrix is still exactly the four targets with `CGO_ENABLED=0`.
+- [ ] **T001** [Shared] Extend `.goreleaser.yaml` with `archives`, `checksum`, and `release` sections (plus config-guard test)
+  - **Scope**: Add to 021's `.goreleaser.yaml` (do **not** touch `builds` or `builds.ldflags`): an `archives` entry (one `tar.gz` per target, name template `glassfrog_{{.Version}}_{{.Os}}_{{.Arch}}`, containing the `glassfrog` binary); a `checksum` entry (single sha256 file, default name `glassfrog_{{.Version}}_checksums.txt`); and a `release` entry with `mode: keep-existing`, `draft: false`, no `prerelease`/`make_latest` override. Extend 021's config-guard test (same change-detector rigor) to assert the three new sections are present and the build matrix is still exactly the four targets with `CGO_ENABLED=0`.
   - **Acceptance criteria**:
     - `goreleaser release --snapshot --clean --skip=publish` emits exactly four `tar.gz` archives (one per target) plus one sha256 checksums file under `dist/`, named per the templates above.
     - `builds` and `builds.ldflags` are byte-unchanged from 021.
@@ -36,7 +36,7 @@ The `base` branch must be cut from a main that already contains 021 (the `.gorel
   - **Dependencies**: 021 (Self-Contained Executable Build)
   - **Plan reference**: Phase 1: Release configuration; ADR-1
   - **Scenario references**: automated-release-pipeline.feature: "The attached matrix is exactly the four supported targets"; "Every attached archive has a matching checksum entry"
-  - **Interface references**: interface-spec.md: `.goreleaser` sections added by 022; Config-guard extension
+  - **Interface references**: interface-spec.md: `.goreleaser.yaml` sections added by 022; Config-guard extension
 
 ## Phase 2: Release Workflow [Shared]
 
