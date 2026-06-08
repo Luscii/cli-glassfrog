@@ -1,0 +1,44 @@
+# GoReleaser build configuration for glassfrog (spec 021 — Self-Contained
+# Executable Build). This file is the single source of build truth that a
+# maintainer and (later, 022) CI both invoke, so the binaries cannot diverge.
+#
+# Scope of 021: the `builds` block only. Archives, checksums, the GitHub
+# release, and the Homebrew cask are owned by 022 (Automated Release Pipeline)
+# and are deliberately absent — 022 extends this file additively rather than
+# introducing a parallel build path.
+#
+# Invocations:
+#   goreleaser build --snapshot --clean                  # full four-target matrix → dist/
+#   goreleaser build --snapshot --clean --single-target  # host platform only — the local dev build
+# --snapshot builds without a git tag; both invocations apply this same config,
+# so a local host binary and the matrix binary for that target are identical.
+
+version: 2
+project_name: glassfrog
+
+builds:
+  - id: glassfrog
+    # The module-root main package (main.go at the repository root).
+    main: .
+    binary: glassfrog
+    # CGO_ENABLED=0 is the self-containment lever (CONSTITUTION XII): a pure-Go
+    # binary with no C-library dependency, cross-compilable from any host.
+    env:
+      - CGO_ENABLED=0
+    # goos × goarch yields exactly the four supported targets:
+    # darwin/amd64, darwin/arm64, linux/amd64, linux/arm64. No windows.
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    # -trimpath keeps builds path-independent and reproducible across hosts.
+    flags:
+      - -trimpath
+    # ldflags is intentionally empty in 021 — it is the 023 (Version Embedding)
+    # seam where `-X .../internal/cli.version={{.Version}}` will be injected. The
+    # explicit empty entry overrides GoReleaser's default version -X flags, so
+    # 021 ships no version logic.
+    ldflags:
+      - ""

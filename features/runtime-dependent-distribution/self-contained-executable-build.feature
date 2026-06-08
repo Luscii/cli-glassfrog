@@ -17,7 +17,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
     # I want a binary that runs on a bare host with only network access to the API.
 
     # Source: 021-self-contained-executable-build — Scenario: a produced binary runs on a clean environment
-    @wip
     Scenario: A produced binary runs on a clean host
       Given a binary had been produced for a target platform
       When it runs on a clean host of that platform with only the OS and network present
@@ -25,7 +24,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And it will be able to reach the Glassfrog API
 
     # Source: 021-self-contained-executable-build — Scenario: the self-containment check catches a runtime dependency
-    @wip
     Scenario: The self-containment check rejects a binary with a runtime dependency
       Given a produced binary required a separately-installed dependency
       When the self-containment check runs against it on a clean host of its target
@@ -33,7 +31,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And the binary will not be treated as self-contained
 
     # Source: 021-self-contained-executable-build — Scenario: self-containment is per-target, not universal
-    @wip
     Scenario: A binary runs only on its own target's host
       Given a binary had been produced for the macOS arm64 target
       When it is taken to a Linux host or a macOS amd64 host
@@ -49,7 +46,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And no runtime, interpreter, or installed library will be required
 
     # Source: 021-self-contained-executable-build — Proposed: config-guard fails when CGO_ENABLED is not 0 (plan ADR-2)
-    @wip
     Scenario: Config drift to enabled cgo is rejected
       Given the build configuration had been changed to enable cgo
       When the config-guard check runs
@@ -62,7 +58,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
     # I want a single release build that cross-compiles all four target binaries.
 
     # Source: 021-self-contained-executable-build — Scenario: release build produces the full matrix from one source tree
-    @wip
     Scenario: The release build produces all four target binaries
       Given the repository source tree
       When the cross-platform release build runs
@@ -70,7 +65,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And all four will come from the same single source tree
 
     # Source: 021-self-contained-executable-build — Scenario: a failed target fails the whole release build
-    @wip
     Scenario: A failed target fails the whole release build
       Given the release build was producing the four target binaries
       When one target fails to build
@@ -78,7 +72,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And it will emit no partial set of binaries
 
     # Source: 021-self-contained-executable-build — Scenario: cross-compilation from a foreign host
-    @wip
     Scenario: Foreign-target binaries build from any host
       Given a maintainer was working on a macOS arm64 host
       When the release build runs
@@ -102,7 +95,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
       And the binaries produced by each cannot diverge
 
     # Source: 021-self-contained-executable-build — Proposed: config-guard fails on a target outside the four (plan ADR-2)
-    @wip
     Scenario: An unsupported target in the build config is rejected
       Given the build configuration had declared a Windows target
       When the config-guard check runs
@@ -115,7 +107,6 @@ Feature: Runtime-Dependent Distribution — Self-Contained Executable Build
     # I want a local build that produces a runnable binary for my own platform.
 
     # Source: 021-self-contained-executable-build — Scenario: local build produces a runnable host binary
-    @wip
     Scenario: The local build produces a runnable host binary
       Given a maintainer was on a supported host platform
       When they run the local development build
