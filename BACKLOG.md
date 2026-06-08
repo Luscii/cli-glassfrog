@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-08T13:22:47 | Framework: MoSCoW | Items: 38
+> Generated: 2026-06-08T16:45:00 | Framework: MoSCoW | Items: 38
 
 ### 1. Command Registration
 
@@ -154,22 +154,22 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The `--output` flag that dispatches to a renderer — builds after both renderers exist, so it follows Structured Serialization and Templated Human Rendering.
 - **Dependencies**: → requires: Structured Serialization; → requires: Templated Human Rendering
-- **Status**: pending
+- **Status**: specified:020-output-format-selection
 
 ### 21. Self-Contained Executable Build
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The dependency-free binary (CONSTITUTION XII) and dependency root of Self-Contained Distribution — everything in the solution builds on it, so it leads the distribution work.
-- **Status**: pending
+- **Status**: specified:021-self-contained-executable-build
 
 ### 22. Automated Release Pipeline
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The ship mechanism (tag → build → publish to GitHub Releases); gates every acquisition channel, so it follows the build and precedes the install paths.
+- **Rationale**: The ship mechanism (publish a release → build → attach binaries + checksums); gates every acquisition channel, so it follows the build and precedes the install paths. Triggered by a published release — normally drafted by Release Drafting, but a hand-published release works too — so the dependency on Release Drafting is soft, and the Must-tier ranking ahead of Should-tier Release Drafting is unchanged.
 - **Dependencies**: → requires: Self-Contained Executable Build
-- **Status**: pending
+- **Status**: specified:022-automated-release-pipeline
 
 ### 23. Version Embedding
 
