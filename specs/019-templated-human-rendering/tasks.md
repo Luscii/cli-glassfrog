@@ -11,7 +11,7 @@
 Phase 1: `internal/render` engine + the eight built-in templates (1 task, no phase dependencies) [Shared]
 Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, depend on Phase 1 — parallel with each other) [Shared]
 
-5 tasks total | T001 gated on the open 018↔019 package-home reconciliation (`internal/render` vs `internal/output` — see DECISIONS.md / plan ADR-2); startable once that's resolved. T002–T005 parallel once T001 lands | Builder: pipeline
+5 tasks total | T001 startable immediately — the 018↔019 package-home reconciliation is resolved (`internal/render` stays separate from 018's `internal/output`; see DECISIONS.md / plan ADR-2). T002–T005 parallel once T001 lands | Builder: pipeline
 
 > Every task is `[Shared]`: the render engine and each read's `full`/`compact` templates serve all three user scenarios (read-as-human / scan-compact / see-everything-in-full) rather than decomposing per scenario.
 >
@@ -41,7 +41,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
     - An unknown `resource`/`format`, or a template-execution failure, returns a `*RenderError` and the empty string — never partial text.
     - A registry-exhaustiveness test asserts all eight `<resource>.<format>` templates resolve, with a `len`+comma-ok guard so a dropped/misnamed template fails loud (PR #10 LEARNINGS).
     - The package imports only `internal/glassfrog` + stdlib; `go build ./...` and `go vet ./...` are clean.
-  - **Dependencies**: `internal/glassfrog` is landed on main, BUT T001 is **gated** on resolving the open 018↔019 package-home reconciliation (DECISIONS.md / plan ADR-2): 018 (landed) assumed human rendering extends `internal/output`, while this plan creates a separate `internal/render`. The package location must be settled before T001 creates it — otherwise parallel work risks two competing package homes. Once resolved, T001 has no further dependency.
+  - **Dependencies**: None. `internal/glassfrog` is landed on main, and the 018↔019 package-home reconciliation is resolved (2026-06-08): T001 creates a **separate** `internal/render` package, distinct from 018's `internal/output` (machine JSON/YAML) — see DECISIONS.md / plan ADR-2. Startable immediately.
   - **Plan reference**: Phase 1; ADR-1 (`text/template` engine), ADR-2 (`internal/render` package), ADR-3 (`missingkey=error` + FuncMap guards), ADR-4 (buffer-then-return); Cross-cutting (Testing).
   - **Interface references**: interface-spec.md — Surface (`Render`, `Resource`/`Format`, template set, `RenderError`); interface-cli.md — `full`/`compact` shapes and the empty-result table.
   - **Scenario references**: templated-human-rendering.feature: "Full preserves the identity projection", "Full enumerates an embedded collection", "Compact renders one line per role", "Compact counts a nested collection", "Empty result set renders an explicit line", "Full and compact cover the same records", "Full is field-equivalent to the pre-feature projection", "No rendered value is absent from the source"
