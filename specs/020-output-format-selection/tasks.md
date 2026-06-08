@@ -29,7 +29,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
 
 ## Phase 1: Selection vocabulary + resolver (`internal/output`) [Shared]
 
-- [ ] **T001** [Shared] Add the four-format selection vocabulary and its constants to `internal/output`
+- [x] **T001** [Shared] Add the four-format selection vocabulary and its constants to `internal/output` — `OutputFormat`/`ParseFormat`/`IsStructured`/`MachineFormat` + constants in `internal/output/format.go`; 6 unit tests (no scenarios in this task). Symbol spelling: enum members `FormatFull`/`FormatCompact`/`FormatJSON`/`FormatYAML` (the bare `JSON`/`YAML` names belong to 018's machine `Format`).
   - **Scope**: In the existing `internal/output` package (created by 018), add the `OutputFormat` enum (`Full`, `Compact`, `JSON`, `YAML`) — the *selection* vocabulary, distinct from 018's machine-encoder `Format{JSON,YAML}`. Add `ParseFormat(string) (OutputFormat, error)` matching the four tokens case-insensitively (only those four valid in any casing); `(OutputFormat).IsStructured() bool` (true for JSON/YAML); `(OutputFormat).MachineFormat() (Format, bool)` mapping a structured selection to 018's `Format` (false for the human formats). Centralize the constants `FlagOutput = "output"`, `EnvVarOutput = "GLASSFROG_OUTPUT"`, the unexported `.glassfrogrc` key `"output"`, and `DefaultFormat = Full`. `internal/output` must not import `internal/render` or `internal/cli`.
   - **Acceptance criteria**:
     - `ParseFormat` returns the matching `OutputFormat` for each of `full`/`compact`/`json`/`yaml` and for mixed casing (`JSON`, `Json`, `jSON` → JSON); any other non-empty value returns a non-nil error.
@@ -41,7 +41,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
   - **Interface references**: interface-spec.md — Surface (`OutputFormat`, `ParseFormat`, `IsStructured`, `MachineFormat`, constants).
   - **Scenario references**: output-format-selection.feature: "An uppercase selector selects the same format", "Each format routes to exactly its renderer"
 
-- [ ] **T002** [US2] Add `ResolveFormat` + `FormatError` + the OS seam, mirroring `apiclient.baseurl`
+- [x] **T002** [US2] Add `ResolveFormat` + `FormatError` + the OS seam, mirroring `apiclient.baseurl` — pure `ResolveFormat(flag, env, fileValue, filePath, fileFound, fileErr)` core + `ResolveFormatFromOS(flag, startDir, homeDir)` binding `os.Getenv` + `rcfile.Resolve`; precedence/present-but-invalid/rcfile-error unit tests in `format_test.go`.
   - **Scope**: In `internal/output`, add `ResolveFormat` as a pure core over injected sources resolving the chain flag → env → `.glassfrogrc` `output` key → `DefaultFormat`, plus `ResolveFormatFromOS(flagValue, startDir, homeDir string) (OutputFormat, error)` binding the real `os.Getenv` and the `internal/rcfile` nearest-wins walk (the 005 inject-roots split, the `apiclient.baseurl` shape). Distinguish *absent at a source* (skip to next rung) from *present-but-invalid* (`*FormatError{Source, Value}`, naming `--output` / `GLASSFROG_OUTPUT` / the file path). Surface `internal/rcfile` read/format errors while reading the `output` key. Always yields a format when no source errors.
   - **Acceptance criteria**:
     - Flag wins over env and config; env wins over config; the nearest config file wins over the home file; all-absent yields `Full`.
