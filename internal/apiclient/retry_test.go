@@ -199,7 +199,6 @@ func TestRetryExecutor_NonRetryOutcomesPassThroughOnce(t *testing.T) {
 	cases := []struct {
 		name string
 		base *sequenceBase
-		ctx  ConnectionContext
 		want func(error) bool
 	}{
 		{
@@ -433,6 +432,32 @@ func TestNewRetryExecutor_NilSeamsPanic(t *testing.T) {
 				}
 			}()
 			build()
+		})
+	}
+}
+
+// A policy that violates its documented floors (MaxAttempts ≥ 1, non-negative
+// durations) is a wiring bug and fail-fasts at construction, same as a nil seam —
+// so a negative FallbackBackoff (a wait time.Sleep ignores and the budget can't
+// catch) or a < 1 MaxAttempts can never reach the loop.
+func TestNewRetryExecutor_InvalidPolicyPanics(t *testing.T) {
+	client := mustClient(t, completeContext(secretToken), &sequenceBase{steps: []cannedResp{{status: 200, body: `{}`}}})
+	sleep := func(time.Duration) {}
+	var progress strings.Builder
+
+	cases := map[string]RetryPolicy{
+		"MaxAttempts < 1":          {MaxAttempts: 0, MaxTotalWait: 60 * time.Second, FallbackBackoff: 2 * time.Second},
+		"negative MaxTotalWait":    {MaxAttempts: 4, MaxTotalWait: -1, FallbackBackoff: 2 * time.Second},
+		"negative FallbackBackoff": {MaxAttempts: 4, MaxTotalWait: 60 * time.Second, FallbackBackoff: -1},
+	}
+	for name, policy := range cases {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s: NewRetryExecutor did not panic (fail-fast on an invalid policy)", name)
+				}
+			}()
+			NewRetryExecutor(client, policy, sleep, &progress)
 		})
 	}
 }

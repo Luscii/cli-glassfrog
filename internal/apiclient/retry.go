@@ -115,7 +115,11 @@ type RetryExecutor struct {
 // the retry policy and the two injected seams. client, sleep, and progress are
 // required and must be non-nil; a nil seam is a wiring bug and panics (fail-fast,
 // no nil-default — DECISIONS/PR #20). The package reaches for no time.Sleep /
-// os.Stderr directly.
+// os.Stderr directly. The policy must satisfy its documented floors —
+// MaxAttempts ≥ 1 and non-negative MaxTotalWait / FallbackBackoff; a violation is
+// a wiring bug (it would yield surprising behavior like an immediate give-up or a
+// negative wait that time.Sleep ignores and the budget check can't catch) and
+// panics, same as a nil seam. DefaultRetryPolicy satisfies the floors.
 func NewRetryExecutor(client *Client, policy RetryPolicy, sleep func(time.Duration), progress io.Writer) *RetryExecutor {
 	if client == nil {
 		panic("apiclient.NewRetryExecutor: client must not be nil")
@@ -125,6 +129,15 @@ func NewRetryExecutor(client *Client, policy RetryPolicy, sleep func(time.Durati
 	}
 	if progress == nil {
 		panic("apiclient.NewRetryExecutor: progress must not be nil")
+	}
+	if policy.MaxAttempts < 1 {
+		panic("apiclient.NewRetryExecutor: policy.MaxAttempts must be >= 1")
+	}
+	if policy.MaxTotalWait < 0 {
+		panic("apiclient.NewRetryExecutor: policy.MaxTotalWait must be >= 0")
+	}
+	if policy.FallbackBackoff < 0 {
+		panic("apiclient.NewRetryExecutor: policy.FallbackBackoff must be >= 0")
 	}
 	return &RetryExecutor{client: client, policy: policy, sleep: sleep, progress: progress}
 }
