@@ -46,12 +46,15 @@ func humanFormat(f output.OutputFormat) render.Format {
 // resolved format it selects the decode target and the renderer, sends req through
 // exec, and writes the rendered document to stdout:
 //
-//   - structured (json/yaml): decode the verbatim 2xx body into a json.RawMessage
-//     and write output.RenderSuccess(machineFmt, raw), preserving every field and
-//     number exactly (018 fidelity). The structured document carries the API's own
-//     pagination metadata in-band, so the human incompleteness note is not emitted
-//     on this path — selection shapes presentation, and machine consumers read
-//     completeness from the document itself.
+//   - structured (json/yaml): capture the 2xx body verbatim into a json.RawMessage
+//     and hand those bytes to output.RenderSuccess(machineFmt, raw). The written
+//     document is NOT byte-identical to the response — RenderSuccess normalizes the
+//     JSON (indentation + trailing newline) or transforms it to YAML — but it is
+//     faithful to the JSON *value*: no field dropped, no number coerced (018
+//     fidelity operates on the raw bytes, never a re-encoded struct). The structured
+//     document carries the API's own pagination metadata in-band, so the human
+//     incompleteness note is not emitted on this path — selection shapes
+//     presentation, and machine consumers read completeness from the document itself.
 //   - human (full/compact): decode the typed *T and write render.Render(resource,
 //     humanFmt, v) (019), then append the optional incompleteness note to stderr.
 //
