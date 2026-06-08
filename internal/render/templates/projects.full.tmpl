@@ -1,0 +1,4 @@
+{{if not .Data}}no projects
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{$d := trimSpace .Description}}{{if eq $d ""}}—{{else}}{{$d}}{{end}}
+  role: {{if eq (trimSpace .RoleID) ""}}—{{else}}{{.RoleID}}{{end}}   sub-projects: {{if .HasSubProjects}}yes{{else}}no{{end}}   actions: {{if .HasActions}}yes{{else}}no{{end}}{{if .Tags}}   tags: {{join .Tags ", "}}{{end}}
+{{end}}{{end}}

@@ -1,0 +1,9 @@
+actor:        {{.Actor.Name}} ({{.Actor.Kind}}) {{.Actor.ID}}
+organization: {{.Organization.Name}} ({{.Organization.ID}})
+access:       {{.Membership.AccessLevel}}
+{{- if .Roles}}
+roles:
+{{- range .Roles}}
+  - {{.Name}} ({{.ID}})
+{{- end}}
+{{- end}}

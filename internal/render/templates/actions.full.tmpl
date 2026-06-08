@@ -1,0 +1,4 @@
+{{if not .Data}}No actions.
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{$d := trimSpace .Description}}{{if eq $d ""}}—{{else}}{{$d}}{{end}}
+  role: {{.RoleID}}{{if .Tags}}   tags: {{join .Tags ", "}}{{end}}
+{{end}}{{end}}
