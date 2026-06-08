@@ -20,14 +20,14 @@ The parts:
 ```
 glassfrog me / me roles / me actions / me projects
   └─ run<Read>(cfg):  … Execute → result value (glassfrog.*Response)
-        success → render.Render(resourceKey, "full", result) → buffer → stdout   [019]
+        success → render.Render(resourceKey, render.FormatFull, result) → buffer → stdout   [019]
                     │  text/template set (//go:embed), FuncMap, missingkey=error
                     │  exec error (built-in bug) → RuntimeError(1); nothing written
         error   → classifyClientError(err) → message (unchanged; NOT templated)
 
 internal/render (NEW)      template set {me,roles,actions,projects}×{full,compact}; Render(resource,format,data)→(string,err)
 internal/glassfrog (dep)   MeResponse / MyRolesResponse / MyActionsResponse / MyProjectsResponse  (render inputs; unchanged)
-internal/cli (modified)    four reads call render.Render(…, "full", …) instead of formatXxx
+internal/cli (modified)    four reads call render.Render(…, render.FormatFull, …) instead of formatXxx
   ── compact templates exist + are tested, but no CLI path selects them until 020
 ```
 
