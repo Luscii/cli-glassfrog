@@ -8,9 +8,9 @@
 
 ## Dependency Graph
 
-Phase 1: Build configuration and verification (3 tasks, no phase dependencies) — single RED→GREEN increment
+Increment 1: Build configuration and verification (3 tasks, spans plan Phases 1–2) — single RED→GREEN increment
 
-3 tasks total | 1 phase | Builder: pipeline
+3 tasks total | 1 increment (plan Phases 1–2) | Builder: pipeline
 
 > **One increment, one PR (CONSTITUTION VII — Working Software).** The `.goreleaser.yaml` config is the only implementation in this feature, and its verifying tests are the config-guard and the self-containment check. They land together in a single PR — never as a config-only or a test-only increment. **Order is RED→GREEN (CONSTITUTION IV):** the config-guard test (T001) is written first and fails with no config, then the config (T002) makes it pass, and the self-containment verification (T003) closes the increment.
 
@@ -22,9 +22,9 @@ Phase 1: Build configuration and verification (3 tasks, no phase dependencies) �
 
 ---
 
-## Phase 1: Build configuration and verification [Shared]
+## Increment 1: Build configuration and verification (spans plan Phases 1–2) [Shared]
 
-Single RED→GREEN increment — all three tasks ship in one PR.
+Single RED→GREEN increment — all three tasks ship in one PR. (Plan-reference fields below cite plan.md's Phase 1/Phase 2; this single increment deliberately spans both.)
 
 - [ ] **T001** [Shared] Config-guard test for the build matrix (RED)
   - **Scope**: A Go test that reads `.goreleaser.yaml` and asserts the build matrix is exactly the four supported targets and `CGO_ENABLED=0`. Change-detector rigor: a missing target fails as loudly as an extra one. Written first — it fails until T002 adds the config.
