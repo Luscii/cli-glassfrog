@@ -103,16 +103,16 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 - Diagnostic Normalization — collapse transport failures, typed API errors, and usage errors into one consistent, actionable diagnostic carrying a cause, a category, and the next step the caller can take to resolve it (where one exists)
   + depends-on: API Error Extraction
   + depends-on: Request Execution
-- Output-Aware Failure Rendering — render the diagnostic in the selected --output format (human-readable cause + next-step on stderr for full/compact; a structured error envelope for json/yaml), paired with the conventional exit code, so failures are as legible and parseable as successful output
+- Output-Aware Failure Rendering — render the diagnostic in the selected `--output` format (human-readable cause + next-step on stderr for full/compact; a structured error envelope for json/yaml), paired with the conventional exit code, so failures are as legible and parseable as successful output
   + depends-on: Diagnostic Normalization
   + depends-on: Output Format Selection
 
 ## Governance Reads
 > Problem: Governance Reads — read roles, circles, accountabilities, domains, policies, and projects (affects: Practitioner)
 
-Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): circles and accountabilities have no standalone endpoint — circles are read through the role tree, and accountabilities ride inline on role/tree reads via `?include=accountabilities`. The per-role reads (domains, policies, projects) take a `required` role-id path param, so they depend on Role Reads for the ids they consume. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): circles and accountabilities have no standalone endpoint — circles are read through the role tree, and accountabilities are returned inline on role reads (`Role` always carries `accountabilities`, `domains`, and `fillers`), while tree reads gate them behind `?include=accountabilities`. The per-role reads (domains, policies, projects) take a `required` role-id path param, so they depend on Role Reads for the ids they consume. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
 
-- Role Reads — list the organization's roles and read one by id: `GET /roles` → `listRoles` (`spec/glassfrog-api-v5.yaml:134`; paginated, optional `parent_role_id`/`person_id`/`has_subroles`/`tag` filters, embeds accountabilities/domains/fillers inline) and `GET /roles/{id}` → `getRole` (`spec/glassfrog-api-v5.yaml:201`; `?include=accountabilities,domains,fillers`). The org-wide role surface (vs. the token-scoped My Roles) and the source of the role ids the per-role reads consume
+- Role Reads — list the organization's roles and read one by id: `GET /roles` → `listRoles` (`spec/glassfrog-api-v5.yaml:134`; paginated, optional `parent_role_id`/`person_id`/`has_subroles`/`tag` filters, embeds accountabilities/domains/fillers inline) and `GET /roles/{id}` → `getRole` (`spec/glassfrog-api-v5.yaml:201`; accountabilities/domains/fillers inline, `?include=assignments,subroles,parent_role,policies,notes,skills` for related resources). The org-wide role surface (vs. the token-scoped My Roles) and the source of the role ids the per-role reads consume
   + depends-on: Request Authentication
   + depends-on: Request Execution
 - Organization Tree — read the circle hierarchy: `GET /tree` → `getOrgTree` (`spec/glassfrog-api-v5.yaml:682`; the whole org, no role id required), `GET /roles/{id}/tree` → `getRoleTree` (`spec/glassfrog-api-v5.yaml:597`), and `GET /roles/{id}/subroles` → `listSubroles` (`spec/glassfrog-api-v5.yaml:250`); `?include` embeds accountabilities/domains/members per node
