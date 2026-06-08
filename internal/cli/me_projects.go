@@ -10,6 +10,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
@@ -36,12 +37,13 @@ const noRoleMarker = "—"
 // Read defined); My Projects needs nothing more. status is the raw --status flag
 // value (may be empty), validated before any request.
 type meProjectsConfig struct {
-	seam    meSeam
-	baseURL string // the inherited persistent --base-url flag value (may be empty)
-	status  string // the raw --status flag value (may be empty); validated before any I/O
-	reqCtx  context.Context
-	stdout  io.Writer
-	stderr  io.Writer
+	seam       meSeam
+	baseURL    string // the inherited persistent --base-url flag value (may be empty)
+	outputFlag string // the inherited persistent --output flag value (may be empty), resolved before any request
+	status     string // the raw --status flag value (may be empty); validated before any I/O
+	reqCtx     context.Context
+	stdout     io.Writer
+	stderr     io.Writer
 }
 
 // runMeProjects is the pure orchestration the `me projects` leaf delegates to,
@@ -54,7 +56,14 @@ type meProjectsConfig struct {
 // retries, and never reads the token — the projection renders response-side
 // fields only. There is no --include (ADR-2): /me/projects offers no include.
 func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
-	// 1. Validate --status BEFORE any assembly or request (fail-fast usage error,
+	// 1. Resolve the output format FIRST (020, ADR-4): a present-but-invalid selector
+	//    fails fast as a usage error before any assembly or request.
+	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
+	if ferr != nil {
+		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
+	// 2. Validate --status BEFORE any assembly or request (fail-fast usage error,
 	//    no wasted call — pinned by a tripwire transport in the tests). Reuses
 	//    013's shared validateStatus + status set; no second validator.
 	if err := validateStatus(cfg.status); err != nil {
@@ -62,7 +71,7 @@ func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 		return UsageError, err
 	}
 
-	// 2. Resolve the connection and build the client once. A base-URL error
+	// 3. Resolve the connection and build the client once. A base-URL error
 	//    surfaces here (no doomed send); classify + report it via 011's helper.
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
@@ -70,32 +79,26 @@ func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 3. Send exactly one GET /me/projects, decoding the 2xx body into the shared
-	//    response type. ?status= is added only when a filter was supplied.
+	// 4. Send exactly one GET /me/projects and dispatch on the resolved format (020
+	//    ADR-3): the dispatch picks the decode target and the renderer. ?status= is
+	//    added only when a filter was supplied. When the API reports more projects
+	//    than this page carried, the more-available note rides stderr on the human
+	//    path so the partial list is never read as complete (still exit 0); the
+	//    structured document carries the pagination metadata in-band. The next page
+	//    is signalled, never fetched (Pagination 016).
 	req := apiclient.Request{Method: http.MethodGet, Path: "/me/projects"}
 	if cfg.status != "" {
 		req.Query = url.Values{"status": []string{cfg.status}}
 	}
-	var resp glassfrog.MyProjectsResponse
-	if _, err := client.Execute(cfg.reqCtx, req, &resp); err != nil {
-		return reportClientError(cfg.stderr, err)
-	}
-
-	// 4. Render the result to human text through the shared rendering seam (019),
-	//    with the standing full format (the only format reachable until 020). The
-	//    render is buffered: a built-in-template defect writes nothing to stdout and
-	//    maps to RuntimeError(1); the seam renders only response-side fields, so the
-	//    token never appears. When the API reports more projects than this page
-	//    carried, write the more-available note to stderr so the partial list is
-	//    never read as complete — still exit 0. The next page is signalled, never
-	//    fetched (Pagination 016).
-	if outcome, err := renderResult(cfg.stdout, cfg.stderr, render.ResourceProjects, resp); outcome != Success {
-		return outcome, err
-	}
-	if incompleteProjects(resp) {
-		fmt.Fprintln(cfg.stderr, incompleteProjectsNote)
-	}
-	return Success, nil
+	return renderResult[glassfrog.MyProjectsResponse](
+		cfg.stdout, cfg.stderr, format, render.ResourceProjects, client, cfg.reqCtx, req,
+		func(resp glassfrog.MyProjectsResponse) string {
+			if incompleteProjects(resp) {
+				return incompleteProjectsNote
+			}
+			return ""
+		},
+	)
 }
 
 // newMeProjectsCommand builds the `projects` leaf attached under Identity Read's
@@ -134,13 +137,19 @@ func newMeProjectsCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
 			outcome, oerr := runMeProjects(meProjectsConfig{
-				seam:    seam,
-				baseURL: baseURL,
-				status:  status,
-				reqCtx:  cmd.Context(),
-				stdout:  cmd.OutOrStdout(),
-				stderr:  cmd.ErrOrStderr(),
+				seam:       seam,
+				baseURL:    baseURL,
+				outputFlag: outputFlag,
+				status:     status,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

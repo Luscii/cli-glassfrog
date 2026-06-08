@@ -8,6 +8,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
@@ -23,11 +24,12 @@ const incompleteRolesNote = "note: more roles exist than shown; pagination is no
 // transport with no real network or ~/.glassfrogrc. It reuses the meSeam (the
 // assemble + newClient pair Identity Read defined); My Roles needs nothing more.
 type meRolesConfig struct {
-	seam    meSeam
-	baseURL string // the inherited persistent --base-url flag value (may be empty)
-	reqCtx  context.Context
-	stdout  io.Writer
-	stderr  io.Writer
+	seam       meSeam
+	baseURL    string // the inherited persistent --base-url flag value (may be empty)
+	outputFlag string // the inherited persistent --output flag value (may be empty), resolved before any request
+	reqCtx     context.Context
+	stdout     io.Writer
+	stderr     io.Writer
 }
 
 // runMeRoles is the pure orchestration the `me roles` leaf delegates to: assemble
@@ -37,6 +39,13 @@ type meRolesConfig struct {
 // helpers. It emits no exit code, never retries, and never reads the token — the
 // projection renders response-side fields only.
 func runMeRoles(cfg meRolesConfig) (Outcome, error) {
+	// Resolve the output format FIRST (020, ADR-4): a present-but-invalid selector
+	// fails fast as a usage error before any assembly or request.
+	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
+	if ferr != nil {
+		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
 	// Resolve the connection and build the client once. A base-URL error surfaces
 	// here (no doomed send); classify + report it via 011's shared helper.
 	ctx := cfg.seam.assemble(cfg.baseURL)
@@ -45,28 +54,23 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// Send exactly one GET /me/roles, decoding the 2xx body into the shared
-	// response type. The endpoint takes no positional args and no filters.
-	var resp glassfrog.MyRolesResponse
-	if _, err := client.Execute(cfg.reqCtx, apiclient.Request{Method: http.MethodGet, Path: "/me/roles"}, &resp); err != nil {
-		return reportClientError(cfg.stderr, err)
-	}
-
-	// Render the result to human text through the shared rendering seam (019),
-	// with the standing full format (the only format reachable until 020). The
-	// render is buffered: a built-in-template defect writes nothing to stdout and
-	// maps to RuntimeError(1); the seam renders only response-side fields, so the
-	// token never appears. When the API reports more roles than this page carried,
-	// write the incompleteness note to stderr so the partial list is never read as
-	// complete — still exit 0. The note rides orthogonally to which format produced
-	// the body.
-	if outcome, err := renderResult(cfg.stdout, cfg.stderr, render.ResourceRoles, resp); outcome != Success {
-		return outcome, err
-	}
-	if incomplete(resp) {
-		fmt.Fprintln(cfg.stderr, incompleteRolesNote)
-	}
-	return Success, nil
+	// Send exactly one GET /me/roles and dispatch on the resolved format (020
+	// ADR-3): json/yaml route through 018's encoder over the verbatim bytes,
+	// full/compact through 019's templates over the typed projection — the dispatch
+	// picks the decode target. The endpoint takes no positional args and no filters.
+	// When the API reports more roles than this page carried, the note rides stderr
+	// on the human path so the partial list is never read as complete (still exit 0);
+	// the structured document carries the pagination metadata in-band.
+	req := apiclient.Request{Method: http.MethodGet, Path: "/me/roles"}
+	return renderResult[glassfrog.MyRolesResponse](
+		cfg.stdout, cfg.stderr, format, render.ResourceRoles, client, cfg.reqCtx, req,
+		func(resp glassfrog.MyRolesResponse) string {
+			if incomplete(resp) {
+				return incompleteRolesNote
+			}
+			return ""
+		},
+	)
 }
 
 // newMeRolesCommand builds the `roles` leaf attached under Identity Read's
@@ -99,12 +103,18 @@ func newMeRolesCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
 			outcome, oerr := runMeRoles(meRolesConfig{
-				seam:    seam,
-				baseURL: baseURL,
-				reqCtx:  cmd.Context(),
-				stdout:  cmd.OutOrStdout(),
-				stderr:  cmd.ErrOrStderr(),
+				seam:       seam,
+				baseURL:    baseURL,
+				outputFlag: outputFlag,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},
