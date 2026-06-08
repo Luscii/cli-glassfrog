@@ -24,7 +24,7 @@ It deliberately does **not** run the lint/test quality gates (PR Validation (024
 
 - When a GitHub Release is published in this repository — whether drafted by Release Drafting (030) or created by hand — the pipeline runs automatically with no further manual action.
 - The pipeline does not run on routine branch pushes, on a merge to main, or on a tag push that has not been turned into a published release. Publishing a release is the single trigger.
-- The pipeline reads the version from the published release's tag (a semver `vMAJOR.MINOR.PATCH`), and passes that version to the build and uses it to name the archives.
+- The pipeline reads the version from the published release's tag (a semver `vMAJOR.MINOR.PATCH`, optionally with a pre-release suffix such as `-rc.1`), and passes that version to the build and uses it to name the archives.
 - The pipeline honors the published release's status: a release published as a pre-release stays a pre-release, and a normal (latest) release stays normal. The pipeline attaches artifacts; it does not promote, demote, or re-mark the release — the pre-release/latest decision is made when the release is published, not here.
 
 ### Build and package
@@ -170,7 +170,7 @@ And the latest stays the latest — the pipeline changes neither.
 
 - **Archive format and naming** `[ASSUMED]`: the *behavior* is fixed — one downloadable archive per target, named to identify tool, version, OS, and architecture, plus one checksums file covering all of them. The literal archive format (e.g. `tar.gz`) and exact file-name template are interface/plan details, pinned downstream alongside the build tooling.
 - **Release tooling is a plan decision**: whether the pipeline is driven by a release tool (e.g. GoReleaser, used in the reference pipelines and named in the Homebrew Tap (036) item) or assembled by hand is an implementation choice for the plan, not a behavioral requirement. The spec fixes *what* is attached and *when*, not *how*.
-- **Version source is the release's tag** (decision): the pipeline derives the version from the published release's semver tag (`vMAJOR.MINOR.PATCH`) and passes it to the build; it does not compute or bump a version itself.
+- **Version source is the release's tag** (decision): the pipeline derives the version from the published release's semver tag (`vMAJOR.MINOR.PATCH`, optionally with a pre-release suffix such as `-rc.1`) and passes it to the build; it does not compute or bump a version itself.
 - **Re-publish convergence** (decision): the pipeline is the single artifact publisher for a release; running it again for the same release converges on one artifact set rather than duplicating. Recorded here for traceability.
 - **No artifact signing/notarization**: integrity is provided via the checksums file; cryptographic signing or macOS notarization is not in scope and surfaced no requirement. Could be revisited as an additive concern if a consumer channel needs it.
 - **Validated-before-publish**: the pipeline assumes the published release rests on code already gated by PR Validation (024) / Main-Branch Verification (029). It does not re-gate, beyond the implicit requirement that every target compiles.

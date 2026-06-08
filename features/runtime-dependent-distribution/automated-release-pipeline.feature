@@ -19,7 +19,7 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
     # as a maintainer,
     # I want to publish a release and have every platform archive and a checksums file built and attached automatically.
 
-    # Source: 022-automated-release-pipeline — Scenario: a semver tag publishes all platform archives and a checksums file
+    # Source: 022-automated-release-pipeline — Scenario: publishing a release attaches all platform archives and a checksums file
     @wip
     Scenario: Publishing a release attaches all platform archives and a checksums file
       Given a release for tag "v1.4.0" had been drafted
@@ -68,7 +68,7 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       Then it will abort before attaching anything
       And the release will receive no archives and no checksums file
 
-    # Source: 022-automated-release-pipeline — Scenario: the published matrix is exactly the four supported targets
+    # Source: 022-automated-release-pipeline — Scenario: the attached matrix is exactly the four supported targets
     @validation @wip
     Scenario: The attached matrix is exactly the four supported targets
       Given a published release with artifacts attached
@@ -89,7 +89,7 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       Then the archive's checksum will match its entry in the checksums file
       And the consumer will be able to confirm the download is intact before installing
 
-    # Source: 022-automated-release-pipeline — Scenario: every published archive has a matching checksum entry
+    # Source: 022-automated-release-pipeline — Scenario: every attached archive has a matching checksum entry
     @validation @wip
     Scenario: Every attached archive has a matching checksum entry
       Given a published release with artifacts attached
@@ -102,7 +102,7 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
     # as a maintainer,
     # I want a release published as a pre-release to receive the same artifacts without its status changing.
 
-    # Source: 022-automated-release-pipeline — Scenario: a pre-release tag publishes a marked pre-release
+    # Source: 022-automated-release-pipeline — Scenario: publishing a pre-release attaches artifacts without changing its status
     @wip
     Scenario: Publishing a pre-release attaches artifacts without changing its status
       Given a release for tag "v1.4.0-rc.1" had been published and marked as a pre-release
@@ -110,7 +110,7 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       Then it will build and attach the same artifact set
       And the release will remain marked as a pre-release
 
-    # Source: 022-automated-release-pipeline — Scenario: normal versus pre-release marking follows the tag shape
+    # Source: 022-automated-release-pipeline — Scenario: the release's pre-release/latest status is preserved
     @validation @wip
     Scenario: The release's pre-release and latest status is preserved
       Given a release published as a pre-release and a release published as the latest
