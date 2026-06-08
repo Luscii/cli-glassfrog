@@ -74,7 +74,7 @@ if mf, ok := fmtSel.MachineFormat(); ok {                  // json | yaml
 
 ## Interactions
 
-- **Precedence (ADR-1)**: `ResolveFormat` consults `--output` flag → `GLASSFROG_OUTPUT` → `.glassfrocrc` `output` key (nearest-wins walk via `internal/rcfile`) → `DefaultFormat` (`Full`). The first source yielding a value wins; an **absent** source is skipped, a **present-but-invalid** source produces `*FormatError` (no fall-through). Always yields a format.
+- **Precedence (ADR-1)**: `ResolveFormat` consults `--output` flag → `GLASSFROG_OUTPUT` → `.glassfrogrc` `output` key (nearest-wins walk via `internal/rcfile`) → `DefaultFormat` (`Full`). The first source yielding a value wins; an **absent** source is skipped, a **present-but-invalid** source produces `*FormatError` (no fall-through). Always yields a format.
 - **Resolve before request (ADR-4 / 018 ADR-2)**: the command resolves the format first — the decode target depends on it. On any resolution error the command reports to stderr and returns `UsageError` before assembling the connection or sending, so no doomed request is made (the `validateInclude` fail-fast shape).
 - **Decode-target selection**: `IsStructured()` chooses `*json.RawMessage` (verbatim 2xx capture, 018 ADR-2) vs the typed `*glassfrog` struct (the human projection input, 019). The choice is `cli`'s; `output.RenderSuccess` and `render.Render` each only encode what they are handed.
 - **Package layering (ADR-3)**: `internal/output` (machine + selection vocabulary) and `internal/render` (human templates) do not import each other; `internal/cli` is the only importer of both and owns the `OutputFormat`→`render.Format` mapping. `internal/output` imports `internal/rcfile` (leaf→leaf) for the config rung.
