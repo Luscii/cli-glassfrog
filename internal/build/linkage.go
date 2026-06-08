@@ -72,13 +72,29 @@ func extractDeps(goos, binPath string) ([]string, error) {
 		return parseOtool(string(out), binPath), nil
 	case "linux":
 		// ldd exits non-zero for a statically-linked binary ("not a dynamic
-		// executable"), which is the self-contained case — so the exit status
-		// is informational, not an error. Parse the combined output regardless.
-		out, _ := exec.Command("ldd", binPath).CombinedOutput()
-		return parseLdd(string(out)), nil
+		// executable"), which IS the self-contained case — so that exit status
+		// is informational, not a failure. But any OTHER ldd error (ldd missing,
+		// not executable, permission denied) must surface: silently parsing
+		// empty output would falsely report zero dependencies and pass the
+		// self-containment check without inspecting linkage at all.
+		out, err := exec.Command("ldd", binPath).CombinedOutput()
+		text := string(out)
+		if err != nil && !lddReportsStatic(text) {
+			return nil, fmt.Errorf("ldd %s: %w\n%s", binPath, err, text)
+		}
+		return parseLdd(text), nil
 	default:
 		return nil, fmt.Errorf("linkage inspection unsupported on %s", goos)
 	}
+}
+
+// lddReportsStatic reports whether ldd output indicates a statically-linked /
+// non-dynamic binary — the self-contained case where ldd's non-zero exit is
+// expected and carries no real error. Shared by extractDeps (to decide whether
+// a non-zero exit is benign) and parseLdd (to short-circuit to zero deps).
+func lddReportsStatic(out string) bool {
+	return strings.Contains(out, "not a dynamic executable") ||
+		strings.Contains(out, "statically linked")
 }
 
 // parseOtool extracts the dependency paths from `otool -L` output. The first
@@ -102,12 +118,14 @@ func parseOtool(out, binPath string) []string {
 	return deps
 }
 
-// parseLdd extracts the dependency paths from `ldd` output. A statically-linked
-// binary reports "not a dynamic executable" / "statically linked" and yields no
-// dependencies. Otherwise each line is either "name => /path (0x...)" (take the
-// resolved path) or a bare "/loader (0x...)" / "vdso (0x...)" entry.
+// parseLdd extracts the dependency identifiers from `ldd` output. A
+// statically-linked binary reports "not a dynamic executable" / "statically
+// linked" and yields no dependencies. Otherwise each line is either
+// "name => /path (0x...)" (take the resolved path), "name => not found" (the
+// loader could not resolve it — take the unresolved NAME), or a bare
+// "/loader (0x...)" / "vdso (0x...)" entry.
 func parseLdd(out string) []string {
-	if strings.Contains(out, "not a dynamic executable") || strings.Contains(out, "statically linked") {
+	if lddReportsStatic(out) {
 		return nil
 	}
 	var deps []string
@@ -121,9 +139,17 @@ func parseLdd(out string) []string {
 			line = strings.TrimSpace(line[:i])
 		}
 		if i := strings.Index(line, "=>"); i >= 0 {
+			name := strings.TrimSpace(line[:i])
 			resolved := strings.TrimSpace(line[i+2:])
-			if resolved == "" {
-				continue // "name => not found" with no path; skip
+			// "name => not found" (or an empty right side): the loader cannot
+			// resolve this dependency. That is a missing-library violation — the
+			// most important case to surface — so report the library NAME, not
+			// the literal "not found" (which would lose which library is missing).
+			if resolved == "" || resolved == "not found" {
+				if name != "" {
+					deps = append(deps, name)
+				}
+				continue
 			}
 			deps = append(deps, resolved)
 			continue
