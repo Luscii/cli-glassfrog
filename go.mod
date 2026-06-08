@@ -6,6 +6,7 @@ require (
 	github.com/cucumber/godog v0.15.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.24.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (

@@ -15,7 +15,6 @@ Feature: Unconsumable Output — Structured Serialization
     # I want command output as machine-readable JSON.
 
     # Source: 018-structured-serialization — Scenario: serialize a successful read as JSON
-    @wip
     Scenario: A successful payload renders as a JSON document
       Given a command had produced a successful API payload
       And the JSON format was active
@@ -24,7 +23,6 @@ Feature: Unconsumable Output — Structured Serialization
       And the document will be the only content on the output channel
 
     # Source: 018-structured-serialization — Scenario: full fidelity, not the human projection
-    @wip
     Scenario: The JSON document preserves fields the projection drops
       Given a successful payload contained fields the human projection omits, such as hypermedia links
       And the JSON format was active
@@ -32,7 +30,6 @@ Feature: Unconsumable Output — Structured Serialization
       Then the rendered document will contain those fields verbatim
 
     # Source: 018-structured-serialization — Scenario: empty result is a valid document, not an empty channel
-    @wip
     Scenario: An empty result renders as a valid document
       Given a successful response carried an empty collection
       And a structured format was active
@@ -41,14 +38,12 @@ Feature: Unconsumable Output — Structured Serialization
       And the output channel will not be left empty
 
     # Source: 018-structured-serialization — Scenario: the secret never appears under structured output
-    @wip
     Scenario: The token never appears in structured output
       Given a structured format was active
       When the renderer produces any document, on success or failure
       Then the token value will never appear in the document
 
     # Proposed (architecture-informed): plan ADR-2/ADR-3 — the bytes path preserves number precision (no float64 coercion)
-    @wip
     Scenario: A large integer value keeps its exact representation
       Given a successful payload contained a large integer identifier
       And a structured format was active
@@ -70,7 +65,6 @@ Feature: Unconsumable Output — Structured Serialization
     # I want the same result available as YAML, identical in content to the JSON form.
 
     # Source: 018-structured-serialization — Scenario: serialize the same result as YAML
-    @wip
     Scenario: A successful payload renders as a YAML document
       Given a command had produced a successful API payload
       And the YAML format was active
@@ -92,7 +86,6 @@ Feature: Unconsumable Output — Structured Serialization
     # I want errors emitted in that same format — never as plain text.
 
     # Source: 018-structured-serialization — Scenario: non-2xx with an API error body, in the active format
-    @wip
     Scenario: A non-2xx error renders as a structured envelope
       Given the API had returned a non-2xx response carrying an error body
       And the JSON format was active
@@ -102,7 +95,6 @@ Feature: Unconsumable Output — Structured Serialization
       And it will not classify or interpret the error
 
     # Source: 018-structured-serialization — Scenario: transport failure with no API payload
-    @wip
     Scenario: A bodiless failure still renders a structured envelope
       Given a transport failure had occurred with no API body
       And the JSON format was active
@@ -111,7 +103,6 @@ Feature: Unconsumable Output — Structured Serialization
       And the envelope will carry the available failure facts without a raw body
 
     # Proposed (architecture-informed): plan Cross-cutting — a render failure never yields a partial document
-    @wip
     Scenario: An invalid success body surfaces a render error, not a partial document
       Given a 2xx body that was not valid JSON
       And a structured format was active
