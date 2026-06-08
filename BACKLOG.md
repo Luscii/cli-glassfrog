@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-07T21:59:25 | Framework: MoSCoW | Items: 31
+> Generated: 2026-06-08T13:22:47 | Framework: MoSCoW | Items: 38
 
 ### 1. Command Registration
 
@@ -139,20 +139,20 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: JSON/YAML machine-readable output — core for the AI-agent operator (VISION principle 3) and a no-dependency root of the Output Formatting solution, so it leads the fresh Now work.
-- **Status**: pending
+- **Status**: specified:018-structured-serialization
 
 ### 19. Templated Human Rendering
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: full/compact human-readable output via a template seam; no dependencies and on the critical path to Output Format Selection, so it parallelizes with #18.
-- **Status**: pending
+- **Rationale**: full/compact human-readable output via a template seam; no dependencies and on the critical path to Output Format Selection, so it parallelizes with Structured Serialization.
+- **Status**: specified:019-templated-human-rendering
 
 ### 20. Output Format Selection
 
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
-- **Rationale**: The `--output` flag that dispatches to a renderer — builds after both renderers exist, so it follows #18 and #19.
+- **Rationale**: The `--output` flag that dispatches to a renderer — builds after both renderers exist, so it follows Structured Serialization and Templated Human Rendering.
 - **Dependencies**: → requires: Structured Serialization; → requires: Templated Human Rendering
 - **Status**: pending
 
@@ -179,7 +179,30 @@
 - **Dependencies**: → requires: Self-Contained Executable Build
 - **Status**: pending
 
-### 24. Install Script
+### 24. PR Validation
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The core CI quality gate (lint + tests on pull request) — the heart of the pipeline solution, with no dependencies. As a Must-Have it ranks above the Should-Have pipeline and distribution channels.
+- **Status**: pending
+
+### 25. Role Reads
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The org-wide role surface (`GET /roles` + `GET /roles/{id}` with `?include`) and the dependency root of Governance Reads — the per-role reads consume the role ids it yields. Buildable now (deps shipped: 007, 010). As the highest-value Next-tier read, it leads the new Must-Have work.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 26. Organization Tree
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The circle hierarchy read (`GET /tree`, `GET /roles/{id}/tree`, `GET /roles/{id}/subroles`) — core to reading governance structure. Buildable now (deps shipped: 007, 010); independent of Role Reads via the no-arg whole-org `getOrgTree`.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 27. Install Script
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
@@ -187,28 +210,21 @@
 - **Dependencies**: → requires: Automated Release Pipeline
 - **Status**: pending
 
-### 25. PR Validation
-
-- **Score**: MoSCoW Must Have
-- **Framework**: MoSCoW (Must Have)
-- **Rationale**: The core CI quality gate (lint + tests on pull request) — the heart of the pipeline solution, with no dependencies, so it leads the pipeline work.
-- **Status**: pending
-
-### 26. PR Administration
+### 28. PR Administration
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Auto-applies administrative labels to PRs; no dependencies, but its labels feed Release Drafting's semver bump, so it precedes #28.
+- **Rationale**: Auto-applies administrative labels to PRs; no dependencies, but its labels feed Release Drafting's semver bump, so it precedes Release Drafting.
 - **Status**: pending
 
-### 27. Main-Branch Verification
+### 29. Main-Branch Verification
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Re-runs the test suite on merge to main as a post-merge safety net; PR Validation already gates pre-merge, so this is important but not the primary gate.
 - **Status**: pending
 
-### 28. Release Drafting
+### 30. Release Drafting
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
@@ -216,15 +232,47 @@
 - **Dependencies**: → requires: PR Administration
 - **Status**: pending
 
-### 29. User-Defined Template Output
+### 31. Diagnostic Normalization
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Collapses transport, typed-API, and usage failures into one consistent, actionable diagnostic (cause + category + next step) — the root of Diagnostic Reporting and the failure-legibility half of CONSTITUTION II + III. Buildable now (deps shipped: 015, 010).
+- **Dependencies**: → requires: API Error Extraction; → requires: Request Execution
+- **Status**: pending
+
+### 32. Output-Aware Failure Rendering
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Renders the diagnostic in the selected `--output` (human cause+next-step on stderr; structured envelope for json/yaml), so failures are as legible as successes. Follows Diagnostic Normalization and is gated on Output Format Selection (#20).
+- **Dependencies**: → requires: Diagnostic Normalization; → requires: Output Format Selection
+- **Status**: pending
+
+### 33. Role Domains
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Per-role domain reads (`GET /roles/{id}/domains` + `GET /domains/{id}`); a first-class governance element. Gated on Role Reads for the required role id.
+- **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 34. Role Policies
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Per-role policy reads (`GET /roles/{id}/policies` + `GET /policies/{id}`); a first-class governance element. Gated on Role Reads for the required role id.
+- **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 35. User-Defined Template Output
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
-- **Rationale**: Caller-supplied template files via the same template seam; developer-flagged as future / lower-priority, so it sits among the Could-Haves at the end of the backlog.
+- **Rationale**: Caller-supplied template files via the same template seam; developer-flagged as future / lower-priority, so it sits among the Could-Haves below the Must/Should new work.
 - **Dependencies**: → requires: Templated Human Rendering
 - **Status**: pending
 
-### 30. Homebrew Tap
+### 36. Homebrew Tap
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
@@ -232,10 +280,18 @@
 - **Dependencies**: → requires: Automated Release Pipeline
 - **Status**: pending
 
-### 31. NPM Wrapper Package
+### 37. NPM Wrapper Package
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: An additional channel for Node-based agent environments (`npx` / `npm i -g`); consumes published release artifacts. Could Have — extends reach but not core to shipping.
 - **Dependencies**: → requires: Automated Release Pipeline
+- **Status**: pending
+
+### 38. Role Projects
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Per-role project reads (`GET /roles/{role_id}/projects` + `GET /projects/{id}`); the most operational (least governance-structural) of the governance reads, so it sits at the Could-Have tier. Gated on Role Reads for the required role id.
+- **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
