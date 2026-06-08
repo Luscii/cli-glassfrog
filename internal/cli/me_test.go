@@ -60,12 +60,14 @@ type seqMeResp struct {
 // (the i-th attempt gets steps[i], repeating the last once exhausted), so a 429
 // retry through runMe can be exercised end-to-end over a fake — no real network.
 type seqMeTransport struct {
-	calls int
-	steps []seqMeResp
+	calls    int
+	lastPath string
+	steps    []seqMeResp
 }
 
 func (s *seqMeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	s.calls++
+	s.lastPath = req.URL.Path
 	i := s.calls - 1
 	if i >= len(s.steps) {
 		i = len(s.steps) - 1
@@ -295,6 +297,9 @@ func TestRunMe_RetriesOn429ThenSucceeds(t *testing.T) {
 	}
 	if tr.calls != 2 {
 		t.Errorf("transport called %d times, want 2 (429 then 200)", tr.calls)
+	}
+	if !strings.HasSuffix(tr.lastPath, "/me") {
+		t.Errorf("request path = %q, want it to target the /me endpoint", tr.lastPath)
 	}
 	if len(seam.slept) != 1 || seam.slept[0] != 2*time.Second {
 		t.Errorf("waited %v, want exactly [2s] (the Retry-After interval, via the injected fake)", seam.slept)
