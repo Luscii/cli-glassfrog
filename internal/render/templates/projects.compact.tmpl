@@ -1,0 +1,3 @@
+{{if not .Data}}no projects
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{$d := trimSpace .Description}}{{if eq $d ""}}—{{else}}{{$d}}{{end}}
+{{end}}{{end}}

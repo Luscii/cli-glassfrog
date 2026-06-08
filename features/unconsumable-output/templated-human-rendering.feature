@@ -11,7 +11,6 @@ Feature: Unconsumable Output — Templated Human Rendering
     # I want the CLI to render results as labelled, human-readable text.
 
     # Source: 019-templated-human-rendering — Scenario: a failed read is not rendered through a template
-    @wip
     Scenario: Failed read is not rendered through a template
       Given a "my actions" read had failed with a transport error
       When the command reports the failure
@@ -19,7 +18,6 @@ Feature: Unconsumable Output — Templated Human Rendering
       And nothing will be written to stdout
 
     # Source: 019-templated-human-rendering — Scenario: a missing field is omitted, never fabricated
-    @wip
     Scenario: Absent embedded collection is omitted
       Given a "me" read without the roles embed
       When the result is rendered with the full template
@@ -27,7 +25,6 @@ Feature: Unconsumable Output — Templated Human Rendering
       And no empty roles heading will be printed
 
     # Source: 019-templated-human-rendering — Scenario: an empty result set is legible, not blank
-    @wip
     Scenario: Empty result set renders an explicit line
       Given a "my projects" read returned zero projects
       When the result is rendered with the full template
@@ -35,7 +32,6 @@ Feature: Unconsumable Output — Templated Human Rendering
       And no fabricated project row will appear
 
     # Source: 019-templated-human-rendering — Proposed: a render failure is buffered, never written partially (plan ADR-4)
-    @wip
     Scenario: Render failure leaves stdout empty
       Given a built-in template that fails to execute for a "me" result
       When the command renders the result
@@ -48,7 +44,6 @@ Feature: Unconsumable Output — Templated Human Rendering
     # I want a compact, one-line-per-record rendering.
 
     # Source: 019-templated-human-rendering — Scenario: compact renders a list one line per record
-    @wip
     Scenario: Compact renders one line per role
       Given a "my roles" read returned three roles
       When the result is rendered with the compact template
@@ -56,7 +51,6 @@ Feature: Unconsumable Output — Templated Human Rendering
       And each line will surface the role's id
 
     # Source: 019-templated-human-rendering — Scenario: compact counts a nested collection that full expands
-    @wip
     Scenario: Compact counts a nested collection
       Given a "me --include roles" read returned an actor filling three roles
       When the result is rendered with the compact template
@@ -76,7 +70,6 @@ Feature: Unconsumable Output — Templated Human Rendering
     # I want a full rendering that surfaces every field with its ids.
 
     # Source: 019-templated-human-rendering — Scenario: full preserves the identity projection
-    @wip
     Scenario: Full preserves the identity projection
       Given a "me" read returned an actor, organization, and membership
       When the result is rendered with the full template
@@ -84,7 +77,6 @@ Feature: Unconsumable Output — Templated Human Rendering
       And the output will match the projection the command produced before this feature
 
     # Source: 019-templated-human-rendering — Scenario: full enumerates an embedded collection
-    @wip
     Scenario: Full enumerates an embedded collection
       Given a "me --include roles" read whose response carried two roles
       When the result is rendered with the full template

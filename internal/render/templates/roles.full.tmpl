@@ -1,0 +1,11 @@
+{{if not .Data}}No roles.
+{{else}}{{range $i, $r := .Data}}{{if $i}}
+{{end}}{{$r.Name}} ({{$r.ID}})
+  Purpose: {{$p := trimSpace $r.Purpose}}{{if eq $p ""}}(no purpose set){{else}}{{$p}}{{end}}
+  Domains:
+{{range $r.Domains}}    - {{.Description}}
+{{else}}    (none)
+{{end}}  Accountabilities:
+{{range $r.Accountabilities}}    - {{.Description}}
+{{else}}    (none)
+{{end}}{{end}}{{end}}

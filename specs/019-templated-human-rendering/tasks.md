@@ -31,7 +31,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
 
 ## Phase 1: `internal/render` engine + the eight built-in templates [Shared]
 
-- [ ] **T001** [Shared] Add the `internal/render` package: the `text/template` engine, `Render` entry point, `Resource`/`Format` keys, `RenderError`, and the eight embedded built-in templates ({me,roles,actions,projects}×{full,compact}) — RED-first goldens + unit tests
+- [x] **T001** [Shared] Add the `internal/render` package: the `text/template` engine, `Render` entry point, `Resource`/`Format` keys, `RenderError`, and the eight embedded built-in templates ({me,roles,actions,projects}×{full,compact}) — RED-first goldens + unit tests — full goldens byte-equivalent to all four landed projections; compact + empty-set + absent-marker + registry-exhaustiveness tests green; package imports only stdlib (data is `any`); noted `me`-compact `roles=<N>` interface tension in LEARNINGS.md
   - **Scope**: Create a new package `internal/render` depending only on `internal/glassfrog` + stdlib (it must **not** import `internal/cli` or `internal/apiclient`). Embed eight template files via `//go:embed`, named `<resource>.<format>` for each `Resource × Format` pair; parse them into one `text/template` set (not `html/template`) with `Option("missingkey=error")` and a minimal `FuncMap` (nested-collection count, empty-set detection). Expose `Render(resource Resource, format Format, data any) (string, error)` that executes the named template into a `bytes.Buffer` and returns the string on success or `("", *RenderError{Resource, Format, Err})` on any failure — never partial output. Define the named-string types `Resource` (`ResourceMe`/`ResourceRoles`/`ResourceActions`/`ResourceProjects`) and `Format` (`FormatFull`/`FormatCompact`) as the single source of truth for keys. Author each `full` template **field-equivalent to the landed projection** (`formatMe`/`formatMeRoles`/`formatMeActions`/`formatMeProjects`) and each `compact` template as one line per record (ids always present; nested collections rendered as a count). Empty-result and absent-field rules per interface-cli.md.
   - **Acceptance criteria**:
     - `Render(ResourceMe, FormatFull, meResp)` is byte-equivalent to the pre-019 `formatMe` output, including the roles section only when `--include roles` was given and roles are present, and omitting it otherwise.
@@ -49,7 +49,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
 
 ## Phase 2: Rewire the four reads to render through the seam with `full` [Shared]
 
-- [ ] **T002** [Shared] [P] Rewire `me` to render via `render.Render(ResourceMe, FormatFull, …)`; delete `formatMe`
+- [x] **T002** [Shared] [P] Rewire `me` to render via `render.Render(ResourceMe, FormatFull, …)`; delete `formatMe` — 8 scenarios (added the templated-human-rendering godog suite + the `renderFn` render seam; full byte-stable via identity-read suite; formatMe + its 3 unit tests removed)
   - **Scope**: In `internal/cli/me.go`, replace the `formatMe(me, includeRoles)` + `Fprint(stdout, …)` call with `render.Render(render.ResourceMe, render.FormatFull, me)`; write the returned string to stdout only on `err == nil`, and on a `*render.RenderError` return `RuntimeError` through the existing `Outcome`→`ExitCode` path. Remove the now-dead `formatMe` function and its pure unit tests (superseded by T001's `me` goldens). `runMe` orchestration, the injected transport seam, and error classification are otherwise unchanged.
   - **Acceptance criteria**:
     - `me` stdout is unchanged from pre-019 for success (including `--include roles` and the empty-roles case) — the identity-read godog suite stays green.
@@ -60,7 +60,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `me` full
   - **Scenario references**: templated-human-rendering.feature: "Full preserves the identity projection", "Full enumerates an embedded collection", "Absent embedded collection is omitted", "Render failure leaves stdout empty"
 
-- [ ] **T003** [Shared] [P] Rewire `me roles` to render via `render.Render(ResourceRoles, FormatFull, …)`; delete `formatMeRoles`
+- [x] **T003** [Shared] [P] Rewire `me roles` to render via `render.Render(ResourceRoles, FormatFull, …)`; delete `formatMeRoles` — me-roles godog suite stays green (populated + No roles. + incompleteness note); formatMeRoles + writeRoleSection + their pure tests removed (TestIncomplete retained)
   - **Scope**: In `internal/cli/me_roles.go`, replace `formatMeRoles(resp)` + write with `render.Render(render.ResourceRoles, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeRoles` and its helper `writeRoleSection` and their pure unit tests (superseded by T001's `roles` golden). The pagination incompleteness note path is unchanged.
   - **Acceptance criteria**:
     - `me roles` stdout is unchanged from pre-019 (populated and empty `No roles.` cases) — the `me_roles_bdd_test.go` godog suite stays green.
@@ -71,7 +71,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `roles` full
   - **Scenario references**: templated-human-rendering.feature: "Compact renders one line per role" (compact verified in T001); "Full is field-equivalent to the pre-feature projection"
 
-- [ ] **T004** [Shared] [P] Rewire `me actions` to render via `render.Render(ResourceActions, FormatFull, …)`; delete `formatMeActions`
+- [x] **T004** [Shared] [P] Rewire `me actions` to render via `render.Render(ResourceActions, FormatFull, …)`; delete `formatMeActions` — me-actions godog suite stays green (populated + No actions. + more-available note); formatMeActions + its 3 pure tests removed
   - **Scope**: In `internal/cli/me_actions.go`, replace `formatMeActions(resp)` + write with `render.Render(render.ResourceActions, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeActions` and its pure unit tests (superseded by T001's `actions` golden).
   - **Acceptance criteria**:
     - `me actions` stdout is unchanged from pre-019 (populated and empty `No actions.` cases) — the `me_actions_bdd_test.go` godog suite stays green.
@@ -82,7 +82,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `actions` full
   - **Scenario references**: templated-human-rendering.feature: "Failed read is not rendered through a template", "Full and compact cover the same records"
 
-- [ ] **T005** [Shared] [P] Rewire `me projects` to render via `render.Render(ResourceProjects, FormatFull, …)`; delete `formatMeProjects`
+- [x] **T005** [Shared] [P] Rewire `me projects` to render via `render.Render(ResourceProjects, FormatFull, …)`; delete `formatMeProjects` — me-projects godog suite stays green (populated + no-role marker + no projects + more-available note); formatMeProjects + yesNo + its 4 pure tests removed; noRoleMarker const retained (still referenced by the BDD + runMeProjects branch tests)
   - **Scope**: In `internal/cli/me_projects.go`, replace `formatMeProjects(resp)` + write with `render.Render(render.ResourceProjects, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeProjects` and its pure unit tests (superseded by T001's `projects` golden); remove now-unused helpers (`yesNo`, `noRoleMarker`) **only if** no other command still references them.
   - **Acceptance criteria**:
     - `me projects` stdout is unchanged from pre-019 (populated and empty `no projects` cases) — the `me_projects_bdd_test.go` godog suite stays green.

@@ -1,0 +1,3 @@
+{{if not .Data}}No roles.
+{{else}}{{range .Data}}{{.ID}}  {{.Name}}  domains={{len .Domains}}  accountabilities={{len .Accountabilities}}
+{{end}}{{end}}

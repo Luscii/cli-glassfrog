@@ -9,7 +9,6 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
-	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/spf13/cobra"
 )
 
@@ -65,53 +64,13 @@ func runMeActionsOver(t *testing.T, seam meSeam, status string) (Outcome, string
 	return outcome, out.String(), errb.String()
 }
 
-// --- formatMeActions (pure) ----------------------------------------------
-
-func TestFormatMeActions_RendersFieldsPerAction(t *testing.T) {
-	resp := glassfrog.MyActionsResponse{
-		Data: []glassfrog.Action{
-			{ID: "actn_aaa", Status: "current", Description: "Review PR #6818", RoleID: "role_aaa", Tags: []string{"marketing", "q2"}},
-			{ID: "actn_bbb", Status: "waiting", Description: "", RoleID: "role_bbb"},
-		},
-	}
-	out := formatMeActions(resp)
-	for _, want := range []string{
-		"actn_aaa", "current", "Review PR #6818", "role_aaa", "marketing", "q2",
-		"actn_bbb", "waiting", "role_bbb",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("projection missing %q:\n%s", want, out)
-		}
-	}
-	// A null/empty description renders the em-dash placeholder, never blank.
-	if !strings.Contains(out, "—") {
-		t.Errorf("a null description should render the em-dash placeholder:\n%s", out)
-	}
-}
-
-// An empty list is the valid "you own no matching actions" answer and renders an
-// explicit empty-result line, not nothing.
-func TestFormatMeActions_EmptyListRendersExplicitLine(t *testing.T) {
-	out := formatMeActions(glassfrog.MyActionsResponse{})
-	if strings.TrimSpace(out) == "" {
-		t.Error("an empty list should render an explicit line, got blank output")
-	}
-	if strings.TrimRight(out, "\n") != "No actions." {
-		t.Errorf("an empty list should render exactly `No actions.`, got %q", out)
-	}
-}
-
-// formatMeActions renders only the projection; the more-available signal is the
-// command's concern (stderr), so it must not leak into the projection body.
-func TestFormatMeActions_NoSignalInProjectionBody(t *testing.T) {
-	resp := glassfrog.MyActionsResponse{
-		Data: []glassfrog.Action{{ID: "actn_aaa", Status: "current", Description: "x", RoleID: "role_aaa"}},
-	}
-	resp.Meta.Pagination.HasNextPage = true
-	if strings.Contains(formatMeActions(resp), "more results") {
-		t.Errorf("the more-available signal must not appear in the projection body:\n%s", formatMeActions(resp))
-	}
-}
+// The `me actions` full projection is now rendered through internal/render (019);
+// its byte-equivalence with the pre-019 formatMeActions output (two lines per
+// action, the — description fallback, the optional tags clause, the No actions.
+// empty line) is pinned by that package's goldens (TestRender_ActionsFull_Golden,
+// TestRender_EmptyResultSets_ExplicitLine). The end-to-end success path — and that
+// the more-available signal rides stderr, never the rendered body — stays covered
+// by the runMeActions branches and the me-actions BDD suite below.
 
 // --- runMeActions branches -----------------------------------------------
 
