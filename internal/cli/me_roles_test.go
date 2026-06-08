@@ -14,7 +14,7 @@ import (
 
 // Canned GET /me/roles bodies for the command/branch tests. They use the API's
 // snake_case names and carry the secret token nowhere (it rides the request
-// header, asserted absent from output by runMyRolesOver).
+// header, asserted absent from output by runMeRolesOver).
 const (
 	rolesBodyMulti = `{
       "data": [
@@ -39,12 +39,12 @@ const (
     }`
 )
 
-// runMyRolesOver drives the pure runMyRoles over a fake seam, returning the
+// runMeRolesOver drives the pure runMeRoles over a fake seam, returning the
 // outcome and the captured stdout/stderr, and failing if the token leaks.
-func runMyRolesOver(t *testing.T, seam meSeam) (Outcome, string, string) {
+func runMeRolesOver(t *testing.T, seam meSeam) (Outcome, string, string) {
 	t.Helper()
 	var out, errb bytes.Buffer
-	outcome, _ := runMyRoles(myRolesConfig{
+	outcome, _ := runMeRoles(meRolesConfig{
 		seam:   seam,
 		reqCtx: context.Background(),
 		stdout: &out,
@@ -56,13 +56,13 @@ func runMyRolesOver(t *testing.T, seam meSeam) (Outcome, string, string) {
 	return outcome, out.String(), errb.String()
 }
 
-// --- runMyRoles branches ---------------------------------------------------
+// --- runMeRoles branches ---------------------------------------------------
 
-func TestRunMyRoles_SuccessMultiRole(t *testing.T) {
+func TestRunMeRoles_SuccessMultiRole(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -89,11 +89,11 @@ func TestRunMyRoles_SuccessMultiRole(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_EmptyListIsCleanSuccess(t *testing.T) {
+func TestRunMeRoles_EmptyListIsCleanSuccess(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyEmpty}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -105,11 +105,11 @@ func TestRunMyRoles_EmptyListIsCleanSuccess(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_HasNextPageSignalsIncompleteOnStderr(t *testing.T) {
+func TestRunMeRoles_HasNextPageSignalsIncompleteOnStderr(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyHasNext}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success (incompleteness is still a success)", outcome)
 	}
@@ -129,7 +129,7 @@ func TestRunMyRoles_HasNextPageSignalsIncompleteOnStderr(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
+func TestRunMeRoles_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	ctx := apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
@@ -137,7 +137,7 @@ func TestRunMyRoles_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	}
 	seam := &fakeMeSeam{ctx: ctx, transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -152,7 +152,7 @@ func TestRunMyRoles_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_CredentialErrorIsRuntimeError(t *testing.T) {
+func TestRunMeRoles_CredentialErrorIsRuntimeError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	ctx := apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
@@ -161,7 +161,7 @@ func TestRunMyRoles_CredentialErrorIsRuntimeError(t *testing.T) {
 	}
 	seam := &fakeMeSeam{ctx: ctx, transport: tr}
 
-	outcome, _, stderr := runMyRolesOver(t, seam)
+	outcome, _, stderr := runMeRolesOver(t, seam)
 	if outcome != RuntimeError {
 		t.Fatalf("outcome = %v, want RuntimeError", outcome)
 	}
@@ -173,11 +173,11 @@ func TestRunMyRoles_CredentialErrorIsRuntimeError(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
+func TestRunMeRoles_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
 	tr := &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != NetworkUnavailable {
 		t.Fatalf("outcome = %v, want NetworkUnavailable", outcome)
 	}
@@ -192,14 +192,14 @@ func TestRunMyRoles_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_NonStatus2xxIsAPIError(t *testing.T) {
+func TestRunMeRoles_NonStatus2xxIsAPIError(t *testing.T) {
 	// A genuinely generic non-2xx (500): 401/403/429 now split into
 	// PermissionError/RateLimited (API Error Extraction 015), so a 5xx represents
 	// the residual generic APIError bucket this test pins.
 	tr := &cannedTransport{status: 500, body: `{"error":"server error"}`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != APIError {
 		t.Fatalf("outcome = %v, want APIError", outcome)
 	}
@@ -216,11 +216,11 @@ func TestRunMyRoles_NonStatus2xxIsAPIError(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_UndecodableBodyIsRuntimeError(t *testing.T) {
+func TestRunMeRoles_UndecodableBodyIsRuntimeError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: `not json at all`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyRolesOver(t, seam)
+	outcome, stdout, stderr := runMeRolesOver(t, seam)
 	if outcome != RuntimeError {
 		t.Fatalf("outcome = %v, want RuntimeError", outcome)
 	}
@@ -237,7 +237,7 @@ func TestRunMyRoles_UndecodableBodyIsRuntimeError(t *testing.T) {
 	}
 }
 
-func TestRunMyRoles_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
+func TestRunMeRoles_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	seam := &fakeMeSeam{
 		ctx:          apiclient.ConnectionContext{},
@@ -245,7 +245,7 @@ func TestRunMyRoles_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 		transport:    tr,
 	}
 
-	outcome, _, stderr := runMyRolesOver(t, seam)
+	outcome, _, stderr := runMeRolesOver(t, seam)
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -257,19 +257,19 @@ func TestRunMyRoles_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 	}
 }
 
-// --- newMyRolesCommand integration (outcome → exit code, registration) -----
+// --- newMeRolesCommand integration (outcome → exit code, registration) -----
 
-// runMyRolesCommand registers `me` under a real root (with the persistent
+// runMeRolesCommand registers `me` under a real root (with the persistent
 // --base-url flag) and the `roles` leaf under `me`, then dispatches
 // `me roles [args]` through Run — pinning the command wiring AND the
 // outcomeError → ExitCode path (3/6) the dispatch carrier enables. The seam is
 // shared by both `me` and `me roles` (productionSeam binds the real one).
-func runMyRolesCommand(t *testing.T, seam meSeam, args ...string) (Outcome, int, string, string) {
+func runMeRolesCommand(t *testing.T, seam meSeam, args ...string) (Outcome, int, string, string) {
 	t.Helper()
 	root := NewRootCommand()
 	meCmd := newMeCommand(seam)
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyRolesCommand(seam))
+	MustRegister(meCmd, newMeRolesCommand(seam))
 	var out, errb bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errb)
@@ -277,7 +277,7 @@ func runMyRolesCommand(t *testing.T, seam meSeam, args ...string) (Outcome, int,
 	return outcome, ExitCode(outcome), out.String(), errb.String()
 }
 
-func TestMyRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
+func TestMeRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 	cases := []struct {
 		name     string
 		tr       *cannedTransport
@@ -298,7 +298,7 @@ func TestMyRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			seam := &fakeMeSeam{ctx: tc.ctx, newClientErr: tc.seamErr, transport: tc.tr}
-			outcome, code, stdout, stderr := runMyRolesCommand(t, seam, tc.args...)
+			outcome, code, stdout, stderr := runMeRolesCommand(t, seam, tc.args...)
 			if outcome != tc.outcome {
 				t.Errorf("outcome = %v, want %v\nstderr: %s", outcome, tc.outcome, stderr)
 			}
@@ -313,10 +313,10 @@ func TestMyRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 }
 
 // A stray positional argument is rejected by cobra.NoArgs before any API call.
-func TestMyRolesCommand_StrayArgSendsNothing(t *testing.T) {
+func TestMeRolesCommand_StrayArgSendsNothing(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	outcome, code, _, _ := runMyRolesCommand(t, seam, "extra-argument")
+	outcome, code, _, _ := runMeRolesCommand(t, seam, "extra-argument")
 	if outcome != UsageError || code != 2 {
 		t.Fatalf("stray arg: outcome=%v code=%d, want UsageError/2", outcome, code)
 	}
@@ -327,10 +327,10 @@ func TestMyRolesCommand_StrayArgSendsNothing(t *testing.T) {
 
 // The persistent --base-url value reaches the seam's assemble (inherited from the
 // root through `me` to `me roles`).
-func TestMyRolesCommand_InheritsBaseURLFlag(t *testing.T) {
+func TestMeRolesCommand_InheritsBaseURLFlag(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: rolesBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	_, _, _, _ = runMyRolesCommand(t, seam, "--base-url", "https://flag.test/api/v5")
+	_, _, _, _ = runMeRolesCommand(t, seam, "--base-url", "https://flag.test/api/v5")
 	if seam.assembledBaseURL != "https://flag.test/api/v5" {
 		t.Errorf("assemble received base URL %q, want the inherited flag value", seam.assembledBaseURL)
 	}
@@ -339,8 +339,8 @@ func TestMyRolesCommand_InheritsBaseURLFlag(t *testing.T) {
 // The `roles` leaf declares no --base-url flag of its own — it inherits the
 // root's persistent one. A locally-declared flag would shadow the inherited
 // value; this pins that it does not.
-func TestMyRolesCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
-	cmd := newMyRolesCommand(&fakeMeSeam{})
+func TestMeRolesCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
+	cmd := newMeRolesCommand(&fakeMeSeam{})
 	if cmd.Flags().Lookup(apiclient.FlagBaseURL) != nil {
 		t.Errorf("the roles leaf must not declare its own --%s flag; it is inherited", apiclient.FlagBaseURL)
 	}
@@ -350,11 +350,11 @@ func TestMyRolesCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
 // parent (the roles child), because the guard validates a command at its own
 // registration: `me` registers as a leaf first (childless), then `roles`
 // attaches under it. This pins ADR-1's runnable-with-children resolution.
-func TestMyRolesCommand_MeIsRunnableWithChildren(t *testing.T) {
+func TestMeRolesCommand_MeIsRunnableWithChildren(t *testing.T) {
 	root := NewRootCommand()
 	meCmd := newMeCommand(&fakeMeSeam{})
 	MustRegister(root, meCmd) // me as a runnable leaf — must not panic
-	MustRegister(meCmd, newMyRolesCommand(&fakeMeSeam{}))
+	MustRegister(meCmd, newMeRolesCommand(&fakeMeSeam{}))
 
 	if meCmd.RunE == nil {
 		t.Error("me should remain runnable (its own RunE) after gaining a child")

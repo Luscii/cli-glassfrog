@@ -20,14 +20,14 @@ import (
 // rides stdout — rather than inventing a second signal shape (interface-cli).
 const incompleteActionsNote = "note: more actions exist than shown; pagination is not yet supported, so this list may be incomplete"
 
-// myActionsConfig carries everything runMyActions needs, gathered by the
-// command's RunE. As with runMyRoles, keeping runMyActions a function of injected
+// meActionsConfig carries everything runMeActions needs, gathered by the
+// command's RunE. As with runMeRoles, keeping runMeActions a function of injected
 // values makes the whole read — validate, assemble, build, send, render/classify
 // — testable over a fake transport with no real network or ~/.glassfrogrc. It
 // reuses the meSeam (the assemble + newClient pair Identity Read defined); My
 // Actions needs nothing more. status is the raw --status flag value (may be
 // empty), validated before any request.
-type myActionsConfig struct {
+type meActionsConfig struct {
 	seam    meSeam
 	baseURL string // the inherited persistent --base-url flag value (may be empty)
 	status  string // the raw --status flag value (may be empty); validated before any I/O
@@ -36,7 +36,7 @@ type myActionsConfig struct {
 	stderr  io.Writer
 }
 
-// runMyActions is the pure orchestration the `me actions` leaf delegates to:
+// runMeActions is the pure orchestration the `me actions` leaf delegates to:
 // validate --status fail-fast (an unsupported value is a usage error with no
 // request issued), assemble the context once, build the client once, send one
 // GET /me/actions (carrying ?status= when filtered), then render the projection
@@ -44,7 +44,7 @@ type myActionsConfig struct {
 // page) or classify + report the typed error via 011's shared helpers. It emits
 // no exit code, never retries, and never reads the token — the projection renders
 // response-side fields only.
-func runMyActions(cfg myActionsConfig) (Outcome, error) {
+func runMeActions(cfg meActionsConfig) (Outcome, error) {
 	// 1. Validate --status BEFORE any assembly or request (fail-fast usage error,
 	//    no wasted call — pinned by a tripwire transport in the tests).
 	if err := validateStatus(cfg.status); err != nil {
@@ -75,24 +75,24 @@ func runMyActions(cfg myActionsConfig) (Outcome, error) {
 	//    reports more actions than this page carried, write the more-available
 	//    note to stderr so the partial list is never read as complete — still
 	//    exit 0. The next page is signalled, never fetched (Pagination 016).
-	fmt.Fprint(cfg.stdout, formatMyActions(resp))
+	fmt.Fprint(cfg.stdout, formatMeActions(resp))
 	if incompleteActions(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteActionsNote)
 	}
 	return Success, nil
 }
 
-// newMyActionsCommand builds the `actions` leaf attached under Identity Read's
+// newMeActionsCommand builds the `actions` leaf attached under Identity Read's
 // runnable `me` command — a sibling of the `roles` leaf (My Roles 012). It is a
 // guard-ready cobra command (no positional args, non-empty Short,
-// SilenceErrors/SilenceUsage so runMyActions owns its messages) with a local
+// SilenceErrors/SilenceUsage so runMeActions owns its messages) with a local
 // --status flag. Its RunE reads the persistent --base-url value the root declares
-// (inherited, not re-registered), delegates to the pure runMyActions, and maps
+// (inherited, not re-registered), delegates to the pure runMeActions, and maps
 // the returned Outcome onto dispatch's error channel via the shared
 // outcomeToDispatchError — adding no new Outcome category and no ExitCode case.
 // The seam is injected so tests drive a fake one; production passes
 // productionSeam{} from Assemble.
-func newMyActionsCommand(seam meSeam) *cobra.Command {
+func newMeActionsCommand(seam meSeam) *cobra.Command {
 	var status string
 	cmd := &cobra.Command{
 		Use:   "actions",
@@ -115,7 +115,7 @@ func newMyActionsCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
-			outcome, oerr := runMyActions(myActionsConfig{
+			outcome, oerr := runMeActions(meActionsConfig{
 				seam:    seam,
 				baseURL: baseURL,
 				status:  status,
@@ -130,7 +130,7 @@ func newMyActionsCommand(seam meSeam) *cobra.Command {
 	return cmd
 }
 
-// formatMyActions renders the reshaped `glassfrog me actions` projection (never
+// formatMeActions renders the reshaped `glassfrog me actions` projection (never
 // raw JSON; --output json is the deferred Unconsumable Output capability). It is
 // pure (MyActionsResponse → string) and surfaces only response-side fields, so
 // the token never appears. One entry per action, in the order the API returned
@@ -144,7 +144,7 @@ func newMyActionsCommand(seam meSeam) *cobra.Command {
 // command's concern (stderr, 012's convention) and never appears in this body —
 // the action's permissions, timestamps, and other fields are never rendered (spec
 // Non-Behaviors).
-func formatMyActions(resp glassfrog.MyActionsResponse) string {
+func formatMeActions(resp glassfrog.MyActionsResponse) string {
 	if len(resp.Data) == 0 {
 		return "No actions.\n"
 	}

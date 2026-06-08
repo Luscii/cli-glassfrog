@@ -13,7 +13,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// TestMyActionsFeatures runs the executable acceptance for My Actions (013): the
+// TestMeActionsFeatures runs the executable acceptance for My Actions (013): the
 // `me actions` command driven through its seam over a fake base transport, so
 // every scenario runs offline (no real network, no real ~/.glassfrogrc). Its
 // Paths name ONLY this spec's feature file — never the features/ directory — so
@@ -21,9 +21,9 @@ import (
 // reports its own independent scenario count (LEARNINGS: a suite points at its
 // own feature file). The @validation scenarios stay @wip (held for the validate
 // skill) and are skipped by the ~@wip filter.
-func TestMyActionsFeatures(t *testing.T) {
+func TestMeActionsFeatures(t *testing.T) {
 	suite := godog.TestSuite{
-		ScenarioInitializer: initializeMyActionsScenario,
+		ScenarioInitializer: initializeMeActionsScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"../../features/self-service-reads/my-actions.feature"},
@@ -36,11 +36,11 @@ func TestMyActionsFeatures(t *testing.T) {
 	}
 }
 
-// myActionsWorld is the per-scenario state for the my-actions suite: the
+// meActionsWorld is the per-scenario state for the my-actions suite: the
 // connection context and fake transport assembled from the Given steps, plus the
 // captured outcome/exit-code/streams of the When run. Everything is injected — no
 // step touches the real network, env, or home.
-type myActionsWorld struct {
+type meActionsWorld struct {
 	ctx          apiclient.ConnectionContext
 	newClientErr error
 	transport    *cannedTransport
@@ -52,10 +52,10 @@ type myActionsWorld struct {
 	stderr   string
 }
 
-func initializeMyActionsScenario(sc *godog.ScenarioContext) {
-	w := &myActionsWorld{}
+func initializeMeActionsScenario(sc *godog.ScenarioContext) {
+	w := &meActionsWorld{}
 	sc.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
-		*w = myActionsWorld{
+		*w = meActionsWorld{
 			// A multi-action 2xx body is the default; error and shape scenarios
 			// override status/netErr/body in their Given steps.
 			transport: &cannedTransport{status: 200, body: actionsBodyMulti},
@@ -116,19 +116,19 @@ func initializeMyActionsScenario(sc *godog.ScenarioContext) {
 
 // --- Given implementations ---
 
-func (w *myActionsWorld) completeContext() error { w.ctx = validMeContext(); return nil }
+func (w *meActionsWorld) completeContext() error { w.ctx = validMeContext(); return nil }
 
-func (w *myActionsWorld) apiReturnsActions() error {
+func (w *meActionsWorld) apiReturnsActions() error {
 	w.transport = &cannedTransport{status: 200, body: actionsBodyMulti}
 	return nil
 }
 
-func (w *myActionsWorld) apiReturnsNoActions() error {
+func (w *meActionsWorld) apiReturnsNoActions() error {
 	w.transport = &cannedTransport{status: 200, body: actionsBodyEmpty}
 	return nil
 }
 
-func (w *myActionsWorld) contextNoToken() error {
+func (w *meActionsWorld) contextNoToken() error {
 	w.ctx = apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
 		Cred:    auth.Resolution{Source: auth.SourceNone},
@@ -136,7 +136,7 @@ func (w *myActionsWorld) contextNoToken() error {
 	return nil
 }
 
-func (w *myActionsWorld) apiAnswersNon2xx() error {
+func (w *meActionsWorld) apiAnswersNon2xx() error {
 	// A genuinely generic non-2xx (500): API Error Extraction (015) split
 	// 401/403→permission(4) and 429→rate-limit(5), so a 5xx is the faithful
 	// representative of "a non-2xx response" surfaced as the generic APIError.
@@ -144,23 +144,23 @@ func (w *myActionsWorld) apiAnswersNon2xx() error {
 	return nil
 }
 
-func (w *myActionsWorld) apiUnreachable() error {
+func (w *meActionsWorld) apiUnreachable() error {
 	w.transport = &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
 	return nil
 }
 
-func (w *myActionsWorld) apiReturnsUnparseable() error {
+func (w *meActionsWorld) apiReturnsUnparseable() error {
 	w.transport = &cannedTransport{status: 200, body: `this is not the actions shape`}
 	return nil
 }
 
-func (w *myActionsWorld) contextBaseURLError() error {
+func (w *meActionsWorld) contextBaseURLError() error {
 	w.ctx = apiclient.ConnectionContext{}
 	w.newClientErr = &apiclient.BaseURLError{Source: "--" + apiclient.FlagBaseURL}
 	return nil
 }
 
-func (w *myActionsWorld) contextCredentialError() error {
+func (w *meActionsWorld) contextCredentialError() error {
 	w.ctx = apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
 		Cred:    auth.Resolution{Source: auth.SourceNone},
@@ -169,7 +169,7 @@ func (w *myActionsWorld) contextCredentialError() error {
 	return nil
 }
 
-func (w *myActionsWorld) apiReturnsFirstPageHasNext() error {
+func (w *meActionsWorld) apiReturnsFirstPageHasNext() error {
 	w.transport = &cannedTransport{status: 200, body: actionsBodyHasNext}
 	return nil
 }
@@ -180,12 +180,12 @@ func (w *myActionsWorld) apiReturnsFirstPageHasNext() error {
 // over the fake seam, dispatches `me actions [args]`, and captures the
 // outcome/exit-code/streams. It asserts the secret token never leaks into any
 // produced output (the cross-read invariant, pinned on every When).
-func (w *myActionsWorld) run(args ...string) error {
+func (w *meActionsWorld) run(args ...string) error {
 	root := NewRootCommand()
 	seam := &fakeMeSeam{ctx: w.ctx, newClientErr: w.newClientErr, transport: w.transport}
 	meCmd := newMeCommand(seam)
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyActionsCommand(seam))
+	MustRegister(meCmd, newMeActionsCommand(seam))
 
 	var out, errb bytes.Buffer
 	root.SetOut(&out)
@@ -200,17 +200,17 @@ func (w *myActionsWorld) run(args ...string) error {
 	return nil
 }
 
-func (w *myActionsWorld) runNoFilter() error { return w.run() }
+func (w *meActionsWorld) runNoFilter() error { return w.run() }
 
-func (w *myActionsWorld) runWithStatus(status string) error { return w.run("--status", status) }
+func (w *meActionsWorld) runWithStatus(status string) error { return w.run("--status", status) }
 
-func (w *myActionsWorld) runWithUnsupportedStatus() error {
+func (w *meActionsWorld) runWithUnsupportedStatus() error {
 	return w.run("--status", "definitely-not-a-status")
 }
 
 // --- Then implementations ---
 
-func (w *myActionsWorld) requestWentToEndpoint() error {
+func (w *meActionsWorld) requestWentToEndpoint() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("exactly one request should reach the my-actions endpoint, got %d calls", w.transport.calls)
 	}
@@ -220,7 +220,7 @@ func (w *myActionsWorld) requestWentToEndpoint() error {
 	return nil
 }
 
-func (w *myActionsWorld) projectionListsActions() error {
+func (w *meActionsWorld) projectionListsActions() error {
 	for _, want := range []string{
 		"actn_0123456789abcdef0123456789abcdef", "current", "Review PR #6818",
 		"role_0123456789abcdef0123456789abcdef", "waiting",
@@ -232,21 +232,21 @@ func (w *myActionsWorld) projectionListsActions() error {
 	return nil
 }
 
-func (w *myActionsWorld) exitSuccess() error {
+func (w *meActionsWorld) exitSuccess() error {
 	if w.outcome != Success || w.exitCode != 0 {
 		return fmt.Errorf("the command should exit successfully, got outcome=%v code=%d\nstderr: %s", w.outcome, w.exitCode, w.stderr)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) projectionEmptyList() error {
+func (w *meActionsWorld) projectionEmptyList() error {
 	if strings.TrimRight(w.stdout, "\n") != "No actions." {
 		return fmt.Errorf("an empty list should render exactly `No actions.`, got %q", w.stdout)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) failSafeRefused() error {
+func (w *meActionsWorld) failSafeRefused() error {
 	// The AuthTransport fail-safe refuses a no-token call → UsageError (not a
 	// transport outcome). No projection prints.
 	if w.outcome != UsageError {
@@ -258,21 +258,21 @@ func (w *myActionsWorld) failSafeRefused() error {
 	return nil
 }
 
-func (w *myActionsWorld) exitNonSuccess() error {
+func (w *meActionsWorld) exitNonSuccess() error {
 	if w.outcome == Success || w.exitCode == 0 {
 		return fmt.Errorf("the command should exit with a non-success result, got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) noRequestReachedAPI() error {
+func (w *meActionsWorld) noRequestReachedAPI() error {
 	if w.transport.calls != 0 {
 		return fmt.Errorf("no request should reach the API, but the transport was called %d times", w.transport.calls)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) surfacesGenericNon2xx() error {
+func (w *meActionsWorld) surfacesGenericNon2xx() error {
 	if w.outcome != APIError {
 		return fmt.Errorf("a non-2xx should surface the generic APIError outcome, got %v", w.outcome)
 	}
@@ -282,7 +282,7 @@ func (w *myActionsWorld) surfacesGenericNon2xx() error {
 	return nil
 }
 
-func (w *myActionsWorld) notInterpretedAPIError() error {
+func (w *meActionsWorld) notInterpretedAPIError() error {
 	// The generic non-2xx message must not interpret the status into a specific
 	// meaning (no "forbidden"/"permission"/"unauthorized"/"rate limit" wording —
 	// that is 015/017's concern). It names the status and a generic next step.
@@ -295,7 +295,7 @@ func (w *myActionsWorld) notInterpretedAPIError() error {
 	return nil
 }
 
-func (w *myActionsWorld) surfacesTransportFailure() error {
+func (w *meActionsWorld) surfacesTransportFailure() error {
 	if w.outcome != NetworkUnavailable {
 		return fmt.Errorf("a wire failure should surface NetworkUnavailable, got %v", w.outcome)
 	}
@@ -305,14 +305,14 @@ func (w *myActionsWorld) surfacesTransportFailure() error {
 	return nil
 }
 
-func (w *myActionsWorld) didNotRetry() error {
+func (w *meActionsWorld) didNotRetry() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("the read must not retry, got %d calls", w.transport.calls)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) surfacesDecodeFailure() error {
+func (w *meActionsWorld) surfacesDecodeFailure() error {
 	if w.outcome != RuntimeError {
 		return fmt.Errorf("an undecodable 2xx should surface RuntimeError, got %v", w.outcome)
 	}
@@ -322,14 +322,14 @@ func (w *myActionsWorld) surfacesDecodeFailure() error {
 	return nil
 }
 
-func (w *myActionsWorld) exitInternalError() error {
+func (w *meActionsWorld) exitInternalError() error {
 	if w.outcome != RuntimeError || w.exitCode != 1 {
 		return fmt.Errorf("the internal-error result is RuntimeError/1, got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) surfacesBaseURLUsageError() error {
+func (w *meActionsWorld) surfacesBaseURLUsageError() error {
 	if w.outcome != UsageError {
 		return fmt.Errorf("a base-URL problem should surface a usage error, got %v", w.outcome)
 	}
@@ -339,14 +339,14 @@ func (w *myActionsWorld) surfacesBaseURLUsageError() error {
 	return nil
 }
 
-func (w *myActionsWorld) baseURLNextStep() error {
+func (w *meActionsWorld) baseURLNextStep() error {
 	if !strings.Contains(w.stderr, "--"+apiclient.FlagBaseURL) {
 		return fmt.Errorf("the message should explain how to correct the base URL (name --%s), got %q", apiclient.FlagBaseURL, w.stderr)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) surfacesCredentialFileError() error {
+func (w *meActionsWorld) surfacesCredentialFileError() error {
 	if w.outcome != RuntimeError {
 		return fmt.Errorf("a malformed credentials file should surface RuntimeError, got %v", w.outcome)
 	}
@@ -356,14 +356,14 @@ func (w *myActionsWorld) surfacesCredentialFileError() error {
 	return nil
 }
 
-func (w *myActionsWorld) credentialFileNextStep() error {
+func (w *meActionsWorld) credentialFileNextStep() error {
 	if !strings.Contains(w.stderr, "auth login") && !strings.Contains(strings.ToLower(w.stderr), "re-create") {
 		return fmt.Errorf("the message should explain how to fix or re-create the file, got %q", w.stderr)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) statusAccepted(status string) error {
+func (w *meActionsWorld) statusAccepted(status string) error {
 	// "current" was accepted: the request was issued (not rejected before send).
 	if w.outcome != Success {
 		return fmt.Errorf("status %q should be accepted and the read succeed, got %v\nstderr: %s", status, w.outcome, w.stderr)
@@ -374,14 +374,14 @@ func (w *myActionsWorld) statusAccepted(status string) error {
 	return nil
 }
 
-func (w *myActionsWorld) requestCarriesStatus(status string) error {
+func (w *meActionsWorld) requestCarriesStatus(status string) error {
 	if got := w.transport.lastQuery.Get("status"); got != status {
 		return fmt.Errorf("the request should carry ?status=%s, got query %v", status, w.transport.lastQuery)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) filteredActionsRendered() error {
+func (w *meActionsWorld) filteredActionsRendered() error {
 	// The fake returns the multi-action body for the filter; the projection
 	// renders those actions.
 	if !strings.Contains(w.stdout, "actn_0123456789abcdef0123456789abcdef") {
@@ -390,7 +390,7 @@ func (w *myActionsWorld) filteredActionsRendered() error {
 	return nil
 }
 
-func (w *myActionsWorld) rejectsUnsupportedStatus() error {
+func (w *meActionsWorld) rejectsUnsupportedStatus() error {
 	if w.outcome != UsageError || w.exitCode != 2 {
 		return fmt.Errorf("an unsupported status should be a usage error (exit 2), got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
@@ -406,14 +406,14 @@ func (w *myActionsWorld) rejectsUnsupportedStatus() error {
 	return nil
 }
 
-func (w *myActionsWorld) rendersFirstPage() error {
+func (w *meActionsWorld) rendersFirstPage() error {
 	if !strings.Contains(w.stdout, "actn_0123456789abcdef0123456789abcdef") {
 		return fmt.Errorf("the first page should be rendered to stdout:\n%s", w.stdout)
 	}
 	return nil
 }
 
-func (w *myActionsWorld) surfacesMoreAvailableSignal() error {
+func (w *meActionsWorld) surfacesMoreAvailableSignal() error {
 	// The signal rides stderr (012's convention), pinned verbatim against the
 	// rendering constant so wording drift fails the acceptance.
 	if strings.TrimRight(w.stderr, "\n") != incompleteActionsNote {
@@ -422,7 +422,7 @@ func (w *myActionsWorld) surfacesMoreAvailableSignal() error {
 	return nil
 }
 
-func (w *myActionsWorld) didNotRequestSecondPage() error {
+func (w *meActionsWorld) didNotRequestSecondPage() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("a further page must be signalled, not fetched; got %d requests", w.transport.calls)
 	}

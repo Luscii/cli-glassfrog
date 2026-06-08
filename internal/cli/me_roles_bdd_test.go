@@ -13,7 +13,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// TestMyRolesFeatures runs the executable acceptance for My Roles (012): the
+// TestMeRolesFeatures runs the executable acceptance for My Roles (012): the
 // `me roles` command driven through its seam over a fake base transport, so every
 // scenario runs offline (no real network, no real ~/.glassfrogrc). Its Paths name
 // ONLY this spec's feature file — never the features/ directory — so un-@wip-ping
@@ -21,9 +21,9 @@ import (
 // independent scenario count (LEARNINGS: a suite points at its own feature file).
 // The 2 @validation scenarios stay @wip (held for the validate skill) and are
 // skipped by the ~@wip filter.
-func TestMyRolesFeatures(t *testing.T) {
+func TestMeRolesFeatures(t *testing.T) {
 	suite := godog.TestSuite{
-		ScenarioInitializer: initializeMyRolesScenario,
+		ScenarioInitializer: initializeMeRolesScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"../../features/self-service-reads/my-roles.feature"},
@@ -36,11 +36,11 @@ func TestMyRolesFeatures(t *testing.T) {
 	}
 }
 
-// myRolesWorld is the per-scenario state for the my-roles suite: the connection
+// meRolesWorld is the per-scenario state for the my-roles suite: the connection
 // context and fake transport assembled from the Given steps, plus the captured
 // outcome/exit-code/streams of the When run. Everything is injected — no step
 // touches the real network, env, or home.
-type myRolesWorld struct {
+type meRolesWorld struct {
 	ctx          apiclient.ConnectionContext
 	newClientErr error
 	transport    *cannedTransport
@@ -71,10 +71,10 @@ const roleEssentialsBody = `{
   "meta": {"pagination": {"per_page": 25, "has_next_page": false, "next_cursor": ""}}
 }`
 
-func initializeMyRolesScenario(sc *godog.ScenarioContext) {
-	w := &myRolesWorld{}
+func initializeMeRolesScenario(sc *godog.ScenarioContext) {
+	w := &meRolesWorld{}
 	sc.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
-		*w = myRolesWorld{
+		*w = meRolesWorld{
 			// A multi-role 2xx body is the default; error and shape scenarios override
 			// status/netErr/body in their Given steps.
 			transport: &cannedTransport{status: 200, body: rolesBodyMulti},
@@ -119,19 +119,19 @@ func initializeMyRolesScenario(sc *godog.ScenarioContext) {
 
 // --- Given implementations ---
 
-func (w *myRolesWorld) completeContext() error { w.ctx = validMeContext(); return nil }
+func (w *meRolesWorld) completeContext() error { w.ctx = validMeContext(); return nil }
 
-func (w *myRolesWorld) apiReturnsRoles() error {
+func (w *meRolesWorld) apiReturnsRoles() error {
 	w.transport = &cannedTransport{status: 200, body: rolesBodyMulti}
 	return nil
 }
 
-func (w *myRolesWorld) apiReturnsNoRoles() error {
+func (w *meRolesWorld) apiReturnsNoRoles() error {
 	w.transport = &cannedTransport{status: 200, body: rolesBodyEmpty}
 	return nil
 }
 
-func (w *myRolesWorld) contextNoToken() error {
+func (w *meRolesWorld) contextNoToken() error {
 	w.ctx = apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
 		Cred:    auth.Resolution{Source: auth.SourceNone},
@@ -139,33 +139,33 @@ func (w *myRolesWorld) contextNoToken() error {
 	return nil
 }
 
-func (w *myRolesWorld) apiUnreachable() error {
+func (w *meRolesWorld) apiUnreachable() error {
 	w.transport = &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
 	return nil
 }
 
-func (w *myRolesWorld) apiAnswersStatus(status int) error {
+func (w *meRolesWorld) apiAnswersStatus(status int) error {
 	w.transport = &cannedTransport{status: status, body: `{"error":"forbidden"}`}
 	return nil
 }
 
-func (w *myRolesWorld) contextBaseURLError() error {
+func (w *meRolesWorld) contextBaseURLError() error {
 	w.ctx = apiclient.ConnectionContext{}
 	w.newClientErr = &apiclient.BaseURLError{Source: "--" + apiclient.FlagBaseURL}
 	return nil
 }
 
-func (w *myRolesWorld) apiReturnsUnparseable(_ int) error {
+func (w *meRolesWorld) apiReturnsUnparseable(_ int) error {
 	w.transport = &cannedTransport{status: 200, body: `this is not the roles shape`}
 	return nil
 }
 
-func (w *myRolesWorld) apiReturnsRoleEssentials(_ string) error {
+func (w *meRolesWorld) apiReturnsRoleEssentials(_ string) error {
 	w.transport = &cannedTransport{status: 200, body: roleEssentialsBody}
 	return nil
 }
 
-func (w *myRolesWorld) apiReturnsFirstPageHasNext() error {
+func (w *meRolesWorld) apiReturnsFirstPageHasNext() error {
 	w.transport = &cannedTransport{status: 200, body: rolesBodyHasNext}
 	return nil
 }
@@ -175,12 +175,12 @@ func (w *myRolesWorld) apiReturnsFirstPageHasNext() error {
 // runCommand parses the captured "me roles …" invocation and dispatches it
 // through a real root with `me` (runnable) and the `roles` leaf attached, over a
 // fake seam. It asserts the secret token never leaks into any produced output.
-func (w *myRolesWorld) runCommand(invocation string) error {
+func (w *meRolesWorld) runCommand(invocation string) error {
 	root := NewRootCommand()
 	seam := &fakeMeSeam{ctx: w.ctx, newClientErr: w.newClientErr, transport: w.transport}
 	meCmd := newMeCommand(seam)
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyRolesCommand(seam))
+	MustRegister(meCmd, newMeRolesCommand(seam))
 
 	var out, errb bytes.Buffer
 	root.SetOut(&out)
@@ -197,7 +197,7 @@ func (w *myRolesWorld) runCommand(invocation string) error {
 
 // --- Then implementations ---
 
-func (w *myRolesWorld) eachRolePrinted() error {
+func (w *meRolesWorld) eachRolePrinted() error {
 	// The default multi-role body carries Marketing Lead and Treasurer, each as a
 	// projection block with its id and the section headers.
 	for _, want := range []string{"Marketing Lead (role_", "Treasurer", "Purpose:", "Domains:", "Accountabilities:"} {
@@ -208,21 +208,21 @@ func (w *myRolesWorld) eachRolePrinted() error {
 	return nil
 }
 
-func (w *myRolesWorld) exitWithCode(code int) error {
+func (w *meRolesWorld) exitWithCode(code int) error {
 	if w.exitCode != code {
 		return fmt.Errorf("exit code = %d, want %d (outcome %v)\nstderr: %s", w.exitCode, code, w.outcome, w.stderr)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) literalPrintedToStdout(literal string) error {
+func (w *meRolesWorld) literalPrintedToStdout(literal string) error {
 	if !strings.Contains(w.stdout, literal) {
 		return fmt.Errorf("stdout should contain %q:\n%s", literal, w.stdout)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) stderrReportsAndPointsTo(report, pointer string) error {
+func (w *meRolesWorld) stderrReportsAndPointsTo(report, pointer string) error {
 	// "not authenticated" is matched leniently (the message names the cause); the
 	// pointer ("glassfrog auth login") must appear verbatim.
 	if !strings.Contains(strings.ToLower(w.stderr), strings.ToLower(report)) {
@@ -234,14 +234,14 @@ func (w *myRolesWorld) stderrReportsAndPointsTo(report, pointer string) error {
 	return nil
 }
 
-func (w *myRolesWorld) noRoleDataPrinted() error {
+func (w *meRolesWorld) noRoleDataPrinted() error {
 	if strings.TrimSpace(w.stdout) != "" {
 		return fmt.Errorf("no role data should be printed, got stdout:\n%s", w.stdout)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) transportFailureNamed() error {
+func (w *meRolesWorld) transportFailureNamed() error {
 	if w.outcome != NetworkUnavailable {
 		return fmt.Errorf("outcome = %v, want NetworkUnavailable", w.outcome)
 	}
@@ -251,7 +251,7 @@ func (w *myRolesWorld) transportFailureNamed() error {
 	return nil
 }
 
-func (w *myRolesWorld) stderrNamesStatus(status int) error {
+func (w *meRolesWorld) stderrNamesStatus(status int) error {
 	if w.outcome != APIError {
 		return fmt.Errorf("outcome = %v, want APIError", w.outcome)
 	}
@@ -261,21 +261,21 @@ func (w *myRolesWorld) stderrNamesStatus(status int) error {
 	return nil
 }
 
-func (w *myRolesWorld) rejectedAsUsageError() error {
+func (w *meRolesWorld) rejectedAsUsageError() error {
 	if w.outcome != UsageError || w.exitCode != 2 {
 		return fmt.Errorf("outcome=%v exit=%d, want UsageError/2", w.outcome, w.exitCode)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) noRequestReachedAPI() error {
+func (w *meRolesWorld) noRequestReachedAPI() error {
 	if w.transport.calls != 0 {
 		return fmt.Errorf("no request should reach the API, but the transport was called %d times", w.transport.calls)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) stderrNamesBaseURL() error {
+func (w *meRolesWorld) stderrNamesBaseURL() error {
 	if w.outcome != UsageError {
 		return fmt.Errorf("outcome = %v, want UsageError", w.outcome)
 	}
@@ -288,7 +288,7 @@ func (w *myRolesWorld) stderrNamesBaseURL() error {
 	return nil
 }
 
-func (w *myRolesWorld) stderrReportsDecodeFailure() error {
+func (w *meRolesWorld) stderrReportsDecodeFailure() error {
 	if w.outcome != RuntimeError {
 		return fmt.Errorf("outcome = %v, want RuntimeError", w.outcome)
 	}
@@ -298,7 +298,7 @@ func (w *myRolesWorld) stderrReportsDecodeFailure() error {
 	return nil
 }
 
-func (w *myRolesWorld) projectionShowsEssentials() error {
+func (w *meRolesWorld) projectionShowsEssentials() error {
 	for _, want := range []string{
 		"Marketing Lead", "role_0123456789abcdef0123456789abcdef",
 		"Purpose: A market that knows us",
@@ -320,7 +320,7 @@ func (w *myRolesWorld) projectionShowsEssentials() error {
 	return nil
 }
 
-func (w *myRolesWorld) projectionHidesNonEssentials() error {
+func (w *meRolesWorld) projectionHidesNonEssentials() error {
 	// The essentials fixture carries a filler name, a tag, and a flag the
 	// projection must never surface.
 	for _, forbidden := range []string{"Someone", "secret-tag", "is_core", "filler", "Filler", "tag", "Tag", "flag", "Flag"} {
@@ -331,14 +331,14 @@ func (w *myRolesWorld) projectionHidesNonEssentials() error {
 	return nil
 }
 
-func (w *myRolesWorld) rolesPrintedToStdout() error {
+func (w *meRolesWorld) rolesPrintedToStdout() error {
 	if !strings.Contains(w.stdout, "Marketing Lead") {
 		return fmt.Errorf("the roles from the response should print to stdout:\n%s", w.stdout)
 	}
 	return nil
 }
 
-func (w *myRolesWorld) incompleteNoteOnStderr() error {
+func (w *meRolesWorld) incompleteNoteOnStderr() error {
 	// interface-cli pins the note text verbatim; compare the full stderr line
 	// against the constant (trailing newline trimmed) so wording drift fails the
 	// acceptance, not just an absent substring.
