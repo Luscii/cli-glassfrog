@@ -1,0 +1,94 @@
+# Automated Release Pipeline (spec 022).
+#
+# Triggered by *publishing* a GitHub Release — drafted by Release Drafting (#30)
+# or created by hand — never by a raw tag push or a routine merge. On publish it
+# builds the four supported platform binaries, packages each as a tar.gz, writes
+# one sha256 checksums file, and attaches the whole set to the SAME release that
+# triggered it. It honors the release's notes and pre-release/latest status: it
+# adds artifacts, it does not author prose or decide status.
+#
+# Ownership boundaries:
+#   - 021 owns the build matrix (.goreleaser.yaml `builds`); 023 owns the ldflags
+#     version seam; #30 owns the release body/draft/status. 022 owns packaging,
+#     the trigger, the cross-target verification gate, and the asset upload.
+#   - GoReleaser does NOT publish here: `gh release upload --clobber` uploads the
+#     exact, already-verified dist/ bytes and inherently preserves the release
+#     body and status (GoReleaser OSS cannot resume-publish a pre-built dist/).
+name: release
+
+on:
+  release:
+    # Only a *published* release triggers the pipeline. A draft being saved or
+    # updated, a tag push, or a merge to main does not match — so routine
+    # activity never builds or attaches anything.
+    types: [published]
+
+# contents: write is the only privilege the pipeline needs (attach assets to a
+# release in this repository). No external secrets. Note: this permission alone
+# is not enough for `gh` — the publish job must also put the token in its env.
+permissions:
+  contents: write
+
+jobs:
+  # Build + package once, at the release tag, WITHOUT publishing. The produced
+  # dist/ is uploaded as a CI artifact so the publish job attaches the exact
+  # bytes that were built (verified-bytes = published-bytes). A failure of any
+  # target here exits non-zero and aborts the whole run — nothing is attached.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history (not a shallow clone) so GoReleaser can derive the
+          # version from the release tag the event points at.
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          # release (not build) so archives + checksums are produced; --skip=publish
+          # keeps GoReleaser from creating/uploading anything — publish is the
+          # `gh release upload` step below, gated on verification.
+          args: release --clean --skip=publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          # The whole dist/: the four *.tar.gz, the checksums file, and
+          # GoReleaser's metadata/build subdirectories (artifacts.json drives the
+          # verify job's binary discovery).
+          path: dist/
+          retention-days: 1
+
+  # Attach the verified dist/ to the triggering release. needs: build means a
+  # build failure skips publish entirely (atomic — no partial release). T003
+  # extends this to `needs: [build, verify]` so a verification failure aborts too.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # gh authenticates from the GH_TOKEN/GITHUB_TOKEN env var, NOT from the
+    # workflow `permissions` block alone — the token must be wired into the
+    # step's environment or `gh release upload` fails with an auth error.
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      # Upload ONLY the release assets — the four archives then the checksums
+      # file — to the triggering release. The globs deliberately exclude
+      # GoReleaser's dist/ metadata (artifacts.json, metadata.json, config.yaml)
+      # and the per-target build subdirectories; a bare dist/* would attach junk
+      # assets or fail on a directory. Archives are listed before the checksums
+      # glob so the checksums file uploads last — its presence on the release is
+      # the completeness signal for consumers. --clobber makes the step
+      # idempotent: re-running (or recovering from a partial mid-upload failure)
+      # converges on one asset set with no duplicates. The upload touches assets
+      # only — the release body and pre-release/latest status are left untouched.
+      - name: Attach archives and checksums to the release
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            dist/*.tar.gz dist/*checksums.txt \
+            --clobber
