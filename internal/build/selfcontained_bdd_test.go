@@ -35,6 +35,14 @@ import (
 // is exactly the four supported targets", "shared build entry point") stay @wip,
 // held for the validate skill, and are skipped by the ~@wip filter.
 func TestSelfContainedExecutableBuildFeatures(t *testing.T) {
+	// Several scenarios build and inspect a real binary via extractDeps, which
+	// shells out to otool/ldd and is unsupported on non-darwin/linux hosts. Skip
+	// the whole suite there so `go test ./...` stays green on, e.g., Windows; the
+	// config-guard's pure logic remains covered by TestConfigGuard_* unit tests,
+	// which carry no platform guard.
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skipf("linkage inspection unsupported on %s — self-containment targets are darwin/linux", runtime.GOOS)
+	}
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializeSelfContainedScenario,
 		Options: &godog.Options{

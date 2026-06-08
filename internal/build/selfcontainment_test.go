@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+// skipUnsupportedLinkagePlatform skips a test on platforms where linkage
+// inspection is not supported. extractDeps shells out to otool (darwin) / ldd
+// (linux) and returns an error on any other GOOS, so the self-containment
+// checks — which build and inspect a real binary — only run on the two
+// supported build targets. The pure-logic tests (parseOtool/parseLdd,
+// osOnlyViolations, the config-guard) carry no such guard and run everywhere.
+// Mirrors the Windows skips already in internal/auth/auth_test.go.
+func skipUnsupportedLinkagePlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skipf("linkage inspection unsupported on %s — self-containment targets are darwin/linux", runtime.GOOS)
+	}
+}
+
 // TestSelfContainment_HostBinary is the self-containment verification on the
 // host target: it obtains a host-target glassfrog (dist-artifact-preferred,
 // host-build fallback), executes `glassfrog version` asserting exit 0, then
@@ -18,6 +32,7 @@ import (
 // the check makes no API call and proves only that the loader and runtime start
 // on a clean host.
 func TestSelfContainment_HostBinary(t *testing.T) {
+	skipUnsupportedLinkagePlatform(t)
 	bin, source, err := HostBinary(t.TempDir())
 	if err != nil {
 		t.Fatalf("obtaining a host-target binary: %v", err)
@@ -45,6 +60,7 @@ func TestSelfContainment_HostBinary(t *testing.T) {
 // clean checkout with no dist/) and confirms it runs. This is the
 // "runs under `go test ./...` without goreleaser installed" acceptance.
 func TestSelfContainment_HostBuildFallback(t *testing.T) {
+	skipUnsupportedLinkagePlatform(t)
 	bin, err := buildHostBinary(t.TempDir())
 	if err != nil {
 		t.Fatalf("host build fallback failed: %v", err)
@@ -165,5 +181,16 @@ func TestParseLdd(t *testing.T) {
 		if deps[i] != want[i] {
 			t.Fatalf("dep %d = %q, want %q", i, deps[i], want[i])
 		}
+	}
+
+	// "name => not found": the loader cannot resolve the dependency. The parser
+	// must report the library NAME (the missing dependency), not the literal
+	// "not found" — and that name must be flagged as a self-containment violation.
+	missing := parseLdd("\tlibcustom.so.1 => not found\n")
+	if len(missing) != 1 || missing[0] != "libcustom.so.1" {
+		t.Fatalf("a 'not found' dependency must be named by its library, got %v", missing)
+	}
+	if v := osOnlyViolations("linux", missing); len(v) != 1 || v[0] != "libcustom.so.1" {
+		t.Fatalf("an unresolved dependency must be a named violation, got %v", v)
 	}
 }
