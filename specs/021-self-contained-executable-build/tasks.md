@@ -26,7 +26,7 @@ Increment 1: Build configuration and verification (3 tasks, spans plan Phases 1�
 
 Single RED→GREEN increment — all three tasks ship in one PR. (Plan-reference fields below cite plan.md's Phase 1/Phase 2; this single increment deliberately spans both.)
 
-- [ ] **T001** [Shared] Config-guard test for the build matrix (RED)
+- [x] **T001** [Shared] Config-guard test for the build matrix (RED) — `internal/build/config.go` (CheckConfigGuard) + `config_guard_test.go`; change-detector rigor (missing target fails as loudly as an extra), cgo + 4-target drift cases
   - **Scope**: A Go test that reads `.goreleaser.yaml` and asserts the build matrix is exactly the four supported targets and `CGO_ENABLED=0`. Change-detector rigor: a missing target fails as loudly as an extra one. Written first — it fails until T002 adds the config.
   - **Acceptance criteria**:
     - Fails when a target outside the four is declared (e.g. a Windows target), naming it.
@@ -38,7 +38,7 @@ Single RED→GREEN increment — all three tasks ship in one PR. (Plan-reference
   - **Scenario references**: self-contained-executable-build.feature: "The matrix is exactly the four supported targets", "Config drift to enabled cgo is rejected", "An unsupported target in the build config is rejected"
   - **Interface references**: interface-spec.md: Error Communication (config-guard constraint violations)
 
-- [ ] **T002** [Shared] Add the GoReleaser build-only configuration (GREEN)
+- [x] **T002** [Shared] Add the GoReleaser build-only configuration (GREEN) — `.goreleaser.yaml` (build-only, 4-target matrix, CGO_ENABLED=0, -trimpath, empty ldflags 023 seam); verified `goreleaser build --snapshot --clean` → 4 binaries + dist/artifacts.json, `--single-target` → host only; `/dist/` gitignored
   - **Scope**: Add `.goreleaser.yaml` at the repo root carrying a single `builds` entry for `glassfrog` (`main: .`, `binary: glassfrog`, `env: [CGO_ENABLED=0]`, `goos: [darwin, linux]`, `goarch: [amd64, arm64]`, `flags: [-trimpath]`, `ldflags` left empty as the 023 seam) and `version: 2` + `project_name: glassfrog`. No `archives`, `checksum`, `release`, or `brews` sections. Document the two invocations (`goreleaser build --snapshot --clean` and `--single-target`). Turns T001 GREEN.
   - **Acceptance criteria**:
     - T001 (config-guard) passes once this config lands.
@@ -51,7 +51,7 @@ Single RED→GREEN increment — all three tasks ship in one PR. (Plan-reference
   - **Scenario references**: self-contained-executable-build.feature: "The release build produces all four target binaries", "The local build produces a runnable host binary", "Foreign-target binaries build from any host", "A failed target fails the whole release build"
   - **Interface references**: interface-spec.md: Build configuration file `.goreleaser.yaml`; Build invocations; `dist/` output contract
 
-- [ ] **T003** [US1] Add the self-containment verification test (run + OS-only linkage)
+- [x] **T003** [US1] Add the self-containment verification test (run + OS-only linkage) — `internal/build/{linkage,hostbinary}.go` + `selfcontainment_test.go`; dist-artifact-preferred with host-build fallback (runs without goreleaser), `version` execute probe (exit 0, no network), per-platform OS-only allowlist; 9 BDD scenarios un-@wip'd in `selfcontained_bdd_test.go` (3 @validation held)
   - **Scope**: A Go test that obtains a host-target `glassfrog` binary — preferring a `dist/artifacts.json`-listed artifact, else building the host target on the fly with `CGO_ENABLED=0` — executes `glassfrog version` asserting exit 0, then inspects the binary's dynamic-library linkage against a per-platform OS-only allowlist (Linux: statically linked / loader only; macOS: only `/usr/lib/**` + `/System/Library/**`). Reuses the subprocess-exec pattern from `internal/cli/smoke_test.go`. Closes the increment alongside the config it verifies.
   - **Acceptance criteria**:
     - Passes for a self-contained host binary (executes, OS-only linkage).

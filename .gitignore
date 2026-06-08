@@ -6,3 +6,5 @@
 
 # Build artifacts
 /glassfrog
+# GoReleaser output (snapshot/matrix binaries + the artifacts.json manifest)
+/dist/
