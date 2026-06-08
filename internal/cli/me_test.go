@@ -357,7 +357,10 @@ func TestRunMe_UnsupportedIncludeRejectedBeforeAnyRequest(t *testing.T) {
 }
 
 func TestRunMe_NonStatus2xxIsAPIError(t *testing.T) {
-	tr := &cannedTransport{status: 401, body: `{"error":"unauthorized"}`}
+	// A genuinely generic non-2xx (500) — 401/403/429 now split into
+	// PermissionError/RateLimited (API Error Extraction 015), so a 5xx is the
+	// faithful representative of the residual generic APIError bucket.
+	tr := &cannedTransport{status: 500, body: `{"error":"server error"}`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	outcome, stdout, stderr := runMeOver(t, seam)
@@ -367,7 +370,7 @@ func TestRunMe_NonStatus2xxIsAPIError(t *testing.T) {
 	if strings.TrimSpace(stdout) != "" {
 		t.Errorf("no projection should print on a non-2xx, got stdout %q", stdout)
 	}
-	if !strings.Contains(stderr, "401") {
+	if !strings.Contains(stderr, "500") {
 		t.Errorf("stderr should surface the status code, got %q", stderr)
 	}
 	// Action Transparency: the message names the cause (status) AND a concrete,
@@ -509,6 +512,101 @@ func TestRunMe_BaseURLRcfileErrorIsUsageErrorWithNextStep(t *testing.T) {
 				t.Errorf("transport was called %d times; a base-URL error must not send", tr.calls)
 			}
 		})
+	}
+}
+
+// --- API Error Extraction (015): refined-error message + classification ---
+
+// reportClientError refines a generic non-2xx *ResponseError into a typed
+// *ProblemError (once), so the message surfaces the API's own detail and the
+// returned error that travels up the chain IS the typed value (ADR-4). Pins:
+// the API detail appears (DetailSynthesized==false); a synthesized fallback
+// shows the "status N" wording, NOT the synthesized text; the per-class
+// next-step hints render; the returned error is a *ProblemError.
+func TestReportClientError_SurfacesDetailAndClassifies(t *testing.T) {
+	cases := []struct {
+		name        string
+		re          *apiclient.ResponseError
+		wantOutcome Outcome
+		wantInMsg   []string
+		notInMsg    []string
+	}{
+		{
+			name:        "404-detail-surfaced",
+			re:          &apiclient.ResponseError{StatusCode: 404, Body: []byte(`{"detail":"Token lacks access to this circle"}`)},
+			wantOutcome: APIError,
+			wantInMsg:   []string{"404", "Token lacks access to this circle"},
+		},
+		{
+			name:        "401-permission-hint",
+			re:          &apiclient.ResponseError{StatusCode: 401, Body: []byte(`{"detail":"Unauthorized"}`)},
+			wantOutcome: PermissionError,
+			wantInMsg:   []string{"401", "Unauthorized", "check the token's access / membership"},
+		},
+		{
+			name:        "403-permission-hint",
+			re:          &apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)},
+			wantOutcome: PermissionError,
+			wantInMsg:   []string{"403", "check the token's access / membership"},
+		},
+		{
+			name:        "429-rate-limit-hint",
+			re:          &apiclient.ResponseError{StatusCode: 429, Body: []byte(`{"detail":"Too Many Requests"}`)},
+			wantOutcome: RateLimited,
+			wantInMsg:   []string{"429", "the API is rate-limiting; retry later"},
+		},
+		{
+			name:        "synthesized-detail-shows-fallback-not-synthesized-text",
+			re:          &apiclient.ResponseError{StatusCode: 500, Body: []byte(`<html>boom</html>`)},
+			wantOutcome: APIError,
+			wantInMsg:   []string{"the API returned a non-2xx response: status 500", "retry"},
+			// the status-derived fallback "Internal Server Error" must NOT be
+			// presented as the API's own detail wording.
+			notInMsg: []string{"Internal Server Error"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var errb bytes.Buffer
+			outcome, retErr := reportClientError(&errb, tc.re)
+			if outcome != tc.wantOutcome {
+				t.Errorf("outcome = %v, want %v", outcome, tc.wantOutcome)
+			}
+			// The returned error must be the refined *ProblemError (travels up the chain).
+			var pe *apiclient.ProblemError
+			if !errors.As(retErr, &pe) {
+				t.Errorf("returned error should be a *ProblemError, got %T", retErr)
+			}
+			msg := errb.String()
+			for _, want := range tc.wantInMsg {
+				if !strings.Contains(msg, want) {
+					t.Errorf("message should contain %q:\n%s", want, msg)
+				}
+			}
+			for _, notWant := range tc.notInMsg {
+				if strings.Contains(msg, notWant) {
+					t.Errorf("message should NOT contain %q:\n%s", notWant, msg)
+				}
+			}
+			if strings.Contains(msg, meSecretToken) {
+				t.Errorf("token leaked into the message: %q", msg)
+			}
+		})
+	}
+}
+
+// reportClientError must refine ONCE: feeding it an already-refined
+// *ProblemError must not double-wrap, and the outcome/message stay stable.
+func TestReportClientError_RefinesOnce(t *testing.T) {
+	pe := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)})
+	var errb bytes.Buffer
+	outcome, retErr := reportClientError(&errb, pe)
+	if outcome != PermissionError {
+		t.Errorf("outcome = %v, want PermissionError", outcome)
+	}
+	// The returned value should still be the SAME *ProblemError (no re-wrap).
+	if retErr != error(pe) {
+		t.Errorf("an already-refined *ProblemError must not be re-refined; got a different value")
 	}
 }
 

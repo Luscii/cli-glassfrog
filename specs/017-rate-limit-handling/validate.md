@@ -87,7 +87,7 @@ All 8 driving scenarios are concretized in `rate-limit-handling.feature`, refere
 | No initial send itself / no attach identity / no resolve URL / no decode | ✓ Absent | Delegates entirely to `e.client.Execute`; `out` passed through untouched |
 | No retry on transport/decode/non-429 | ✓ Absent | Only a 429 `*ResponseError` triggers the retry branch |
 | No token/full-request/secret in progress notes | ✓ Absent | Note carries only wait/attempt/cap; `thenNoSecretInNote` + `TestRetryExecutor_ProgressNoteNamesWaitAndAttemptNoSecret` pin it |
-| No exit-code decision / no final user-facing message | ✓ Absent | Executor returns the error; `classifyClientError` (011, unchanged) maps a capped-out 429 → `APIError(3)`; 017 adds no `ExitCode`/`Outcome` |
+| No exit-code decision / no final user-facing message | ✓ Absent | Executor returns the error; 017 adds no `ExitCode`/`Outcome` edit. The consuming `classifyClientError` owns the mapping — with API Error Extraction (015) landed, a surfaced 429 maps to `RateLimited(5)` |
 
 ---
 
@@ -124,4 +124,4 @@ All 5 conformance dimensions pass with 0 findings. All 4 held-out validation sce
 
 Implementation conforms to the specification. Suggest PR review and merge. The specification loop for 017 is closed.
 
-Note for a future cycle: the surfaced (capped-out) 429 currently maps to `APIError(3)`, not the reserved `RateLimited(5)` — this is the deliberate ADR-5 boundary, picked up by API Error Extraction (015) when that capability lands.
+Note (updated after merging `origin/main`): API Error Extraction (015, PR #44) has since landed, implementing the `429 → RateLimited(5)` split in the shared `classifyClientError`. The surfaced (capped-out) 429 now maps to `RateLimited(5)` — the ADR-5 deferral is realized, not pending. 017's code is unchanged: it still adds no classification; only the downstream consumer changed.

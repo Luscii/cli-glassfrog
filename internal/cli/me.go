@@ -80,8 +80,9 @@ type meConfig struct {
 // the command maps onto dispatch's error channel; it never emits an exit code and
 // never reads the token — the projection renders response-side fields only. The
 // send routes through 017's RetryExecutor, so a transient 429 is ridden out within
-// bounded caps; a capped-out 429 surfaces as the unchanged *ResponseError and
-// classifyClientError still maps it to APIError(3) (ADR-5, unchanged).
+// bounded caps; a capped-out 429 surfaces as the unchanged *ResponseError. 017 adds
+// no classification of its own (ADR-5); now that API Error Extraction (015) has
+// landed, the shared classifyClientError maps that surfaced 429 to RateLimited(5).
 func runMe(cfg meConfig) (Outcome, error) {
 	// 1. Validate --include BEFORE any assembly or request (fail-fast usage
 	//    error, no wasted call — pinned by a tripwire transport in the tests).
@@ -103,8 +104,9 @@ func runMe(cfg meConfig) (Outcome, error) {
 	//    the projection target. include=roles is added only when requested. The
 	//    executor wraps the client once with the default policy, the injected sleep
 	//    seam, and the command's stderr as the secret-free progress sink; a transient
-	//    429 is ridden out within bounded caps. A capped-out 429 surfaces unchanged
-	//    and is classified exactly as before (APIError(3), ADR-5).
+	//    429 is ridden out within bounded caps. A capped-out 429 surfaces unchanged;
+	//    017 adds no classification (ADR-5) — 015's classifyClientError now maps it
+	//    to RateLimited(5).
 	req := apiclient.Request{Method: http.MethodGet, Path: "/me"}
 	if includeRoles {
 		req.Query = url.Values{"include": []string{"roles"}}
@@ -197,13 +199,35 @@ func formatMe(me glassfrog.MeResponse, includeRoles bool) string {
 }
 
 // reportClientError writes a controlled, token-free, next-step message to stderr
-// and returns the Outcome the shared classifier assigns to err. The Outcome
+// and returns the Outcome the shared classifier assigns to err. It first refines
+// a generic non-2xx *ResponseError into a typed *apiclient.ProblemError (once —
+// guarded against double-refinement) so the API's own detail surfaces in the
+// message and the typed error travels up the chain (015 ADR-4). The Outcome
 // always comes from classifyClientError (the single classification chain, reused
-// by 012–017); this function only adds the operator-facing presentation, so the
+// by 012–017), computed from the SAME refined value the message renders, so the
 // category and the message can never disagree about which error occurred.
 func reportClientError(stderr io.Writer, err error) (Outcome, error) {
+	err = refineClientError(err)
 	fmt.Fprintln(stderr, formatClientErrorMessage(err))
 	return classifyClientError(err), err
+}
+
+// refineClientError refines a generic non-2xx *apiclient.ResponseError into a
+// typed *apiclient.ProblemError via ExtractProblem, ONCE: an error that is
+// already a *ProblemError (or carries no *ResponseError) is returned unchanged,
+// so a value that funnels through reportClientError more than once is never
+// re-wrapped. This is the single refinement site (015 ADR-4) — the read commands
+// (011–014) need no per-command edit.
+func refineClientError(err error) error {
+	var problemErr *apiclient.ProblemError
+	if errors.As(err, &problemErr) {
+		return err
+	}
+	var responseErr *apiclient.ResponseError
+	if errors.As(err, &responseErr) {
+		return apiclient.ExtractProblem(responseErr)
+	}
+	return err
 }
 
 // formatClientErrorMessage renders the operator-facing, token-free message for a
@@ -225,16 +249,37 @@ func formatClientErrorMessage(err error) string {
 	if errors.As(err, &transportErr) {
 		return fmt.Sprintf("%s — check connectivity; the API may be unreachable", transportErr.Error())
 	}
+	// The refined non-2xx (015 ADR-4). reportClientError refines a *ResponseError
+	// into a *ProblemError before calling here, so the message can surface the
+	// API's own detail. This arm precedes the bare *ResponseError arm below
+	// because a *ProblemError wraps (Unwrap → *ResponseError), so errors.As would
+	// otherwise match the generic arm first. The wording keys on DetailSynthesized
+	// (the provenance marker), NOT on Detail emptiness — the fallback always fills
+	// Detail. Every branch names the status + a per-class next step; all text is
+	// response-side (status/detail/title), never the X-Auth-Token.
+	var problemErr *apiclient.ProblemError
+	if errors.As(err, &problemErr) {
+		hint := clientErrorNextStep(problemErr.StatusCode)
+		if problemErr.DetailSynthesized {
+			// The body wasn't a parseable Problem Details object: keep the original
+			// generic "status N" wording (no synthesized text is presented as the
+			// API's own words) plus the per-class next step.
+			return fmt.Sprintf("the API returned a non-2xx response: status %d — %s", problemErr.StatusCode, hint)
+		}
+		// The API's own cause: surface its detail (prefixed with the title when the
+		// title adds context beyond the detail) plus the per-class next step.
+		cause := problemErr.Detail
+		if title := strings.TrimSpace(problemErr.Title); title != "" && title != problemErr.Detail {
+			cause = fmt.Sprintf("%s: %s", title, problemErr.Detail)
+		}
+		return fmt.Sprintf("the API returned a non-2xx response: status %d: %s — %s", problemErr.StatusCode, cause, hint)
+	}
 	var responseErr *apiclient.ResponseError
 	if errors.As(err, &responseErr) {
-		// Name the status (the cause) AND a GENERIC next step. The next step is
-		// deliberately not tailored to the status — a per-status meaning (401 →
-		// re-authenticate, 429 → back off) is API Error Extraction (015) / Rate-Limit
-		// Handling (017)'s concern, and interpreting the status here would breach the
-		// spec Non-Behavior. A generic "check access and retry, or consult the status"
-		// hint satisfies Action Transparency (cause + next step) without that
-		// interpretation. Shared by `me` and `me roles`.
-		return fmt.Sprintf("the API returned a non-2xx response: status %d — the API rejected the read; check that the token has access and retry, or consult the status code", responseErr.StatusCode)
+		// Defensive fallback for an unrefined *ResponseError (reportClientError
+		// refines before reaching here, so this is rarely hit): name the status and
+		// the per-class next step.
+		return fmt.Sprintf("the API returned a non-2xx response: status %d — %s", responseErr.StatusCode, clientErrorNextStep(responseErr.StatusCode))
 	}
 	var decodeErr *apiclient.DecodeError
 	if errors.As(err, &decodeErr) {
@@ -262,6 +307,23 @@ func formatClientErrorMessage(err error) string {
 	// Any other unexpected error: surface it verbatim (the apiclient contracts keep
 	// these path/cause-only, never the token).
 	return err.Error()
+}
+
+// clientErrorNextStep returns the per-class next-step hint for a non-2xx status
+// (interface-spec Error Communication / CONSTITUTION II "…and the next step").
+// The 401/403 and 429 hints match the PermissionError / RateLimited split
+// classifyClientError applies; every other non-2xx keeps the original generic
+// wording (which names a next step without interpreting the status). The hint is
+// status-derived only — it never echoes the token.
+func clientErrorNextStep(status int) string {
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return "check the token's access / membership"
+	case http.StatusTooManyRequests:
+		return "the API is rate-limiting; retry later"
+	default:
+		return "the API rejected the read; check that the token has access and retry, or consult the status code"
+	}
 }
 
 // newMeCommand builds the `me` leaf: a guard-ready cobra command (no positional

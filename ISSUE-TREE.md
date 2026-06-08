@@ -13,6 +13,14 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: Practitioner
     + affects: AI agent
     + affects: Maintainer
+  * No Automated Pipeline — without CI/CD, every change is linted, tested, triaged, and released by hand, so regressions and inconsistencies can reach main and releases go out unguarded
+    + affects: Maintainer
+    + related-to: Runtime-Dependent Distribution
+    + candidate: PR Checks Workflow — on pull request, run lint + tests and auto-apply administrative labels (pattern: template pull-request.yml)
+    + candidate: Release Drafting on Merge — on merge to main, draft a GitHub release (release-drafter, label-driven semver) and re-run tests as a safety check (pattern: template draft-release.yml)
+  * Shallow AI Reviews — Copilot reviews PRs without a configured project environment, so its feedback is poorly grounded and misses project-specific context
+    + affects: Maintainer
+    + candidate: Copilot Review Environment — configure the repo's Copilot environment (build/test/context setup) so its PR reviews are better-grounded
 * Client Foundation — cross-cutting concerns every command depends on
   * Unauthenticated Access — the CLI has no way to prove it's acting as a specific org + person, so Glassfrog can't authorize its calls
     + affects: AI agent
