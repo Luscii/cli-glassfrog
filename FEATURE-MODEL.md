@@ -79,8 +79,9 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 - Self-Contained Executable Build — cross-compile a single dependency-free binary per supported platform (macOS amd64/arm64, Linux amd64/arm64) that runs with no separately-installed runtime (CONSTITUTION XII)
 - Version Embedding — inject the release version at build time, falling back to Go module build info for `go install` source builds, so `--version` always reports a meaningful version
   + depends-on: Self-Contained Executable Build
-- Automated Release Pipeline — on a version tag, build the platform binaries, package them as archives with a checksums file, and publish to GitHub Releases — automated, entirely within this repository
+- Automated Release Pipeline — when a GitHub Release is published, build the platform binaries, package them as archives with a checksums file, and attach them to that release — automated, entirely within this repository
   + depends-on: Self-Contained Executable Build
+  + depends-on: Release Drafting (trigger source: the published release a maintainer publishes; a hand-published release also works)
 - Install Script — a POSIX one-liner (hosted in this repo) that detects OS/arch, downloads the matching archive from Releases, verifies its checksum, and installs onto PATH; the primary path for Linux (and macOS) laptops and CI
   + depends-on: Automated Release Pipeline
 - Homebrew Tap — a GoReleaser-published Homebrew cask committed within this repository (no separate tap repo), so macOS and Linux users can `brew install` / `brew upgrade`
@@ -94,7 +95,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 - PR Validation — on pull request, run lint and the test suite so changes are verified before merge
 - PR Administration — auto-apply administrative labels to pull requests for triage and release-note categorization
 - Main-Branch Verification — on merge to main, re-run the test suite as a post-merge safety check
-- Release Drafting — on merge to main, maintain a draft GitHub release with a label-driven semver bump and accumulated notes (release-drafter; not published); adjacent to Self-Contained Distribution's Automated Release Pipeline, which consumes the published tag to build and publish binaries
+- Release Drafting — on merge to main, maintain a draft GitHub release (release-drafter; not published): compute the next semver tag from PR labels, accumulate merged-PR titles into label-driven note categories (breaking / features / fixes / docs / infrastructure / dependencies / internal) excluding noise-labelled PRs, and set the draft's pre-release vs latest status — so a maintainer publishes it to trigger Self-Contained Distribution's Automated Release Pipeline, which consumes the published release to build and attach binaries (the pipeline honors the pre-release/latest status set here rather than deciding it)
   + depends-on: PR Administration
 
 ## Diagnostic Reporting
