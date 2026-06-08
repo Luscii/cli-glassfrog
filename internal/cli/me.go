@@ -157,14 +157,19 @@ func runMe(cfg meConfig) (Outcome, error) {
 	return renderResult[glassfrog.MeResponse](cfg.stdout, cfg.stderr, format, render.ResourceMe, exec, cfg.reqCtx, req, nil)
 }
 
-// reportFormatResolutionError writes a resolved-format failure (an invalid selector
-// *output.FormatError, or an unreadable/malformed .glassfrogrc surfaced while
-// reading the output key) to stderr and returns the paired Outcome from the shared
-// classifier — both UsageError(2). The message is the error's own text (a
-// FormatError names the source + value with the supported list; an rcfile error
-// names the file), NOT routed through formatClientErrorMessage, whose base-URL
-// wording would misdescribe an output-key rcfile error. Category and message derive
-// from the same value (the classifyClientError contract).
+// reportFormatResolutionError writes a resolved-format failure to stderr and returns
+// the Outcome the shared classifier assigns to it. The two expected causes —
+// an invalid selector (*output.FormatError) and an unreadable/malformed .glassfrogrc
+// surfaced while reading the output key (*rcfile.{Read,Format}Error) — both classify
+// as UsageError(2) (correctable input). Any other resolution error (e.g. a
+// working-directory failure from productionSeam.resolveFormat's os.Getwd) matches no
+// usage-class arm and falls to classifyClientError's RuntimeError(1) fail-safe — the
+// correct treatment for an unexpected internal failure, not a usage error. The
+// message is the error's own text (a FormatError names the source + value with the
+// supported list; an rcfile error names the file), NOT routed through
+// formatClientErrorMessage, whose base-URL wording would misdescribe an output-key
+// rcfile error. Category and message derive from the same value (the
+// classifyClientError contract).
 func reportFormatResolutionError(stderr io.Writer, err error) (Outcome, error) {
 	fmt.Fprintln(stderr, err.Error())
 	return classifyClientError(err), err
