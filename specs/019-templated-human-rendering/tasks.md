@@ -49,7 +49,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
 
 ## Phase 2: Rewire the four reads to render through the seam with `full` [Shared]
 
-- [ ] **T002** [Shared] [P] Rewire `me` to render via `render.Render(ResourceMe, FormatFull, …)`; delete `formatMe`
+- [x] **T002** [Shared] [P] Rewire `me` to render via `render.Render(ResourceMe, FormatFull, …)`; delete `formatMe` — 8 scenarios (added the templated-human-rendering godog suite + the `renderFn` render seam; full byte-stable via identity-read suite; formatMe + its 3 unit tests removed)
   - **Scope**: In `internal/cli/me.go`, replace the `formatMe(me, includeRoles)` + `Fprint(stdout, …)` call with `render.Render(render.ResourceMe, render.FormatFull, me)`; write the returned string to stdout only on `err == nil`, and on a `*render.RenderError` return `RuntimeError` through the existing `Outcome`→`ExitCode` path. Remove the now-dead `formatMe` function and its pure unit tests (superseded by T001's `me` goldens). `runMe` orchestration, the injected transport seam, and error classification are otherwise unchanged.
   - **Acceptance criteria**:
     - `me` stdout is unchanged from pre-019 for success (including `--include roles` and the empty-roles case) — the identity-read godog suite stays green.

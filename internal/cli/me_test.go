@@ -13,7 +13,6 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
-	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
 
@@ -164,56 +163,11 @@ func runMeOver(t *testing.T, seam meSeam, include ...string) (Outcome, string, s
 	return outcome, out.String(), errb.String()
 }
 
-// --- formatMe (pure) -----------------------------------------------------
-
-func TestFormatMe_IdentityOnly(t *testing.T) {
-	me := glassfrog.MeResponse{
-		Actor:        glassfrog.Actor{ID: "per_abc", Name: "Alice Smith", Kind: "human"},
-		Organization: glassfrog.Organization{ID: "org_abc", Name: "Acme"},
-		Membership:   glassfrog.Membership{AccessLevel: "admin"},
-	}
-	out := formatMe(me, false)
-	for _, want := range []string{"Alice Smith", "(human)", "per_abc", "Acme", "org_abc", "admin"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("projection missing %q:\n%s", want, out)
-		}
-	}
-	if strings.Contains(out, "roles:") {
-		t.Errorf("identity-only projection should not have a roles section:\n%s", out)
-	}
-}
-
-func TestFormatMe_WithRoles(t *testing.T) {
-	me := glassfrog.MeResponse{
-		Actor:        glassfrog.Actor{ID: "agt_abc", Name: "Claude", Kind: "agent"},
-		Organization: glassfrog.Organization{ID: "org_abc", Name: "Acme"},
-		Membership:   glassfrog.Membership{AccessLevel: "normal"},
-		Roles: []glassfrog.Role{
-			{ID: "role_1", Name: "Marketing Lead"},
-			{ID: "role_2", Name: "Treasurer"},
-		},
-	}
-	out := formatMe(me, true)
-	for _, want := range []string{"(agent)", "agt_abc", "roles:", "Marketing Lead", "role_1", "Treasurer", "role_2"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("roles projection missing %q:\n%s", want, out)
-		}
-	}
-}
-
-// A roles embed requested but with no roles omits the section rather than
-// printing an empty list (interface-cli).
-func TestFormatMe_EmptyRolesEmbedOmitsSection(t *testing.T) {
-	me := glassfrog.MeResponse{
-		Actor:        glassfrog.Actor{ID: "per_abc", Name: "Alice", Kind: "human"},
-		Organization: glassfrog.Organization{ID: "org_abc", Name: "Acme"},
-		Membership:   glassfrog.Membership{AccessLevel: "admin"},
-	}
-	out := formatMe(me, true) // requested, but Roles is empty
-	if strings.Contains(out, "roles:") {
-		t.Errorf("an empty roles embed should omit the section:\n%s", out)
-	}
-}
+// The `me` full projection is now rendered through internal/render (019); its
+// byte-equivalence with the pre-019 formatMe output is pinned by that package's
+// goldens (TestRender_MeFull_*). The end-to-end success path — including the
+// roles embed and the empty-embed omission — stays covered by the runMe tests
+// below and the identity-read BDD suite.
 
 // --- validateInclude (pure) ----------------------------------------------
 

@@ -14,6 +14,7 @@ import (
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
 
@@ -117,9 +118,15 @@ func runMe(cfg meConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 4. Render the reshaped projection (never the token).
-	fmt.Fprint(cfg.stdout, formatMe(me, includeRoles))
-	return Success, nil
+	// 4. Render the result to human text through the shared rendering seam (019),
+	//    with the standing full format (the only format reachable until 020 wires
+	//    --output). The render is buffered: a built-in-template defect writes
+	//    nothing to stdout and maps to RuntimeError(1). The seam renders only
+	//    response-side fields, so the token never appears. The roles section is
+	//    surfaced only when the response carried roles — which the API populates
+	//    just for ?include=roles — so the full template's len(.Roles) guard is
+	//    field-equivalent to the pre-019 "includeRoles AND present" projection.
+	return renderResult(cfg.stdout, cfg.stderr, render.ResourceMe, me)
 }
 
 // validateInclude rejects unsupported --include targets against the spec's
@@ -174,28 +181,6 @@ func wantsInclude(targets []string, target string) bool {
 		}
 	}
 	return false
-}
-
-// formatMe renders the reshaped identity projection (not raw JSON; --output json
-// is deferred). It surfaces, each on its own labelled line in a stable order:
-// actor name/kind/id, organization name/id, and the membership access level —
-// the id values are always present (the machine-actionable handles). The roles
-// section is appended only when roles were requested AND the response carries
-// them; an empty embed omits the section rather than printing an empty list. It
-// is pure (MeResponse → string) and renders only response-side fields, so the
-// token never appears.
-func formatMe(me glassfrog.MeResponse, includeRoles bool) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "actor:        %s (%s) %s\n", me.Actor.Name, me.Actor.Kind, me.Actor.ID)
-	fmt.Fprintf(&b, "organization: %s (%s)\n", me.Organization.Name, me.Organization.ID)
-	fmt.Fprintf(&b, "access:       %s\n", me.Membership.AccessLevel)
-	if includeRoles && len(me.Roles) > 0 {
-		b.WriteString("roles:\n")
-		for _, r := range me.Roles {
-			fmt.Fprintf(&b, "  - %s (%s)\n", r.Name, r.ID)
-		}
-	}
-	return b.String()
 }
 
 // reportClientError writes a controlled, token-free, next-step message to stderr
