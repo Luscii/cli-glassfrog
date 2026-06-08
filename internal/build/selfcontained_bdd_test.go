@@ -356,10 +356,28 @@ func (w *buildWorld) thenAtomicBuild() error {
 	return nil
 }
 
+// singleBuild returns the config's sole builds entry, or a readable error if the
+// real config was not loaded or has drifted away from exactly one entry. Steps
+// that index the build go through this so a drifted .goreleaser.yaml yields an
+// assertion failure rather than an index-out-of-range panic in the suite.
+func (w *buildWorld) singleBuild() (Build, error) {
+	if !w.cfgLoaded {
+		return Build{}, fmt.Errorf("the config was not loaded")
+	}
+	if len(w.cfg.Builds) != 1 {
+		return Build{}, fmt.Errorf("expected exactly one builds entry, found %d", len(w.cfg.Builds))
+	}
+	return w.cfg.Builds[0], nil
+}
+
 func (w *buildWorld) thenDeclaresLinuxAmd64() error {
-	if !contains(w.cfg.Builds[0].Goos, "linux") || !contains(w.cfg.Builds[0].Goarch, "amd64") {
+	b, err := w.singleBuild()
+	if err != nil {
+		return err
+	}
+	if !contains(b.Goos, "linux") || !contains(b.Goarch, "amd64") {
 		return fmt.Errorf("the config must declare the linux/amd64 target, got goos=%v goarch=%v",
-			w.cfg.Builds[0].Goos, w.cfg.Builds[0].Goarch)
+			b.Goos, b.Goarch)
 	}
 	return nil
 }
@@ -368,7 +386,11 @@ func (w *buildWorld) thenDeclaresLinuxAmd64() error {
 // that lets any host cross-compile any GOOS/GOARCH target (a foreign target does
 // not require running on that target's host).
 func (w *buildWorld) thenCgoDisabledEnablesCrossCompile() error {
-	if violations := checkCgoDisabled(w.cfg.Builds[0].Env); len(violations) != 0 {
+	b, err := w.singleBuild()
+	if err != nil {
+		return err
+	}
+	if violations := checkCgoDisabled(b.Env); len(violations) != 0 {
 		return fmt.Errorf("cross-compilation requires CGO_ENABLED=0: %v", violations)
 	}
 	return nil
