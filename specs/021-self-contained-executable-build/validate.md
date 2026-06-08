@@ -48,7 +48,7 @@ All driving scenarios have identifiable implementation code paths. The build-beh
 
 | Task | Criteria | Evidence |
 |---|---|---|
-| T001 (config-guard) | fails on extra/missing target naming it; fails on cgo≠0; passes on the four | `config_guard_test.go:TestConfigGuard_Drift` — all 6 subcases pass; `diffTargetSet`/`checkCgoDisabled` name the offender |
+| T001 (config-guard) | fails on extra/missing target naming it; fails on cgo≠0; passes on the four | `config_guard_test.go:TestConfigGuard_Drift` — all 7 subcases pass; `diffTargetSet`/`checkCgoDisabled` name the offender |
 | T002 (config) | T001 passes; matrix build → 4 binaries + artifacts.json; single-target → host only; no release/archive/checksum/brews; ldflags no version logic | `.goreleaser.yaml` build-only (grep confirms no forbidden sections); empirically verified both invocations; ldflags is `[""]` |
 | T003 (self-containment) | passes for self-contained binary; fails naming foreign dep; runs without goreleaser; execute probe no network | `TestSelfContainment_*` pass under sandbox (no goreleaser/network); probe is `version` (offline) |
 
