@@ -32,7 +32,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 1: `internal/output` success serializers [Shared]
 
-- [ ] **T001** [Shared] Create the `internal/output` leaf package with `Format` and `RenderSuccess` (JSON + YAML over raw bytes); add the `sigs.k8s.io/yaml` dependency — RED-first unit tests
+- [x] **T001** [Shared] Create the `internal/output` leaf package with `Format` and `RenderSuccess` (JSON + YAML over raw bytes); add the `sigs.k8s.io/yaml` dependency — RED-first unit tests — 7 unit tests, `internal/output` clean of internal deps, `sigs.k8s.io/yaml v1.4.0` added
   - **Scope**: Create the new pure leaf package `internal/output` (no cobra, no transport, no domain types — importable by `internal/cli` without a cycle). Define `Format` (`JSON`, `YAML`). Implement `RenderSuccess(f Format, payload json.RawMessage) ([]byte, error)`: for `JSON`, validate and normalize the raw bytes into a single valid, consistently-indented JSON document (e.g. via `encoding/json`); for `YAML`, transform the raw JSON bytes with `sigs.k8s.io/yaml.JSONToYAML`. An empty/whitespace-only `payload` renders as a valid empty document, never an empty channel. Invalid JSON bytes (a 2xx contract violation) return a render error and **no** document — never a partial fragment. Add `sigs.k8s.io/yaml` to `go.mod`/`go.sum`. No exit codes, no flag, no command.
   - **Acceptance criteria**:
     - A raw JSON payload renders as a single valid JSON document carrying every field present in the input (including fields a typed `glassfrog` struct would drop, e.g. hypermedia links)
