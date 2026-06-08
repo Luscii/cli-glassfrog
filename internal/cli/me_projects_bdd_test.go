@@ -13,7 +13,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// TestMyProjectsFeatures runs the executable acceptance for My Projects (014): the
+// TestMeProjectsFeatures runs the executable acceptance for My Projects (014): the
 // `me projects` command driven through its seam over a fake base transport, so
 // every scenario runs offline (no real network, no real ~/.glassfrogrc). Its
 // Paths name ONLY this spec's feature file — never the features/ directory — so
@@ -21,9 +21,9 @@ import (
 // reports its own independent scenario count (LEARNINGS: a suite points at its
 // own feature file). The @validation scenarios stay @wip (held for the validate
 // skill) and are skipped by the ~@wip filter.
-func TestMyProjectsFeatures(t *testing.T) {
+func TestMeProjectsFeatures(t *testing.T) {
 	suite := godog.TestSuite{
-		ScenarioInitializer: initializeMyProjectsScenario,
+		ScenarioInitializer: initializeMeProjectsScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"../../features/self-service-reads/my-projects.feature"},
@@ -36,11 +36,11 @@ func TestMyProjectsFeatures(t *testing.T) {
 	}
 }
 
-// myProjectsWorld is the per-scenario state for the my-projects suite: the
+// meProjectsWorld is the per-scenario state for the my-projects suite: the
 // connection context and fake transport assembled from the Given steps, plus the
 // captured outcome/exit-code/streams of the When run. Everything is injected — no
 // step touches the real network, env, or home.
-type myProjectsWorld struct {
+type meProjectsWorld struct {
 	ctx          apiclient.ConnectionContext
 	newClientErr error
 	transport    *cannedTransport
@@ -52,10 +52,10 @@ type myProjectsWorld struct {
 	stderr   string
 }
 
-func initializeMyProjectsScenario(sc *godog.ScenarioContext) {
-	w := &myProjectsWorld{}
+func initializeMeProjectsScenario(sc *godog.ScenarioContext) {
+	w := &meProjectsWorld{}
 	sc.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
-		*w = myProjectsWorld{
+		*w = meProjectsWorld{
 			// A multi-project 2xx body is the default; error and shape scenarios
 			// override status/netErr/body in their Given steps.
 			transport: &cannedTransport{status: 200, body: projectsBodyMulti},
@@ -119,19 +119,19 @@ func initializeMyProjectsScenario(sc *godog.ScenarioContext) {
 
 // --- Given implementations ---
 
-func (w *myProjectsWorld) completeContext() error { w.ctx = validMeContext(); return nil }
+func (w *meProjectsWorld) completeContext() error { w.ctx = validMeContext(); return nil }
 
-func (w *myProjectsWorld) apiReturnsProjects() error {
+func (w *meProjectsWorld) apiReturnsProjects() error {
 	w.transport = &cannedTransport{status: 200, body: projectsBodyMulti}
 	return nil
 }
 
-func (w *myProjectsWorld) apiReturnsNoProjects() error {
+func (w *meProjectsWorld) apiReturnsNoProjects() error {
 	w.transport = &cannedTransport{status: 200, body: projectsBodyEmpty}
 	return nil
 }
 
-func (w *myProjectsWorld) contextNoToken() error {
+func (w *meProjectsWorld) contextNoToken() error {
 	w.ctx = apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
 		Cred:    auth.Resolution{Source: auth.SourceNone},
@@ -139,7 +139,7 @@ func (w *myProjectsWorld) contextNoToken() error {
 	return nil
 }
 
-func (w *myProjectsWorld) apiAnswersNon2xx() error {
+func (w *meProjectsWorld) apiAnswersNon2xx() error {
 	// A genuinely generic non-2xx (500): API Error Extraction (015) split
 	// 401/403→permission(4) and 429→rate-limit(5), so a 5xx is the faithful
 	// representative of "a non-2xx response" surfaced as the generic APIError.
@@ -147,23 +147,23 @@ func (w *myProjectsWorld) apiAnswersNon2xx() error {
 	return nil
 }
 
-func (w *myProjectsWorld) apiUnreachable() error {
+func (w *meProjectsWorld) apiUnreachable() error {
 	w.transport = &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
 	return nil
 }
 
-func (w *myProjectsWorld) apiReturnsUnparseable() error {
+func (w *meProjectsWorld) apiReturnsUnparseable() error {
 	w.transport = &cannedTransport{status: 200, body: `this is not the projects shape`}
 	return nil
 }
 
-func (w *myProjectsWorld) contextBaseURLError() error {
+func (w *meProjectsWorld) contextBaseURLError() error {
 	w.ctx = apiclient.ConnectionContext{}
 	w.newClientErr = &apiclient.BaseURLError{Source: "--" + apiclient.FlagBaseURL}
 	return nil
 }
 
-func (w *myProjectsWorld) contextCredentialError() error {
+func (w *meProjectsWorld) contextCredentialError() error {
 	w.ctx = apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
 		Cred:    auth.Resolution{Source: auth.SourceNone},
@@ -172,12 +172,12 @@ func (w *myProjectsWorld) contextCredentialError() error {
 	return nil
 }
 
-func (w *myProjectsWorld) apiReturnsNoRoleProject() error {
+func (w *meProjectsWorld) apiReturnsNoRoleProject() error {
 	w.transport = &cannedTransport{status: 200, body: projectsBodyNoRole}
 	return nil
 }
 
-func (w *myProjectsWorld) apiReturnsFirstPageHasNext() error {
+func (w *meProjectsWorld) apiReturnsFirstPageHasNext() error {
 	w.transport = &cannedTransport{status: 200, body: projectsBodyHasNext}
 	return nil
 }
@@ -188,12 +188,12 @@ func (w *myProjectsWorld) apiReturnsFirstPageHasNext() error {
 // over the fake seam, dispatches `me projects [args]`, and captures the
 // outcome/exit-code/streams. It asserts the secret token never leaks into any
 // produced output (the cross-read invariant, pinned on every When).
-func (w *myProjectsWorld) run(args ...string) error {
+func (w *meProjectsWorld) run(args ...string) error {
 	root := NewRootCommand()
 	seam := &fakeMeSeam{ctx: w.ctx, newClientErr: w.newClientErr, transport: w.transport}
 	meCmd := newMeCommand(seam)
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyProjectsCommand(seam))
+	MustRegister(meCmd, newMeProjectsCommand(seam))
 
 	var out, errb bytes.Buffer
 	root.SetOut(&out)
@@ -208,17 +208,17 @@ func (w *myProjectsWorld) run(args ...string) error {
 	return nil
 }
 
-func (w *myProjectsWorld) runNoFilter() error { return w.run() }
+func (w *meProjectsWorld) runNoFilter() error { return w.run() }
 
-func (w *myProjectsWorld) runWithStatus(status string) error { return w.run("--status", status) }
+func (w *meProjectsWorld) runWithStatus(status string) error { return w.run("--status", status) }
 
-func (w *myProjectsWorld) runWithUnsupportedStatus() error {
+func (w *meProjectsWorld) runWithUnsupportedStatus() error {
 	return w.run("--status", "definitely-not-a-status")
 }
 
 // --- Then implementations ---
 
-func (w *myProjectsWorld) requestWentToEndpoint() error {
+func (w *meProjectsWorld) requestWentToEndpoint() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("exactly one request should reach the my-projects endpoint, got %d calls", w.transport.calls)
 	}
@@ -228,7 +228,7 @@ func (w *myProjectsWorld) requestWentToEndpoint() error {
 	return nil
 }
 
-func (w *myProjectsWorld) projectionListsProjects() error {
+func (w *meProjectsWorld) projectionListsProjects() error {
 	for _, want := range []string{
 		"proj_0123456789abcdef0123456789abcdef", "current", "Rebuild onboarding flow",
 		"role_0123456789abcdef0123456789abcdef", "scheduled",
@@ -240,21 +240,21 @@ func (w *myProjectsWorld) projectionListsProjects() error {
 	return nil
 }
 
-func (w *myProjectsWorld) exitSuccess() error {
+func (w *meProjectsWorld) exitSuccess() error {
 	if w.outcome != Success || w.exitCode != 0 {
 		return fmt.Errorf("the command should exit successfully, got outcome=%v code=%d\nstderr: %s", w.outcome, w.exitCode, w.stderr)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) projectionEmptyList() error {
+func (w *meProjectsWorld) projectionEmptyList() error {
 	if strings.TrimRight(w.stdout, "\n") != "no projects" {
 		return fmt.Errorf("an empty list should render exactly `no projects`, got %q", w.stdout)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) failSafeRefused() error {
+func (w *meProjectsWorld) failSafeRefused() error {
 	// The AuthTransport fail-safe refuses a no-token call → UsageError (not a
 	// transport outcome). No projection prints.
 	if w.outcome != UsageError {
@@ -266,21 +266,21 @@ func (w *myProjectsWorld) failSafeRefused() error {
 	return nil
 }
 
-func (w *myProjectsWorld) exitNonSuccess() error {
+func (w *meProjectsWorld) exitNonSuccess() error {
 	if w.outcome == Success || w.exitCode == 0 {
 		return fmt.Errorf("the command should exit with a non-success result, got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) noRequestReachedAPI() error {
+func (w *meProjectsWorld) noRequestReachedAPI() error {
 	if w.transport.calls != 0 {
 		return fmt.Errorf("no request should reach the API, but the transport was called %d times", w.transport.calls)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesGenericNon2xx() error {
+func (w *meProjectsWorld) surfacesGenericNon2xx() error {
 	if w.outcome != APIError {
 		return fmt.Errorf("a non-2xx should surface the generic APIError outcome, got %v", w.outcome)
 	}
@@ -290,7 +290,7 @@ func (w *myProjectsWorld) surfacesGenericNon2xx() error {
 	return nil
 }
 
-func (w *myProjectsWorld) notInterpretedAPIError() error {
+func (w *meProjectsWorld) notInterpretedAPIError() error {
 	// The generic non-2xx message must not interpret the status into a specific
 	// meaning (no "forbidden"/"permission"/"unauthorized"/"rate limit" wording —
 	// that is 015/017's concern). It names the status and a generic next step.
@@ -303,7 +303,7 @@ func (w *myProjectsWorld) notInterpretedAPIError() error {
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesTransportFailure() error {
+func (w *meProjectsWorld) surfacesTransportFailure() error {
 	if w.outcome != NetworkUnavailable {
 		return fmt.Errorf("a wire failure should surface NetworkUnavailable, got %v", w.outcome)
 	}
@@ -313,14 +313,14 @@ func (w *myProjectsWorld) surfacesTransportFailure() error {
 	return nil
 }
 
-func (w *myProjectsWorld) didNotRetry() error {
+func (w *meProjectsWorld) didNotRetry() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("the read must not retry, got %d calls", w.transport.calls)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesDecodeFailure() error {
+func (w *meProjectsWorld) surfacesDecodeFailure() error {
 	if w.outcome != RuntimeError {
 		return fmt.Errorf("an undecodable 2xx should surface RuntimeError, got %v", w.outcome)
 	}
@@ -330,14 +330,14 @@ func (w *myProjectsWorld) surfacesDecodeFailure() error {
 	return nil
 }
 
-func (w *myProjectsWorld) exitInternalError() error {
+func (w *meProjectsWorld) exitInternalError() error {
 	if w.outcome != RuntimeError || w.exitCode != 1 {
 		return fmt.Errorf("the internal-error result is RuntimeError/1, got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesBaseURLUsageError() error {
+func (w *meProjectsWorld) surfacesBaseURLUsageError() error {
 	if w.outcome != UsageError {
 		return fmt.Errorf("a base-URL problem should surface a usage error, got %v", w.outcome)
 	}
@@ -347,14 +347,14 @@ func (w *myProjectsWorld) surfacesBaseURLUsageError() error {
 	return nil
 }
 
-func (w *myProjectsWorld) baseURLNextStep() error {
+func (w *meProjectsWorld) baseURLNextStep() error {
 	if !strings.Contains(w.stderr, "--"+apiclient.FlagBaseURL) {
 		return fmt.Errorf("the message should explain how to correct the base URL (name --%s), got %q", apiclient.FlagBaseURL, w.stderr)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesCredentialFileError() error {
+func (w *meProjectsWorld) surfacesCredentialFileError() error {
 	if w.outcome != RuntimeError {
 		return fmt.Errorf("a malformed credentials file should surface RuntimeError, got %v", w.outcome)
 	}
@@ -364,14 +364,14 @@ func (w *myProjectsWorld) surfacesCredentialFileError() error {
 	return nil
 }
 
-func (w *myProjectsWorld) credentialFileNextStep() error {
+func (w *meProjectsWorld) credentialFileNextStep() error {
 	if !strings.Contains(w.stderr, "auth login") && !strings.Contains(strings.ToLower(w.stderr), "re-create") {
 		return fmt.Errorf("the message should explain how to fix or re-create the file, got %q", w.stderr)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) rendersNoRoleMarker() error {
+func (w *meProjectsWorld) rendersNoRoleMarker() error {
 	if w.outcome != Success {
 		return fmt.Errorf("a no-role project is still a success, got %v\nstderr: %s", w.outcome, w.stderr)
 	}
@@ -381,7 +381,7 @@ func (w *myProjectsWorld) rendersNoRoleMarker() error {
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesNoRoleProjectFields() error {
+func (w *meProjectsWorld) surfacesNoRoleProjectFields() error {
 	for _, want := range []string{"proj_00000000000000000000000000000002", "current", "Personal spike"} {
 		if !strings.Contains(w.stdout, want) {
 			return fmt.Errorf("a no-role project should still surface its id/status/description, missing %q:\n%s", want, w.stdout)
@@ -390,7 +390,7 @@ func (w *myProjectsWorld) surfacesNoRoleProjectFields() error {
 	return nil
 }
 
-func (w *myProjectsWorld) statusAccepted(status string) error {
+func (w *meProjectsWorld) statusAccepted(status string) error {
 	// "current" was accepted: the request was issued (not rejected before send).
 	if w.outcome != Success {
 		return fmt.Errorf("status %q should be accepted and the read succeed, got %v\nstderr: %s", status, w.outcome, w.stderr)
@@ -401,14 +401,14 @@ func (w *myProjectsWorld) statusAccepted(status string) error {
 	return nil
 }
 
-func (w *myProjectsWorld) requestCarriesStatus(status string) error {
+func (w *meProjectsWorld) requestCarriesStatus(status string) error {
 	if got := w.transport.lastQuery.Get("status"); got != status {
 		return fmt.Errorf("the request should carry ?status=%s, got query %v", status, w.transport.lastQuery)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) filteredProjectsRendered() error {
+func (w *meProjectsWorld) filteredProjectsRendered() error {
 	// The fake returns the multi-project body for the filter; the projection
 	// renders those projects.
 	if !strings.Contains(w.stdout, "proj_0123456789abcdef0123456789abcdef") {
@@ -417,7 +417,7 @@ func (w *myProjectsWorld) filteredProjectsRendered() error {
 	return nil
 }
 
-func (w *myProjectsWorld) rejectsUnsupportedStatus() error {
+func (w *meProjectsWorld) rejectsUnsupportedStatus() error {
 	if w.outcome != UsageError || w.exitCode != 2 {
 		return fmt.Errorf("an unsupported status should be a usage error (exit 2), got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
@@ -433,14 +433,14 @@ func (w *myProjectsWorld) rejectsUnsupportedStatus() error {
 	return nil
 }
 
-func (w *myProjectsWorld) rendersFirstPage() error {
+func (w *meProjectsWorld) rendersFirstPage() error {
 	if !strings.Contains(w.stdout, "proj_0123456789abcdef0123456789abcdef") {
 		return fmt.Errorf("the first page should be rendered to stdout:\n%s", w.stdout)
 	}
 	return nil
 }
 
-func (w *myProjectsWorld) surfacesMoreAvailableSignal() error {
+func (w *meProjectsWorld) surfacesMoreAvailableSignal() error {
 	// The signal rides stderr (012's convention), pinned verbatim against the
 	// rendering constant so wording drift fails the acceptance.
 	if strings.TrimRight(w.stderr, "\n") != incompleteProjectsNote {
@@ -449,7 +449,7 @@ func (w *myProjectsWorld) surfacesMoreAvailableSignal() error {
 	return nil
 }
 
-func (w *myProjectsWorld) didNotRequestSecondPage() error {
+func (w *meProjectsWorld) didNotRequestSecondPage() error {
 	if w.transport.calls != 1 {
 		return fmt.Errorf("a further page must be signalled, not fetched; got %d requests", w.transport.calls)
 	}

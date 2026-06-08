@@ -27,14 +27,14 @@ const incompleteProjectsNote = "note: more projects exist than shown; pagination
 // missing field (interface-cli — explicit no-role marker).
 const noRoleMarker = "—"
 
-// myProjectsConfig carries everything runMyProjects needs, gathered by the
-// command's RunE. As with runMyActions, keeping runMyProjects a function of
+// meProjectsConfig carries everything runMeProjects needs, gathered by the
+// command's RunE. As with runMeActions, keeping runMeProjects a function of
 // injected values makes the whole read — validate, assemble, build, send,
 // render/classify — testable over a fake transport with no real network or
 // ~/.glassfrogrc. It reuses the meSeam (the assemble + newClient pair Identity
 // Read defined); My Projects needs nothing more. status is the raw --status flag
 // value (may be empty), validated before any request.
-type myProjectsConfig struct {
+type meProjectsConfig struct {
 	seam    meSeam
 	baseURL string // the inherited persistent --base-url flag value (may be empty)
 	status  string // the raw --status flag value (may be empty); validated before any I/O
@@ -43,8 +43,8 @@ type myProjectsConfig struct {
 	stderr  io.Writer
 }
 
-// runMyProjects is the pure orchestration the `me projects` leaf delegates to,
-// the near-mechanical twin of runMyActions: validate --status fail-fast (an
+// runMeProjects is the pure orchestration the `me projects` leaf delegates to,
+// the near-mechanical twin of runMeActions: validate --status fail-fast (an
 // unsupported value is a usage error with no request issued), assemble the
 // context once, build the client once, send one GET /me/projects (carrying
 // ?status= when filtered), then render the projection on success (with the
@@ -52,7 +52,7 @@ type myProjectsConfig struct {
 // report the typed error via 011's shared helpers. It emits no exit code, never
 // retries, and never reads the token — the projection renders response-side
 // fields only. There is no --include (ADR-2): /me/projects offers no include.
-func runMyProjects(cfg myProjectsConfig) (Outcome, error) {
+func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 	// 1. Validate --status BEFORE any assembly or request (fail-fast usage error,
 	//    no wasted call — pinned by a tripwire transport in the tests). Reuses
 	//    013's shared validateStatus + status set; no second validator.
@@ -84,26 +84,26 @@ func runMyProjects(cfg myProjectsConfig) (Outcome, error) {
 	//    reports more projects than this page carried, write the more-available
 	//    note to stderr so the partial list is never read as complete — still
 	//    exit 0. The next page is signalled, never fetched (Pagination 016).
-	fmt.Fprint(cfg.stdout, formatMyProjects(resp))
+	fmt.Fprint(cfg.stdout, formatMeProjects(resp))
 	if incompleteProjects(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteProjectsNote)
 	}
 	return Success, nil
 }
 
-// newMyProjectsCommand builds the `projects` leaf attached under Identity Read's
+// newMeProjectsCommand builds the `projects` leaf attached under Identity Read's
 // runnable `me` command — a sibling of `roles` (My Roles 012) and `actions` (My
 // Actions 013). (The 014 spec prose says "my projects"; the implemented
 // convention is `me projects` under `me`, mirroring `me roles`/`me actions` —
 // see .score/memory/LEARNINGS.md.) It is a guard-ready cobra command (no
-// positional args, non-empty Short, SilenceErrors/SilenceUsage so runMyProjects
+// positional args, non-empty Short, SilenceErrors/SilenceUsage so runMeProjects
 // owns its messages) with a local --status flag and NO --include (ADR-2). Its
 // RunE reads the persistent --base-url value the root declares (inherited, not
-// re-registered), delegates to the pure runMyProjects, and maps the returned
+// re-registered), delegates to the pure runMeProjects, and maps the returned
 // Outcome onto dispatch's error channel via the shared outcomeToDispatchError —
 // adding no new Outcome category and no ExitCode case. The seam is injected so
 // tests drive a fake one; production passes productionSeam{} from Assemble.
-func newMyProjectsCommand(seam meSeam) *cobra.Command {
+func newMeProjectsCommand(seam meSeam) *cobra.Command {
 	var status string
 	cmd := &cobra.Command{
 		Use:   "projects",
@@ -127,7 +127,7 @@ func newMyProjectsCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
-			outcome, oerr := runMyProjects(myProjectsConfig{
+			outcome, oerr := runMeProjects(meProjectsConfig{
 				seam:    seam,
 				baseURL: baseURL,
 				status:  status,
@@ -142,7 +142,7 @@ func newMyProjectsCommand(seam meSeam) *cobra.Command {
 	return cmd
 }
 
-// formatMyProjects renders the reshaped `glassfrog me projects` projection (never
+// formatMeProjects renders the reshaped `glassfrog me projects` projection (never
 // raw JSON; --output json is the deferred Unconsumable Output capability). It is
 // pure (MyProjectsResponse → string) and surfaces only response-side fields, so
 // the token never appears. One entry per project, in the order the API returned
@@ -157,7 +157,7 @@ func newMyProjectsCommand(seam meSeam) *cobra.Command {
 // The more-available signal is the command's concern (stderr, 012's convention)
 // and never appears in this body — the project's timestamps, link, note, and
 // other fields are never rendered (spec Non-Behaviors).
-func formatMyProjects(resp glassfrog.MyProjectsResponse) string {
+func formatMeProjects(resp glassfrog.MyProjectsResponse) string {
 	if len(resp.Data) == 0 {
 		return "no projects\n"
 	}
