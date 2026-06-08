@@ -27,6 +27,11 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: Practitioner
   * Undefined Connection Settings — the CLI doesn't know which token, organization, or base URL to use, or where to read them from
     + affects: Practitioner
+  * Duplicated Setting Resolution — each configurable setting (token, base URL, output format) re-implements the same flag→env→.glassfrogrc→default precedence chain, so adding a setting copies the OS seam, the chain skeleton, the Source enum, and the validation-error shape — and the copies can drift
+    + affects: Maintainer
+    + related-to: Undefined Connection Settings
+    + related-to: Unconsumable Output
+    + candidate: Composable setting resolver — resolveSetting([...sources]) takes an ordered list of source providers and returns the first that yields a value, where ARRAY ORDER IS PRECEDENCE (flag, env, file); sources are fromFlags(main, alias), fromEnv(envVar), fromFile(key) with the file source partially applied from retrieveFromSettingsFile(".glassfrogrc") so the file is bound once; a source yielding nothing is skipped, an optional trailing default source backstops the chain (absence stays valid where there is no default, e.g. token), and per-source validation collapses the per-type Source enums + validation errors into one shared shape; retrofit the 3 call sites (token 005, base-url 008, output 020), behavior-preserving with tests staying green; the .glassfrogrc file tier (rcfile.Resolve) is already shared and stays as the file source
   * Unconsumable Output — results aren't shaped for an AI agent to parse reliably or for a human to read
     + affects: AI agent
     + affects: Practitioner
