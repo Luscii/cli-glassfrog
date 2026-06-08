@@ -369,6 +369,52 @@ func TestRetryExecutor_ProgressNoteNamesWaitAndAttemptNoSecret(t *testing.T) {
 	}
 }
 
+// cancelDuringRoundTrip cancels the request context on its first round trip, then
+// returns a canned 429 — modelling a caller (Ctrl-C / deadline) that cancels
+// between the 429 response and the would-be backoff sleep. It lets the cancellation
+// test exercise the pre-sleep ctx check deterministically.
+type cancelDuringRoundTrip struct {
+	calls  int
+	cancel context.CancelFunc
+}
+
+func (b *cancelDuringRoundTrip) RoundTrip(*http.Request) (*http.Response, error) {
+	b.calls++
+	b.cancel()
+	return &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header:     retryAfter("2"),
+		Body:       io.NopCloser(strings.NewReader(`{"error":"rate limited"}`)),
+	}, nil
+}
+
+// A context cancelled between the 429 and the would-be sleep surfaces the current
+// 429 without sleeping or re-attempting — so cancellation stays responsive rather
+// than blocking out the full backoff (the injected time.Sleep ignores ctx).
+func TestRetryExecutor_CancelledContextSurfaces429WithoutSleeping(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	base := &cancelDuringRoundTrip{cancel: cancel}
+	client := mustClient(t, completeContext(secretToken), base)
+	sleep := &recordingSleep{}
+	var progress strings.Builder
+	exec := NewRetryExecutor(client, DefaultRetryPolicy, sleep.sleep, &progress)
+
+	_, err := exec.Execute(ctx, getReq(http.MethodGet), nil)
+	var respErr *ResponseError
+	if !errors.As(err, &respErr) || respErr.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("err = %v, want the current 429 *ResponseError surfaced via the pre-sleep ctx check", err)
+	}
+	if base.calls != 1 {
+		t.Errorf("base called %d times, want exactly 1 (no retry after cancellation)", base.calls)
+	}
+	if len(sleep.durs) != 0 {
+		t.Errorf("slept %v, want no sleep when the context is cancelled", sleep.durs)
+	}
+	if progress.Len() != 0 {
+		t.Errorf("wrote a progress note %q, want none when giving up on cancellation", progress.String())
+	}
+}
+
 func TestNewRetryExecutor_NilSeamsPanic(t *testing.T) {
 	client := mustClient(t, completeContext(secretToken), &sequenceBase{steps: []cannedResp{{status: 200, body: `{}`}}})
 	sleep := func(time.Duration) {}

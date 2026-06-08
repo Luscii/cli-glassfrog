@@ -170,6 +170,13 @@ func (e *RetryExecutor) Execute(reqCtx context.Context, req Request, out any) (*
 		if waited+wait > e.policy.MaxTotalWait {
 			return resp, err
 		}
+		// The caller has already cancelled or timed out the context: don't emit a
+		// note or sleep (the injected time.Sleep ignores ctx, so a backoff would
+		// block past the cancellation). Surface the current 429 unchanged so
+		// cancellation stays responsive — the next attempt would fail-fast anyway.
+		if reqCtx.Err() != nil {
+			return resp, err
+		}
 		// One non-secret line per wait: the wait, the next attempt index, and the
 		// cap. The *ResponseError carries only the response side; the X-Auth-Token
 		// request header is never echoed (ADR-4 / CONSTITUTION II).
