@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
@@ -48,6 +49,41 @@ func (c *cannedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}, nil
 }
 
+// seqMeResp is one canned reply a seqMeTransport returns on a single attempt.
+type seqMeResp struct {
+	status int
+	header http.Header
+	body   string
+}
+
+// seqMeTransport is a fake base transport that returns canned replies in order
+// (the i-th attempt gets steps[i], repeating the last once exhausted), so a 429
+// retry through runMe can be exercised end-to-end over a fake — no real network.
+type seqMeTransport struct {
+	calls    int
+	lastPath string
+	steps    []seqMeResp
+}
+
+func (s *seqMeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	s.calls++
+	s.lastPath = req.URL.Path
+	i := s.calls - 1
+	if i >= len(s.steps) {
+		i = len(s.steps) - 1
+	}
+	step := s.steps[i]
+	header := step.header
+	if header == nil {
+		header = make(http.Header)
+	}
+	return &http.Response{
+		StatusCode: step.status,
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader(step.body)),
+	}, nil
+}
+
 // fakeMeSeam binds a fixed ConnectionContext and a fake base transport, so every
 // runMe branch runs offline (ADR-5). newClientErr stands in for a base-URL error
 // surfaced at client construction.
@@ -59,6 +95,8 @@ type fakeMeSeam struct {
 	assembledBaseURL string
 	assembleCalled   bool
 	newClientCalled  bool
+
+	slept []time.Duration // the 017 backoff waits the recording fake-sleep observed
 }
 
 func (s *fakeMeSeam) assemble(baseURL string) apiclient.ConnectionContext {
@@ -73,6 +111,12 @@ func (s *fakeMeSeam) newClient(ctx apiclient.ConnectionContext) (*apiclient.Clie
 		return nil, s.newClientErr
 	}
 	return apiclient.NewClient(ctx, s.transport)
+}
+
+// sleep binds a recording fake-sleep that never blocks, so a 429 retry through
+// runMe is asserted in milliseconds (CONSTITUTION IV — no real sleep).
+func (s *fakeMeSeam) sleep() func(time.Duration) {
+	return func(d time.Duration) { s.slept = append(s.slept, d) }
 }
 
 // validMeContext is a complete, usable context: a parseable base URL and a
@@ -230,6 +274,38 @@ func TestRunMe_SuccessIdentity(t *testing.T) {
 	}
 	if tr.lastQuery.Get("include") != "" {
 		t.Errorf("no --include should add no include query, got %q", tr.lastQuery.Get("include"))
+	}
+}
+
+// A me run whose transport returns 429-then-200 rides out the throttle through
+// 017's RetryExecutor: it renders the identity projection after one bounded wait
+// (recording fake-sleep — no real delay), exits Success, sends exactly twice, and
+// emits a secret-free progress note to stderr (T003 wiring).
+func TestRunMe_RetriesOn429ThenSucceeds(t *testing.T) {
+	tr := &seqMeTransport{steps: []seqMeResp{
+		{status: 429, header: http.Header{"Retry-After": {"2"}}, body: `{"error":"rate limited"}`},
+		{status: 200, body: meBodyAlice},
+	}}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runMeOver(t, seam)
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success after a bounded retry", outcome)
+	}
+	if !strings.Contains(stdout, "Alice Smith") {
+		t.Errorf("the identity projection should render after the retry, got %q", stdout)
+	}
+	if tr.calls != 2 {
+		t.Errorf("transport called %d times, want 2 (429 then 200)", tr.calls)
+	}
+	if !strings.HasSuffix(tr.lastPath, "/me") {
+		t.Errorf("request path = %q, want it to target the /me endpoint", tr.lastPath)
+	}
+	if len(seam.slept) != 1 || seam.slept[0] != 2*time.Second {
+		t.Errorf("waited %v, want exactly [2s] (the Retry-After interval, via the injected fake)", seam.slept)
+	}
+	if !strings.Contains(stderr, "rate limited") {
+		t.Errorf("a progress note should be written to stderr before the retry, got %q", stderr)
 	}
 }
 

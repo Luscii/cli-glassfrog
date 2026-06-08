@@ -88,7 +88,7 @@ exec := NewRetryExecutor(client, DefaultRetryPolicy, time.Sleep, cmd.ErrOrStderr
 | 2xx body does not decode | `nil, *DecodeError{…}` — passed through. |
 | No usable token / credential-file error | `nil, *AuthError{…}` — passed through unchanged (from 007 via 010). |
 
-**No classification here** (ADR-5): the surfaced `429` is a generic `*ResponseError`. 011's `classifyClientError` maps it to `APIError(3)` **unchanged**; the `429 → RateLimited(5)` split (code 5 reserved by 004) is API Error Extraction (015)'s job. 017 adds no `Outcome` category and no `ExitCode` edit, and `internal/apiclient` still never imports `internal/cli`.
+**No classification here** (ADR-5): the surfaced `429` is a generic `*ResponseError`. 017 adds no `Outcome` category and no `ExitCode` edit, and `internal/apiclient` still never imports `internal/cli`; the consuming `classifyClientError` owns the mapping. The `429 → RateLimited(5)` split (code 5 reserved by 004) is API Error Extraction (015)'s job — now landed, so a surfaced 429 maps to `RateLimited(5)` (it mapped to `APIError(3)` before 015 existed), with no change to 017's code.
 
 **No secret anywhere**: 017 never reads the token (it rides 007's `AuthTransport`, wired in 010, below this layer). The progress note carries only timing; the `*ResponseError` it inspects holds the *response* side (the `X-Auth-Token` *request* header is not echoed). Pinned by a token-never-in-output test across the note and the surfaced error.
 
