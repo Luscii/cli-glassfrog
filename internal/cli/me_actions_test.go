@@ -15,7 +15,7 @@ import (
 
 // Canned GET /me/actions bodies for the command/branch tests. They use the API's
 // snake_case names and carry the secret token nowhere (it rides the request
-// header, asserted absent from output by runMyActionsOver).
+// header, asserted absent from output by runMeActionsOver).
 const (
 	actionsBodyMulti = `{
       "data": [
@@ -47,12 +47,12 @@ const (
     }`
 )
 
-// runMyActionsOver drives the pure runMyActions over a fake seam, returning the
+// runMeActionsOver drives the pure runMeActions over a fake seam, returning the
 // outcome and the captured stdout/stderr, and failing if the token leaks.
-func runMyActionsOver(t *testing.T, seam meSeam, status string) (Outcome, string, string) {
+func runMeActionsOver(t *testing.T, seam meSeam, status string) (Outcome, string, string) {
 	t.Helper()
 	var out, errb bytes.Buffer
-	outcome, _ := runMyActions(myActionsConfig{
+	outcome, _ := runMeActions(meActionsConfig{
 		seam:   seam,
 		status: status,
 		reqCtx: context.Background(),
@@ -65,16 +65,16 @@ func runMyActionsOver(t *testing.T, seam meSeam, status string) (Outcome, string
 	return outcome, out.String(), errb.String()
 }
 
-// --- formatMyActions (pure) ----------------------------------------------
+// --- formatMeActions (pure) ----------------------------------------------
 
-func TestFormatMyActions_RendersFieldsPerAction(t *testing.T) {
+func TestFormatMeActions_RendersFieldsPerAction(t *testing.T) {
 	resp := glassfrog.MyActionsResponse{
 		Data: []glassfrog.Action{
 			{ID: "actn_aaa", Status: "current", Description: "Review PR #6818", RoleID: "role_aaa", Tags: []string{"marketing", "q2"}},
 			{ID: "actn_bbb", Status: "waiting", Description: "", RoleID: "role_bbb"},
 		},
 	}
-	out := formatMyActions(resp)
+	out := formatMeActions(resp)
 	for _, want := range []string{
 		"actn_aaa", "current", "Review PR #6818", "role_aaa", "marketing", "q2",
 		"actn_bbb", "waiting", "role_bbb",
@@ -91,8 +91,8 @@ func TestFormatMyActions_RendersFieldsPerAction(t *testing.T) {
 
 // An empty list is the valid "you own no matching actions" answer and renders an
 // explicit empty-result line, not nothing.
-func TestFormatMyActions_EmptyListRendersExplicitLine(t *testing.T) {
-	out := formatMyActions(glassfrog.MyActionsResponse{})
+func TestFormatMeActions_EmptyListRendersExplicitLine(t *testing.T) {
+	out := formatMeActions(glassfrog.MyActionsResponse{})
 	if strings.TrimSpace(out) == "" {
 		t.Error("an empty list should render an explicit line, got blank output")
 	}
@@ -101,25 +101,25 @@ func TestFormatMyActions_EmptyListRendersExplicitLine(t *testing.T) {
 	}
 }
 
-// formatMyActions renders only the projection; the more-available signal is the
+// formatMeActions renders only the projection; the more-available signal is the
 // command's concern (stderr), so it must not leak into the projection body.
-func TestFormatMyActions_NoSignalInProjectionBody(t *testing.T) {
+func TestFormatMeActions_NoSignalInProjectionBody(t *testing.T) {
 	resp := glassfrog.MyActionsResponse{
 		Data: []glassfrog.Action{{ID: "actn_aaa", Status: "current", Description: "x", RoleID: "role_aaa"}},
 	}
 	resp.Meta.Pagination.HasNextPage = true
-	if strings.Contains(formatMyActions(resp), "more results") {
-		t.Errorf("the more-available signal must not appear in the projection body:\n%s", formatMyActions(resp))
+	if strings.Contains(formatMeActions(resp), "more results") {
+		t.Errorf("the more-available signal must not appear in the projection body:\n%s", formatMeActions(resp))
 	}
 }
 
-// --- runMyActions branches -----------------------------------------------
+// --- runMeActions branches -----------------------------------------------
 
-func TestRunMyActions_SuccessMultiAction(t *testing.T) {
+func TestRunMeActions_SuccessMultiAction(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -149,11 +149,11 @@ func TestRunMyActions_SuccessMultiAction(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_EmptyListIsCleanSuccess(t *testing.T) {
+func TestRunMeActions_EmptyListIsCleanSuccess(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyEmpty}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -165,11 +165,11 @@ func TestRunMyActions_EmptyListIsCleanSuccess(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_SupportedStatusFiltersRequest(t *testing.T) {
+func TestRunMeActions_SupportedStatusFiltersRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, _ := runMyActionsOver(t, seam, "current")
+	outcome, _, _ := runMeActionsOver(t, seam, "current")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -183,11 +183,11 @@ func TestRunMyActions_SupportedStatusFiltersRequest(t *testing.T) {
 
 // An unsupported --status is rejected before any request: the tripwire transport
 // is never reached, and assembly/build never happen (validateStatus runs first).
-func TestRunMyActions_UnsupportedStatusRejectedBeforeAnyRequest(t *testing.T) {
+func TestRunMeActions_UnsupportedStatusRejectedBeforeAnyRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runMyActionsOver(t, seam, "done")
+	outcome, _, stderr := runMeActionsOver(t, seam, "done")
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -205,11 +205,11 @@ func TestRunMyActions_UnsupportedStatusRejectedBeforeAnyRequest(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_HasNextPageSignalsMoreOnStderr(t *testing.T) {
+func TestRunMeActions_HasNextPageSignalsMoreOnStderr(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyHasNext}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success (incompleteness is still a success)", outcome)
 	}
@@ -226,7 +226,7 @@ func TestRunMyActions_HasNextPageSignalsMoreOnStderr(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
+func TestRunMeActions_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	ctx := apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
@@ -234,7 +234,7 @@ func TestRunMyActions_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	}
 	seam := &fakeMeSeam{ctx: ctx, transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -249,7 +249,7 @@ func TestRunMyActions_NoCredentialsIsUsageErrorNoRequest(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_CredentialErrorIsRuntimeError(t *testing.T) {
+func TestRunMeActions_CredentialErrorIsRuntimeError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	ctx := apiclient.ConnectionContext{
 		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
@@ -258,7 +258,7 @@ func TestRunMyActions_CredentialErrorIsRuntimeError(t *testing.T) {
 	}
 	seam := &fakeMeSeam{ctx: ctx, transport: tr}
 
-	outcome, _, stderr := runMyActionsOver(t, seam, "")
+	outcome, _, stderr := runMeActionsOver(t, seam, "")
 	if outcome != RuntimeError {
 		t.Fatalf("outcome = %v, want RuntimeError", outcome)
 	}
@@ -270,11 +270,11 @@ func TestRunMyActions_CredentialErrorIsRuntimeError(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
+func TestRunMeActions_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) {
 	tr := &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != NetworkUnavailable {
 		t.Fatalf("outcome = %v, want NetworkUnavailable", outcome)
 	}
@@ -289,14 +289,14 @@ func TestRunMyActions_TransportFailureIsNetworkUnavailableNoRetry(t *testing.T) 
 	}
 }
 
-func TestRunMyActions_NonStatus2xxIsAPIError(t *testing.T) {
+func TestRunMeActions_NonStatus2xxIsAPIError(t *testing.T) {
 	// A genuinely generic non-2xx (500): 401/403/429 now split into
 	// PermissionError/RateLimited (API Error Extraction 015), so a 5xx represents
 	// the residual generic APIError bucket this test pins.
 	tr := &cannedTransport{status: 500, body: `{"error":"server error"}`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != APIError {
 		t.Fatalf("outcome = %v, want APIError", outcome)
 	}
@@ -313,11 +313,11 @@ func TestRunMyActions_NonStatus2xxIsAPIError(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_UndecodableBodyIsRuntimeError(t *testing.T) {
+func TestRunMeActions_UndecodableBodyIsRuntimeError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: `not json at all`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, stderr := runMyActionsOver(t, seam, "")
+	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
 	if outcome != RuntimeError {
 		t.Fatalf("outcome = %v, want RuntimeError", outcome)
 	}
@@ -329,7 +329,7 @@ func TestRunMyActions_UndecodableBodyIsRuntimeError(t *testing.T) {
 	}
 }
 
-func TestRunMyActions_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
+func TestRunMeActions_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{
 		ctx:          apiclient.ConnectionContext{},
@@ -337,7 +337,7 @@ func TestRunMyActions_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 		transport:    tr,
 	}
 
-	outcome, _, stderr := runMyActionsOver(t, seam, "")
+	outcome, _, stderr := runMeActionsOver(t, seam, "")
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -349,19 +349,19 @@ func TestRunMyActions_BaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
 	}
 }
 
-// --- newMyActionsCommand integration (outcome → exit code, registration) --
+// --- newMeActionsCommand integration (outcome → exit code, registration) --
 
-// runMyActionsCommand registers `me` under a real root (with the persistent
+// runMeActionsCommand registers `me` under a real root (with the persistent
 // --base-url flag) and the `actions` leaf under `me`, then dispatches
 // `me actions [args]` through Run — pinning the command wiring AND the
 // outcomeError → ExitCode path (3/6) the dispatch carrier enables. The seam is
 // shared by both `me` and `me actions` (productionSeam binds the real one).
-func runMyActionsCommand(t *testing.T, seam meSeam, args ...string) (Outcome, int, string, string) {
+func runMeActionsCommand(t *testing.T, seam meSeam, args ...string) (Outcome, int, string, string) {
 	t.Helper()
 	root := NewRootCommand()
 	meCmd := newMeCommand(seam)
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyActionsCommand(seam))
+	MustRegister(meCmd, newMeActionsCommand(seam))
 	var out, errb bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&errb)
@@ -369,7 +369,7 @@ func runMyActionsCommand(t *testing.T, seam meSeam, args ...string) (Outcome, in
 	return outcome, ExitCode(outcome), out.String(), errb.String()
 }
 
-func TestMyActionsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
+func TestMeActionsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 	cases := []struct {
 		name     string
 		tr       *cannedTransport
@@ -392,7 +392,7 @@ func TestMyActionsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			seam := &fakeMeSeam{ctx: tc.ctx, newClientErr: tc.seamErr, transport: tc.tr}
-			outcome, code, stdout, stderr := runMyActionsCommand(t, seam, tc.args...)
+			outcome, code, stdout, stderr := runMeActionsCommand(t, seam, tc.args...)
 			if outcome != tc.outcome {
 				t.Errorf("outcome = %v, want %v\nstderr: %s", outcome, tc.outcome, stderr)
 			}
@@ -407,10 +407,10 @@ func TestMyActionsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 }
 
 // A stray positional argument is rejected by cobra.NoArgs before any API call.
-func TestMyActionsCommand_StrayArgSendsNothing(t *testing.T) {
+func TestMeActionsCommand_StrayArgSendsNothing(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	outcome, code, _, _ := runMyActionsCommand(t, seam, "extra-argument")
+	outcome, code, _, _ := runMeActionsCommand(t, seam, "extra-argument")
 	if outcome != UsageError || code != 2 {
 		t.Fatalf("stray arg: outcome=%v code=%d, want UsageError/2", outcome, code)
 	}
@@ -421,10 +421,10 @@ func TestMyActionsCommand_StrayArgSendsNothing(t *testing.T) {
 
 // The persistent --base-url value reaches the seam's assemble (inherited from the
 // root through `me` to `me actions`).
-func TestMyActionsCommand_InheritsBaseURLFlag(t *testing.T) {
+func TestMeActionsCommand_InheritsBaseURLFlag(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actionsBodyMulti}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	_, _, _, _ = runMyActionsCommand(t, seam, "--base-url", "https://flag.test/api/v5")
+	_, _, _, _ = runMeActionsCommand(t, seam, "--base-url", "https://flag.test/api/v5")
 	if seam.assembledBaseURL != "https://flag.test/api/v5" {
 		t.Errorf("assemble received base URL %q, want the inherited flag value", seam.assembledBaseURL)
 	}
@@ -433,16 +433,16 @@ func TestMyActionsCommand_InheritsBaseURLFlag(t *testing.T) {
 // The `actions` leaf declares no --base-url flag of its own — it inherits the
 // root's persistent one. A locally-declared flag would shadow the inherited
 // value; this pins that it does not.
-func TestMyActionsCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
-	cmd := newMyActionsCommand(&fakeMeSeam{})
+func TestMeActionsCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
+	cmd := newMeActionsCommand(&fakeMeSeam{})
 	if cmd.Flags().Lookup(apiclient.FlagBaseURL) != nil {
 		t.Errorf("the actions leaf must not declare its own --%s flag; it is inherited", apiclient.FlagBaseURL)
 	}
 }
 
 // The `actions` leaf declares a local --status flag.
-func TestMyActionsCommand_DeclaresLocalStatusFlag(t *testing.T) {
-	cmd := newMyActionsCommand(&fakeMeSeam{})
+func TestMeActionsCommand_DeclaresLocalStatusFlag(t *testing.T) {
+	cmd := newMeActionsCommand(&fakeMeSeam{})
 	if cmd.Flags().Lookup("status") == nil {
 		t.Error("the actions leaf should declare a local --status flag")
 	}
@@ -451,11 +451,11 @@ func TestMyActionsCommand_DeclaresLocalStatusFlag(t *testing.T) {
 // `me` remains BOTH runnable (its own RunE) AND a parent of the `actions` leaf,
 // as it already is for `roles` — the guard validates a command at its own
 // registration, so the second sibling attaches without tripping leaf-xor-group.
-func TestMyActionsCommand_MeIsRunnableWithActionsChild(t *testing.T) {
+func TestMeActionsCommand_MeIsRunnableWithActionsChild(t *testing.T) {
 	root := NewRootCommand()
 	meCmd := newMeCommand(&fakeMeSeam{})
 	MustRegister(root, meCmd)
-	MustRegister(meCmd, newMyActionsCommand(&fakeMeSeam{}))
+	MustRegister(meCmd, newMeActionsCommand(&fakeMeSeam{}))
 
 	if meCmd.RunE == nil {
 		t.Error("me should remain runnable (its own RunE) after gaining a child")

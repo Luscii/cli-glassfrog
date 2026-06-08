@@ -17,12 +17,12 @@ import (
 // partial list is never silently presented as complete (interface-cli).
 const incompleteRolesNote = "note: more roles exist than shown; pagination is not yet supported, so this list may be incomplete"
 
-// myRolesConfig carries everything runMyRoles needs, gathered by the command's
-// RunE. As with runMe, keeping runMyRoles a function of injected values makes the
+// meRolesConfig carries everything runMeRoles needs, gathered by the command's
+// RunE. As with runMe, keeping runMeRoles a function of injected values makes the
 // whole read — assemble, build, send, render/classify — testable over a fake
 // transport with no real network or ~/.glassfrogrc. It reuses the meSeam (the
 // assemble + newClient pair Identity Read defined); My Roles needs nothing more.
-type myRolesConfig struct {
+type meRolesConfig struct {
 	seam    meSeam
 	baseURL string // the inherited persistent --base-url flag value (may be empty)
 	reqCtx  context.Context
@@ -30,13 +30,13 @@ type myRolesConfig struct {
 	stderr  io.Writer
 }
 
-// runMyRoles is the pure orchestration the `me roles` leaf delegates to: assemble
+// runMeRoles is the pure orchestration the `me roles` leaf delegates to: assemble
 // the context once, build the client once, send one GET /me/roles, then render
 // the projection on success (with the incompleteness note to stderr when the API
 // signals a next page) or classify + report the typed error via 011's shared
 // helpers. It emits no exit code, never retries, and never reads the token — the
 // projection renders response-side fields only.
-func runMyRoles(cfg myRolesConfig) (Outcome, error) {
+func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 	// Resolve the connection and build the client once. A base-URL error surfaces
 	// here (no doomed send); classify + report it via 011's shared helper.
 	ctx := cfg.seam.assemble(cfg.baseURL)
@@ -55,23 +55,23 @@ func runMyRoles(cfg myRolesConfig) (Outcome, error) {
 	// Render the reshaped projection to stdout (never the token). When the API
 	// reports more roles than this page carried, write the incompleteness note to
 	// stderr so the partial list is never read as complete — still exit 0.
-	fmt.Fprint(cfg.stdout, formatMyRoles(resp))
+	fmt.Fprint(cfg.stdout, formatMeRoles(resp))
 	if incomplete(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteRolesNote)
 	}
 	return Success, nil
 }
 
-// newMyRolesCommand builds the `roles` leaf attached under Identity Read's
+// newMeRolesCommand builds the `roles` leaf attached under Identity Read's
 // runnable `me` command (ADR-1): a guard-ready cobra command (no positional args,
-// non-empty Short, SilenceErrors/SilenceUsage so runMyRoles owns its messages).
+// non-empty Short, SilenceErrors/SilenceUsage so runMeRoles owns its messages).
 // Its RunE reads the persistent --base-url value the root declares (inherited,
-// not re-registered), delegates to the pure runMyRoles, and maps the returned
+// not re-registered), delegates to the pure runMeRoles, and maps the returned
 // Outcome onto dispatch's error channel via the shared outcomeToDispatchError —
 // adding no new Outcome category and no ExitCode case (ADR-2/3). The seam is
 // injected so tests drive a fake one; production passes productionSeam{} from
 // Assemble.
-func newMyRolesCommand(seam meSeam) *cobra.Command {
+func newMeRolesCommand(seam meSeam) *cobra.Command {
 	return &cobra.Command{
 		Use:   "roles",
 		Short: "List the roles you fill",
@@ -92,7 +92,7 @@ func newMyRolesCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
-			outcome, oerr := runMyRoles(myRolesConfig{
+			outcome, oerr := runMeRoles(meRolesConfig{
 				seam:    seam,
 				baseURL: baseURL,
 				reqCtx:  cmd.Context(),
@@ -104,7 +104,7 @@ func newMyRolesCommand(seam meSeam) *cobra.Command {
 	}
 }
 
-// formatMyRoles renders the reshaped `glassfrog me roles` projection (never raw
+// formatMeRoles renders the reshaped `glassfrog me roles` projection (never raw
 // JSON; --output json is the deferred Unconsumable Output capability). It is
 // pure (MyRolesResponse → string) and surfaces only response-side fields, so the
 // token never appears. One block per role, blocks separated by a blank line:
@@ -120,7 +120,7 @@ func newMyRolesCommand(seam meSeam) *cobra.Command {
 // `No roles.` (interface-cli). The role's fillers, tags, and classification
 // flags are never rendered (spec Non-Behaviors) — they are not even fields on
 // the shared Role type.
-func formatMyRoles(resp glassfrog.MyRolesResponse) string {
+func formatMeRoles(resp glassfrog.MyRolesResponse) string {
 	if len(resp.Data) == 0 {
 		return "No roles.\n"
 	}
