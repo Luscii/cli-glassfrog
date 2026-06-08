@@ -73,6 +73,24 @@ func (e *MalformedPageError) Error() string {
 	return fmt.Sprintf("malformed paging: the cursor did not advance at page %d", e.Page)
 }
 
+// UnrewindableBodyError is the Stop cause when a paginated request carries a
+// non-nil `req.Body` and a second page is needed. `Body` is an `io.Reader` the
+// first page's `Execute` consumes; the walker cannot safely rewind it, so
+// re-issuing would send an empty/partial body and a wrong request. Rather than
+// do that silently, the walker stops loud — retaining the first page — when it
+// would otherwise follow the next page. (A single-page body-carrying request is
+// unaffected: it never needs a second request.) Like `MalformedPageError` it
+// carries no status, so a consumer's classifyClientError maps it via the
+// default → RuntimeError(1) fail-safe. `Page` is the 1-based index of the page
+// after which continuation was required.
+type UnrewindableBodyError struct {
+	Page int
+}
+
+func (e *UnrewindableBodyError) Error() string {
+	return fmt.Sprintf("cannot paginate past page %d: the request carries a non-rewindable Body", e.Page)
+}
+
 // Option configures a walk. Today only WithPageSize exists; a bounded-walk option
 // (WithMaxPages) is a deferred future addition that needs no contract change.
 type Option func(*config)
@@ -106,6 +124,13 @@ func WithPageSize(n int) Option {
 //   - has_next_page=true + a non-advancing cursor (blank/absent OR equal to the
 //     one just sent) → stop with *MalformedPageError, no loop;
 //   - any Execute error → stop, retaining the records gathered so far, Stop=err.
+//
+// req.Body must be nil when the endpoint paginates: Body is an io.Reader the
+// first page consumes and the walker cannot rewind, so if a second page is
+// needed while Body is non-nil the walk stops with *UnrewindableBodyError rather
+// than re-issue with an empty body. A single-page body-carrying request is fine.
+// (List reads — pagination's purpose — are bodyless GETs, so this is a guard
+// against misuse, not a normal path.)
 func All[T any](reqCtx context.Context, ex Executor, req apiclient.Request, opts ...Option) Result[T] {
 	cfg := config{pageSize: defaultPageSize}
 	for _, opt := range opts {
@@ -157,6 +182,12 @@ func All[T any](reqCtx context.Context, ex Executor, req apiclient.Request, opts
 			// to the cursor just sent (an API ignoring an unrecognized cursor param
 			// would return the same page forever — H-2/H-9). Fail loud, do not loop.
 			return Result[T]{Records: records, Complete: false, Stop: &MalformedPageError{Page: pages}, Pages: pages}
+		}
+		if req.Body != nil {
+			// A second page is needed, but req.Body is a consumed io.Reader the walker
+			// cannot rewind — re-issuing would send an empty/partial body. Stop loud,
+			// retaining the page(s) gathered, rather than send a wrong request.
+			return Result[T]{Records: records, Complete: false, Stop: &UnrewindableBodyError{Page: pages}, Pages: pages}
 		}
 		cursor = pg.NextCursor
 	}

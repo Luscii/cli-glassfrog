@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
@@ -408,6 +409,54 @@ func TestAll_NilOptionDoesNotPanic(t *testing.T) {
 	}
 	if got := ex.sentQueries[0].Get("per_page"); got != "250" {
 		t.Errorf("per_page=%q, want 250 (valid option still applied alongside skipped nils)", got)
+	}
+}
+
+func TestAll_NonNilBodyStopsBeforeFollowingNextPage(t *testing.T) {
+	// req.Body is a consumed io.Reader the walker can't rewind. When a second page
+	// is needed, the walk must stop loud (retaining page 1) rather than re-issue
+	// with an empty body.
+	ex := &fakeExecutor{pages: map[string]fakePage{
+		"":   {body: page(true, "c1", "A1")}, // page 1 says there's more
+		"c1": {body: page(false, "", "B1")},  // would be page 2 — must NOT be requested
+	}}
+	req := apiclient.Request{Method: "POST", Path: "/things", Body: strings.NewReader("payload")}
+
+	res := All[glassfrog.Role](context.Background(), ex, req)
+
+	if res.Complete {
+		t.Fatalf("Complete=true, want false (cannot paginate a body-carrying request)")
+	}
+	var be *UnrewindableBodyError
+	if !errors.As(res.Stop, &be) {
+		t.Fatalf("Stop=%v, want *UnrewindableBodyError", res.Stop)
+	}
+	if be.Page != 1 {
+		t.Errorf("UnrewindableBodyError.Page=%d, want 1 (stopped after page 1)", be.Page)
+	}
+	if !eq(names(res.Records), []string{"A1"}) {
+		t.Errorf("Records=%v, want [A1] (page 1 retained)", names(res.Records))
+	}
+	if ex.calls != 1 {
+		t.Errorf("Execute calls=%d, want exactly 1 (the second page must not be requested)", ex.calls)
+	}
+}
+
+func TestAll_NonNilBodySinglePageCompletes(t *testing.T) {
+	// A body-carrying request that needs no second page is unaffected: page 1
+	// consumes the body and the walk completes.
+	ex := &fakeExecutor{pages: map[string]fakePage{
+		"": {body: page(false, "", "A1", "A2")},
+	}}
+	req := apiclient.Request{Method: "POST", Path: "/things", Body: strings.NewReader("payload")}
+
+	res := All[glassfrog.Role](context.Background(), ex, req)
+
+	if !res.Complete || res.Stop != nil {
+		t.Fatalf("Complete=%v Stop=%v, want complete (single page, body never re-read)", res.Complete, res.Stop)
+	}
+	if !eq(names(res.Records), []string{"A1", "A2"}) {
+		t.Errorf("Records=%v, want [A1 A2]", names(res.Records))
 	}
 }
 
