@@ -12,7 +12,7 @@ This feature ships **no application code** — it is CI/CD infrastructure compos
 
 1. **`.goreleaser.yaml` release sections** — 021 established a single `.goreleaser.yaml` file carrying *only* a `builds` block (four targets: darwin/linux × amd64/arm64, `CGO_ENABLED=0`, no Windows; `builds.ldflags` left as 023's version seam). 022 **extends that same file** with the `archives`, `checksum`, and `release` sections. It does not touch `builds` or `ldflags` (DECISIONS: 021 owns those; 022 must not re-decide the build).
 2. **`.github/workflows/release.yml`** — a GitHub Actions workflow triggered by `release: published`, which drives GoReleaser and the cross-target verification gate.
-3. **Cross-target self-containment gate** — 021's run-plus-OS-linkage check (the `internal/cli/smoke_test.go` subprocess pattern), executed against the produced `dist/` artifacts on a per-target runner matrix. 021 explicitly deferred cross-target *execution* of this check to "022's CI concern."
+3. **Cross-target self-containment gate** — 021's run-plus-OS-linkage check, shipped in the **`internal/build`** package (`TestSelfContainment_HostBinary`, which prefers a `dist/` artifact via `DiscoverDistBinary` reading `dist/artifacts.json`), executed against the produced `dist/` artifacts on a per-target runner matrix. 021 explicitly deferred cross-target *execution* of this check to "022's CI concern."
 
 **Data / control flow:**
 
@@ -83,7 +83,7 @@ The build host needs the Go toolchain and `goreleaser`; **neither is a dependenc
 
 ## Integration Design
 
-- **Self-Contained Executable Build (021 — upstream, hard dependency)**: provides the `.goreleaser.yaml` `builds` block 022 extends and the self-containment check 022 executes cross-target. 022's implementation is **gated on 021 landing** (021 is currently only `Analyzed`). Boundary: 021 owns `builds`/`ldflags`; 022 adds `archives`/`checksum`/`release`.
+- **Self-Contained Executable Build (021 — upstream, hard dependency)**: provides the `.goreleaser.yaml` `builds` block 022 extends and the `internal/build` self-containment check 022 executes cross-target. 021 has **landed** (#54 on main), so this dependency is satisfied. Boundary: 021 owns `builds`/`ldflags`; 022 adds `archives`/`checksum`/`release`.
 - **Version Embedding (023 — upstream seam)**: 022 does not inject the version; GoReleaser reads it from the git tag, and 023 owns the `builds.ldflags` injection that makes `--version` report it. 022 leaves `ldflags` untouched.
 - **Release Drafting (#30 — trigger source)**: provides the published release (notes + status) whose publish event triggers 022. Soft dependency — a hand-published release works identically.
 - **GitHub Releases (trigger + destination)**: the publish event triggers the workflow; the same release receives the artifacts. `GITHUB_TOKEN` with `contents: write` is the only credential; everything runs within this repository (no external secrets, matching the spec's "entirely within this repository").
@@ -103,7 +103,7 @@ The build host needs the Go toolchain and `goreleaser`; **neither is a dependenc
 
 ## Implementation Strategy
 
-**Dependency gate**: 022 implementation begins after **021 lands** (the `.goreleaser.yaml` `builds` block and the self-containment check must exist to extend/reuse). Planning, interface, scenarios, and tasks can proceed now; the build work waits on 021.
+**Dependency gate**: 021 has **landed** (#54 on main) — the `.goreleaser.yaml` `builds` block and the `internal/build` self-containment check now exist to extend/reuse, so implementation is unblocked.
 
 **Phase 1 — Release configuration.** Extend `.goreleaser.yaml` with `archives` (one `tar.gz` per target, name template carrying tool/version/OS/arch), `checksum` (single `sha256` `checksums.txt`), and `release` (attach to existing published release; do not author notes or change status). Verify `goreleaser release --snapshot --clean --skip=publish` emits the four archives + `checksums.txt` under `dist/`. Extend 021's config-guard test to assert the new sections are present and the build matrix is unchanged.
 
@@ -117,7 +117,7 @@ Phases are ordered: 1 → 2 → 3, all after 021.
 
 ## Risks
 
-- **021 not yet implemented** — 022's build/verify work cannot run until 021's `.goreleaser.yaml` `builds` block and self-containment check exist. *High likelihood (021 is `Analyzed`), blocking impact.* Mitigation: sequence 021 first (already surfaced in the backlog); 022's plan/interface/scenarios/tasks proceed in parallel, implementation waits.
+- **021 dependency (resolved)** — 022's build/verify work reuses 021's `.goreleaser.yaml` `builds` block and `internal/build` self-containment check. *Resolved: 021 landed (#54 on main).* The residual boundary risk is 022 accidentally re-deciding `builds`/`ldflags` instead of extending — pinned by the config-guard test (`internal/build.CheckConfigGuard`).
 - **GoReleaser overwriting the release body or status** — a misconfigured `release` section could replace #30's notes or flip pre-release/latest, breaking the spec's honor-not-decide contract. *Medium.* Mitigation: pin append/keep-existing + no `prerelease`/`make_latest` override in interface; test against a draft release before first real publish.
 - **arm64 / darwin runner availability or cost** — the verify matrix needs native arm64 and macOS runners. *Medium.* Mitigation: documented QEMU emulation fallback; the matrix is the only multi-arch cost and runs once per release.
 - **Re-publish duplication** — re-running for an existing release could double-attach assets. *Low–medium.* Mitigation: `--clean` + replace-on-upload semantics; pin in interface and cover with the spec's re-publish edge scenario.
