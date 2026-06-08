@@ -32,7 +32,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 1: `internal/output` success serializers [Shared]
 
-- [ ] **T001** [Shared] Create the `internal/output` leaf package with `Format` and `RenderSuccess` (JSON + YAML over raw bytes); add the `sigs.k8s.io/yaml` dependency — RED-first unit tests
+- [x] **T001** [Shared] Create the `internal/output` leaf package with `Format` and `RenderSuccess` (JSON + YAML over raw bytes); add the `sigs.k8s.io/yaml` dependency — RED-first unit tests — 7 unit tests, `internal/output` clean of internal deps, `sigs.k8s.io/yaml v1.4.0` added
   - **Scope**: Create the new pure leaf package `internal/output` (no cobra, no transport, no domain types — importable by `internal/cli` without a cycle). Define `Format` (`JSON`, `YAML`). Implement `RenderSuccess(f Format, payload json.RawMessage) ([]byte, error)`: for `JSON`, validate and normalize the raw bytes into a single valid, consistently-indented JSON document (e.g. via `encoding/json`); for `YAML`, transform the raw JSON bytes with `sigs.k8s.io/yaml.JSONToYAML`. An empty/whitespace-only `payload` renders as a valid empty document, never an empty channel. Invalid JSON bytes (a 2xx contract violation) return a render error and **no** document — never a partial fragment. Add `sigs.k8s.io/yaml` to `go.mod`/`go.sum`. No exit codes, no flag, no command.
   - **Acceptance criteria**:
     - A raw JSON payload renders as a single valid JSON document carrying every field present in the input (including fields a typed `glassfrog` struct would drop, e.g. hypermedia links)
@@ -50,7 +50,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 2: Unified error envelope [US3]
 
-- [ ] **T002** [US3] Add `ErrorEnvelope`/`ErrorDetail` and `RenderError` to `internal/output` — RED-first unit tests over hand-built envelopes
+- [x] **T002** [US3] Add `ErrorEnvelope`/`ErrorDetail` and `RenderError` to `internal/output` — RED-first unit tests over hand-built envelopes — 7 unit tests over hand-built envelopes; no classification, no apiclient import
   - **Scope**: In `internal/output`, define the unified `ErrorEnvelope` wrapping one `ErrorDetail` under an `error` key: `Message string` (always), `Kind string` (always — the lowercased taxonomy term), `Status int` (omitempty — HTTP status, non-2xx only), `Body json.RawMessage` (omitempty — the raw API error body verbatim, when present). Implement `RenderError(f Format, env ErrorEnvelope) ([]byte, error)` rendering the envelope in the active format (JSON marshal; YAML equivalent), with deterministic field order and a complete document or a render error — never a fragment. 018 owns the envelope **shape** and encoder only; it performs no classification. The typed-error→envelope *mapping* (kind from `classifyClientError`, status/body from `*ResponseError`) is **not** built here — it lands with 020 (ADR-4; interface-spec). Tests construct `ErrorEnvelope` values directly.
   - **Acceptance criteria**:
     - An envelope with `kind="api"`, a status, and a nested raw `body` renders as one valid JSON document carrying the raw body verbatim
@@ -68,7 +68,7 @@ Phase 3: Component-level acceptance — godog suite over the `output` package (1
 
 ## Phase 3: Component-level acceptance [Shared]
 
-- [ ] **T003** [Shared] Make the driving scenarios pass as executable component-level acceptance via a new godog suite over the `output` package
+- [x] **T003** [Shared] Make the driving scenarios pass as executable component-level acceptance via a new godog suite over the `output` package — `TestStructuredSerializationFeatures` (9 behavioral scenarios, 43 steps pass); 5 `@validation` scenarios kept `@wip`; suite `Paths` names only its own feature file; ADR-3/PROJECT.md-stack drift noted in LEARNINGS
   - **Scope**: Add godog step definitions for `features/unconsumable-output/structured-serialization.feature` in a **new** godog suite (e.g. `TestStructuredSerializationFeatures`) whose `Paths` names **only** that feature file (LEARNINGS: a suite points at its own file, never the `features/` directory). Drive `RenderSuccess`/`RenderError` directly with raw-byte and hand-built-envelope fixtures — there is no command to invoke (no CLI surface until 020), so steps exercise the package functions. Remove `@wip` from the behavioral scenarios (the spec-derived + architecture-informed); keep the `@validation` scenarios `@wip` (held for validate). Step helpers return errors, never panic; capture any output with a temp file, not `os.Pipe` (PR #10 LEARNINGS). Reuse existing `internal/cli`/package step phrasings where an assertion already exists (grep `sc.Step(` first).
   - **Acceptance criteria**:
     - Every non-`@validation` scenario in structured-serialization.feature has an executable, passing step path driven through `RenderSuccess`/`RenderError`
