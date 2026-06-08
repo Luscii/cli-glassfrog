@@ -13,10 +13,12 @@ import (
 
 // Response is Request Execution's success value (a 2xx outcome). It carries the
 // status code and the response headers so the sibling capabilities can build on
-// the same seam — Pagination (016) reads Link/paging headers, Rate-Limit Handling
-// (017) reads rate-limit headers off the non-2xx path. The decoded body is
-// written into the caller's out target, not stored here; when out is nil the
-// body is drained and closed without decoding.
+// the same seam — Rate-Limit Handling (017) reads rate-limit headers off the
+// non-2xx path. Pagination (016) does NOT read a paging header: the v5 API carries
+// paging in the response BODY at meta.pagination, which the walker decodes via an
+// enveloped target (glassfrog.Page[T]) — Response exposes only status+headers. The
+// decoded body is written into the caller's out target, not stored here; when out
+// is nil the body is drained and closed without decoding.
 type Response struct {
 	// StatusCode is the 2xx status the API returned.
 	StatusCode int
