@@ -56,7 +56,7 @@ It is the **pre-merge** half of the project's verification story, and it is deli
 
 **In order to** keep a red pull request from being merged at all,
 **as a** maintainer,
-**I want to** the validation status to be a required gate, not just an advisory signal.
+**I want** the validation status to be a required gate, not just an advisory signal.
 
 ---
 
