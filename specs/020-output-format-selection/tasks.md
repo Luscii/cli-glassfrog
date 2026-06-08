@@ -55,7 +55,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
 
 ## Phase 2: Flag wiring + dispatch (`internal/cli`) [Shared]
 
-- [ ] **T003** [Shared] [P] Register the persistent `--output` / `-o` flag on the root command
+- [x] **T003** [Shared] [P] Register the persistent `--output` / `-o` flag on the root command — `root.PersistentFlags().StringP(output.FlagOutput, "o", …)` in `root.go`; verified inherited + interspersed via the built binary's `--help` and before/after-subcommand parsing.
   - **Scope**: In `internal/cli/root.go`, register `--output` as a persistent flag on the root beside `--base-url`, with the short alias `-o`, name from `output.FlagOutput`, and a usage string naming the four values and the override order. Inherited by every command via cobra; inert on non-result commands (the accepted `--base-url` wart). No read-command edits in this task.
   - **Acceptance criteria**:
     - `glassfrog --help` (and each command's help) lists `--output`/`-o` with the four values; `glassfrog --output json me` and `glassfrog me --output json` both parse the value (inherited persistent flag, interspersed parsing).
@@ -65,7 +65,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
   - **Interface references**: interface-cli.md — Surface (new global flag).
   - **Scenario references**: output-format-selection.feature: "A json selector routes the result to the JSON encoder" (flag-side), "A compact selector renders one line per record"
 
-- [ ] **T004** [Shared] [P] Map `*output.FormatError` to `UsageError` in `classifyClientError`
+- [x] **T004** [Shared] [P] Map `*output.FormatError` to `UsageError` in `classifyClientError` — added the `errors.As` arm in `clienterror.go` (symmetric with the base-URL arms); unit test `TestClassifyClientError_FormatErrorIsUsage`.
   - **Scope**: In `internal/cli` (the `classifyClientError` chain, `clienterror.go`), add an `errors.As` arm mapping `*output.FormatError` to `UsageError`, symmetric with the existing base-URL arms, so an invalid selector's category and message agree and the exit code is the conventional usage code (2). Token-free message.
   - **Acceptance criteria**:
     - `classifyClientError(*output.FormatError)` returns `UsageError`; the existing base-URL/auth/transport/response arms are unchanged.
@@ -75,7 +75,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
   - **Interface references**: interface-spec.md — Error Communication; interface-cli.md — Error Communication.
   - **Scenario references**: output-format-selection.feature: "An unknown selector value fails before any request", "An invalid environment value fails, naming its source"
 
-- [ ] **T005** [Shared] [P] Add the shared generic render-dispatch in `internal/cli`
+- [x] **T005** [Shared] [P] Add the shared generic render-dispatch in `internal/cli` — `renderResult[T any](stdout, stderr, format, resource, exec, reqCtx, req, note)` + `humanFormat` + the `executor` interface in `render.go` (the single importer of both `internal/output` and `internal/render`); unit tests pin structured→encoder / human→template routing, the decode-target switch, and render-failure→RuntimeError(1) with empty stdout. Note: the human incompleteness note is emitted only on the human path — the structured document carries pagination metadata in-band.
   - **Scope**: Add a generic dispatch (e.g. `renderResult[T any]`) in `internal/cli` that, given a resolved `OutputFormat`, selects the decode target and the success renderer: structured (`IsStructured()`) → decode `*json.RawMessage`, write `output.RenderSuccess(machineFmt, raw)`; human → decode `*T`, write `render.Render(resourceKey, humanFmt, v)`, mapping `OutputFormat`'s `Full`/`Compact` to `render.FormatFull`/`FormatCompact` at this one site. A render error from either path maps to `RuntimeError(1)` (buffer-then-write; nothing partial on stdout). This is the single importer of both `internal/output` and `internal/render`.
   - **Acceptance criteria**:
     - For the same result, `json`/`yaml` route through `output.RenderSuccess` and `full`/`compact` through `render.Render`; no format routes to the other renderer (the "each format routes to exactly its renderer" validation).
@@ -87,7 +87,7 @@ Phase 2: Flag wiring + dispatch (`internal/cli`) (4 tasks, depends on Phase 1 �
   - **Scenario references**: output-format-selection.feature: "Each format routes to exactly its renderer", "Selection changes rendering only, not the fetched data", "A json selector routes the result to the JSON encoder"
   - **Note**: Cross-spec — consumes the 018 + 019 seams, both now landed on main (#49/#50); no longer gated.
 
-- [ ] **T006** [Shared] Route the four reads through the dispatch and resolve the format fail-fast
+- [x] **T006** [Shared] Route the four reads through the dispatch and resolve the format fail-fast — added `resolveFormat` to the `meSeam` (production binds `ResolveFormatFromOS` over `os.Getwd`/`os.UserHomeDir`; fakes inject sources), `outputFlag` to each config, `reportFormatResolutionError` (writes `err.Error()` + `classifyClientError`, NOT routed through the base-URL-worded `formatClientErrorMessage`), and rewired `me`/`me roles`/`me actions`/`me projects` to resolve-first-then-dispatch. 9 godog scenarios green (the 3 `@validation` held @wip); the reads' existing suites stay green for the default `full` path.
   - **Scope**: In `internal/cli/me.go`, `me_roles.go`, `me_actions.go`, `me_projects.go`, resolve the format first via `output.ResolveFormatFromOS(flagValue, …)` (reading the inherited `--output` value), reporting a resolution error to stderr and returning `UsageError` **before** connection assembly or any request (the `validateInclude` fail-fast shape); then delegate the success path to T005's dispatch with the read's `render.Resource` key and result type, replacing the post-019 hardcoded `render.Render(…, FormatFull, …)` call. Output-format resolution stays out of `AssembleFromOS` (009). Command failures keep today's cause-plus-next-step on stderr (032 owns format-aware failures).
   - **Acceptance criteria**:
     - `--output json|yaml` on any of the four reads emits the structured document; `--output compact` emits the compact rendering; omitting `--output` (and no env/config) emits `full`, byte-equivalent to today.

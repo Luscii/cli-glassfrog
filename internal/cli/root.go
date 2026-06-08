@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +39,20 @@ func NewRootCommand() *cobra.Command {
 	root.PersistentFlags().String(
 		apiclient.FlagBaseURL, "",
 		"Glassfrog API base URL (overrides GLASSFROG_BASE_URL, the .glassfrogrc base_url, and the built-in default)",
+	)
+	// --output / -o (Output Format Selection 020, ADR-2): a PERSISTENT flag on the
+	// root beside --base-url, so it is registered once and inherited by every
+	// current and future result-producing read via cobra flag inheritance — accepted
+	// anywhere on the command path (before or after the subcommand) by cobra's
+	// interspersed parsing. Result-producing reads read its value and route their
+	// success through the selected renderer; like --base-url it appears (inert) on
+	// non-result commands (version/auth), the same accepted wart. The flag NAME
+	// comes from output.FlagOutput so the precedence-chain rung and the registered
+	// flag can't drift; the usage string is an implementation detail kept consistent
+	// with the spec.
+	root.PersistentFlags().StringP(
+		output.FlagOutput, "o", "",
+		"Output format — full | compact | json | yaml (overrides GLASSFROG_OUTPUT, the .glassfrogrc output, and the built-in default)",
 	)
 	return root
 }

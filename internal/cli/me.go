@@ -7,12 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
@@ -44,6 +46,14 @@ type meSeam interface {
 	// never blocks, so the retry caps are asserted in milliseconds (CONSTITUTION
 	// IV). Injected here alongside the other OS-touching resolvers.
 	sleep() func(time.Duration)
+	// resolveFormat resolves the effective output format (020) from the inherited
+	// --output flag value plus the real environment and .glassfrogrc walk. Production
+	// binds output.ResolveFormatFromOS over os.Getwd/os.UserHomeDir; tests bind a
+	// fake over hand-built sources. Kept off assemble (009) — output format is a
+	// presentation concern resolved on the render path, independent of the
+	// connection context. A present-but-invalid value returns a *output.FormatError
+	// (or an internal/rcfile read/format error) the read maps to UsageError(2).
+	resolveFormat(flagValue string) (output.OutputFormat, error)
 }
 
 // productionSeam (defined for loginSeam in authlogin_seam.go) also satisfies
@@ -61,17 +71,37 @@ func (productionSeam) newClient(ctx apiclient.ConnectionContext) (*apiclient.Cli
 // bind a recording fake via their own seam, so no suite ever waits real seconds.
 func (productionSeam) sleep() func(time.Duration) { return time.Sleep }
 
+// resolveFormat binds the real OS to Output Format Selection's resolver (020): it
+// derives the working and home directories and delegates to
+// output.ResolveFormatFromOS, which binds os.Getenv and the internal/rcfile walk
+// over the output key. A working directory that cannot be determined errors; a home
+// directory that cannot be determined simply drops the home fallback (the
+// ResolveBaseURLFromOS shape). Tests bind a fake over hand-built sources, so no
+// suite reads the real ~/.glassfrogrc.
+func (productionSeam) resolveFormat(flagValue string) (output.OutputFormat, error) {
+	startDir, err := os.Getwd()
+	if err != nil {
+		return output.DefaultFormat, fmt.Errorf("could not determine the working directory: %w", err)
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "" // no home → skip the home fallback rather than fail
+	}
+	return output.ResolveFormatFromOS(flagValue, startDir, homeDir)
+}
+
 // meConfig carries everything runMe needs, gathered by the command's RunE.
 // Keeping runMe a function of injected values (not the seam alone) makes the
 // whole read — validate, assemble, build, send, render/classify — testable over
 // a fake transport with no real network or ~/.glassfrogrc.
 type meConfig struct {
-	seam    meSeam
-	baseURL string   // the persistent --base-url flag value (may be empty)
-	include []string // the raw --include targets, validated before any request
-	reqCtx  context.Context
-	stdout  io.Writer
-	stderr  io.Writer
+	seam       meSeam
+	baseURL    string   // the persistent --base-url flag value (may be empty)
+	outputFlag string   // the persistent --output flag value (may be empty), resolved before any request
+	include    []string // the raw --include targets, validated before any request
+	reqCtx     context.Context
+	stdout     io.Writer
+	stderr     io.Writer
 }
 
 // runMe is the pure orchestration the command delegates to (ADR-5): validate the
@@ -85,7 +115,17 @@ type meConfig struct {
 // no classification of its own (ADR-5); now that API Error Extraction (015) has
 // landed, the shared classifyClientError maps that surfaced 429 to RateLimited(5).
 func runMe(cfg meConfig) (Outcome, error) {
-	// 1. Validate --include BEFORE any assembly or request (fail-fast usage
+	// 1. Resolve the output format FIRST (020, ADR-4): a present-but-invalid
+	//    --output/GLASSFROG_OUTPUT/.glassfrogrc output value fails fast as a usage
+	//    error before any assembly or request — no wasted call (the validateInclude
+	//    fail-fast shape, pinned by a tripwire transport). Resolution is independent
+	//    of connection assembly (009).
+	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
+	if ferr != nil {
+		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
+	// 2. Validate --include BEFORE any assembly or request (fail-fast usage
 	//    error, no wasted call — pinned by a tripwire transport in the tests).
 	if err := validateInclude(cfg.include); err != nil {
 		fmt.Fprintln(cfg.stderr, err.Error())
@@ -93,7 +133,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 	}
 	includeRoles := wantsInclude(cfg.include, "roles")
 
-	// 2. Resolve the connection and build the client once. A base-URL error
+	// 3. Resolve the connection and build the client once. A base-URL error
 	//    surfaces here (no doomed send); classify + report it.
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
@@ -101,32 +141,33 @@ func runMe(cfg meConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 3. Send GET /me through the retry executor (017), decoding the 2xx body into
-	//    the projection target. include=roles is added only when requested. The
-	//    executor wraps the client once with the default policy, the injected sleep
-	//    seam, and the command's stderr as the secret-free progress sink; a transient
-	//    429 is ridden out within bounded caps. A capped-out 429 surfaces unchanged;
-	//    017 adds no classification (ADR-5) — 015's classifyClientError now maps it
-	//    to RateLimited(5).
+	// 4. Build GET /me and the 017 retry executor, then dispatch on the resolved
+	//    format (020 ADR-3): the dispatch picks the decode target (raw bytes for
+	//    json/yaml, the typed projection for full/compact) and the renderer, sends
+	//    through the executor, and writes to stdout. include=roles is added only when
+	//    requested. A transient 429 is ridden out within bounded caps; a capped-out
+	//    429 surfaces unchanged (017 ADR-5) and 015's classifyClientError maps it to
+	//    RateLimited(5). The seam renders only response-side fields, so the token
+	//    never appears. me carries no incompleteness signal, so no note.
 	req := apiclient.Request{Method: http.MethodGet, Path: "/me"}
 	if includeRoles {
 		req.Query = url.Values{"include": []string{"roles"}}
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
-	var me glassfrog.MeResponse
-	if _, err := exec.Execute(cfg.reqCtx, req, &me); err != nil {
-		return reportClientError(cfg.stderr, err)
-	}
+	return renderResult[glassfrog.MeResponse](cfg.stdout, cfg.stderr, format, render.ResourceMe, exec, cfg.reqCtx, req, nil)
+}
 
-	// 4. Render the result to human text through the shared rendering seam (019),
-	//    with the standing full format (the only format reachable until 020 wires
-	//    --output). The render is buffered: a built-in-template defect writes
-	//    nothing to stdout and maps to RuntimeError(1). The seam renders only
-	//    response-side fields, so the token never appears. The roles section is
-	//    surfaced only when the response carried roles — which the API populates
-	//    just for ?include=roles — so the full template's len(.Roles) guard is
-	//    field-equivalent to the pre-019 "includeRoles AND present" projection.
-	return renderResult(cfg.stdout, cfg.stderr, render.ResourceMe, me)
+// reportFormatResolutionError writes a resolved-format failure (an invalid selector
+// *output.FormatError, or an unreadable/malformed .glassfrogrc surfaced while
+// reading the output key) to stderr and returns the paired Outcome from the shared
+// classifier — both UsageError(2). The message is the error's own text (a
+// FormatError names the source + value with the supported list; an rcfile error
+// names the file), NOT routed through formatClientErrorMessage, whose base-URL
+// wording would misdescribe an output-key rcfile error. Category and message derive
+// from the same value (the classifyClientError contract).
+func reportFormatResolutionError(stderr io.Writer, err error) (Outcome, error) {
+	fmt.Fprintln(stderr, err.Error())
+	return classifyClientError(err), err
 }
 
 // validateInclude rejects unsupported --include targets against the spec's
@@ -339,13 +380,19 @@ func newMeCommand(seam meSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
 				return err
 			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
 			outcome, oerr := runMe(meConfig{
-				seam:    seam,
-				baseURL: baseURL,
-				include: include,
-				reqCtx:  cmd.Context(),
-				stdout:  cmd.OutOrStdout(),
-				stderr:  cmd.ErrOrStderr(),
+				seam:       seam,
+				baseURL:    baseURL,
+				outputFlag: outputFlag,
+				include:    include,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},
