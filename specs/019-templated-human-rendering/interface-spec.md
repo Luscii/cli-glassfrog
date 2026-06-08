@@ -67,9 +67,9 @@ bad key:  render.Render(render.ResourceMe, render.Format("verbose"), meResp)
 
 **Data-fidelity guards (CONSTITUTION — present only API data)**: realized in template text + the `FuncMap`, not by a view-model layer (ADR-3):
 - **ids always present** — the template writes the id line unconditionally.
-- **omit an absent field** — `{{if .Field}}…{{end}}`; an absent field is omitted, never rendered as empty / `<no value>` / a dash.
-- **explicit empty set** — when the result's record collection is empty, the template emits the per-command empty line (`no roles` / `no actions` / `no projects`) instead of nothing or a fabricated row.
-- **compact counts a nested collection** — a `len`-based helper renders `roles: <N>` on the record's line rather than enumerating, which `full` does.
+- **absent/blank field** — `{{if .X}}…{{else}}<marker>{{end}}` renders the landed explicit-absence marker (`—`, `(none)`, `(no purpose set)`, `(no role)`), except `me`'s empty roles section, which is omitted as its landed projection does; a missing key never renders as empty / `<no value>`, and no *data value* the API didn't return is invented.
+- **explicit empty set** — when the result's record collection is empty, the template emits the per-command empty line, inherited verbatim from the landed projections (`No roles.` / `No actions.` / `no projects` — see interface-cli.md), instead of nothing or a fabricated row.
+- **compact counts a nested collection** — a `len`-based helper renders `roles=<N>` on the record's line rather than enumerating, which `full` does.
 - **never fabricate** — no template emits a literal default for missing data; `missingkey=error` backstops typos by failing loud.
 
 **Extension seam (020 / 029)**: 020 selects a built-in `Format` by name and removes the hardcoded `FormatFull` at the call sites — no `render` change needed. 029 will register a caller-supplied template (parsed into a clone of the built-in set, executed by the same engine) — so no second rendering path is introduced. 019 ships only the two built-ins and exposes no registration API yet.

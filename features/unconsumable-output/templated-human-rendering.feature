@@ -40,7 +40,7 @@ Feature: Unconsumable Output — Templated Human Rendering
       Given a built-in template that fails to execute for a "me" result
       When the command renders the result
       Then nothing will be written to stdout
-      And the command will exit with the internal-error code
+      And the command will exit with code 1
 
   Rule: Scan a long list with one line per record
     # In order to scan a long list of records quickly,

@@ -30,14 +30,14 @@ Today each shipped read (`me`, `my roles`, `my actions`, `my projects`) prints a
 ### Compact template
 
 - When result data is rendered with `compact`, the output is a condensed, scan-friendly view: the essential identifying fields, one line per record, denser than `full`.
-- When `compact` renders an embedded collection (e.g. the roles from `me --include roles`), it shows the member *count* on the record's line (e.g. `roles: 3`) rather than enumerating each member, so the record stays a single line.
+- When `compact` renders an embedded collection (e.g. the roles from `me --include roles`), it shows the member *count* on the record's line (e.g. `roles=3`) rather than enumerating each member, so the record stays a single line.
 - The id values are still surfaced under `compact` — density reduces field count, never the actionable handle.
 
 ### Empty and absent data
 
-- When a read returns an empty result set (zero records), both templates emit an explicit, per-command empty line (e.g. `no roles`, `no actions`, `no projects`) rather than printing nothing or a fabricated record — a successful-but-empty read must be legible, distinct from a failure.
+- When a read returns an empty result set (zero records), both templates emit an explicit, per-command empty line — `No roles.` / `No actions.` / `no projects`, inherited verbatim from the landed projections (interface-cli.md is authoritative for the exact strings) — rather than printing nothing or a fabricated record; a successful-but-empty read must be legible, distinct from a failure.
 - When a field's value is absent or blank, a template may render an explicit absence marker that signals the field is empty (e.g. `—`, `(none)`, `(no purpose set)`, `(no role)`) — each `full` template preserves the absence markers of its landed projection. The constraint is narrower: a template must never fabricate a *data value the API did not return* (an invented id, name, status, or real field value). An explicit emptiness marker reports absence; it does not invent data.
-- When an embedded collection is empty, each `full` template handles it as its landed projection does — `me` omits the roles section, while `roles` renders the section header with `(none)`; `compact` renders the count (e.g. `roles: 0`) on the record's line.
+- When an embedded collection is empty, each `full` template handles it as its landed projection does — `me` omits the roles section, while `roles` renders the section header with `(none)`; `compact` renders the count (e.g. `roles=0`) on the record's line.
 
 ---
 
@@ -124,7 +124,7 @@ And it prints neither nothing nor a fabricated row.
 **Scenario: compact counts a nested collection that full expands**
 Given a successful `me --include roles` read carrying three roles
 When the result is rendered with `compact`
-Then the nested role collection is shown as a count (`roles: 3`) on the actor's line rather than enumerated as `full` does
+Then the nested role collection is shown as a count (`roles=3`) on the actor's line rather than enumerated as `full` does
 And the rendering still surfaces the actor's id.
 
 ---
@@ -154,7 +154,7 @@ Then both account for exactly the same records — neither drops nor adds a reco
 
 - **Standing template until 020**: Until Output Format Selection lands, the reads render `full` as their standing output, preserving today's projection; `compact` is built and unit-verified through the seam but not reachable from the CLI. (Confirmed during clarification — 020 owns selection and the default, so this feature must not introduce a flag or other selection surface.)
 - **Per-result-type templates**: The seam is a shared rendering interface, but `full`/`compact` are realized per result type (each read's result has its own pair) rather than as one universal template over all results. (Each shipped read already has its own distinct projection.)
-- **Empty-line wording follows the command noun**: The explicit empty line uses the read's own noun (`no roles`, `no actions`, `no projects`); the exact phrasing is a presentation detail the renderer owns. (Confirmed during clarification — same line under both templates.)
+- **Empty-line wording follows the command noun**: The explicit empty line uses the read's own noun, inherited verbatim from the landed projections — `No roles.` / `No actions.` / `no projects` (interface-cli.md is authoritative for the exact strings). (Confirmed during clarification — same line under both templates.)
 
 ---
 
@@ -169,8 +169,8 @@ None — all warnings raised during specification were resolved during clarifica
 ### Session 2026-06-07
 
 - **Interim reachability of `compact`**: `compact` is built and verified through the seam but is not exposed through any operator-facing mechanism in this feature — the standing CLI output stays `full`, and `compact` becomes selectable only when 020 wires the `--output` flag. Added a non-behavior forbidding an interim selection surface and made the System Overview boundary definite.
-- **Empty top-level result**: A zero-record read emits an explicit per-command empty line (e.g. `no roles`) under both templates, rather than printing nothing or a fabricated row, so a successful-but-empty read is legible and distinct from a failure. Added an "Empty and absent data" accord group and sharpened the empty-result edge-case scenario.
-- **Compact rendering of nested collections**: Under `compact`, an embedded collection (e.g. `me --include roles`) is rendered as a member count on the record's line (`roles: 3`) rather than enumerated, preserving the one-line-per-record contract; `full` continues to enumerate. Added the rule to the Compact-template accord and updated the corresponding edge-case scenario.
+- **Empty top-level result**: A zero-record read emits an explicit per-command empty line (e.g. `No roles.`, inherited verbatim — interface-cli.md authoritative) under both templates, rather than printing nothing or a fabricated row, so a successful-but-empty read is legible and distinct from a failure. Added an "Empty and absent data" accord group and sharpened the empty-result edge-case scenario.
+- **Compact rendering of nested collections**: Under `compact`, an embedded collection (e.g. `me --include roles`) is rendered as a member count on the record's line (`roles=3`) rather than enumerated, preserving the one-line-per-record contract; `full` continues to enumerate. Added the rule to the Compact-template accord and updated the corresponding edge-case scenario.
 
 ### Session 2026-06-08 (post-shape)
 
