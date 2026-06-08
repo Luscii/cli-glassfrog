@@ -19,3 +19,4 @@
 | 015-api-error-extraction | Complete | validate | 2026-06-07T20:05:00 |
 | 016-pagination | Complete | validate | 2026-06-07T19:45:00 |
 | 017-rate-limit-handling | Complete | validate | 2026-06-07T18:45:00 |
+| 018-structured-serialization | Analyzed | analyze | 2026-06-08T12:40:00 |
