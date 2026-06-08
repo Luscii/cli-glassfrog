@@ -1,17 +1,26 @@
-# GoReleaser build configuration for glassfrog (spec 021 — Self-Contained
-# Executable Build). This file is the single source of build truth that a
-# maintainer and (later, 022) CI both invoke, so the binaries cannot diverge.
+# GoReleaser configuration for glassfrog. This file is the single source of
+# build truth that a maintainer and CI both invoke, so the binaries cannot
+# diverge.
 #
-# Scope of 021: the `builds` block only. Archives, checksums, the GitHub
-# release, and the Homebrew cask are owned by 022 (Automated Release Pipeline)
-# and are deliberately absent — 022 extends this file additively rather than
-# introducing a parallel build path.
+# Ownership (additive, by spec):
+#   - 021 Self-Contained Executable Build owns the `builds` block (four targets,
+#     CGO_ENABLED=0). `builds.ldflags` is left as 023's version-injection seam.
+#   - 022 Automated Release Pipeline owns the `archives`, `checksum`, and
+#     `release` sections below — extending this file rather than introducing a
+#     parallel packaging path.
+#   - #36 Homebrew Tap will later add a `brew` section to this same file.
+# 022 must not re-decide `builds`/`ldflags`; the config-guard (internal/build)
+# pins both the matrix and the new sections against drift.
 #
 # Invocations:
-#   goreleaser build --snapshot --clean                  # full four-target matrix → dist/
-#   goreleaser build --snapshot --clean --single-target  # host platform only — the local dev build
-# --snapshot builds without a git tag; both invocations apply this same config,
-# so a local host binary and the matrix binary for that target are identical.
+#   goreleaser build   --snapshot --clean                  # four-target matrix → dist/
+#   goreleaser build   --snapshot --clean --single-target  # host platform only — local dev build
+#   goreleaser release --snapshot --clean --skip=publish   # build + archive + checksum → dist/ (no upload)
+#   goreleaser release --clean --skip=publish              # CI build at the release tag (no upload)
+# --snapshot builds without a git tag; every invocation applies this same
+# config, so a local host binary and the matrix binary for that target are
+# identical. Publishing is done by the workflow's `gh release upload` step, not
+# by `goreleaser release` (see .github/workflows/release.yml).
 
 version: 2
 project_name: glassfrog
@@ -42,3 +51,32 @@ builds:
     # 021 ships no version logic.
     ldflags:
       - ""
+
+# --- 022 Automated Release Pipeline: packaging + release sections ------------
+
+# One tar.gz per build target. The name template carries tool/version/OS/arch
+# so the four archives are unambiguous and downstream consumers (#27 install
+# script, #36 Homebrew, #37 npm) can predict the asset names. {{ .Version }} is
+# the tag without the leading `v` (e.g. tag v1.4.0 → glassfrog_1.4.0_darwin_arm64).
+archives:
+  - id: glassfrog
+    ids:
+      - glassfrog
+    formats:
+      - tar.gz
+    name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+# A single sha256 checksums file over every archive — the integrity mechanism
+# (no signing/notarization). One line per archive.
+checksum:
+  algorithm: sha256
+  name_template: "glassfrog_{{ .Version }}_checksums.txt"
+
+# Defensive default for any direct `goreleaser release`: never replace an
+# existing release's body or flip its status. The canonical workflow does NOT
+# publish through GoReleaser (it uses `gh release upload --clobber`), so this
+# section only governs ad-hoc local/manual `goreleaser release` runs — keeping
+# them from clobbering #30's notes or the publisher's pre-release/latest choice.
+release:
+  mode: keep-existing
+  draft: false

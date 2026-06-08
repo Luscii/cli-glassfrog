@@ -26,7 +26,7 @@ The `base` branch is cut from a main that now contains 021 (the `.goreleaser.yam
 
 ## Phase 1: Release Configuration [Shared]
 
-- [ ] **T001** [Shared] Extend `.goreleaser.yaml` with `archives`, `checksum`, and `release` sections (plus config-guard test)
+- [x] **T001** [Shared] Extend `.goreleaser.yaml` with `archives`, `checksum`, and `release` sections (plus config-guard test) — snapshot emits 4 tar.gz + checksums; `builds`/`ldflags` byte-identical; 8 new config-guard drift cases. Both scenario refs are `@validation`, held @wip for /score:validate.
   - **Scope**: Add to 021's `.goreleaser.yaml` (do **not** touch `builds` or `builds.ldflags`): an `archives` entry (one `tar.gz` per target, name template `glassfrog_{{.Version}}_{{.Os}}_{{.Arch}}`, containing the `glassfrog` binary); a `checksum` entry (single sha256 file, default name `glassfrog_{{.Version}}_checksums.txt`); and a `release` entry with `mode: keep-existing`, `draft: false`, no `prerelease`/`make_latest` override. Extend 021's config-guard (`internal/build` — `CheckConfigGuard`, in `internal/build/config_guard_test.go`; same change-detector rigor) to assert the three new sections are present and the build matrix is still exactly the four targets with `CGO_ENABLED=0`.
   - **Acceptance criteria**:
     - `goreleaser release --snapshot --clean --skip=publish` emits exactly four `tar.gz` archives (one per target) plus one sha256 checksums file under `dist/`, named per the templates above.
