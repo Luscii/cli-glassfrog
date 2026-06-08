@@ -66,7 +66,7 @@ The defining constraint is fidelity. Fork B (spec) requires the **raw API payloa
 
 **Options considered**:
 1. **`sigs.k8s.io/yaml`** — exposes `JSONToYAML([]byte) ([]byte, error)`, converting the raw JSON bytes directly to YAML; preserves every field and avoids float64 precision loss, and makes YAML a faithful transform of the JSON. Pulls `gopkg.in/yaml.v2` transitively.
-2. **`gopkg.in/yaml.v3`** — one idiomatic direct dependency, but raw fidelity requires decoding JSON→`any` with `json.Number` and hand-handling number/`any` encoding — more code and a precision-edge risk.
+2. **`gopkg.in/yaml.v3`** — one idiomatic direct dependency, but raw fidelity requires decoding JSON→`any` with `json.Number` and manually handling number/`any` encoding — more code and a precision-edge risk.
 3. **Hand-roll YAML** — no dependency, but correct YAML emission (quoting, special characters, multiline) is genuinely hard; high defect risk. Rejected.
 
 **Decision**: Option 1 (`sigs.k8s.io/yaml`), approved by the developer. `JSONToYAML` keeps YAML a byte-faithful transform of the raw JSON.
@@ -75,7 +75,7 @@ The defining constraint is fidelity. Fork B (spec) requires the **raw API payloa
 
 ### ADR-4: The unified error envelope; `kind` reuses the `classifyClientError` taxonomy — no *build* dependency on 015
 
-**Context**: Clarify resolved that failures render as one **unified error envelope** that 018 defines, in the active format, including for bodiless failures (transport, fail-safe refusal). API Error Extraction (015) has since **landed (#44)**: it added the typed `*ProblemError` (wrapping `*ResponseError`) and widened `classifyClientError` to split non-2xx by status — `Outcome` is now Success / UsageError / RuntimeError / NetworkUnavailable / APIError plus **PermissionError (401/403→4)** and **RateLimited (429→5)**. `*ResponseError` still carries `StatusCode` + raw `Body`, and `Execute(out any)` is unchanged. The question is whether 018's envelope should *own its shape* or be coupled to 015's classified-error type.
+**Context**: Clarify resolved that failures render as one **unified error envelope** that 018 defines, in the active format, including for bodiless failures (transport, fail-safe refusal). API Error Extraction (015) has since **landed**: it added the typed `*ProblemError` (wrapping `*ResponseError`) and widened `classifyClientError` to split non-2xx by status — `Outcome` is now Success / UsageError / RuntimeError / NetworkUnavailable / APIError plus **PermissionError (401/403→4)** and **RateLimited (429→5)**. `*ResponseError` still carries `StatusCode` + raw `Body`, and `Execute(out any)` is unchanged. The question is whether 018's envelope should *own its shape* or be coupled to 015's classified-error type.
 
 **Options considered**:
 1. **Define the envelope shape in 018; populate it from the classifier taxonomy + `*ProblemError` detail at the consuming boundary** — 018 owns a stable shape independent of 015's internal types; `kind` aligns with the exit-code taxonomy the agent already sees.
@@ -104,7 +104,7 @@ Number fidelity: both render paths operate on bytes (`JSONToYAML`, stdlib JSON n
 
 - **Output Format Selection (020 — downstream dependent)**: selects the active `Format`, chooses the decode target (`json.RawMessage` when structured, the typed struct for human output), routes success and error through `internal/output`, and owns the invalid-selector bootstrap (e.g. `--output=xml`). Import direction `cli → output`.
 - **Templated Human Rendering (019 — parallel sibling)**: extends `internal/output` with template rendering over the typed projection. Parallel branch; neither depends on the other.
-- **API Error Extraction (015 — landed composition boundary, #44)**: supplies the widened `Outcome` taxonomy (`permission`/`rate-limit`) and the `*ProblemError` detail the (020-owned) mapping carries into the envelope's `body`/`message`; the envelope shape (ADR-4) does not change. No build dependency either direction (`internal/output` does not import `internal/apiclient`).
+- **API Error Extraction (015 — landed composition boundary)**: supplies the widened `Outcome` taxonomy (`permission`/`rate-limit`) and the `*ProblemError` detail the (020-owned) mapping carries into the envelope's `body`/`message`; the envelope shape (ADR-4) does not change. No build dependency either direction (`internal/output` does not import `internal/apiclient`).
 - **Request Execution (010 — upstream, unchanged)**: `Execute` already accepts `json.RawMessage` as `out` (raw 2xx capture) and already surfaces the raw error `Body` on `*ResponseError`. No change to 010.
 - **`internal/cli` error taxonomy (011/002/004)**: the typed-error→envelope mapping reuses `classifyClientError`'s `errors.As` chain rather than reimplementing discrimination.
 - **`sigs.k8s.io/yaml`**: the YAML encoder (`JSONToYAML`); `encoding/json` is the JSON encoder/normalizer.

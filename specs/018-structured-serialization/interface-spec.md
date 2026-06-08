@@ -71,7 +71,7 @@ doc, rerr := output.RenderError(format, env)
 
 Two distinct failure surfaces:
 
-**1. The serialized error envelope** (the external contract for a *command's* failure). `Kind` is the lowercased taxonomy term, derived from `classifyClientError`'s `Outcome` — which **API Error Extraction (015, landed in #44)** widened from the original five categories by splitting non-2xx on status:
+**1. The serialized error envelope** (the external contract for a *command's* failure). `Kind` is the lowercased taxonomy term, derived from `classifyClientError`'s `Outcome` — which **API Error Extraction (015, landed)** widened from the original five categories by splitting non-2xx on status:
 
 | Originating typed error | `Outcome` | Envelope `kind` | `status` / `body` |
 |---|---|---|---|
