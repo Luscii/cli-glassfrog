@@ -71,7 +71,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `roles` full
   - **Scenario references**: templated-human-rendering.feature: "Compact renders one line per role" (compact verified in T001); "Full is field-equivalent to the pre-feature projection"
 
-- [ ] **T004** [Shared] [P] Rewire `me actions` to render via `render.Render(ResourceActions, FormatFull, …)`; delete `formatMeActions`
+- [x] **T004** [Shared] [P] Rewire `me actions` to render via `render.Render(ResourceActions, FormatFull, …)`; delete `formatMeActions` — me-actions godog suite stays green (populated + No actions. + more-available note); formatMeActions + its 3 pure tests removed
   - **Scope**: In `internal/cli/me_actions.go`, replace `formatMeActions(resp)` + write with `render.Render(render.ResourceActions, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeActions` and its pure unit tests (superseded by T001's `actions` golden).
   - **Acceptance criteria**:
     - `me actions` stdout is unchanged from pre-019 (populated and empty `No actions.` cases) — the `me_actions_bdd_test.go` godog suite stays green.

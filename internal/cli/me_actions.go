@@ -10,6 +10,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
 
@@ -71,11 +72,17 @@ func runMeActions(cfg meActionsConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 4. Render the reshaped projection to stdout (never the token). When the API
-	//    reports more actions than this page carried, write the more-available
-	//    note to stderr so the partial list is never read as complete — still
-	//    exit 0. The next page is signalled, never fetched (Pagination 016).
-	fmt.Fprint(cfg.stdout, formatMeActions(resp))
+	// 4. Render the result to human text through the shared rendering seam (019),
+	//    with the standing full format (the only format reachable until 020). The
+	//    render is buffered: a built-in-template defect writes nothing to stdout and
+	//    maps to RuntimeError(1); the seam renders only response-side fields, so the
+	//    token never appears. When the API reports more actions than this page
+	//    carried, write the more-available note to stderr so the partial list is
+	//    never read as complete — still exit 0. The next page is signalled, never
+	//    fetched (Pagination 016).
+	if outcome, err := renderResult(cfg.stdout, cfg.stderr, render.ResourceActions, resp); outcome != Success {
+		return outcome, err
+	}
 	if incompleteActions(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteActionsNote)
 	}
@@ -128,42 +135,6 @@ func newMeActionsCommand(seam meSeam) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&status, "status", "", "Filter by action status (one of: "+strings.Join(supportedStatusNames(), ", ")+")")
 	return cmd
-}
-
-// formatMeActions renders the reshaped `glassfrog me actions` projection (never
-// raw JSON; --output json is the deferred Unconsumable Output capability). It is
-// pure (MyActionsResponse → string) and surfaces only response-side fields, so
-// the token never appears. One entry per action, in the order the API returned
-// them; the id is always present (the machine-actionable handle). The layout:
-//
-//	<actn_…>  [<status>]  <description>      // description → — when null/empty
-//	  role: <role_…>   tags: <t1>, <t2>      // tags clause only when the action has tags
-//
-// An empty list is the valid "you own no matching actions" answer and renders
-// exactly `No actions.` (interface-cli). The more-available signal is the
-// command's concern (stderr, 012's convention) and never appears in this body —
-// the action's permissions, timestamps, and other fields are never rendered (spec
-// Non-Behaviors).
-func formatMeActions(resp glassfrog.MyActionsResponse) string {
-	if len(resp.Data) == 0 {
-		return "No actions.\n"
-	}
-
-	var b strings.Builder
-	for _, a := range resp.Data {
-		description := strings.TrimSpace(a.Description)
-		if description == "" {
-			description = "—"
-		}
-		fmt.Fprintf(&b, "%s  [%s]  %s\n", a.ID, a.Status, description)
-
-		line := fmt.Sprintf("  role: %s", a.RoleID)
-		if len(a.Tags) > 0 {
-			line += "   tags: " + strings.Join(a.Tags, ", ")
-		}
-		fmt.Fprintf(&b, "%s\n", line)
-	}
-	return b.String()
 }
 
 // incompleteActions reports whether the API signalled that more actions exist
