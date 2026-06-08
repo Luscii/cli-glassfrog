@@ -82,7 +82,7 @@ Phase 2: Rewire the four reads to render through the seam with `full` (4 tasks, 
   - **Interface references**: interface-cli.md — `actions` full
   - **Scenario references**: templated-human-rendering.feature: "Failed read is not rendered through a template", "Full and compact cover the same records"
 
-- [ ] **T005** [Shared] [P] Rewire `me projects` to render via `render.Render(ResourceProjects, FormatFull, …)`; delete `formatMeProjects`
+- [x] **T005** [Shared] [P] Rewire `me projects` to render via `render.Render(ResourceProjects, FormatFull, …)`; delete `formatMeProjects` — me-projects godog suite stays green (populated + no-role marker + no projects + more-available note); formatMeProjects + yesNo + its 4 pure tests removed; noRoleMarker const retained (still referenced by the BDD + runMeProjects branch tests)
   - **Scope**: In `internal/cli/me_projects.go`, replace `formatMeProjects(resp)` + write with `render.Render(render.ResourceProjects, render.FormatFull, resp)` → buffer → stdout, mapping a render error to `RuntimeError(1)`. Remove `formatMeProjects` and its pure unit tests (superseded by T001's `projects` golden); remove now-unused helpers (`yesNo`, `noRoleMarker`) **only if** no other command still references them.
   - **Acceptance criteria**:
     - `me projects` stdout is unchanged from pre-019 (populated and empty `no projects` cases) — the `me_projects_bdd_test.go` godog suite stays green.

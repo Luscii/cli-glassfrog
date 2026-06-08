@@ -10,6 +10,7 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
 
@@ -80,11 +81,17 @@ func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 		return reportClientError(cfg.stderr, err)
 	}
 
-	// 4. Render the reshaped projection to stdout (never the token). When the API
-	//    reports more projects than this page carried, write the more-available
-	//    note to stderr so the partial list is never read as complete — still
-	//    exit 0. The next page is signalled, never fetched (Pagination 016).
-	fmt.Fprint(cfg.stdout, formatMeProjects(resp))
+	// 4. Render the result to human text through the shared rendering seam (019),
+	//    with the standing full format (the only format reachable until 020). The
+	//    render is buffered: a built-in-template defect writes nothing to stdout and
+	//    maps to RuntimeError(1); the seam renders only response-side fields, so the
+	//    token never appears. When the API reports more projects than this page
+	//    carried, write the more-available note to stderr so the partial list is
+	//    never read as complete — still exit 0. The next page is signalled, never
+	//    fetched (Pagination 016).
+	if outcome, err := renderResult(cfg.stdout, cfg.stderr, render.ResourceProjects, resp); outcome != Success {
+		return outcome, err
+	}
 	if incompleteProjects(resp) {
 		fmt.Fprintln(cfg.stderr, incompleteProjectsNote)
 	}
@@ -140,56 +147,6 @@ func newMeProjectsCommand(seam meSeam) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&status, "status", "", "Filter by project status (one of: "+strings.Join(supportedStatusNames(), ", ")+")")
 	return cmd
-}
-
-// formatMeProjects renders the reshaped `glassfrog me projects` projection (never
-// raw JSON; --output json is the deferred Unconsumable Output capability). It is
-// pure (MyProjectsResponse → string) and surfaces only response-side fields, so
-// the token never appears. One entry per project, in the order the API returned
-// them; the id is always present (the machine-actionable handle). The layout:
-//
-//	<proj_…>  [<status>]  <description>                              // description → — when null/empty
-//	  role: <role_… or —>   sub-projects: yes|no   actions: yes|no   tags: <t1>, <t2>
-//
-// A null role_id (a non-role-owned project) renders the explicit no-role marker
-// in the role slot rather than a blank. An empty list is the valid "you own no
-// matching projects" answer and renders exactly `no projects` (interface-cli).
-// The more-available signal is the command's concern (stderr, 012's convention)
-// and never appears in this body — the project's timestamps, link, note, and
-// other fields are never rendered (spec Non-Behaviors).
-func formatMeProjects(resp glassfrog.MyProjectsResponse) string {
-	if len(resp.Data) == 0 {
-		return "no projects\n"
-	}
-
-	var b strings.Builder
-	for _, p := range resp.Data {
-		description := strings.TrimSpace(p.Description)
-		if description == "" {
-			description = "—"
-		}
-		fmt.Fprintf(&b, "%s  [%s]  %s\n", p.ID, p.Status, description)
-
-		role := p.RoleID
-		if strings.TrimSpace(role) == "" {
-			role = noRoleMarker
-		}
-		line := fmt.Sprintf("  role: %s   sub-projects: %s   actions: %s", role, yesNo(p.HasSubProjects), yesNo(p.HasActions))
-		if len(p.Tags) > 0 {
-			line += "   tags: " + strings.Join(p.Tags, ", ")
-		}
-		fmt.Fprintf(&b, "%s\n", line)
-	}
-	return b.String()
-}
-
-// yesNo renders a presence-signal boolean (has_sub_projects / has_actions) as the
-// reader-facing yes/no the projection shows.
-func yesNo(v bool) string {
-	if v {
-		return "yes"
-	}
-	return "no"
 }
 
 // incompleteProjects reports whether the API signalled that more projects exist

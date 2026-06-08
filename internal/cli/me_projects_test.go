@@ -9,7 +9,6 @@ import (
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/auth"
-	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/spf13/cobra"
 )
 
@@ -78,73 +77,14 @@ func runMeProjectsOver(t *testing.T, seam meSeam, status string) (Outcome, strin
 	return outcome, out.String(), errb.String()
 }
 
-// --- formatMeProjects (pure) ---------------------------------------------
-
-func TestFormatMeProjects_RendersFieldsPerProject(t *testing.T) {
-	resp := glassfrog.MyProjectsResponse{
-		Data: []glassfrog.Project{
-			{ID: "proj_aaa", Status: "current", Description: "Rebuild onboarding flow", RoleID: "role_aaa", HasSubProjects: true, HasActions: true, Tags: []string{"marketing", "q2"}},
-			{ID: "proj_bbb", Status: "scheduled", Description: "", RoleID: "role_bbb"},
-		},
-	}
-	out := formatMeProjects(resp)
-	for _, want := range []string{
-		"proj_aaa", "current", "Rebuild onboarding flow", "role_aaa", "marketing", "q2",
-		"proj_bbb", "scheduled", "role_bbb",
-		"sub-projects: yes", "actions: yes", "sub-projects: no", "actions: no",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("projection missing %q:\n%s", want, out)
-		}
-	}
-	// A null/empty description renders the em-dash placeholder, never blank.
-	if !strings.Contains(out, "—") {
-		t.Errorf("a null description should render the em-dash placeholder:\n%s", out)
-	}
-}
-
-// A null role_id (a non-role-owned project) renders the explicit no-role marker
-// in the role slot, while still surfacing the project's id/status/description.
-func TestFormatMeProjects_NullRoleRendersNoRoleMarker(t *testing.T) {
-	resp := glassfrog.MyProjectsResponse{
-		Data: []glassfrog.Project{
-			{ID: "proj_ccc", Status: "current", Description: "Personal spike", RoleID: ""},
-		},
-	}
-	out := formatMeProjects(resp)
-	if !strings.Contains(out, "role: "+noRoleMarker) {
-		t.Errorf("a null role_id should render the no-role marker %q in the role slot:\n%s", noRoleMarker, out)
-	}
-	for _, want := range []string{"proj_ccc", "current", "Personal spike"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("a no-role project should still surface %q:\n%s", want, out)
-		}
-	}
-}
-
-// An empty list is the valid "you own no matching projects" answer and renders an
-// explicit empty-result line, not nothing.
-func TestFormatMeProjects_EmptyListRendersExplicitLine(t *testing.T) {
-	out := formatMeProjects(glassfrog.MyProjectsResponse{})
-	if strings.TrimSpace(out) == "" {
-		t.Error("an empty list should render an explicit line, got blank output")
-	}
-	if strings.TrimRight(out, "\n") != "no projects" {
-		t.Errorf("an empty list should render exactly `no projects`, got %q", out)
-	}
-}
-
-// formatMeProjects renders only the projection; the more-available signal is the
-// command's concern (stderr), so it must not leak into the projection body.
-func TestFormatMeProjects_NoSignalInProjectionBody(t *testing.T) {
-	resp := glassfrog.MyProjectsResponse{
-		Data: []glassfrog.Project{{ID: "proj_aaa", Status: "current", Description: "x", RoleID: "role_aaa"}},
-	}
-	resp.Meta.Pagination.HasNextPage = true
-	if strings.Contains(formatMeProjects(resp), "more projects") {
-		t.Errorf("the more-available signal must not appear in the projection body:\n%s", formatMeProjects(resp))
-	}
-}
+// The `me projects` full projection is now rendered through internal/render (019);
+// its byte-equivalence with the pre-019 formatMeProjects output (two lines per
+// project, the — description fallback, the no-role marker, sub-projects/actions
+// yes|no, the optional tags clause, the no projects empty line) is pinned by that
+// package's goldens (TestRender_ProjectsFull_Golden,
+// TestRender_EmptyResultSets_ExplicitLine). The end-to-end success path — the
+// no-role marker and that the more-available signal rides stderr, never the body —
+// stays covered by the runMeProjects branches and the me-projects BDD suite.
 
 // --- runMeProjects branches ----------------------------------------------
 
