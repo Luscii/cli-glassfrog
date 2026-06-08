@@ -168,7 +168,7 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The ship mechanism (publish a release → build → attach binaries + checksums); gates every acquisition channel, so it follows the build and precedes the install paths. Triggered by a published release — normally drafted by Release Drafting, but a hand-published release works too — so the dependency on Release Drafting is soft, and the Must-tier ranking ahead of Should-tier Release Drafting is unchanged.
-- **Dependencies**: → requires: Self-Contained Executable Build; → requires: Release Drafting
+- **Dependencies**: → requires: Self-Contained Executable Build
 - **Status**: specified:022-automated-release-pipeline
 
 ### 23. Version Embedding
