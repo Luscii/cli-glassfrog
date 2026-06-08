@@ -57,7 +57,7 @@ The `base` branch is cut from a main that now contains 021 (the `.goreleaser.yam
 
 ## Phase 3: Cross-Target Verification Gate [US1]
 
-- [ ] **T003** [US1] Insert the cross-target self-containment verify matrix as a blocking gate before publish
+- [x] **T003** [US1] Insert the cross-target self-containment verify matrix as a blocking gate before publish — verify job (4 targets → ubuntu-latest/ubuntu-24.04-arm/macos-13/macos-14) runs TestSelfContainment_HostBinary against dist; publish now needs [build, verify]; QEMU fallback documented in the workflow. 1 scenario un-@wip'd; CheckVerifyGate guard + 5 drift cases.
   - **Scope**: Add a `verify` job (`needs: build`) with a matrix over the four targets mapped to native-arch runners (linux/amd64 → `ubuntu-latest`, linux/arm64 → `ubuntu-24.04-arm`, darwin/amd64 → `macos-13`, darwin/arm64 → `macos-14`). Each leg downloads `dist/`, selects its target binary, and runs 021's `internal/build` self-containment check (`TestSelfContainment_HostBinary`, dist-artifact-preferred via `DiscoverDistBinary` reading `dist/artifacts.json`): execute → assert exit 0 → inspect dynamic-library linkage against the per-platform OS-only allowlist. Change `publish` to `needs: [build, verify]` so it runs only when build and every matrix leg pass. Document the QEMU-emulation fallback where a native runner is unavailable.
   - **Acceptance criteria**:
     - A self-containment failure on any target leg skips the publish job — nothing is attached (atomic; extends "build failure aborts" to "build-or-verification failure aborts").

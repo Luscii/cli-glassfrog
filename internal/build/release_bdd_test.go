@@ -71,6 +71,8 @@ func initializeReleasePipelineScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^a "([^"]*)" release already had the artifact set attached$`, w.givenArtifactsLoaded)
 	sc.Step(`^a maintainer had created and published a "([^"]*)" release by hand without the draft-release flow$`, w.givenArtifactsLoaded)
 	sc.Step(`^a release for tag "([^"]*)" had been published and marked as a pre-release$`, w.givenArtifactsLoaded)
+	sc.Step(`^the four target archives had been built for a published "([^"]*)" release$`, w.givenArtifactsLoaded)
+	sc.Step(`^one target binary fails the self-containment check on its own platform$`, w.givenNoop)
 
 	// --- Whens ---
 	sc.Step(`^a maintainer publishes the release$`, w.whenPipelineRuns)
@@ -90,6 +92,8 @@ func initializeReleasePipelineScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^it will build and attach the full artifact set exactly as for a drafted release$`, w.thenHandledIdentically)
 	sc.Step(`^it will build and attach the same artifact set$`, w.thenAttachesSameSet)
 	sc.Step(`^the release will remain marked as a pre-release$`, w.thenStatusPreserved)
+	sc.Step(`^it will abort before attaching anything$`, w.thenVerifyGateAborts)
+	sc.Step(`^the release will receive no archives and no checksums file$`, w.thenVerifyGateAborts)
 }
 
 // --- Given implementations -------------------------------------------------
@@ -273,6 +277,24 @@ func (w *releaseWorld) thenStatusPreserved() error {
 	}
 	if !strings.Contains(uploadStepRun(w.wf.Jobs["publish"]), "gh release upload") {
 		return fmt.Errorf("the publish job must attach assets via `gh release upload` (assets-only)")
+	}
+	return nil
+}
+
+// thenVerifyGateAborts asserts the cross-target gate: publish depends on verify
+// (and on build), so a self-containment failure on any target leg skips publish —
+// nothing is attached. The CheckVerifyGate guard passing on the loaded workflow
+// is the in-process proof the gate is wired.
+func (w *releaseWorld) thenVerifyGateAborts() error {
+	if err := w.requireValidWorkflow(); err != nil {
+		return err
+	}
+	if v := CheckVerifyGate(w.wf); len(v) != 0 {
+		return fmt.Errorf("the verify gate is not wired (a self-containment failure would not abort):\n  %s",
+			strings.Join(v, "\n  "))
+	}
+	if !needsContains(w.wf.Jobs["publish"].Needs, "verify") {
+		return fmt.Errorf("publish must `needs: verify` so a self-containment failure aborts before any attach")
 	}
 	return nil
 }

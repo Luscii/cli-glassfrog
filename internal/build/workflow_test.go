@@ -5,9 +5,37 @@ import (
 	"testing"
 )
 
-// validWorkflowYAML mirrors the shipped .github/workflows/release.yml at the
-// T002 stage (build + publish, publish needs build). The drift cases mutate
-// copies of this baseline so each test changes exactly one thing.
+// verifyJobBlock is the verify matrix job, factored out so a drift case can
+// excise it exactly to test the fully-missing-verify path. It begins at
+// `  verify:` and ends with a trailing newline so it splices cleanly between
+// the build job's last line and `  publish:`.
+const verifyJobBlock = `  verify:
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64, runner: ubuntu-latest }
+          - { goos: linux, goarch: arm64, runner: ubuntu-24.04-arm }
+          - { goos: darwin, goarch: amd64, runner: macos-13 }
+          - { goos: darwin, goarch: arm64, runner: macos-14 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Verify ${{ matrix.goos }}/${{ matrix.goarch }} self-containment
+        run: go test -run '^TestSelfContainment_HostBinary$' -v ./internal/build
+`
+
+// validWorkflowYAML mirrors the shipped .github/workflows/release.yml
+// (build → verify matrix → publish, publish needs [build, verify]). The drift
+// cases mutate copies of this baseline so each test changes exactly one thing.
 // TestReleaseWorkflow_RealWorkflow pins the real file separately.
 const validWorkflowYAML = `
 name: release
@@ -34,8 +62,8 @@ jobs:
         with:
           name: dist
           path: dist/
-  publish:
-    needs: build
+` + verifyJobBlock + `  publish:
+    needs: [build, verify]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -113,9 +141,46 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 		{
 			name: "publish not depending on build (no abort gate) is rejected",
 			yaml: strings.Replace(validWorkflowYAML,
-				"  publish:\n    needs: build\n", "  publish:\n", 1),
+				"  publish:\n    needs: [build, verify]\n", "  publish:\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"needs: build"},
+		},
+		{
+			name: "publish not depending on verify (verification not gating) is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    needs: [build, verify]\n", "    needs: [build]\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"needs: [build, verify]"},
+		},
+		{
+			name: "a verify job without needs: build is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"  verify:\n    needs: build\n    runs-on: ${{ matrix.runner }}\n",
+				"  verify:\n    runs-on: ${{ matrix.runner }}\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"verify job must `needs: build`"},
+		},
+		{
+			name: "a fully missing verify job (no self-containment gate at all) is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				verifyJobBlock, "", 1),
+			wantPass:  false,
+			wantNamed: []string{"missing job: verify"},
+		},
+		{
+			name: "a verify matrix missing a target (darwin/arm64 dropped) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          - { goos: darwin, goarch: arm64, runner: macos-14 }\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"missing target", "darwin/arm64"},
+		},
+		{
+			name: "a verify job that does not run the self-containment check is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"run: go test -run '^TestSelfContainment_HostBinary$' -v ./internal/build",
+				"run: echo skip", 1),
+			wantPass:  false,
+			wantNamed: []string{"TestSelfContainment_HostBinary"},
 		},
 		{
 			name: "publish without GH_TOKEN in env is rejected",

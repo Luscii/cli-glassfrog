@@ -183,7 +183,103 @@ func CheckReleaseWorkflow(wf Workflow) []string {
 		violations = append(violations, checkPublishJob(publish)...)
 	}
 
+	violations = append(violations, CheckVerifyGate(wf)...)
+
 	return violations
+}
+
+// CheckVerifyGate enforces the cross-target self-containment gate (022 ADR-3):
+//
+//   - a verify job exists, fans out over a matrix (runs-on references the matrix
+//     runner), and its matrix covers exactly the four supported targets,
+//   - verify runs the self-containment check (TestSelfContainment_HostBinary)
+//     against the downloaded dist/,
+//   - verify depends on build (it checks the built bytes),
+//   - publish depends on BOTH build and verify, so any build-or-verification
+//     failure aborts before anything is attached.
+//
+// Split from the rest of the guard so the verify-gate contract is one cohesive,
+// separately-testable unit; CheckReleaseWorkflow calls it so the shipped
+// workflow is checked as a whole.
+func CheckVerifyGate(wf Workflow) []string {
+	var violations []string
+
+	verify, ok := wf.Jobs["verify"]
+	if !ok {
+		violations = append(violations, "missing job: verify — the cross-target self-containment gate")
+		// Without a verify job the publish-needs-verify check below is moot; still
+		// report the publish gap so both halves of the contract are visible.
+	} else {
+		if !strings.Contains(verify.RunsOn, "matrix.") {
+			violations = append(violations, fmt.Sprintf(
+				"verify job must fan out over the matrix (runs-on: ${{ matrix.runner }}), got %q", verify.RunsOn))
+		}
+		violations = append(violations, checkVerifyMatrix(verify.Strategy.Matrix)...)
+		if !runsSelfContainmentCheck(verify) {
+			violations = append(violations,
+				"verify job must run the self-containment check (TestSelfContainment_HostBinary) against the dist/ artifact")
+		}
+		if !needsContains(verify.Needs, "build") {
+			violations = append(violations, "verify job must `needs: build` to check the built dist/ bytes")
+		}
+	}
+
+	if publish, ok := wf.Jobs["publish"]; ok {
+		if !needsContains(publish.Needs, "verify") {
+			violations = append(violations,
+				"publish job must `needs: [build, verify]` so a self-containment failure aborts the release (nothing published)")
+		}
+	}
+
+	return violations
+}
+
+// checkVerifyMatrix asserts the matrix covers exactly the four supported targets
+// (darwin/linux × amd64/arm64), each mapped to a runner. A missing target fails
+// as loudly as an extra one — the gate must verify every shipped binary.
+func checkVerifyMatrix(m Matrix) []string {
+	if len(m.Include) == 0 {
+		return []string{"verify matrix must enumerate the four target→runner legs (matrix.include is empty)"}
+	}
+	want := make(map[string]bool, len(SupportedGoos)*len(SupportedGoarch))
+	for _, os := range SupportedGoos {
+		for _, arch := range SupportedGoarch {
+			want[os+"/"+arch] = false
+		}
+	}
+	var violations []string
+	for i, leg := range m.Include {
+		key := leg["goos"] + "/" + leg["goarch"]
+		if _, ok := want[key]; !ok {
+			violations = append(violations, fmt.Sprintf(
+				"verify matrix leg %d targets unsupported %q", i+1, key))
+			continue
+		}
+		if want[key] {
+			violations = append(violations, fmt.Sprintf("verify matrix duplicates target %q", key))
+		}
+		want[key] = true
+		if strings.TrimSpace(leg["runner"]) == "" {
+			violations = append(violations, fmt.Sprintf("verify matrix target %q has no runner", key))
+		}
+	}
+	for key, covered := range want {
+		if !covered {
+			violations = append(violations, fmt.Sprintf("verify matrix is missing target %q", key))
+		}
+	}
+	return violations
+}
+
+// runsSelfContainmentCheck reports whether a verify step invokes 021's
+// self-containment test by name.
+func runsSelfContainmentCheck(j Job) bool {
+	for _, s := range j.Steps {
+		if strings.Contains(s.Run, "TestSelfContainment_HostBinary") {
+			return true
+		}
+	}
+	return false
 }
 
 // checkTrigger enforces that the only trigger is a published release. A missing

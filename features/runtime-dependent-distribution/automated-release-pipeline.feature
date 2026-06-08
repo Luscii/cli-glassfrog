@@ -55,7 +55,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       Then it will build and attach the full artifact set exactly as for a drafted release
 
     # Source: 022-automated-release-pipeline — Proposed: a cross-target self-containment failure aborts the release (plan ADR-3)
-    @wip
     Scenario: A self-containment verification failure aborts the release
       Given the four target archives had been built for a published "v1.4.0" release
       And one target binary fails the self-containment check on its own platform
