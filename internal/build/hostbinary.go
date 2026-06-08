@@ -41,13 +41,21 @@ func HostBinary(destDir string) (path string, source string, err error) {
 }
 
 // discoverDistBinary returns the path to the host-target binary recorded in
-// dist/artifacts.json, if the manifest exists and lists one. A missing manifest
-// is not an error — it is the signal to fall back to a host build.
+// the repository's dist/artifacts.json, if the manifest exists and lists one. A
+// missing manifest is not an error — it is the signal to fall back to a host
+// build.
 func discoverDistBinary() (string, bool, error) {
 	root, err := RepoRoot()
 	if err != nil {
 		return "", false, err
 	}
+	return discoverDistBinaryIn(root)
+}
+
+// discoverDistBinaryIn is the root-parameterized core of discoverDistBinary,
+// split out so the manifest parsing and host-target selection can be unit-tested
+// against a temp root without depending on a real dist/ produced by goreleaser.
+func discoverDistBinaryIn(root string) (string, bool, error) {
 	manifestPath := filepath.Join(root, "dist", "artifacts.json")
 	raw, err := os.ReadFile(manifestPath)
 	if os.IsNotExist(err) {

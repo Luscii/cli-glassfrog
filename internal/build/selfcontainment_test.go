@@ -1,7 +1,9 @@
 package build
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -193,4 +195,94 @@ func TestParseLdd(t *testing.T) {
 	if v := osOnlyViolations("linux", missing); len(v) != 1 || v[0] != "libcustom.so.1" {
 		t.Fatalf("an unresolved dependency must be a named violation, got %v", v)
 	}
+}
+
+// TestDiscoverDistBinary covers the manifest-first discovery path
+// (dist/artifacts.json), which HostBinary prefers but which normal `go test`
+// runs never exercise because dist/ is absent (it is gitignored, produced only
+// by goreleaser). Without this, a regression in artifacts.json parsing or
+// host-target selection would ship silently. Exercises discoverDistBinaryIn
+// against a temp root so it needs neither goreleaser nor a real dist/.
+//
+// Only stats files (never executes them), so no platform skip is needed.
+func TestDiscoverDistBinary(t *testing.T) {
+	// hostManifest builds an artifacts.json listing one host-target Binary
+	// entry at relPath plus a metadata entry and a foreign-target Binary, so the
+	// selection (Type=="Binary" AND host GOOS/GOARCH) is genuinely exercised.
+	hostManifest := func(relPath string) string {
+		return `[
+  {"name":"metadata.json","path":"dist/metadata.json","type":"Metadata"},
+  {"name":"glassfrog","path":"dist/glassfrog_other/glassfrog","goos":"otheros","goarch":"otherarch","type":"Binary"},
+  {"name":"glassfrog","path":"` + relPath + `","goos":"` + runtime.GOOS + `","goarch":"` + runtime.GOARCH + `","type":"Binary"}
+]`
+	}
+	writeManifest := func(t *testing.T, root, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(root, "dist"), 0o755); err != nil {
+			t.Fatalf("creating dist/: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "dist", "artifacts.json"), []byte(body), 0o644); err != nil {
+			t.Fatalf("writing artifacts.json: %v", err)
+		}
+	}
+
+	t.Run("resolves the host-target binary from the manifest", func(t *testing.T) {
+		root := t.TempDir()
+		relPath := "dist/glassfrog_host/glassfrog"
+		binAbs := filepath.Join(root, filepath.FromSlash(relPath))
+		if err := os.MkdirAll(filepath.Dir(binAbs), 0o755); err != nil {
+			t.Fatalf("creating bin dir: %v", err)
+		}
+		if err := os.WriteFile(binAbs, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("writing bin: %v", err)
+		}
+		writeManifest(t, root, hostManifest(relPath))
+
+		got, ok, err := discoverDistBinaryIn(root)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !ok || got != binAbs {
+			t.Fatalf("expected to resolve %s (ok=true), got %q ok=%v", binAbs, got, ok)
+		}
+	})
+
+	t.Run("stale manifest (referenced binary missing) falls back", func(t *testing.T) {
+		root := t.TempDir()
+		// Manifest references a host-target binary that is never created.
+		writeManifest(t, root, hostManifest("dist/glassfrog_host/glassfrog"))
+
+		got, ok, err := discoverDistBinaryIn(root)
+		if err != nil {
+			t.Fatalf("a stale manifest must not error, got: %v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("a stale manifest must fall back (ok=false, empty path), got %q ok=%v", got, ok)
+		}
+	})
+
+	t.Run("no manifest falls back", func(t *testing.T) {
+		got, ok, err := discoverDistBinaryIn(t.TempDir())
+		if err != nil {
+			t.Fatalf("a missing manifest must not error, got: %v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("a missing manifest must fall back (ok=false, empty path), got %q ok=%v", got, ok)
+		}
+	})
+
+	t.Run("no host-target entry falls back", func(t *testing.T) {
+		root := t.TempDir()
+		writeManifest(t, root, `[
+  {"name":"glassfrog","path":"dist/glassfrog_other/glassfrog","goos":"otheros","goarch":"otherarch","type":"Binary"}
+]`)
+
+		got, ok, err := discoverDistBinaryIn(root)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("a manifest with no host-target Binary must fall back, got %q ok=%v", got, ok)
+		}
+	})
 }
