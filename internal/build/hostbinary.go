@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // artifact is the subset of a dist/artifacts.json entry the verification reads.
@@ -68,16 +69,24 @@ func discoverDistBinaryIn(root string) (string, bool, error) {
 	if err := json.Unmarshal(raw, &artifacts); err != nil {
 		return "", false, fmt.Errorf("parsing %s: %w", manifestPath, err)
 	}
+	distDir := filepath.Join(root, "dist")
 	for _, a := range artifacts {
-		if a.Type == "Binary" && a.Goos == runtime.GOOS && a.Goarch == runtime.GOARCH {
-			abs := filepath.Join(root, filepath.FromSlash(a.Path))
-			if _, statErr := os.Stat(abs); statErr != nil {
-				// The manifest references a missing file (stale dist) — fall
-				// back to a host build rather than failing.
-				return "", false, nil
-			}
-			return abs, true, nil
+		if a.Type != "Binary" || a.Goos != runtime.GOOS || a.Goarch != runtime.GOARCH {
+			continue
 		}
+		abs := filepath.Join(root, filepath.FromSlash(a.Path))
+		// The manifest is goreleaser output, but guard against a malformed or
+		// hand-edited path escaping dist/ (e.g. via ".."): the resolved path is
+		// executed downstream, so it must stay under <root>/dist/.
+		if abs != distDir && !strings.HasPrefix(abs, distDir+string(os.PathSeparator)) {
+			continue
+		}
+		if _, statErr := os.Stat(abs); statErr != nil {
+			// Stale/missing entry — keep scanning for another valid host-target
+			// Binary rather than abandoning the search on the first miss.
+			continue
+		}
+		return abs, true, nil
 	}
 	return "", false, nil
 }

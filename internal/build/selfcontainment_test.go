@@ -285,4 +285,54 @@ func TestDiscoverDistBinary(t *testing.T) {
 			t.Fatalf("a manifest with no host-target Binary must fall back, got %q ok=%v", got, ok)
 		}
 	})
+
+	t.Run("a missing first host entry does not abandon the scan", func(t *testing.T) {
+		root := t.TempDir()
+		// Two host-target Binary entries: the first file is never created, the
+		// second is. The scan must skip the stale first and resolve the second.
+		secondRel := "dist/glassfrog_host2/glassfrog"
+		secondAbs := filepath.Join(root, filepath.FromSlash(secondRel))
+		if err := os.MkdirAll(filepath.Dir(secondAbs), 0o755); err != nil {
+			t.Fatalf("creating bin dir: %v", err)
+		}
+		if err := os.WriteFile(secondAbs, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("writing bin: %v", err)
+		}
+		writeManifest(t, root, `[
+  {"name":"glassfrog","path":"dist/glassfrog_host1/glassfrog","goos":"`+runtime.GOOS+`","goarch":"`+runtime.GOARCH+`","type":"Binary"},
+  {"name":"glassfrog","path":"`+secondRel+`","goos":"`+runtime.GOOS+`","goarch":"`+runtime.GOARCH+`","type":"Binary"}
+]`)
+
+		got, ok, err := discoverDistBinaryIn(root)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !ok || got != secondAbs {
+			t.Fatalf("expected to resolve the second valid entry %s, got %q ok=%v", secondAbs, got, ok)
+		}
+	})
+
+	t.Run("a path escaping dist/ is rejected", func(t *testing.T) {
+		root := t.TempDir()
+		// Create a real file OUTSIDE dist/ that a traversal path would resolve to,
+		// proving rejection is by containment, not by the file being absent.
+		escapeAbs := filepath.Join(root, "outside", "glassfrog")
+		if err := os.MkdirAll(filepath.Dir(escapeAbs), 0o755); err != nil {
+			t.Fatalf("creating escape dir: %v", err)
+		}
+		if err := os.WriteFile(escapeAbs, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("writing escape bin: %v", err)
+		}
+		writeManifest(t, root, `[
+  {"name":"glassfrog","path":"dist/../outside/glassfrog","goos":"`+runtime.GOOS+`","goarch":"`+runtime.GOARCH+`","type":"Binary"}
+]`)
+
+		got, ok, err := discoverDistBinaryIn(root)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("a path escaping dist/ must be rejected, got %q ok=%v", got, ok)
+		}
+	})
 }
