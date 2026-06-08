@@ -45,12 +45,10 @@ type pagingWorld struct {
 	wantRecords []string // the names the walk should have gathered, in API order
 
 	res Result[glassfrog.Role]
-	ran bool
 }
 
 func (w *pagingWorld) walk() error {
 	w.res = All[glassfrog.Role](w.reqCtx, w.ex, w.req, w.opts...)
-	w.ran = true
 	return nil
 }
 
