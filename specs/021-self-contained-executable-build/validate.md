@@ -32,8 +32,8 @@ All driving scenarios have identifiable implementation code paths. The build-beh
 
 | Scenario | Status | Implementation |
 |---|---|---|
-| local build produces a runnable host binary | ✓ Covered | `hostbinary.go:80` buildHostBinary + `selfcontainment_test.go` execute/linkage; BDD `selfcontained_bdd_test.go:whenLocalBuild` |
-| release build produces the full matrix | ✓ Covered | `.goreleaser.yaml:30-35` (goos×goarch); guard `config.go:155` diffTargetSet; verified `dist/artifacts.json` = 4 Binary entries |
+| local build produces a runnable host binary | ✓ Covered | `hostbinary.go:97` buildHostBinary + `selfcontainment_test.go` execute/linkage; BDD `selfcontained_bdd_test.go:whenLocalBuild` |
+| release build produces the full matrix | ✓ Covered | `.goreleaser.yaml:30-35` (goos×goarch); guard `config.go:165` diffTargetSet; verified `dist/artifacts.json` = 4 Binary entries |
 | a produced binary runs on a clean environment | ✓ Covered | `hostbinary.go:30` HostBinary + `selfcontainment_test.go:TestSelfContainment_HostBinary` (version exit 0 + OS-only linkage) |
 | self-containment check catches a runtime dependency | ✓ Covered | `linkage.go:18` osOnlyViolations + `TestSelfContainment_RejectsForeignDependency` (names offending dep) |
 | a failed target fails the whole release build | ✓ Covered | single `builds` entry (`.goreleaser.yaml:19-20`) → GoReleaser atomic; BDD `thenAtomicBuild` |
