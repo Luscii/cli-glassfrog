@@ -76,6 +76,15 @@ func TestConfigGuard_Drift(t *testing.T) {
 			wantNamed: []string{"cgo must remain disabled"},
 		},
 		{
+			// A later CGO_ENABLED=1 wins (duplicate env key → last value), so the
+			// guard must scan every entry, not stop at the first CGO_ENABLED=0.
+			name: "a later CGO_ENABLED=1 after CGO_ENABLED=0 is rejected",
+			yaml: strings.Replace(validConfigYAML,
+				"      - CGO_ENABLED=0\n", "      - CGO_ENABLED=0\n      - CGO_ENABLED=1\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"cgo must remain disabled"},
+		},
+		{
 			name: "CGO_ENABLED absent entirely is rejected",
 			yaml: strings.Replace(validConfigYAML,
 				"    env:\n      - CGO_ENABLED=0\n", "", 1),

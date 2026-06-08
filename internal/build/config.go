@@ -133,19 +133,29 @@ func CheckConfigGuard(cfg Config) []string {
 // point of the build (CONSTITUTION XII); a re-enabled cgo silently pulls in a C
 // library dependency. The message says cgo must remain disabled so the
 // config-drift scenario's expectation is met verbatim.
+//
+// It scans every CGO_ENABLED entry rather than stopping at the first: a config
+// carrying both CGO_ENABLED=0 and a later CGO_ENABLED=1 would re-enable cgo (a
+// duplicate env key resolves to the last value), so the guard fails on ANY
+// non-zero assignment and passes only when at least one entry exists and all
+// are 0.
 func checkCgoDisabled(env []string) []string {
+	seen := false
 	for _, e := range env {
 		name, value, found := strings.Cut(e, "=")
 		if !found || strings.TrimSpace(name) != "CGO_ENABLED" {
 			continue
 		}
-		if strings.TrimSpace(value) == "0" {
-			return nil
+		seen = true
+		if strings.TrimSpace(value) != "0" {
+			return []string{fmt.Sprintf(
+				"cgo must remain disabled: CGO_ENABLED must be 0, got %q", strings.TrimSpace(value))}
 		}
-		return []string{fmt.Sprintf(
-			"cgo must remain disabled: CGO_ENABLED must be 0, got %q", strings.TrimSpace(value))}
 	}
-	return []string{"cgo must remain disabled: CGO_ENABLED=0 is absent from the build env"}
+	if !seen {
+		return []string{"cgo must remain disabled: CGO_ENABLED=0 is absent from the build env"}
+	}
+	return nil
 }
 
 // diffTargetSet compares a declared target dimension against its closed
