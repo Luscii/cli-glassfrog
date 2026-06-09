@@ -12,13 +12,13 @@ Role Reads is the first **org-wide** read command and the dependency root of Gov
 
 **Components and how they connect**:
 
-- **`internal/cli` — the `roles` command** (new `roles.go` + godog suite). A guard-registered (001), explicitly-wired (001) runnable leaf that takes an *optional* positional id. A thin cobra `RunE` over an injected seam (011 ADR-5 pattern) delegates to two pure run paths:
+- **`internal/cli` — the `roles` command** (replaces the existing stub `roles.go` — a wired `roles` group with `list`/`get` placeholders — + godog suite). A guard-registered (001), explicitly-wired (001) runnable leaf that takes an *optional* positional id. A thin cobra `RunE` over an injected seam (011 ADR-5 pattern) delegates to two pure run paths:
   - **list** (`glassfrog roles`, no id) — validates filter flags, assembles the connection context, and walks `GET /roles` to completion via the shared walker, producing `[]Role` + a completeness flag.
   - **single** (`glassfrog roles <id>`) — validates `--include`, fetches `GET /roles/{id}`, producing one `RoleDetail`.
   Both paths route 010's typed client errors through the shared `classifyClientError` (011/015) — **no new `Outcome` category, no `ExitCode` edit** — and render through the generic `renderResult[T]` dispatch (020), which picks `internal/output` (json/yaml, raw bytes) or `internal/render` (full/compact templates) by the resolved `--output` format.
 - **`internal/glassfrog` — schema growth** (011 ADR-1). The shared `Role` struct gains the spec fields it still lacks (`type`, `parent_role_id`, `has_subroles`, `flags`, `fillers`, `tags`); a new `RoleDetail` embeds `Role` and adds the optional related-resource fields. New leaf resource models (`Assignment`, `Policy`, `Note`, `SkillSummary`) are added here as needed — never command-local duplicates. The list decodes the existing generic `Page[Role]` (016); the single decodes a `{data: RoleDetail}` document wrapper.
 - **`internal/paging` — the walker** (016). The list's default path calls `paging.All[Role]` over the retrying `Executor` (017) for the complete set.
-- **`internal/render` — templates** (019). Adds `roles`/`role` template sets (full + compact) to the embedded registry; the registry exhaustiveness guard (PR #10 shape) keeps both formats present.
+- **`internal/render` — templates** (019). Adds **new** `org-roles` (list) and `role` (single) template sets (full + compact) to the embedded registry — distinct from the shipped `roles` key/templates (`roles.full/compact.tmpl`) that `glassfrog me roles` already uses, which 025 leaves untouched. The registry exhaustiveness guard (PR #10 shape) keeps both formats present.
 
 **Data flow** (list): `roles` → validate filters → `AssembleFromOS(--base-url)` (009) → `NewClientFromOS` (010) → `RetryExecutor` (017) → `paging.All[Role]` → `Result[Role]` → `renderResult` → stdout (+ incompleteness note to stderr). Single read is the same minus the walker: one `Execute` into `RoleDetail`.
 
@@ -28,7 +28,7 @@ Role Reads is the first **org-wide** read command and the dependency root of Gov
 
 ### ADR-1: `roles` is one runnable command with an optional positional id; 0 args lists, 1 arg reads one
 
-**Context**: The spec (clarified choice A) wants `glassfrog roles` (list) and `glassfrog roles <id>` (single, positional id) — not an explicit `get` verb. The 001 guard permits a runnable command, and 012 confirmed a command may both run and (in its case) parent children.
+**Context**: The spec (clarified choice A) wants `glassfrog roles` (list) and `glassfrog roles <id>` (single, positional id) — not an explicit `get` verb. The 001 guard permits a runnable command, and 012 confirmed a command may both run and (in its case) parent children. **A stub `roles` group already exists on main** — `internal/cli/roles.go` is wired in `Assemble()` as a `roles` parent with `list`/`get` "not yet implemented" subcommands (registration-only placeholders from an earlier spec). 025 is the spec those stubs were placed for, so it **replaces** them with the real command.
 
 **Options considered**:
 1. **One `roles` command, `Args: cobra.MaximumNArgs(1)`, branch in RunE** — 0 args → list, 1 arg → single. Matches the chosen positional UX exactly; one registration, one help entry.
@@ -82,7 +82,7 @@ Role Reads is the first **org-wide** read command and the dependency root of Gov
 
 **Error handling**: All failures flow through the single landed path — `classifyClientError` (011, widened by 015) maps 010's typed errors to the frozen `Outcome`/`ExitCode` registry (auth fail-safe → `UsageError(2)`/`RuntimeError(1)`; transport → `NetworkUnavailable(6)`; non-2xx → `APIError(3)`/`PermissionError(4)`/`RateLimited(5)`; `*output.FormatError` → `UsageError(2)`). Role Reads adds **no** new category or code. The token never appears in output or errors (secret hygiene).
 
-**Output**: `renderResult[T]` (020) owns format dispatch; structured formats decode `json.RawMessage` (018 ADR-2, raw bytes verbatim), human formats render the typed struct via `internal/render`. The list and single read are two new resource keys in the render registry.
+**Output**: `renderResult[T]` (020) owns format dispatch; structured formats decode `json.RawMessage` (018 ADR-2, raw bytes verbatim), human formats render the typed struct via `internal/render`. The list and single read are two new resource keys (`org-roles`, `role`) in the render registry, distinct from the shipped `roles` key that `me roles` uses.
 
 **Configuration**: `--base-url` (011) and `--output`/`-o` (020) are inherited persistent root flags. Filter flags, `--include`, the first-page opt-out, and (optionally) `--per-page` are local to `roles`. Page size defaults to the API max (016).
 

@@ -14,7 +14,7 @@ This accord pins the operator-facing org-wide role surface: the `roles` command 
 
 ### `glassfrog roles` — one command, optional positional id
 
-`roles` is a guard-registered (001), explicitly-wired runnable leaf with `Args: cobra.MaximumNArgs(1)`. With no positional it **lists** the organization's roles; with one positional it **reads that role by id**. More than one positional is rejected by the `Args` validator (usage error, no API call). Distinct from the org-wide read group hosting future per-role reads (see Consistency Notes).
+`roles` is a guard-registered (001), explicitly-wired runnable leaf with `Args: cobra.MaximumNArgs(1)`. With no positional it **lists** the organization's roles; with one positional it **reads that role by id**. More than one positional is rejected by the `Args` validator (usage error, no API call). It **replaces** the existing stub `roles` group on main (`roles list` / `roles get`, both "not yet implemented") with this runnable shape — the stub subcommands are removed (see Consistency Notes).
 
 **Synopsis**:
 ```
@@ -118,7 +118,7 @@ Codes `4`/`5` arrive via 015's split of `APIError`(3) at the shared classifier (
 ## Consistency Notes
 
 - **Org-wide, not token-scoped**: `glassfrog roles` is the whole-organization surface; `glassfrog me roles` (012) lists only the caller's own roles. The two are deliberately separate commands (spec Non-Behavior). They share the grown `internal/glassfrog.Role` but not a command.
-- **Reuses landed machinery**: the persistent `--base-url` (011) and `--output`/`-o` (020), the shared `classifyClientError` + frozen `Outcome`/`ExitCode` registry (011/015), the `paging.All` walker + `RetryExecutor` (016/017), and the `renderResult[T]` dispatch over `internal/output`/`internal/render` (018/019/020). Adds only the `roles` command, the schema growth, and two render keys.
+- **Reuses landed machinery**: the persistent `--base-url` (011) and `--output`/`-o` (020), the shared `classifyClientError` + frozen `Outcome`/`ExitCode` registry (011/015), the `paging.All` walker + `RetryExecutor` (016/017), and the `renderResult[T]` dispatch over `internal/output`/`internal/render` (018/019/020). Adds only the `roles` command (replacing the existing stub group), the schema growth, and two **new** render keys — `org-roles` (list) and `role` (single) — distinct from the shipped `roles` key/templates that `glassfrog me roles` uses, which stay untouched.
 - **Fail-fast validation** follows 011's `validateInclude` and 013's `validateStatus` precedent (local check before any request, transport tripwire). The role **id** is intentionally *not* validated locally (plan ADR-4): a closed enum that the API silently ignores gets local validation; a free identifier the API 404s gets passed through.
 - **`--include` form** is comma-separated (`style:form explode:false`), matching the API and 011's `--include`. `--has-subroles` uses cobra's `Changed` check for tri-state (unset = all). **Flag spellings** (`--parent`, `--person`, `--has-subroles`, `--tag`, `--first-page`, `--per-page`) resolve the spec's `[ASSUMED]` flag-name notes; they are conventional, not behavioral, and may be adjusted at build time without changing behavior.
 - **`Q` free-text search not exposed**: `GET /roles` also accepts a `q` parameter; this command exposes only the four structural filters (spec scope). `q` is a candidate for a later spec.

@@ -31,7 +31,7 @@ Plain JSON-tagged structs, tolerant of unknown/extra fields. Leaf package — no
 
 | Symbol | Signature (shape) | Description |
 |---|---|---|
-| `newRolesCommand` | `(seam rolesSeam) *cobra.Command` | Guard-registered `roles` leaf (`Use:"roles [id]"`, `Args: cobra.MaximumNArgs(1)`, non-empty `Short`, `SilenceErrors`/`SilenceUsage`); declares the list + single flags; reads inherited `--base-url`/`--output`; delegates to `runRoles`. Wired once in `Assemble()`. |
+| `newRolesCommand` | `(seam rolesSeam) *cobra.Command` | Guard-registered `roles` leaf (`Use:"roles [id]"`, `Args: cobra.MaximumNArgs(1)`, non-empty `Short`, `SilenceErrors`/`SilenceUsage`); declares the list + single flags; reads inherited `--base-url`/`--output`; delegates to `runRoles`. **Replaces** the existing stub `roles` group (its `list`/`get` children are removed); the existing `Assemble()` wiring is updated to this seam-taking constructor. |
 | `runRoles` | `(cfg rolesConfig) (Outcome, error)` | Pure over injected values. Branches on whether an id is present: validates flag combos + (single) `--include` + resolves `--output` **before** assembly; then list → `runRolesList`, single → `runRoleGet`. Writes result to `cfg.stdout`, diagnostics/notes to `cfg.stderr`; returns the code-free `Outcome`. |
 | `runRolesList` | `(cfg) (records []glassfrog.Role, complete bool, out Outcome)` | Default: `paging.All[Role]` over the seam's executor → `Result.Records`/`Result.Complete`/`Result.Stop`. `--first-page`: one `Execute` into `Page[Role]` → `Data`/`!HasNextPage`. Maps a `Result.Stop` via `classifyClientError`. |
 | `runRoleGet` | `(cfg, id string) (RoleDetail, Outcome)` | One `Execute` into a `RoleDetail` document; `?include=` from validated `--include`. |
@@ -45,8 +45,8 @@ Plain JSON-tagged structs, tolerant of unknown/extra fields. Leaf package — no
 
 | Key | Formats | Data | Notes |
 |---|---|---|---|
-| `roles` | `full`, `compact` | `[]glassfrog.Role` | Org-wide list projection (025 interface-cli Output). |
-| `role` | `full`, `compact` | `glassfrog.RoleDetail` | Single role + guarded per-`include` sections (omit when not requested; explicit-absence marker when requested-but-empty), via 019's `missingkey=error` + `{{if}}` pattern. |
+| `org-roles` | `full`, `compact` | `[]glassfrog.Role` | Org-wide list projection (025 interface-cli Output). **New** key — distinct from the shipped `roles` key/templates `glassfrog me roles` uses (untouched). |
+| `role` | `full`, `compact` | `glassfrog.RoleDetail` | Single role + guarded per-`include` sections (omit when not requested; explicit-absence marker when requested-but-empty), via 019's `missingkey=error` + `{{if}}` pattern. **New** singular key — distinct from the shipped `roles`. |
 
 The registry exhaustiveness guard (PR #10 `len`+comma-ok) asserts both keys carry both formats.
 
@@ -71,7 +71,7 @@ renderResult("role", resolvedFormat, doc.Data)                                  
 
 // list (default walk)
 res := paging.All[glassfrog.Role](reqCtx, ex, apiclient.Request{Method:"GET", Path:"/roles", Query: filters})
-renderResult("roles", resolvedFormat, res.Records)                                  // res.Complete drives the stderr note
+renderResult("org-roles", resolvedFormat, res.Records)                                  // res.Complete drives the stderr note
 ```
 
 ---
@@ -100,7 +100,7 @@ renderResult("roles", resolvedFormat, res.Records)                              
 
 - **Schema package** (`internal/glassfrog`, 011 ADR-1): Role Reads grows the shared `Role` and adds `RoleDetail` + the leaf models. The per-role specs (#33/#34/#38) **reuse** `Policy`/`Assignment`/etc. — this accord sets that precedent rather than letting each redefine.
 - **Walker** (`016/interface-spec.md`): first consumer of `paging.All` in a command. The default path walks; the `--first-page` opt-out reuses the landed 012–014 single-page-signal shape instead of a `WithMaxPages` cap, preserving 016's `Result.Complete == (Stop==nil)` invariant (plan ADR-3).
-- **Output dispatch** (`018`/`019`/`020`): reuses `renderResult[T]` and the two-package (`output`/`render`) split; adds two render keys, imports neither package into the other.
+- **Output dispatch** (`018`/`019`/`020`): reuses `renderResult[T]` and the two-package (`output`/`render`) split; adds two **new** render keys (`org-roles`, `role`) distinct from the shipped `roles` key (`me roles`), imports neither package into the other.
 - **Exit-Code Convention** (`004` + `exitcode.go`): no registry edit; reuses the frozen mapping and 011's `classifyClientError`.
 - **Distinct from `me roles`** (012): shares the grown `Role`, not the command — org-wide vs token-scoped.
 - **Specification touchpoint** in a project with no `accords/` directory: no cross-spec accord patterns to align against; conforms to the in-repo precedent set by 010/011/014's `interface-spec.md`.
