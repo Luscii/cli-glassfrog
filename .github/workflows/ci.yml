@@ -1,0 +1,70 @@
+# PR Validation (spec 024).
+#
+# The pre-merge gate. Runs on every pull request whose base is main and blocks
+# the merge until lint and the full test suite pass. It is the upstream
+# guarantee the Automated Release Pipeline (022) assumes: `go test ./...` runs
+# the internal/build .goreleaser.yaml config-guard test, so .goreleaser.yaml
+# drift fails here before a release is ever cut. Main-Branch Verification (029)
+# re-runs the same suite on push to main as the post-merge net.
+#
+# Ownership boundaries:
+#   - This workflow owns the pre-merge gate (lint + test matrix + the stable
+#     ci-success status). It adds NO Go package, NO cobra command, and NO test
+#     — it orchestrates the suite the repo already has.
+#   - The one part of the gate that cannot live in a committed file is the
+#     branch-protection rule that makes ci-success required on main (GitHub repo
+#     settings). It is applied once by a maintainer — see
+#     scripts/setup-branch-protection.sh.
+name: CI
+
+# The default pull_request activity types are opened / synchronize / reopened —
+# exactly the spec's three triggers, so no explicit `types:` is needed.
+# `synchronize` fires on every push to the PR head, so "push a fix re-runs the
+# gate" needs no extra wiring. `branches: [main]` scopes to PRs whose BASE is
+# main; a PR targeting any other base does not match and so does not run.
+on:
+  pull_request:
+    branches: [main]
+
+# Least privilege: the gate builds and tests, it never writes. `contents: read`
+# is all it needs, so fork PRs validate identically under the default read-only
+# token. No secrets.
+permissions:
+  contents: read
+
+jobs:
+  # Lint runs ONCE per validation run (ADR-2) — not per test-matrix cell, since
+  # these checks are OS-independent. Three legible categories: a gofmt
+  # formatting check, `go vet`, and the configured aggregate linter
+  # (golangci-lint, driven by .golangci.yml). golangci-lint already bundles
+  # gofmt/govet, but running them explicitly keeps each failure category
+  # readable and gives a fast, dependency-light signal.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        # `gofmt -l` lists files that are not gofmt-clean; any output means the
+        # step fails, naming the offending files.
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          # Pinned to a concrete golangci-lint release compatible with the
+          # go.mod Go version (NOT `latest`) so a new upstream release cannot
+          # redden an unrelated PR. Bumping it is a deliberate, reviewable PR
+          # that itself runs through this gate. See .golangci.yml for the
+          # enabled-linter policy.
+          version: v2.11.4

@@ -26,7 +26,7 @@ The `base` branch is cut from current `main`. Because all three tasks edit the s
 
 ## Phase 1: Lint Config + Lint Job [Shared]
 
-- [ ] **T001** [Shared] Create `.github/workflows/ci.yml` (PR→main trigger) with the lint job, and add `.golangci.yml`
+- [x] **T001** [Shared] Create `.github/workflows/ci.yml` (PR→main trigger) with the lint job, and add `.golangci.yml` — golangci-lint pinned v2.11.4 via action @v9 (Go 1.26 needs v2; interface's [ASSUMED] @v6/v1 logged in LEARNINGS); linter set tuned to pass on the existing codebase (std-error-handling preset + staticcheck relaxed on _test.go); verified locally (gofmt clean, go vet clean, golangci-lint 0 issues, actionlint clean)
   - **Scope**: Create `.github/workflows/ci.yml` with `name: CI`, `on: pull_request: { branches: [main] }` (no explicit `types:` — the defaults `opened`/`synchronize`/`reopened` are the spec's three triggers), and least-privilege `permissions: contents: read`. Add a `lint` job (`runs-on: ubuntu-latest`): `actions/checkout@v4`; `actions/setup-go@v5` (`go-version-file: go.mod`, `cache: true`); a gofmt-check step (fail when `gofmt -l .` lists any file); `go vet ./...`; `golangci/golangci-lint-action@v6` with a **pinned** `version:` (not `latest`). Add `.golangci.yml` enabling a conservative linter set (`[ASSUMED]` starting set: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gofmt`, `misspell`). The lint job runs **once** — it is not part of the matrix. Do **not** add the test job or the gate yet (T002/T003).
   - **Acceptance criteria**:
     - A pull request whose base is `main` triggers the workflow; a pull request whose base is not `main` does not.
