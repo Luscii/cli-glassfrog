@@ -25,5 +25,5 @@
 | 021-self-contained-executable-build | Complete | validate | 2026-06-08T19:00:00 |
 | 022-automated-release-pipeline | Implemented | implement | 2026-06-08T21:00:00 |
 | 023-version-embedding | Implemented | implement | 2026-06-09T09:30:00 |
-| 024-pr-validation | Implemented | implement | 2026-06-09T12:00:00 |
+| 024-pr-validation | Ready | validate | 2026-06-09T12:30:00 |
 | 025-role-reads | Analyzed | risk | 2026-06-08T23:20:00 |
