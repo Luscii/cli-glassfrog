@@ -19,6 +19,15 @@ func Assemble() *cobra.Command {
 	// transport (AssembleFromOS + NewClientFromOS) and clock; `roles` reads the
 	// inherited persistent --base-url/--output flags.
 	MustRegister(root, newRolesCommand(productionSeam{}))
+	// Organization Tree (026): the `tree` command — the whole-org tree (no id) or
+	// the subtree rooted at a role (one id), one unpaginated nested document. A
+	// sibling of `roles`, not a child (ADR-1). productionSeam binds the real
+	// transport + clock; `tree` reads the inherited persistent --base-url/--output.
+	MustRegister(root, newTreeCommand(productionSeam{}))
+	// Organization Tree (026): the `subroles <id>` command — a role's immediate
+	// children, paginated and walked to completion by default (reusing 025's walk +
+	// --first-page opt-out). Also a sibling of `roles` (ADR-1).
+	MustRegister(root, newSubrolesCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

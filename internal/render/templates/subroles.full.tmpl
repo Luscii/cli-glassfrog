@@ -1,0 +1,30 @@
+{{if not .Children}}No subroles.
+{{else}}{{range $i, $c := .Children}}{{if $i}}
+{{end}}{{$c.Name}} ({{$c.ID}})
+  Purpose: {{$p := trimSpace $c.Purpose}}{{if eq $p ""}}(no purpose set){{else}}{{$p}}{{end}}
+  Domains:
+{{range $c.Domains}}    - {{.Description}}
+{{else}}    (none)
+{{end}}  Accountabilities:
+{{range $c.Accountabilities}}    - {{.Description}}
+{{else}}    (none)
+{{end}}  Fillers:
+{{range $c.Fillers}}    - {{.Name}} ({{.ID}})
+{{else}}    (none)
+{{end}}{{if index $.Requested "assignments"}}  Assignments:
+{{range $c.Assignments}}    - {{$n := trimSpace .Actor.Name}}{{if eq $n ""}}{{.ActorID}}{{else}}{{$n}} ({{.ActorID}}){{end}}
+{{else}}    (none)
+{{end}}{{end}}{{if index $.Requested "subroles"}}  Subroles:
+{{range $c.Subroles}}    - {{.Name}} ({{.ID}})
+{{else}}    (none)
+{{end}}{{end}}{{if index $.Requested "parent_role"}}  Parent role: {{if $c.ParentRole}}{{$c.ParentRole.Name}} ({{$c.ParentRole.ID}}){{else}}(none — anchor role){{end}}
+{{end}}{{if index $.Requested "policies"}}  Policies:
+{{range $c.Policies}}    - {{.Title}}
+{{else}}    (none)
+{{end}}{{end}}{{if index $.Requested "notes"}}  Notes:
+{{range $c.Notes}}    - {{.Title}}
+{{else}}    (none)
+{{end}}{{end}}{{if index $.Requested "skills"}}  Skills:
+{{range $c.Skills}}    - {{.Name}} (summary; full content via skills read)
+{{else}}    (none)
+{{end}}{{end}}{{end}}{{end}}

@@ -282,6 +282,75 @@ func TestRoleDocumentDecodesDetail(t *testing.T) {
 	}
 }
 
+// subrolesPageFixture is a representative GET /roles/{id}/subroles body: the
+// paginated {data: [RoleDetail], meta: {pagination}} envelope (026 ADR-3 decodes
+// Page[RoleDetail], reusing 016's generic envelope — never a 026-local type). One
+// child carries every ?include resource, the other is bare with a null
+// parent_role_id; the meta reports a next page so the walker keeps going.
+const subrolesPageFixture = `{
+  "data": [
+    {
+      "id": "role_child1", "type": "role", "name": "Press Officer",
+      "purpose": "Press that lands", "parent_role_id": "role_0123", "has_subroles": false, "flags": [],
+      "assignments": [{"id": "asgn_1", "actor_id": "per_x", "role_id": "role_child1", "actor": {"id": "per_x", "name": "Alice", "kind": "human"}}],
+      "subroles": [{"id": "role_gc1", "type": "role", "name": "Grandchild"}],
+      "parent_role": {"id": "role_0123", "type": "circle", "name": "Marketing"},
+      "policies": [{"id": "pol_1", "title": "Two approvals", "body": "b"}],
+      "notes": [{"id": "rnot_1", "title": "Runbook", "body": "md"}],
+      "skills": [{"id": "skill_1", "name": "Review"}]
+    },
+    {
+      "id": "role_child2", "type": "role", "name": "Treasurer",
+      "purpose": null, "parent_role_id": null, "has_subroles": false, "flags": []
+    }
+  ],
+  "meta": {"pagination": {"per_page": 100, "has_next_page": true, "next_cursor": "page2"}}
+}`
+
+// TestSubrolesPageDecodesRoleDetail pins the paginated subroles shape: the shared
+// schema (created by 025, reused here under first-to-land — 026 ADR-3) decodes a
+// Page[RoleDetail] with Data populated, the pagination read, per-child ?include
+// fields bound, nested Subroles/ParentRole as plain Role, and a null
+// parent_role_id on a bare child decoding without error.
+func TestSubrolesPageDecodesRoleDetail(t *testing.T) {
+	var page Page[RoleDetail]
+	if err := json.Unmarshal([]byte(subrolesPageFixture), &page); err != nil {
+		t.Fatalf("decoding the /roles/{id}/subroles fixture failed: %v", err)
+	}
+	if len(page.Data) != 2 {
+		t.Fatalf("subroles data = %d children, want 2", len(page.Data))
+	}
+	if !page.Meta.Pagination.HasNextPage || page.Meta.Pagination.NextCursor != "page2" {
+		t.Errorf("pagination not read: %+v", page.Meta.Pagination)
+	}
+
+	first := page.Data[0]
+	if first.Name != "Press Officer" {
+		t.Errorf("first child name = %q, want Press Officer", first.Name)
+	}
+	if len(first.Assignments) != 1 || first.Assignments[0].Actor.Name != "Alice" {
+		t.Errorf("per-child assignments not bound: %+v", first.Assignments)
+	}
+	if len(first.Subroles) != 1 || first.Subroles[0].Name != "Grandchild" {
+		t.Errorf("nested subroles must be plain Role: %+v", first.Subroles)
+	}
+	if first.ParentRole == nil || first.ParentRole.Name != "Marketing" {
+		t.Errorf("per-child parent_role not bound: %+v", first.ParentRole)
+	}
+	if len(first.Skills) != 1 || first.Skills[0].Name != "Review" {
+		t.Errorf("per-child skills not bound: %+v", first.Skills)
+	}
+
+	// The bare child: a null parent_role_id and absent include slices decode clean.
+	bare := page.Data[1]
+	if bare.ParentRoleID != nil {
+		t.Errorf("bare child parent_role_id = %v, want nil (null)", *bare.ParentRoleID)
+	}
+	if bare.Assignments != nil || bare.Policies != nil {
+		t.Errorf("bare child unrequested includes should stay nil: %+v", bare)
+	}
+}
+
 // TestRoleDocumentOmittedIncludesStayEmpty pins that when no ?include was
 // requested the related fields decode to nil/empty (not an error), and a null
 // parent_role decodes to a nil pointer — the render guards on exactly these.

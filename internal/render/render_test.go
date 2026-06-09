@@ -335,6 +335,144 @@ func assertRender(t *testing.T, resource Resource, format Format, data any, want
 	}
 }
 
+// --- tree render (026): recursion, depth indentation, depth-boundary marker --
+
+func strptr(s string) *string { return &s }
+
+// TestRender_TreeFull_RecursiveIndent_Golden pins the depth-indented recursive
+// render: two spaces per level, id+name+flags per node, the purpose line, and a
+// true leaf (no children, has_subroles=false) rendering with nothing indented and
+// no marker.
+func TestRender_TreeFull_RecursiveIndent_Golden(t *testing.T) {
+	root := glassfrog.TreeNode{
+		ID: "role_a", Name: strptr("Anchor"), Purpose: strptr("Run it"),
+		HasSubroles: true, Flags: []string{"structural"},
+		Children: []glassfrog.TreeNode{{
+			ID: "role_b", Name: strptr("Marketing"), HasSubroles: false,
+			Children: []glassfrog.TreeNode{},
+		}},
+	}
+	want := "Anchor (role_a) [structural]\n" +
+		"  Purpose: Run it\n" +
+		"  Marketing (role_b)\n" +
+		"    Purpose: (no purpose set)\n"
+	assertRender(t, ResourceTree, FormatFull, NewTreeView(root, nil), want)
+}
+
+// TestRender_TreeFull_DepthBoundaryMarker pins that a node with has_subroles=true
+// but no children in the result carries the depth-boundary marker (distinct from
+// a true leaf), and never invents a descendant count.
+func TestRender_TreeFull_DepthBoundaryMarker(t *testing.T) {
+	root := glassfrog.TreeNode{
+		ID: "role_a", Name: strptr("Anchor"), HasSubroles: true,
+		Children: []glassfrog.TreeNode{
+			{ID: "role_b", Name: strptr("Branch"), HasSubroles: true}, // capped: has subroles, none present
+			{ID: "role_c", Name: strptr("Leaf"), HasSubroles: false},  // true leaf
+		},
+	}
+	got, err := Render(ResourceTree, FormatFull, NewTreeView(root, nil))
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(got, "Branch (role_b)  (+ subroles below depth)") {
+		t.Errorf("a capped branch must carry the depth-boundary marker:\n%s", got)
+	}
+	if strings.Contains(got, "Leaf (role_c)  (+ subroles below depth)") {
+		t.Errorf("a true leaf must NOT carry the marker:\n%s", got)
+	}
+	// No invented count of omitted descendants.
+	for _, banned := range []string{"subroles below depth)1", "(1 ", "descendants"} {
+		if strings.Contains(got, banned) {
+			t.Errorf("the marker must not invent a descendant count (%q):\n%s", banned, got)
+		}
+	}
+}
+
+// TestRender_TreeFull_IncludeSectionsGuarded pins per-node include sections:
+// requested resources render (indented under the node); unrequested ones are
+// omitted entirely; "members" maps to the node's Fillers.
+func TestRender_TreeFull_IncludeSectionsGuarded(t *testing.T) {
+	root := glassfrog.TreeNode{
+		ID: "role_a", Name: strptr("Anchor"), HasSubroles: false,
+		Accountabilities: []glassfrog.Accountability{{Description: "Holding the whole"}},
+		Domains:          []glassfrog.Domain{{Description: "The company"}},
+		Fillers:          []glassfrog.Actor{{ID: "per_1", Name: "Alice"}},
+	}
+	req := map[string]bool{"accountabilities": true, "members": true}
+	got, err := Render(ResourceTree, FormatFull, NewTreeView(root, req))
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, want := range []string{"  Accountabilities:", "    - Holding the whole", "  Members:", "    - Alice (per_1)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("requested include section missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Domains:") {
+		t.Errorf("an unrequested section (domains) must be omitted:\n%s", got)
+	}
+}
+
+// TestRender_TreeCompact_DistinguishesCappedFromLeaf pins the compact form: a
+// depth-capped node (children=0 has_subroles=yes) is distinct from a true leaf
+// (children=0 has_subroles=no), with depth shown by indentation.
+func TestRender_TreeCompact_DistinguishesCappedFromLeaf(t *testing.T) {
+	root := glassfrog.TreeNode{
+		ID: "role_a", Name: strptr("Anchor"), HasSubroles: true, Flags: []string{"structural"},
+		Children: []glassfrog.TreeNode{
+			{ID: "role_b", Name: strptr("Branch"), HasSubroles: true},
+			{ID: "role_c", Name: strptr("Leaf"), HasSubroles: false},
+		},
+	}
+	want := "role_a  Anchor  children=2  has_subroles=yes  flags=structural\n" +
+		"  role_b  Branch  children=0  has_subroles=yes  flags=—\n" +
+		"  role_c  Leaf  children=0  has_subroles=no  flags=—\n"
+	assertRender(t, ResourceTree, FormatCompact, NewTreeView(root, nil), want)
+}
+
+// --- subroles render (026): list of children, empty marker -------------------
+
+func TestRender_SubrolesFull_Empty_Golden(t *testing.T) {
+	assertRender(t, ResourceSubroles, FormatFull, SubrolesView{}, "No subroles.\n")
+}
+
+func TestRender_SubrolesCompact_Empty_Golden(t *testing.T) {
+	assertRender(t, ResourceSubroles, FormatCompact, SubrolesView{}, "No subroles.\n")
+}
+
+func TestRender_SubrolesFull_RendersEachChildWithGuardedIncludes(t *testing.T) {
+	children := []glassfrog.RoleDetail{
+		{
+			Role:     glassfrog.Role{ID: "role_b", Name: "Press Officer", Purpose: "Press"},
+			Policies: []glassfrog.Policy{{Title: "Two approvals"}},
+		},
+	}
+	view := SubrolesView{Children: children, Requested: map[string]bool{"policies": true}}
+	got, err := Render(ResourceSubroles, FormatFull, view)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, want := range []string{"Press Officer (role_b)", "Purpose: Press", "  Policies:", "    - Two approvals"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("subroles full missing %q:\n%s", want, got)
+		}
+	}
+	// Subroles include not requested → its section is omitted.
+	if strings.Contains(got, "  Subroles:") {
+		t.Errorf("an unrequested include section must be omitted:\n%s", got)
+	}
+}
+
+func TestRender_SubrolesCompact_OneLinePerChild_Golden(t *testing.T) {
+	children := []glassfrog.RoleDetail{
+		{Role: glassfrog.Role{ID: "role_b", Name: "Press Officer", HasSubroles: true}},
+		{Role: glassfrog.Role{ID: "role_c", Name: "Treasurer", HasSubroles: false}},
+	}
+	want := "role_b  Press Officer  has_subroles=yes\n" +
+		"role_c  Treasurer  has_subroles=no\n"
+	assertRender(t, ResourceSubroles, FormatCompact, SubrolesView{Children: children}, want)
+}
+
 func roleWith(id, name, purpose string, domains, accountabilities []string) glassfrog.Role {
 	r := glassfrog.Role{ID: id, Name: name, Purpose: purpose}
 	for _, d := range domains {

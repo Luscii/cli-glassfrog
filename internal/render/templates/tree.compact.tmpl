@@ -1,0 +1,2 @@
+{{range .Rows}}{{indent .Depth}}{{.ID}}  {{.Name}}  children={{.ChildCount}}  has_subroles={{if .HasSubroles}}yes{{else}}no{{end}}  flags={{if .Flags}}{{join .Flags ","}}{{else}}—{{end}}
+{{end}}
