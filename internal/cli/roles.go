@@ -65,6 +65,7 @@ type rolesConfig struct {
 	hasSubroles *bool // tri-state: nil = omitted, else the requested value
 	firstPage   bool
 	perPage     int
+	perPageSet  bool // whether --per-page was provided (cmd.Flags().Changed); presence, not value
 
 	// single-read flag (the list branch forbids it; validateRolesFlags guards)
 	include []string
@@ -99,7 +100,7 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 		tagSet:         cfg.tag != "",
 		hasSubrolesSet: cfg.hasSubroles != nil,
 		firstPage:      cfg.firstPage,
-		perPageSet:     cfg.perPage != 0,
+		perPageSet:     cfg.perPageSet,
 		includeSet:     len(cfg.include) > 0,
 	}); err != nil {
 		fmt.Fprintln(cfg.stderr, err.Error())
@@ -206,7 +207,12 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 func reportIncompleteWalk(stderr io.Writer, stop error) (Outcome, error) {
 	refined := refineClientError(stop)
 	fmt.Fprintf(stderr, incompleteWalkNote+"\n", refined.Error())
-	return classifyClientError(refined), stop
+	// Return the REFINED error, not the original stop: the note text, the
+	// classified outcome, and the returned error must all derive from the same
+	// value (the reportClientError invariant), so a downstream errors.As sees the
+	// extracted *ProblemError on a mid-walk 401/403/429 rather than the generic
+	// *ResponseError.
+	return classifyClientError(refined), refined
 }
 
 // aggregateRawRoles concatenates the verbatim per-role bytes gathered across the
@@ -237,7 +243,10 @@ func aggregateRawRoles(f output.Format, records []json.RawMessage) ([]byte, erro
 // projection. --per-page (if set) sizes the single request; the walker is not
 // involved.
 func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
-	if cfg.perPage > 0 {
+	if cfg.perPageSet {
+		// Pass the provided value through as-is — no client-side clamp (paging's
+		// contract): an out-of-range value (0, negative, > API max) surfaces the
+		// API's rejection rather than being silently ignored.
 		q := cloneRolesQuery(req.Query)
 		q.Set("per_page", strconv.Itoa(cfg.perPage))
 		req.Query = q
@@ -301,10 +310,12 @@ func rolesListQuery(cfg rolesConfig) url.Values {
 }
 
 // rolesWalkOptions builds the paging options for the default walk. --per-page
-// (016's WithPageSize) sizes the walk when set; the API owns the valid range, so
-// an out-of-range value surfaces the API's rejection as the walk's Stop.
+// (016's WithPageSize) sizes the walk when the flag was provided (by presence,
+// not value): the value is passed through as-is — no client-side clamp (paging's
+// contract) — so an out-of-range value (0, negative, > API max) surfaces the
+// API's rejection as the walk's Stop rather than being silently ignored.
 func rolesWalkOptions(cfg rolesConfig) []paging.Option {
-	if cfg.perPage > 0 {
+	if cfg.perPageSet {
 		return []paging.Option{paging.WithPageSize(cfg.perPage)}
 	}
 	return nil
@@ -570,10 +581,14 @@ func newRolesCommand(seam rolesSeam) *cobra.Command {
 				hasSubroles: hasSubrolesPtr,
 				firstPage:   firstPage,
 				perPage:     perPage,
-				include:     include,
-				reqCtx:      cmd.Context(),
-				stdout:      cmd.OutOrStdout(),
-				stderr:      cmd.ErrOrStderr(),
+				// Presence, not value: --per-page=0 alongside an id must still be
+				// rejected as a list-only flag (Changed), and a provided 0/negative
+				// must reach the API rather than be silently ignored.
+				perPageSet: cmd.Flags().Changed("per-page"),
+				include:    include,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

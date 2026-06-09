@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -471,9 +472,47 @@ func TestRunRoles_PerPageSizesTheWalk(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	_, _, _ = runRolesOver(t, seam, rolesConfig{perPage: 10})
+	_, _, _ = runRolesOver(t, seam, rolesConfig{perPage: 10, perPageSet: true})
 	if got := tr.lastQuery.Get("per_page"); got != "10" {
 		t.Errorf("per_page = %q, want 10 (--per-page sizes the walk)", got)
+	}
+}
+
+// --per-page is keyed on presence, not value: a provided 0 or negative value is
+// passed through to the API as-is (no client-side clamp) rather than silently
+// ignored, so an out-of-range value surfaces the API's rejection.
+func TestRunRoles_PerPageProvidedValuePassedThrough(t *testing.T) {
+	for _, n := range []int{0, -1} {
+		tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+		_, _, _ = runRolesOver(t, seam, rolesConfig{perPage: n, perPageSet: true})
+		if got := tr.lastQuery.Get("per_page"); got != strconv.Itoa(n) {
+			t.Errorf("per_page = %q, want %d (a provided value is passed through, not ignored)", got, n)
+		}
+	}
+}
+
+// --per-page combined with a role id is a usage error keyed on flag presence, so
+// even --per-page=0 (the int zero value) alongside an id is rejected with no
+// request sent (the perPageSet=Changed fix; a value-based `!= 0` check would miss it).
+func TestRunRoles_PerPageWithIdIsUsageErrorNoRequest(t *testing.T) {
+	for name, n := range map[string]int{"zero": 0, "positive": 25, "negative": -1} {
+		t.Run(name, func(t *testing.T) {
+			tr := &cannedTransport{status: 200, body: roleDetailBody}
+			seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+			outcome, _, stderr := runRolesOver(t, seam, rolesConfig{
+				args: []string{"role_0123456789abcdef0123456789abcdef"}, perPage: n, perPageSet: true,
+			})
+			if outcome != UsageError {
+				t.Fatalf("outcome = %v, want UsageError", outcome)
+			}
+			if !strings.Contains(stderr, "--per-page") {
+				t.Errorf("stderr should name the offending --per-page flag, got %q", stderr)
+			}
+			if tr.calls != 0 {
+				t.Errorf("a rejected combination must send nothing (tripwire), got %d calls", tr.calls)
+			}
+		})
 	}
 }
 
@@ -660,6 +699,25 @@ func TestValidateRolesInclude(t *testing.T) {
 	multi := validateRolesInclude([]string{"bogus", "nope"})
 	if multi == nil || !strings.Contains(multi.Error(), "values ") {
 		t.Errorf("multiple bad values should use the plural noun, got %v", multi)
+	}
+}
+
+// reportIncompleteWalk must return the REFINED error (not the original Stop), so
+// the returned value agrees with the classified outcome and a downstream
+// errors.As sees the extracted *ProblemError on a mid-walk non-2xx.
+func TestReportIncompleteWalk_ReturnsRefinedError(t *testing.T) {
+	var errb bytes.Buffer
+	stop := &apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)}
+	outcome, retErr := reportIncompleteWalk(&errb, stop)
+	if outcome != PermissionError {
+		t.Errorf("outcome = %v, want PermissionError (403 → refined classification)", outcome)
+	}
+	var pe *apiclient.ProblemError
+	if !errors.As(retErr, &pe) {
+		t.Errorf("returned error should be the refined *ProblemError, got %T", retErr)
+	}
+	if !strings.Contains(errb.String(), "incomplete") {
+		t.Errorf("stderr should carry the incomplete note, got %q", errb.String())
 	}
 }
 
