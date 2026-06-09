@@ -50,7 +50,7 @@ It is the **dependency root of Governance Reads**: the per-role reads — Role D
 
 - When no usable token is available, the system surfaces the authentication fail-safe's refusal and exits non-zero with a not-authenticated outcome, reusing the shared not-authenticated message and pointing the operator at how to store a credential.
 - When the request cannot reach or complete at the wire (connection, DNS, TLS, timeout), the system surfaces the transport failure by name and exits non-zero with the network-unavailable outcome.
-- When the API answers with a non-2xx response — including a single read whose id does not exist (typically `404`) — the system reports that the read failed, naming the HTTP status, and exits non-zero with the generic API-error outcome; it does not interpret which kind of API error it was.
+- When the API answers with a non-2xx response — including a single read whose id does not exist (typically `404`) — the system reports that the read failed, naming the HTTP status, and exits non-zero. The command adds no interpretation of its own; the shared error handling (API Error Extraction, 015) classifies the status — a generic API-error outcome, or the permission (`401`/`403`) and rate-limit (`429`) outcomes it already distinguishes — and the command surfaces whichever results.
 - Whatever the failure, the message names both what went wrong and a concrete next step (Action Transparency), and never includes the token.
 
 ---

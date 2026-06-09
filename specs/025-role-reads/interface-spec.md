@@ -23,7 +23,7 @@ Plain JSON-tagged structs, tolerant of unknown/extra fields. Leaf package — no
 | `RoleDetail` | embeds `Role`; **+** `Assignments []Assignment`, `Subroles []Role`, `ParentRole *Role`, `Policies []Policy`, `Notes []Note`, `Skills []SkillSummary` | The `GET /roles/{id}` body's `data`. Related fields are nil/empty unless `?include`d. Nested `Subroles`/`ParentRole` are plain `Role` → no recursion. |
 | `Assignment` | `ID`, `ActorID`, `RoleID`, (focus/election fields decoded, not all projected) | Minimal; reused by Role Reads' `--include=assignments` and future specs. |
 | `Policy` | `ID`, `Title`, `Body` (✓ title projected) | Reused by Role Policies (#34). |
-| `Note` | `ID`, `Body`/`Text`, `CreatedAt` | Reused by future note reads. |
+| `Note` | `ID`, `Title`, `Body` (✓ title + body projected); `RoleID`/`CreatedAt`/`UpdatedAt` decoded | Per `spec.yaml` `Note` (required `title` + `body`; no `text` field). Reused by future note reads. |
 | `SkillSummary` | `ID`, `Name`; **no** `Content` | `?include=skills` returns summaries only; full content via a future `GET /skills/{id}`. |
 | `RoleDocument` (or reuse a generic `Document[T]`) | `Data RoleDetail` | The single-object `{data: …}` envelope (distinct from the paginated `Page[T]`). Whichever single-object read lands first may generalize this to `Document[T]`. |
 
@@ -65,12 +65,14 @@ ctx := seam.assemble(baseURLFlag)
 ex,  err := seam.executor(ctx)                                                     // *Client wrapped by RetryExecutor
 var doc glassfrog.RoleDocument
 resp, err := ex.Execute(reqCtx,
-              apiclient.Request{Method:"GET", Path:"/roles/"+id, Query:{"include": strings.Join(includes, ",")}},
+              apiclient.Request{Method: "GET", Path: "/roles/" + id,
+                Query: url.Values{"include": {strings.Join(includes, ",")}}},        // apiclient.Request.Query is url.Values
               &doc)                                                                 // 2xx → doc.Data; non-2xx → *ResponseError
 renderResult("role", resolvedFormat, doc.Data)                                      // 020 dispatch
 
-// list (default walk)
-res := paging.All[glassfrog.Role](reqCtx, ex, apiclient.Request{Method:"GET", Path:"/roles", Query: filters})
+// list (default walk) — filters is a url.Values built from the validated flags
+var filters url.Values
+res := paging.All[glassfrog.Role](reqCtx, ex, apiclient.Request{Method: "GET", Path: "/roles", Query: filters})
 renderResult("org-roles", resolvedFormat, res.Records)                                  // res.Complete drives the stderr note
 ```
 
