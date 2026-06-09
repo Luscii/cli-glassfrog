@@ -34,6 +34,11 @@ func TestFeatures(t *testing.T) {
 			Paths: []string{
 				"../../features/no-runnable-cli",
 				"../../features/unauthenticated-access/credential-storage.feature",
+				// Version Embedding (023): the resolver lives in this package, so its
+				// feature is owned here. Point at the specific file — the
+				// runtime-dependent-distribution/ directory also holds 021/022
+				// features owned by internal/build, whose steps this suite lacks.
+				"../../features/runtime-dependent-distribution/version-embedding.feature",
 			},
 			Tags:     "~@wip",
 			TestingT: t,
@@ -79,6 +84,10 @@ type world struct {
 	// Credential Storage (006): the per-scenario store fixture (temp dirs,
 	// controlled token sources, isTTY, scripted interactor, captured output).
 	cred *credState
+
+	// Version Embedding (023): the resolver inputs a scenario stages and the
+	// value resolveVersion produces.
+	ve *veState
 }
 
 func (w *world) reset() {
@@ -101,11 +110,14 @@ func (w *world) reset() {
 	w.newRoot = nil
 	w.outputs = nil
 	w.cred = &credState{}
-	// Restore the build-time version var to its default placeholder so a 003
-	// "built with version X" scenario cannot leak its value into later
-	// scenarios (the var is the single source of truth both --version and the
-	// version command read).
-	version = "0.0.0-dev"
+	w.ve = &veState{}
+	// Restore the build-time version var to its empty (not-injected) default so a
+	// 003 "built with version X" scenario cannot leak its injected value into
+	// later scenarios. Empty is the sentinel that makes resolveVersion fall back
+	// to build info / the placeholder (spec 023); the reported value both
+	// --version and the version command read is resolvedVersion(), not this raw
+	// var.
+	version = ""
 }
 
 // track records a group as the most-recently-created one, so a later step
@@ -149,6 +161,8 @@ func initializeScenario(sc *godog.ScenarioContext) {
 	w.registerExitCodeSteps(sc)
 	// Credential Storage (006) steps live in credstorage_bdd_test.go.
 	w.registerCredStorageSteps(sc)
+	// Version Embedding (023) steps live in version_embedding_bdd_test.go.
+	w.registerVersionEmbeddingSteps(sc)
 
 	// --- Givens ---
 	sc.Step(`^the command set was empty$`, func() error { return nil })

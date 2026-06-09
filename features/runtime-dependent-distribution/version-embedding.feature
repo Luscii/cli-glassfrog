@@ -27,7 +27,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
       And the pre-release suffix will be preserved exactly
 
     # Source: 023-version-embedding — Scenario: an embedded version overrides recorded build info
-    @wip
     Scenario: An embedded version wins over recorded build info
       Given a binary had the version "v1.4.0" supplied at build time
       And the same binary carried module build info recording a different version
@@ -58,14 +57,12 @@ Feature: Runtime-Dependent Distribution — Version Embedding
     # I want the version to reflect the module version Go recorded for that install.
 
     # Source: 023-version-embedding — Scenario: a tagged source install reports the recorded module version
-    @wip
     Scenario: A tagged source install reports the recorded module version
       Given the CLI was installed from a tagged module version "v1.3.2" with no version supplied to the build
       When the installed binary is asked for its version
       Then it will report "v1.3.2" from the module build info Go recorded
 
     # Source: 023-version-embedding — Scenario: an untagged source install reports the pseudo-version verbatim
-    @wip
     Scenario: An untagged source install reports the pseudo-version verbatim
       Given the CLI was installed from an untagged commit so Go recorded a pseudo-version "v0.0.0-20260101120000-abc123def456"
       When the installed binary is asked for its version
@@ -73,7 +70,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
       And the reported value will identify the exact commit
 
     # Source: 023-version-embedding — Scenario: a plain local build reports Go's development marker
-    @wip
     Scenario: A plain local build reports Go's development marker
       Given a binary was produced by a plain local build with no version supplied
       And Go recorded the module version as "(devel)"
@@ -81,7 +77,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
       Then it will report "(devel)" verbatim
 
     # Source: 023-version-embedding — Scenario: no embedded version and no build info reports the placeholder
-    @wip
     Scenario: A build with no embedded version and no build info reports the placeholder
       Given a binary was built with no version supplied and with no module build info available
       When it is asked for its version

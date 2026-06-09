@@ -279,8 +279,11 @@ func (w *world) thenProducesHelp() error {
 }
 
 func (w *world) thenNoVersionOutput() error {
-	// Help wins: the output must be help, not the bare version line.
-	if strings.TrimSpace(w.output) == version {
+	// Help wins: the output must be help, not the bare version line. Compare
+	// against the RESOLVED version (the value --version would print), not the raw
+	// injected var — which is empty by default (spec 023) and would make this
+	// check vacuous.
+	if strings.TrimSpace(w.output) == resolvedVersion() {
 		return fmt.Errorf("output was the version string, expected help: %q", w.output)
 	}
 	return nil
@@ -307,7 +310,10 @@ func (w *world) thenOutputContains(want string) error {
 }
 
 func (w *world) thenNoVersionPrinted() error {
-	if strings.Contains(w.output, version) {
+	// Compare against the RESOLVED version (non-empty), not the raw injected var:
+	// the default var is empty (spec 023), and strings.Contains(out, "") is always
+	// true, which would make this assertion always fail.
+	if strings.Contains(w.output, resolvedVersion()) {
 		return fmt.Errorf("CLI printed version output for a non-version request: %q", w.output)
 	}
 	return nil
