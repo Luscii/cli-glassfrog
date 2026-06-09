@@ -84,8 +84,9 @@ This feature has no error states of its own — version resolution always return
 | Condition | Behavior |
 |---|---|
 | Reported version is empty | **contract violation** — the never-empty invariant; a resolver unit test fails. |
-| `.goreleaser.yaml` `ldflags` blanked back to empty / `-X` removed | not caught by the `internal/build` config-guard (it ignores `ldflags`); a **focused config assertion** that the real config injects `internal/cli.version` is the regression guard (see Consistency Notes). A blanked seam degrades releases to the build-info/placeholder value — a silent wrong-version, hence the dedicated guard. |
-| `-X` symbol path stale (var renamed, flag not updated) | Go silently ignores `-X` for an unknown symbol → `version` stays empty → resolver falls to build info/placeholder. Same focused config assertion (paired with a release-shape check) is the guard. |
+| `.goreleaser.yaml` `ldflags` blanked back to empty / `-X` removed | not caught by the `internal/build` matrix config-guard (it ignores `ldflags`); a **focused config assertion** that the real config injects a v-prefixed value into `internal/cli.version` is the regression guard (see Consistency Notes). A blanked seam degrades releases to the build-info/placeholder value — a silent wrong-version, hence the dedicated guard. |
+| `-X` symbol path stale (var renamed, flag not updated) | Go silently ignores `-X` for an unknown symbol → `version` stays empty → resolver falls to build info/placeholder. Same focused config assertion catches the stale target. |
+| `-X` value drops the required `v` prefix | **contract violation** — release/snapshot output would no longer match the v-prefixed build-info shape. The focused config assertion rejects an injection whose value does not begin with `v`. |
 | Build info absent (unusual build mode) | not an error — the designed tier-3 placeholder path; reports `0.0.0-dev`. |
 | `--version` and `version` disagree | **contract violation** — both must read `resolvedVersion()`; 003's parity test fails. |
 
