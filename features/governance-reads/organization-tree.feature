@@ -129,7 +129,7 @@ Feature: Governance Reads — Organization Tree
     Scenario: The subroles first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the subroles of "role_0123" span more than one page
-      When an agent runs "glassfrog subroles role_0123" with the first-page opt-out flag
+      When an agent runs "glassfrog subroles role_0123 --first-page"
       Then only the first page of child roles will be printed
       And stderr will note that more subroles exist
       And the command will exit with code 0

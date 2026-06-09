@@ -195,7 +195,7 @@ And it is distinguishable from a true leaf, which is marked as having none
 
 **Scenario: First-page opt-out on subroles stops at one page and signals more exist**
 Given a circle role whose subroles span more than one page of the API response
-When the user runs the subroles read with the first-page opt-out flag
+When the user runs the subroles read with `--first-page`
 Then the system makes a single page request and produces the first page of child roles
 And it surfaces a clear "more exist" incomplete signal
 And the command exits successfully
