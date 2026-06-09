@@ -202,6 +202,42 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 			wantPass:  false,
 			wantNamed: []string{"--clobber"},
 		},
+		{
+			// #3 — an extra permission breaks the least-privilege contract.
+			name: "an extra permission grant (actions: write) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"permissions:\n  contents: write\n", "permissions:\n  contents: write\n  actions: write\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"least-privilege", "actions"},
+		},
+		{
+			// #4 — a bare dist/* arg alongside the filtered globs still attaches junk.
+			name: "an additional bare dist/* arg alongside the filtered globs is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"dist/*.tar.gz dist/*checksums.txt \\", "dist/*.tar.gz dist/*checksums.txt dist/* \\", 1),
+			wantPass:  false,
+			wantNamed: []string{"bare", "dist/*"},
+		},
+		{
+			// #5 — a verify leg on a non-native runner silently verifies the host binary.
+			name: "a verify leg on the wrong (non-native) runner is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          - { goos: darwin, goarch: arm64, runner: macos-14 }\n",
+				"          - { goos: darwin, goarch: arm64, runner: ubuntu-latest }\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"native-arch runner", "darwin/arm64", "macos-14"},
+		},
+		{
+			// #6 — without the dist/ download, verify checks a local rebuild, not the
+			// released bytes. Removes verify's download step (the first occurrence;
+			// publish's identical step, which comes later, is left intact).
+			name: "a verify job that does not download dist/ is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n",
+				"", 1),
+			wantPass:  false,
+			wantNamed: []string{"verify job must download"},
+		},
 	}
 
 	for _, tc := range cases {

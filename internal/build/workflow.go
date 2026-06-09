@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -23,15 +24,30 @@ const ReleaseTriggerType = "published"
 
 var RoutineTriggers = []string{"push", "pull_request", "workflow_dispatch", "schedule"}
 
+// VerifyRunners is the required mapping from each build target to the GitHub
+// native-arch runner that must verify it (interface accord, ADR-3). The mapping
+// is load-bearing: TestSelfContainment_HostBinary selects its target binary by
+// the runner's *native* GOOS/GOARCH, so a leg pinned to the wrong runner would
+// silently verify the host binary instead — defeating the cross-target gate. The
+// guard pins each leg to its exact runner so an all-ubuntu matrix fails.
+var VerifyRunners = map[string]string{
+	"linux/amd64":  "ubuntu-latest",
+	"linux/arm64":  "ubuntu-24.04-arm",
+	"darwin/amd64": "macos-13",
+	"darwin/arm64": "macos-14",
+}
+
 // Workflow is the subset of .github/workflows/release.yml the release-workflow
 // guard inspects.
 type Workflow struct {
 	// On is the workflow trigger. GitHub Actions spells this key `on:`, which
 	// YAML 1.1 coerces to the boolean true — so once the YAML is converted to
 	// JSON (sigs.k8s.io/yaml's path) the trigger lives under the key "true", NOT
-	// "on". The json tag matches that coerced key on purpose; "fixing" it to
-	// json:"on" would silently parse the trigger as empty and the guard would
-	// pass a triggerless workflow. A round-trip probe confirmed the coercion.
+	// "on". The json tag matches that coerced key on purpose: tagging it
+	// json:"on" would decode nothing into On (the data is under "true"), leaving
+	// Triggers zero-valued. That wouldn't pass silently — checkTrigger fails on an
+	// empty release.types — but it would be a confusing false failure on a
+	// perfectly valid workflow. A round-trip probe confirmed the coercion.
 	On          Triggers          `json:"true"`
 	Permissions map[string]string `json:"permissions"`
 	Jobs        map[string]Job    `json:"jobs"`
@@ -164,10 +180,7 @@ func CheckReleaseWorkflow(wf Workflow) []string {
 	var violations []string
 
 	violations = append(violations, checkTrigger(wf.On)...)
-	if wf.Permissions["contents"] != "write" {
-		violations = append(violations, fmt.Sprintf(
-			"permissions must grant contents: write (the only privilege), got %q", wf.Permissions["contents"]))
-	}
+	violations = append(violations, checkPermissions(wf.Permissions)...)
 
 	build, ok := wf.Jobs["build"]
 	if !ok {
@@ -219,6 +232,10 @@ func CheckVerifyGate(wf Workflow) []string {
 			violations = append(violations,
 				"verify job must run the self-containment check (TestSelfContainment_HostBinary) against the dist/ artifact")
 		}
+		if !downloadsDistArtifact(verify) {
+			violations = append(violations,
+				"verify job must download the dist/ artifact — without it TestSelfContainment_HostBinary falls back to a local `go build` and verifies a rebuild, not the released bytes")
+		}
 		if !needsContains(verify.Needs, "build") {
 			violations = append(violations, "verify job must `needs: build` to check the built dist/ bytes")
 		}
@@ -259,8 +276,15 @@ func checkVerifyMatrix(m Matrix) []string {
 			violations = append(violations, fmt.Sprintf("verify matrix duplicates target %q", key))
 		}
 		want[key] = true
-		if strings.TrimSpace(leg["runner"]) == "" {
+		switch runner := strings.TrimSpace(leg["runner"]); runner {
+		case "":
 			violations = append(violations, fmt.Sprintf("verify matrix target %q has no runner", key))
+		case VerifyRunners[key]:
+			// correct native-arch runner
+		default:
+			violations = append(violations, fmt.Sprintf(
+				"verify matrix target %q must run on %q (its native-arch runner), got %q — a non-native runner verifies the host binary, not this target",
+				key, VerifyRunners[key], runner))
 		}
 	}
 	for key, covered := range want {
@@ -280,6 +304,30 @@ func runsSelfContainmentCheck(j Job) bool {
 		}
 	}
 	return false
+}
+
+// checkPermissions enforces that the workflow grants exactly contents: write —
+// the least-privilege contract. It fails if contents is not write AND if any
+// other permission key is present (e.g. an added actions: write), so the "only
+// privilege" claim holds against drift, not just the happy path.
+func checkPermissions(perms map[string]string) []string {
+	var violations []string
+	if perms["contents"] != "write" {
+		violations = append(violations, fmt.Sprintf(
+			"permissions must grant contents: write, got %q", perms["contents"]))
+	}
+	var extra []string
+	for k := range perms {
+		if k != "contents" {
+			extra = append(extra, k)
+		}
+	}
+	if len(extra) > 0 {
+		sort.Strings(extra)
+		violations = append(violations, fmt.Sprintf(
+			"permissions must be contents: write only (least-privilege); found extra grant(s): %v", extra))
+	}
+	return violations
 }
 
 // checkTrigger enforces that the only trigger is a published release. A missing
@@ -355,6 +403,17 @@ func checkPublishJob(j Job) []string {
 	if !strings.Contains(upload, "checksums.txt") {
 		violations = append(violations, "publish job must upload the checksums file (dist/*checksums.txt)")
 	}
+	// A bare dist/* as a SEPARATE argument re-introduces the metadata/build-dir
+	// hazard even alongside the filtered globs. Tokenize the upload command and
+	// reject an exact dist/* arg (substring matching would false-positive on
+	// dist/*.tar.gz / dist/*checksums.txt).
+	for _, tok := range strings.Fields(upload) {
+		if tok == "dist/*" || tok == "dist/" || tok == "dist" {
+			violations = append(violations, fmt.Sprintf(
+				"publish job must not upload a bare %q — it attaches GoReleaser metadata/build dirs the spec forbids", tok))
+			break
+		}
+	}
 	return violations
 }
 
@@ -377,6 +436,20 @@ func goreleaserArgs(j Job) string {
 func uploadsDistArtifact(j Job) bool {
 	for _, s := range j.Steps {
 		if strings.Contains(s.Uses, "actions/upload-artifact") {
+			if p, ok := s.With["path"].(string); ok && strings.Contains(p, "dist") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// downloadsDistArtifact reports whether a step downloads the dist/ directory CI
+// artifact. The verify job must do this so the self-containment check inspects
+// the built dist/ binary rather than falling back to a local `go build`.
+func downloadsDistArtifact(j Job) bool {
+	for _, s := range j.Steps {
+		if strings.Contains(s.Uses, "actions/download-artifact") {
 			if p, ok := s.With["path"].(string); ok && strings.Contains(p, "dist") {
 				return true
 			}
