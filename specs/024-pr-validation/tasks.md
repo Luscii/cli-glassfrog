@@ -40,7 +40,7 @@ The `base` branch is cut from current `main`. Because all three tasks edit the s
 
 ## Phase 2: Test Matrix Job [Shared]
 
-- [ ] **T002** [Shared] Add the OS-matrix `test` job and the `concurrency` cancel-in-progress block
+- [x] **T002** [Shared] Add the OS-matrix `test` job and the `concurrency` cancel-in-progress block — matrix {ubuntu-latest, macos-latest}, fail-fast: false, plain `go test ./...`; PR-keyed concurrency with cancel-in-progress; verified locally (go test ./... all packages ok incl. internal/build config-guard + self-containment; actionlint clean)
   - **Scope**: Add a `test` job to `ci.yml` with `strategy: { fail-fast: false, matrix: { os: [ubuntu-latest, macos-latest] } }`, `runs-on: ${{ matrix.os }}`: `actions/checkout@v4`; `actions/setup-go@v5` (`go-version-file: go.mod`, `cache: true`); `go test ./...` (plain invocation, kept flag-free so Main-Branch Verification (029) can mirror it; `-race`/`-count=1` is an optional additive knob). Add a top-level `concurrency` block keyed on the PR (`group: ${{ github.workflow }}-${{ github.event.pull_request.number }}`, `cancel-in-progress: true`) so a new push cancels the superseded run.
   - **Acceptance criteria**:
     - `go test ./...` runs on both `ubuntu-latest` and `macos-latest`; both cells must pass for the test portion to pass, and a failure in one cell still lets the other report (`fail-fast: false`), with the failing OS identifiable from the cell name.

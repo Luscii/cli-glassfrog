@@ -32,6 +32,14 @@ on:
 permissions:
   contents: read
 
+# Latest-commit semantics: key the concurrency group on the PR so a new push
+# cancels the superseded in-flight run. The gate therefore always reflects the
+# latest head commit, and a superseded run cannot satisfy it — its cancelled
+# jobs leave ci-success non-success (see the ci-success guard below).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   # Lint runs ONCE per validation run (ADR-2) — not per test-matrix cell, since
   # these checks are OS-independent. Three legible categories: a gofmt
@@ -68,3 +76,34 @@ jobs:
           # that itself runs through this gate. See .golangci.yml for the
           # enabled-linter policy.
           version: v2.11.4
+
+  # Tests run across an OS matrix (ADR-3): ubuntu + macos, the two families the
+  # tool ships to — exercising the OS-divergent paths that matter for this
+  # codebase (internal/build inspects linkage with otool on darwin vs ldd on
+  # linux; golang.org/x/term has per-OS paths). amd64 + single go.mod-pinned Go
+  # version keeps per-PR cost bounded; cross-arch breadth stays at release time
+  # (022). The matrix extends by adding axis values without restructuring — the
+  # ci-success gate keeps the required-check name stable when it does.
+  #
+  # `go test ./...` is kept a plain, flag-free invocation so Main-Branch
+  # Verification (029) can mirror it directly. It exercises the existing unit
+  # tests, every godog BDD suite, the internal/build host self-containment test,
+  # and the internal/build .goreleaser.yaml config-guard test the release
+  # pipeline (022) relies on. No new test logic is added here.
+  test:
+    strategy:
+      # Every cell must pass. fail-fast: false lets one OS finish and report
+      # even when the other fails, so the failing OS is identifiable by its
+      # cell name (e.g. `test (macos-latest)`).
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test
+        run: go test ./...
