@@ -26,7 +26,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 1: Core installer [Shared]
 
-- [ ] **T001** [Shared] Write `install.sh` — the complete POSIX install script
+- [x] **T001** [Shared] Write `install.sh` — the complete POSIX install script — shellcheck-clean (sh dialect); all 9 behavior paths verified end-to-end against a local fixture server (latest-redirect, pinned, upgrade-in-place, checksum-mismatch→3, not-found→1, bad-version→2, unsupported→2, PATH guidance). @wip removal + scenario execution land in T002 (the Go harness).
   - **Scope**: A single new file `install.sh` at the repo root (`#!/bin/sh`, `set -eu`). One reviewable PR. Implements the full pipeline: platform detection + mapping, tooling detection, tag resolution (latest-via-redirect default + pinned), deterministic asset-name construction, temp-dir download, sha256 verification, atomic `mv` install, PATH check + guidance, success reporting, and the exit-code scheme. Reads only `GLASSFROG_VERSION`, `GLASSFROG_INSTALL_DIR`, `GLASSFROG_DOWNLOAD_BASE_URL`.
   - **Acceptance criteria**:
     - `uname -s`/`uname -m` map to `{darwin,linux}`×`{amd64,arm64}`; any other platform exits 2 with a message naming the detected platform and supported set, installing nothing.
