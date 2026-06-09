@@ -79,7 +79,7 @@ The installer defines **its own** exit-code scheme — deliberately small and di
 
 | Condition | Behavior |
 |---|---|
-| Unsupported platform (Windows, unsupported arch) | stderr message naming the detected `os`/`arch` and the supported set (`darwin`/`linux` × `amd64`/`arch64`); nothing installed; exit 2. |
+| Unsupported platform (Windows, unsupported arch) | stderr message naming the detected `os`/`arch` and the supported set (`darwin`/`linux` × `amd64`/`arm64`); nothing installed; exit 2. |
 | No downloader / no sha256 tool | stderr message naming which tool category is missing and what satisfies it; exit 2 (before any download). |
 | Latest cannot be resolved | No stable release exists / redirect yields no tag → stderr message; exit 1. |
 | Pinned version not found | Asset download returns 404 → stderr message naming the version and asset; nothing installed; exit 1. |
