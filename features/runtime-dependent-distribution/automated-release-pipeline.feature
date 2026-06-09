@@ -20,7 +20,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
     # I want to publish a release and have every platform archive and a checksums file built and attached automatically.
 
     # Source: 022-automated-release-pipeline — Scenario: publishing a release attaches all platform archives and a checksums file
-    @wip
     Scenario: Publishing a release attaches all platform archives and a checksums file
       Given a release for tag "v1.4.0" had been drafted
       When a maintainer publishes the release
@@ -28,7 +27,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       And it will attach four "tar.gz" archives and one checksums file to the "v1.4.0" release
 
     # Source: 022-automated-release-pipeline — Scenario: a build failure aborts the whole release
-    @wip
     Scenario: A build failure aborts the whole release
       Given a release for tag "v1.4.0" had been published
       And the build for one target platform fails
@@ -37,7 +35,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       And it will attach no archives and no checksums file
 
     # Source: 022-automated-release-pipeline — Scenario: routine activity without a published release triggers no build
-    @wip
     Scenario: Routine activity without a published release triggers no build
       Given commits had been merged to main and a draft release was updated
       When no release is published
@@ -45,7 +42,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       And no archives or checksums file will be built or attached
 
     # Source: 022-automated-release-pipeline — Scenario: re-running for an already-published release converges on one artifact set
-    @wip
     Scenario: Re-running for an already-published release converges on one artifact set
       Given a "v1.4.0" release already had the artifact set attached
       When the pipeline runs again for the "v1.4.0" release
@@ -53,14 +49,12 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
       And it will not create duplicate or conflicting archives
 
     # Source: 022-automated-release-pipeline — Scenario: a hand-created published release is handled identically
-    @wip
     Scenario: A hand-created published release is handled identically
       Given a maintainer had created and published a "v1.4.0" release by hand without the draft-release flow
       When the pipeline runs
       Then it will build and attach the full artifact set exactly as for a drafted release
 
     # Source: 022-automated-release-pipeline — Proposed: a cross-target self-containment failure aborts the release (plan ADR-3)
-    @wip
     Scenario: A self-containment verification failure aborts the release
       Given the four target archives had been built for a published "v1.4.0" release
       And one target binary fails the self-containment check on its own platform
@@ -103,7 +97,6 @@ Feature: Runtime-Dependent Distribution — Automated Release Pipeline
     # I want a release published as a pre-release to receive the same artifacts without its status changing.
 
     # Source: 022-automated-release-pipeline — Scenario: publishing a pre-release attaches artifacts without changing its status
-    @wip
     Scenario: Publishing a pre-release attaches artifacts without changing its status
       Given a release for tag "v1.4.0-rc.1" had been published and marked as a pre-release
       When the pipeline runs
