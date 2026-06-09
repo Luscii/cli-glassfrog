@@ -1,0 +1,3 @@
+{{if not .Children}}No subroles.
+{{else}}{{range .Children}}{{.ID}}  {{.Name}}  has_subroles={{if .HasSubroles}}yes{{else}}no{{end}}
+{{end}}{{end}}

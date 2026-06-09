@@ -41,6 +41,89 @@ type RoleView struct {
 	Requested map[string]bool
 }
 
+// TreeView is the data the `tree` templates (026) render: the recursive
+// hierarchy flattened into pre-order Rows (each carrying its depth, so the
+// template shows nesting purely through `indent`), plus the set of ?include
+// values the operator requested (the same omit-unrequested / mark-empty signal
+// RoleView carries). Flattening the recursion in Go keeps the templates a flat
+// range — text/template has no native depth-passing recursion — while the row
+// order is exactly a pre-order tree walk, so reading top-to-bottom reconstructs
+// the hierarchy.
+type TreeView struct {
+	Rows      []TreeRow
+	Requested map[string]bool
+}
+
+// TreeRow is one node in the flattened tree. Name and Purpose are dereferenced
+// from the node's nullable *string fields (nil → ""), so the template renders
+// plain strings and never prints a pointer or <nil>. BelowDepth is the
+// depth-boundary signal: true when the API reports the node HAS subroles but the
+// result carries none (a --depth cut or an API-withheld branch), so the template
+// marks it distinctly from a true leaf without inventing a descendant count
+// (interface-cli; 026 ADR-2). ChildCount is the number of children present IN THE
+// RESULT (compact's `children=N`), which is 0 for a depth-boundary node.
+type TreeRow struct {
+	Depth            int
+	ID               string
+	Name             string
+	Purpose          string
+	HasSubroles      bool
+	BelowDepth       bool
+	ChildCount       int
+	Flags            []string
+	Accountabilities []glassfrog.Accountability
+	Domains          []glassfrog.Domain
+	Fillers          []glassfrog.Actor
+}
+
+// NewTreeView flattens a TreeNode hierarchy into a TreeView by a pre-order walk,
+// carrying depth and dereferencing the nullable name/purpose. requested is the
+// closed ?include set the run validated; the template guards each per-node
+// section on it.
+func NewTreeView(root glassfrog.TreeNode, requested map[string]bool) TreeView {
+	var rows []TreeRow
+	var walk func(n glassfrog.TreeNode, depth int)
+	walk = func(n glassfrog.TreeNode, depth int) {
+		rows = append(rows, TreeRow{
+			Depth:            depth,
+			ID:               n.ID,
+			Name:             derefString(n.Name),
+			Purpose:          derefString(n.Purpose),
+			HasSubroles:      n.HasSubroles,
+			BelowDepth:       n.HasSubroles && len(n.Children) == 0,
+			ChildCount:       len(n.Children),
+			Flags:            n.Flags,
+			Accountabilities: n.Accountabilities,
+			Domains:          n.Domains,
+			Fillers:          n.Fillers,
+		})
+		for _, c := range n.Children {
+			walk(c, depth+1)
+		}
+	}
+	walk(root, 0)
+	return TreeView{Rows: rows, Requested: requested}
+}
+
+// derefString returns the pointed-to string, or "" for a nil pointer — so a null
+// JSON field renders as an empty/absent value, never a pointer literal.
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// SubrolesView is the data the `subroles` templates (026) render: the gathered
+// immediate-child RoleDetails plus the requested ?include set. It mirrors
+// RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
+// Children set renders the explicit `No subroles.` line (a leaf role is a valid
+// empty answer, not an error).
+type SubrolesView struct {
+	Children  []glassfrog.RoleDetail
+	Requested map[string]bool
+}
+
 // Resource names a read result type. Its constants are the single source of
 // truth for the resource half of a template key: the read commands pass them,
 // the template names derive from them (<resource>.<format>), and 020 maps its
@@ -65,6 +148,16 @@ const (
 	// a RoleView (the RoleDetail plus the requested ?include set). Singular,
 	// distinct from ResourceRoles.
 	ResourceRole Resource = "role"
+	// ResourceTree is the recursive org-tree read (026): GET /tree or
+	// GET /roles/{id}/tree rendered as a TreeView (the hierarchy flattened into
+	// depth-carrying rows plus the requested ?include set). The first non-flat
+	// render key — depth shows as leading indentation.
+	ResourceTree Resource = "tree"
+	// ResourceSubroles is the paginated immediate-children read (026):
+	// GET /roles/{id}/subroles rendered as a SubrolesView (the gathered child
+	// RoleDetails plus the requested ?include set). Distinct from ResourceRole
+	// (singular) and ResourceOrgRoles (the whole-org flat list).
+	ResourceSubroles Resource = "subroles"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -75,7 +168,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
@@ -95,6 +188,15 @@ var funcMap = template.FuncMap{
 	"trimSpace": strings.TrimSpace,
 	// join renders a string slice (a record's tags) the way the projections did.
 	"join": func(items []string, sep string) string { return strings.Join(items, sep) },
+	// indent returns the leading whitespace for a tree node at the given depth —
+	// two spaces per level — so the recursive `tree` templates show depth by
+	// indentation (026 ADR-2). A negative depth clamps to none.
+	"indent": func(depth int) string {
+		if depth < 0 {
+			depth = 0
+		}
+		return strings.Repeat("  ", depth)
+	},
 }
 
 // templates is the single parsed set of all built-ins. text/template (not
