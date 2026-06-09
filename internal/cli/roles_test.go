@@ -1,0 +1,414 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/auth"
+	"github.com/Luscii/cli-glassfrog/internal/output"
+	"github.com/spf13/cobra"
+)
+
+// Canned GET /roles bodies for the org-wide list tests. They carry the grown
+// Role shape (type/parent_role_id/has_subroles/flags/fillers/tags) in the API's
+// snake_case names, and the secret token nowhere (it rides the request header,
+// asserted absent from output by runRolesOver).
+const (
+	orgRolesPageComplete = `{
+      "data": [
+        {"id": "role_0123456789abcdef0123456789abcdef", "type": "role", "name": "Marketing Lead",
+         "purpose": "A market that knows us", "parent_role_id": "role_aaaa000000000000000000000000aaaa",
+         "has_subroles": true, "flags": ["structural"],
+         "domains": [{"id": "dom_1", "description": "The marketing budget"}],
+         "accountabilities": [{"id": "acct_1", "description": "Defining the campaign"}],
+         "fillers": [{"id": "per_x", "name": "Alice Smith", "kind": "human"}], "tags": ["marketing"]},
+        {"id": "role_00000000000000000000000000000001", "type": "role", "name": "Anchor Circle",
+         "purpose": null, "parent_role_id": null, "has_subroles": false, "flags": [],
+         "domains": [], "accountabilities": [], "fillers": [], "tags": []}
+      ],
+      "meta": {"pagination": {"per_page": 500, "has_next_page": false, "next_cursor": ""}}
+    }`
+
+	orgRolesPageEmpty = `{"data": [], "meta": {"pagination": {"per_page": 500, "has_next_page": false, "next_cursor": ""}}}`
+)
+
+// orgRolesPage builds a one-role page body for a named role, optionally signalling
+// a next page with the given cursor — for assembling a multi-page walk over the
+// seqMeTransport.
+func orgRolesPage(id, name, nextCursor string) string {
+	hasNext := "false"
+	if nextCursor != "" {
+		hasNext = "true"
+	}
+	return `{"data":[{"id":"` + id + `","type":"role","name":"` + name + `","purpose":"p",` +
+		`"parent_role_id":null,"has_subroles":false,"flags":[],"domains":[],"accountabilities":[],"fillers":[],"tags":[]}],` +
+		`"meta":{"pagination":{"per_page":1,"has_next_page":` + hasNext + `,"next_cursor":"` + nextCursor + `"}}}`
+}
+
+// runRolesOver drives the pure runRoles over a fake seam, returning the outcome
+// and captured stdout/stderr, and failing if the token leaks.
+func runRolesOver(t *testing.T, seam rolesSeam, cfg rolesConfig) (Outcome, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	cfg.seam = seam
+	cfg.reqCtx = context.Background()
+	cfg.stdout = &out
+	cfg.stderr = &errb
+	outcome, _ := runRoles(cfg)
+	if strings.Contains(out.String()+errb.String(), meSecretToken) {
+		t.Fatalf("the token leaked into output: %q", out.String()+errb.String())
+	}
+	return outcome, out.String(), errb.String()
+}
+
+// --- runRolesList branches -------------------------------------------------
+
+func TestRunRoles_ListSuccessWalksAndProjects(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{
+		"Marketing Lead (role_0123456789abcdef0123456789abcdef)",
+		"Purpose: A market that knows us",
+		"The marketing budget", "Defining the campaign",
+		"Anchor Circle", "(no purpose set)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("a complete success should write nothing to stderr, got %q", stderr)
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single complete page should be one call, got %d", tr.calls)
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/roles") {
+		t.Errorf("path = %q, want it to target /roles", got)
+	}
+}
+
+func TestRunRoles_ListEmptyIsCleanSuccess(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageEmpty}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if strings.TrimRight(stdout, "\n") != "No roles." {
+		t.Errorf("an empty org should print exactly `No roles.`, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("an empty list is a clean success; stderr should be empty, got %q", stderr)
+	}
+}
+
+func TestRunRoles_ListWalksEveryPageToCompletion(t *testing.T) {
+	tr := &seqMeTransport{steps: []seqMeResp{
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000001", "Page One Role", "c1")},
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000002", "Page Two Role", "c2")},
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000003", "Page Three Role", "")},
+	}}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{"Page One Role", "Page Two Role", "Page Three Role"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout missing %q (the walk must concatenate every page):\n%s", want, stdout)
+		}
+	}
+	if tr.calls != 3 {
+		t.Errorf("a three-page walk should be three calls, got %d", tr.calls)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("a completed walk writes nothing to stderr, got %q", stderr)
+	}
+}
+
+func TestRunRoles_ListNoCredentialsIsUsageErrorNoRequest(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	ctx := apiclient.ConnectionContext{
+		BaseURL: apiclient.BaseURL{Value: "https://example.test/api/v5", Source: apiclient.SourceFlag},
+		Cred:    auth.Resolution{Source: auth.SourceNone},
+	}
+	seam := &fakeMeSeam{ctx: ctx, transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if !strings.Contains(stderr, "auth login") {
+		t.Errorf("stderr should point at `glassfrog auth login`, got %q", stderr)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no role data should print on a no-token failure, got %q", stdout)
+	}
+	if tr.calls != 0 {
+		t.Errorf("an unauthenticated request must not be sent, got %d calls", tr.calls)
+	}
+}
+
+func TestRunRoles_ListTransportFailureIsNetworkUnavailable(t *testing.T) {
+	tr := &cannedTransport{netErr: errors.New("dial tcp: connection refused")}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != NetworkUnavailable {
+		t.Fatalf("outcome = %v, want NetworkUnavailable", outcome)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no projection should print on a first-page transport failure, got %q", stdout)
+	}
+	if strings.TrimSpace(stderr) == "" {
+		t.Error("a transport failure should report a cause on stderr")
+	}
+}
+
+func TestRunRoles_ListNon2xxIsAPIError(t *testing.T) {
+	tr := &cannedTransport{status: 500, body: `{"error":"server error"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no projection should print on a first-page non-2xx, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "500") {
+		t.Errorf("stderr should name the 500 status, got %q", stderr)
+	}
+}
+
+func TestRunRoles_ListUndecodableBodyIsRuntimeError(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: `not json at all`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{})
+	if outcome != RuntimeError {
+		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no projection should print on a decode failure, got %q", stdout)
+	}
+}
+
+func TestRunRoles_ListBaseURLErrorIsUsageErrorNothingSent(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{
+		ctx:          apiclient.ConnectionContext{},
+		newClientErr: &apiclient.BaseURLError{Source: "--" + apiclient.FlagBaseURL},
+		transport:    tr,
+	}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if !strings.Contains(strings.ToLower(stderr), "base-url") && !strings.Contains(strings.ToLower(stderr), "base url") {
+		t.Errorf("stderr should name the base-URL problem, got %q", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a base-URL error must not send, got %d calls", tr.calls)
+	}
+}
+
+func TestRunRoles_ListInvalidOutputIsUsageErrorNothingSent(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "bogus"}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if !strings.Contains(stderr, "bogus") {
+		t.Errorf("stderr should name the bad format value, got %q", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("an invalid --output must not send, got %d calls", tr.calls)
+	}
+}
+
+// -o json emits the raw API payload verbatim (normalized), not the human
+// projection — the data/meta envelope is present.
+func TestRunRoles_ListStructuredEmitsRawPayload(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{`"data"`, `"meta"`, `"has_next_page"`, "Marketing Lead"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured output should carry the raw envelope field %q:\n%s", want, stdout)
+		}
+	}
+	// The human projection header must not appear under a structured format.
+	if strings.Contains(stdout, "Purpose:") {
+		t.Errorf("structured output must not render the human projection:\n%s", stdout)
+	}
+}
+
+// --- validateRolesFlags (pure) ---------------------------------------------
+
+func TestValidateRolesFlags(t *testing.T) {
+	if err := validateRolesFlags(false, rolesFlagState{}); err != nil {
+		t.Errorf("a bare list is valid, got %v", err)
+	}
+	if err := validateRolesFlags(true, rolesFlagState{}); err != nil {
+		t.Errorf("a bare single read is valid, got %v", err)
+	}
+	// A list filter with an id is a usage error naming the misuse.
+	err := validateRolesFlags(true, rolesFlagState{tagSet: true})
+	if err == nil || !strings.Contains(err.Error(), "--tag") {
+		t.Errorf("a filter with an id should be rejected naming --tag, got %v", err)
+	}
+	// --include without an id is a usage error.
+	err = validateRolesFlags(false, rolesFlagState{includeSet: true})
+	if err == nil || !strings.Contains(err.Error(), "--include") {
+		t.Errorf("--include without an id should be rejected, got %v", err)
+	}
+}
+
+// --- newRolesCommand integration (outcome → exit code, wiring) -------------
+
+// runRolesCommand registers `roles` under a real root (with the persistent
+// --base-url + --output flags) and dispatches `roles [args]` through Run.
+func runRolesCommand(t *testing.T, seam rolesSeam, args ...string) (Outcome, int, string, string) {
+	t.Helper()
+	root := NewRootCommand()
+	MustRegister(root, newRolesCommand(seam))
+	var out, errb bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errb)
+	outcome, _ := Run(root, append([]string{"roles"}, args...))
+	return outcome, ExitCode(outcome), out.String(), errb.String()
+}
+
+func TestRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
+	cases := []struct {
+		name     string
+		tr       *cannedTransport
+		ctx      apiclient.ConnectionContext
+		seamErr  error
+		args     []string
+		outcome  Outcome
+		exitCode int
+	}{
+		{"list-success", &cannedTransport{status: 200, body: orgRolesPageComplete}, validMeContext(), nil, nil, Success, 0},
+		{"list-empty-success", &cannedTransport{status: 200, body: orgRolesPageEmpty}, validMeContext(), nil, nil, Success, 0},
+		{"api-error", &cannedTransport{status: 500, body: `{}`}, validMeContext(), nil, nil, APIError, 3},
+		{"network-unavailable", &cannedTransport{netErr: errors.New("refused")}, validMeContext(), nil, nil, NetworkUnavailable, 6},
+		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, RuntimeError, 1},
+		{"too-many-args", &cannedTransport{status: 200, body: orgRolesPageComplete}, validMeContext(), nil, []string{"role_a", "role_b"}, UsageError, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seam := &fakeMeSeam{ctx: tc.ctx, newClientErr: tc.seamErr, transport: tc.tr}
+			outcome, code, stdout, stderr := runRolesCommand(t, seam, tc.args...)
+			if outcome != tc.outcome {
+				t.Errorf("outcome = %v, want %v\nstderr: %s", outcome, tc.outcome, stderr)
+			}
+			if code != tc.exitCode {
+				t.Errorf("exit code = %d, want %d", code, tc.exitCode)
+			}
+			if strings.Contains(stdout+stderr, meSecretToken) {
+				t.Errorf("token leaked into output: %q", stdout+stderr)
+			}
+		})
+	}
+}
+
+// More than one positional id is rejected by cobra.MaximumNArgs(1) before any
+// API call.
+func TestRolesCommand_TooManyArgsSendsNothing(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+	outcome, code, _, _ := runRolesCommand(t, seam, "role_a", "role_b")
+	if outcome != UsageError || code != 2 {
+		t.Fatalf("too many args: outcome=%v code=%d, want UsageError/2", outcome, code)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a rejected invocation must not send a request, got %d calls", tr.calls)
+	}
+}
+
+// The persistent --base-url value reaches the seam's assemble (inherited from the
+// root).
+func TestRolesCommand_InheritsBaseURLFlag(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+	_, _, _, _ = runRolesCommand(t, seam, "--base-url", "https://flag.test/api/v5")
+	if seam.assembledBaseURL != "https://flag.test/api/v5" {
+		t.Errorf("assemble received base URL %q, want the inherited flag value", seam.assembledBaseURL)
+	}
+}
+
+// The `roles` leaf declares no --base-url flag of its own — it inherits the
+// root's persistent one.
+func TestRolesCommand_DeclaresNoOwnBaseURLFlag(t *testing.T) {
+	cmd := newRolesCommand(&fakeMeSeam{})
+	if cmd.Flags().Lookup(apiclient.FlagBaseURL) != nil {
+		t.Errorf("the roles leaf must not declare its own --%s flag; it is inherited", apiclient.FlagBaseURL)
+	}
+}
+
+// `roles` is a runnable leaf (an optional positional id), NOT a group — it
+// replaces the earlier stub `roles list`/`roles get` group.
+func TestRolesCommand_IsRunnableLeafReplacingStub(t *testing.T) {
+	cmd := newRolesCommand(&fakeMeSeam{})
+	if cmd.RunE == nil {
+		t.Error("roles should be a runnable leaf (RunE set)")
+	}
+	if len(cmd.Commands()) != 0 {
+		t.Errorf("roles should have no subcommands (the list/get stubs are removed), got %v", cmd.Commands())
+	}
+	if cmd.Args == nil {
+		t.Error("roles should declare an Args validator (MaximumNArgs(1))")
+	}
+}
+
+// The full Assemble wiring must not panic and must wire `roles` as a top-level
+// runnable command.
+func TestAssemble_WiresRolesWithoutPanic(t *testing.T) {
+	root := Assemble()
+	rolesCmd, _, err := root.Find([]string{"roles"})
+	if err != nil || rolesCmd == nil || rolesCmd.Name() != "roles" {
+		t.Fatalf("Assemble should wire a top-level `roles` command, got %v (err %v)", rolesCmd, err)
+	}
+	if rolesCmd.RunE == nil {
+		t.Error("the wired `roles` should be runnable")
+	}
+}
+
+// Guard against an accidental coupling: the `roles` constructor takes a seam.
+var _ = func() *cobra.Command { return newRolesCommand(productionSeam{}) }
+
+// Sanity: the org-roles render key resolves in both formats (the registry guard
+// in internal/render is the authority; this pins the cli-side resource constant).
+func TestRolesCommand_OrgRolesRenderKeyExists(t *testing.T) {
+	for _, f := range []output.OutputFormat{output.FormatFull, output.FormatCompact} {
+		tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: f.String()}
+		outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+		if outcome != Success {
+			t.Fatalf("format %s: outcome=%v stderr=%s", f, outcome, stderr)
+		}
+		if !strings.Contains(stdout, "role_0123456789abcdef0123456789abcdef") {
+			t.Errorf("format %s should render the role id:\n%s", f, stdout)
+		}
+	}
+}

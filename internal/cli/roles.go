@@ -1,55 +1,345 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
+	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
+	"github.com/Luscii/cli-glassfrog/internal/output"
+	"github.com/Luscii/cli-glassfrog/internal/paging"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
 
-// newRolesCommand assembles the `roles` group and its subcommands, then returns
-// it for registration under the root. The group is fully assembled (its
-// children registered through the guard) before it is itself registered, so
-// the guard's ">=1 child" rule holds when the group attaches to its parent.
-//
-// The subcommand actions are honest stubs: this feature exercises command
-// registration, not the Glassfrog API. The real governance-read behavior is
-// the Governance Reads capability's concern (a later spec), so the stubs make
-// no claim about API operations (Constitution I/VIII).
-func newRolesCommand() *cobra.Command {
-	roles := &cobra.Command{
-		Use:   "roles",
-		Short: "Read roles and the governance around them",
-	}
-	MustRegister(roles, newRolesListCommand())
-	MustRegister(roles, newRolesGetCommand())
-	return roles
+// incompleteWalkNote is the stderr line the default walk writes when it stops on
+// an error after gathering at least one page: the partial set is already on
+// stdout, so this names the cause and marks the list incomplete — a partial list
+// is never silently presented as complete (CONSTITUTION VI; interface-cli). The
+// %s is the cause; the command exits non-zero (classifyClientError(Stop)).
+const incompleteWalkNote = "note: result is incomplete — %s; the roles shown are a partial set"
+
+// rolesSeam supplies everything the `roles` reads need from the outside, so
+// runRoles is pure over injected values and every branch runs offline. It is the
+// same shape Identity Read's meSeam exposes (assemble + newClient + sleep +
+// resolveFormat), so productionSeam satisfies it unchanged and the existing test
+// fakes drive it; `roles` builds the retrying executor once from these and hands
+// it to both a direct Execute (single read) and paging.All (the list walk). It
+// never reads ctx.Cred.Token — the token rides 007's AuthTransport inside the
+// client.
+type rolesSeam interface {
+	assemble(baseURL string) apiclient.ConnectionContext
+	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
+	sleep() func(time.Duration)
+	resolveFormat(flagValue string) (output.OutputFormat, error)
 }
 
-func newRolesListCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "list",
-		Short: "List roles",
-		// No positional arguments today; reject unexpected input as a usage
-		// error rather than ignoring it (dispatch's Invalid-input accord, 002).
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), "roles list is not yet implemented")
-			return nil
-		},
+// rolesConfig carries everything runRoles needs, gathered by the command's RunE.
+// Keeping runRoles a function of injected values makes the whole read — validate,
+// assemble, build, walk/send, render/classify — testable over a fake transport
+// with no real network or ~/.glassfrogrc.
+type rolesConfig struct {
+	seam       rolesSeam
+	baseURL    string   // inherited persistent --base-url (may be empty)
+	outputFlag string   // inherited persistent --output (may be empty), resolved before any request
+	args       []string // 0 → list, 1 → single read by id
+
+	// list flags (the single-read branch forbids them; validateRolesFlags guards)
+	parent      string
+	person      string
+	tag         string
+	hasSubroles *bool // tri-state: nil = omitted, else the requested value
+	firstPage   bool
+	perPage     int
+
+	// single-read flag (the list branch forbids it; validateRolesFlags guards)
+	include []string
+
+	reqCtx context.Context
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// runRoles is the pure orchestration the `roles` leaf delegates to: resolve the
+// output format, validate the flag combinations (and, on the single branch, the
+// --include values) fail-fast before any assembly or request, assemble the
+// connection and build the retrying executor once, then dispatch on whether a
+// positional id was given — 0 args → the org-wide list walk, 1 arg → the single
+// role read. It returns the code-free Outcome the command maps onto dispatch's
+// error channel; it adds no new Outcome/ExitCode and never reads the token.
+func runRoles(cfg rolesConfig) (Outcome, error) {
+	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
+	//    fails fast as a usage error before any assembly or request.
+	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
+	if ferr != nil {
+		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
+	hasID := len(cfg.args) == 1
+
+	// 2. Validate the flag combinations BEFORE any assembly or request (fail-fast
+	//    usage error, no wasted call — pinned by a tripwire transport).
+	if err := validateRolesFlags(hasID, rolesFlagState{
+		parentSet:      cfg.parent != "",
+		personSet:      cfg.person != "",
+		tagSet:         cfg.tag != "",
+		hasSubrolesSet: cfg.hasSubroles != nil,
+		firstPage:      cfg.firstPage,
+		perPageSet:     cfg.perPage != 0,
+		includeSet:     len(cfg.include) > 0,
+	}); err != nil {
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+
+	// 3. Resolve the connection and build the client + retrying executor once. A
+	//    base-URL error surfaces here (no doomed send); classify + report it.
+	ctx := cfg.seam.assemble(cfg.baseURL)
+	client, err := cfg.seam.newClient(ctx)
+	if err != nil {
+		return reportClientError(cfg.stderr, err)
+	}
+	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
+
+	if hasID {
+		return runRoleGet(cfg, exec, format, cfg.args[0])
+	}
+	return runRolesList(cfg, exec, format)
+}
+
+// runRolesList performs the org-wide list read. The default path walks GET /roles
+// to completion via paging.All over the retrying executor and renders the
+// complete []Role; a mid-walk failure (a partial set was gathered) renders the
+// partial set, writes the incomplete note to stderr, and exits non-zero via
+// classifyClientError(Stop). A structured --output instead captures the first
+// page's raw bytes verbatim (018) — the pagination metadata rides the document
+// in-band, so a machine consumer reads completeness from it (the typed walk is
+// the human path; no stderr note on the structured path).
+func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+	req := apiclient.Request{Method: http.MethodGet, Path: "/roles", Query: rolesListQuery(cfg)}
+
+	if machineFmt, ok := format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportClientError(cfg.stderr, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			// Buffer-then-write: a render failure leaves stdout empty and maps to
+			// RuntimeError(1). The error is token-free (018 contract).
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	// Default human path: walk every page to completion.
+	res := paging.All[glassfrog.Role](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
+
+	// A walk that stopped before gathering any record is a clean failure (e.g. a
+	// first-page transport/auth/API error): there is no partial set to show, so
+	// report it like any read error — nothing on stdout.
+	if res.Stop != nil && len(res.Records) == 0 {
+		return reportClientError(cfg.stderr, res.Stop)
+	}
+
+	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), res.Records)
+	if rerr != nil {
+		fmt.Fprintln(cfg.stderr, rerr.Error())
+		return RuntimeError, rerr
+	}
+	fmt.Fprint(cfg.stdout, text)
+
+	if res.Stop != nil {
+		// Mid-walk failure: the partial set is already on stdout. Name the cause on
+		// stderr and exit non-zero via the shared classifier (refined once so a
+		// non-2xx splits into permission/rate-limit as 015 landed).
+		refined := refineClientError(res.Stop)
+		fmt.Fprintf(cfg.stderr, incompleteWalkNote+"\n", refined.Error())
+		return classifyClientError(refined), res.Stop
+	}
+	return Success, nil
+}
+
+// rolesListQuery builds the GET /roles query from the validated list filters.
+// The filters land in T003; today the list walk sends no parameters.
+func rolesListQuery(cfg rolesConfig) url.Values {
+	return nil
+}
+
+// rolesWalkOptions builds the paging options for the default walk. --per-page
+// lands in T003; today the walk uses the walker's default page size.
+func rolesWalkOptions(cfg rolesConfig) []paging.Option {
+	return nil
+}
+
+// runRoleGet reads a single role by id. The full single-read branch — --include
+// validation, the RoleDetail document decode, and the guarded `role` render
+// sections — lands in T004; until then the branch is wired but inert.
+func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id string) (Outcome, error) {
+	return RuntimeError, fmt.Errorf("single-role read is not yet implemented")
+}
+
+// rolesFlagState carries which list/single flags were supplied, so
+// validateRolesFlags can reject a cross-branch misuse without re-reading cobra.
+type rolesFlagState struct {
+	parentSet      bool
+	personSet      bool
+	tagSet         bool
+	hasSubrolesSet bool
+	firstPage      bool
+	perPageSet     bool
+	includeSet     bool
+}
+
+// validateRolesFlags rejects the cross-branch flag misuses fail-fast, before any
+// request (the 011/013 validate-before-call shape, pinned by a transport
+// tripwire): the list filters (--parent/--person/--tag/--has-subroles) and the
+// walk controls (--first-page/--per-page) apply only to the list, so passing any
+// of them with a role id is a usage error; --include applies only to a single
+// role, so passing it without an id is a usage error. cobra's MaximumNArgs(1)
+// already rejects more than one positional. The message names the misuse and the
+// fix.
+func validateRolesFlags(hasID bool, fs rolesFlagState) error {
+	if hasID {
+		var offending []string
+		if fs.parentSet {
+			offending = append(offending, "--parent")
+		}
+		if fs.personSet {
+			offending = append(offending, "--person")
+		}
+		if fs.tagSet {
+			offending = append(offending, "--tag")
+		}
+		if fs.hasSubrolesSet {
+			offending = append(offending, "--has-subroles")
+		}
+		if fs.firstPage {
+			offending = append(offending, "--first-page")
+		}
+		if fs.perPageSet {
+			offending = append(offending, "--per-page")
+		}
+		if len(offending) > 0 {
+			return fmt.Errorf(
+				"%s %s the role list, not a single role — remove %s or omit the role id",
+				joinFlags(offending), pluralVerb(len(offending)), pluralThem(len(offending)),
+			)
+		}
+		return nil
+	}
+	if fs.includeSet {
+		return fmt.Errorf("--include applies to a single role; pass a role id (e.g. `glassfrog roles role_...`)")
+	}
+	return nil
+}
+
+// joinFlags renders a flag list for a usage message: "--a", "--a and --b", or
+// "--a, --b and --c".
+func joinFlags(flags []string) string {
+	switch len(flags) {
+	case 1:
+		return flags[0]
+	case 2:
+		return flags[0] + " and " + flags[1]
+	default:
+		return strings.Join(flags[:len(flags)-1], ", ") + " and " + flags[len(flags)-1]
 	}
 }
 
-func newRolesGetCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "get",
-		Short: "Show one role",
-		// No positional arguments today; reject unexpected input as a usage
-		// error rather than ignoring it (dispatch's Invalid-input accord, 002).
-		// The role-id argument arrives with the Governance Reads capability.
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), "roles get is not yet implemented")
-			return nil
+func pluralVerb(n int) string {
+	if n == 1 {
+		return "applies to"
+	}
+	return "apply to"
+}
+
+func pluralThem(n int) string {
+	if n == 1 {
+		return "it"
+	}
+	return "them"
+}
+
+// newRolesCommand builds the runnable `roles` leaf (ADR-1): a guard-ready cobra
+// command with an optional positional id (Args: cobra.MaximumNArgs(1)), a
+// non-empty Short, and SilenceErrors/SilenceUsage so runRoles owns its messages.
+// It declares the list and single-read flags and reads the inherited persistent
+// --base-url/--output flags, then delegates to the pure runRoles. It REPLACES the
+// earlier stub `roles` group (its `list`/`get` "not yet implemented" children are
+// removed); Assemble wires this seam-taking constructor. The seam is injected so
+// tests drive a fake one; production passes productionSeam{}.
+func newRolesCommand(seam rolesSeam) *cobra.Command {
+	var (
+		parent      string
+		person      string
+		tag         string
+		hasSubroles bool
+		firstPage   bool
+		perPage     int
+		include     []string
+	)
+	cmd := &cobra.Command{
+		Use:   "roles [id]",
+		Short: "Read the organization's roles, or one role by id",
+		Long: "roles lists every role in the organization (walking pages to completion " +
+			"by default), or reads one role by id when a positional id is given. Unlike " +
+			"the token-scoped `me roles`, this is the whole-organization surface. Each " +
+			"role is shown as a reshaped projection — never the raw API envelope. The " +
+			"single read can embed related resources with --include.",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
+				return err
+			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
+			// --has-subroles is tri-state: send it only when the operator set it
+			// (Changed), so omitted ≠ false (interface-cli; risk note).
+			var hasSubrolesPtr *bool
+			if cmd.Flags().Changed("has-subroles") {
+				hasSubrolesPtr = &hasSubroles
+			}
+			outcome, oerr := runRoles(rolesConfig{
+				seam:        seam,
+				baseURL:     baseURL,
+				outputFlag:  outputFlag,
+				args:        args,
+				parent:      parent,
+				person:      person,
+				tag:         tag,
+				hasSubroles: hasSubrolesPtr,
+				firstPage:   firstPage,
+				perPage:     perPage,
+				include:     include,
+				reqCtx:      cmd.Context(),
+				stdout:      cmd.OutOrStdout(),
+				stderr:      cmd.ErrOrStderr(),
+			})
+			return outcomeToDispatchError(outcome, oerr)
 		},
 	}
+	cmd.Flags().StringVar(&parent, "parent", "", "Filter to roles within a parent role (role_…)")
+	cmd.Flags().StringVar(&person, "person", "", "Filter to roles assigned to a person or agent (per_/agt_…)")
+	cmd.Flags().StringVar(&tag, "tag", "", "Filter roles by tag name (case-insensitive)")
+	cmd.Flags().BoolVar(&hasSubroles, "has-subroles", false, "Filter by whether a role has sub-roles (omit for all)")
+	cmd.Flags().BoolVar(&firstPage, "first-page", false, "Fetch only the first page and signal if more roles exist")
+	cmd.Flags().IntVar(&perPage, "per-page", 0, "Page size for the walk (the API owns the valid range)")
+	cmd.Flags().StringSliceVar(&include, "include", nil, "Related resources to embed on a single role (assignments,subroles,parent_role,policies,notes,skills)")
+	return cmd
 }

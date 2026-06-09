@@ -14,7 +14,11 @@ func Assemble() *cobra.Command {
 	// Top-level commands and groups are wired here — one MustRegister line
 	// each. Adding a command does not touch the others.
 	MustRegister(root, newVersionCommand())
-	MustRegister(root, newRolesCommand())
+	// Role Reads (025): the org-wide `roles` command (list + single read). It
+	// REPLACES the earlier stub `roles` group. productionSeam binds the real
+	// transport (AssembleFromOS + NewClientFromOS) and clock; `roles` reads the
+	// inherited persistent --base-url/--output flags.
+	MustRegister(root, newRolesCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

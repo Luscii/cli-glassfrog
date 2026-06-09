@@ -42,6 +42,10 @@ const (
 	ResourceRoles    Resource = "roles"
 	ResourceActions  Resource = "actions"
 	ResourceProjects Resource = "projects"
+	// ResourceOrgRoles is the org-wide role list (025): GET /roles rendered as
+	// []glassfrog.Role. Distinct from ResourceRoles (the token-scoped `me roles`
+	// list), which is untouched.
+	ResourceOrgRoles Resource = "org-roles"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -52,7 +56,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
