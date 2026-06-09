@@ -69,7 +69,7 @@ func (w *world) registerVersionEmbeddingSteps(sc *godog.ScenarioContext) {
 	sc.Step(`^it will report "([^"]*)"(?: from the module build info Go recorded| verbatim)?$`, w.veThenReports)
 	sc.Step(`^it will report a clear, non-empty development placeholder$`, w.veThenReportsPlaceholder)
 	sc.Step(`^it will not report an empty string$`, w.veThenNotEmpty)
-	sc.Step(`^the reported value will identify the exact commit$`, w.veThenNotEmpty)
+	sc.Step(`^the reported value will identify the exact commit$`, w.veThenIdentifiesCommit)
 	sc.Step(`^the recorded build info will be ignored in favor of the embedded version$`, w.veThenInjectedWon)
 
 	// --- T002: release/pre-release reporting (end-to-end) and the injection guard ---
@@ -157,6 +157,41 @@ func (w *world) veThenNotEmpty() error {
 		return fmt.Errorf("reported version must be a non-empty string")
 	}
 	return nil
+}
+
+// veThenIdentifiesCommit asserts the reported value actually pins a commit, not
+// merely that it is non-empty: a Go pseudo-version ends in a hex commit segment
+// (vX.Y.Z-<timestamp>-<commit>), so the final `-`-delimited segment must be a
+// commit-length hex string. This is the property the "identify the exact commit"
+// scenario is about — checking non-emptiness would pass for any version.
+func (w *world) veThenIdentifiesCommit() error {
+	if w.ve.resolved == "" {
+		return fmt.Errorf("reported version must be a non-empty string")
+	}
+	idx := strings.LastIndex(w.ve.resolved, "-")
+	if idx < 0 || idx == len(w.ve.resolved)-1 {
+		return fmt.Errorf("reported version %q has no trailing commit segment", w.ve.resolved)
+	}
+	commit := w.ve.resolved[idx+1:]
+	if !isHexCommit(commit) {
+		return fmt.Errorf("reported version %q does not end in a hex commit suffix (got %q)", w.ve.resolved, commit)
+	}
+	return nil
+}
+
+// isHexCommit reports whether s looks like a VCS commit hash embedded in a Go
+// pseudo-version: at least 7 lowercase-hex characters (the pseudo-version uses a
+// 12-char prefix; 7 is the conventional short-hash floor).
+func isHexCommit(s string) bool {
+	if len(s) < 7 {
+		return false
+	}
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 func (w *world) veThenInjectedWon() error {
