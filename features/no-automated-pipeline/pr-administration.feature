@@ -19,7 +19,6 @@ Feature: No Automated Pipeline — PR Administration
     # I want every pull request automatically labelled by what it changes and what it is.
 
     # Source: 028-pr-administration — Scenario: a feature pull request is labelled from its title
-    @wip
     Scenario: A feature pull request is labelled from its title
       Given a pull request whose title declared a feature-type change
       When labelling runs
@@ -27,7 +26,6 @@ Feature: No Automated Pipeline — PR Administration
       And that label will be available for Release Drafting to read
 
     # Source: 028-pr-administration — Scenario: a docs-only change is labelled from its changed files
-    @wip
     Scenario: A docs-only change is labelled from its changed files
       Given a pull request that changed only documentation files
       When labelling runs
@@ -35,7 +33,6 @@ Feature: No Automated Pipeline — PR Administration
       And no semver-bearing label will be forced onto it
 
     # Source: 028-pr-administration — Scenario: a pull request carries multiple matching labels
-    @wip
     Scenario: A pull request carries every matching label
       Given a pull request whose title declared a feature and which also changed a dependency manifest
       When labelling runs
@@ -43,7 +40,6 @@ Feature: No Automated Pipeline — PR Administration
       And resolving them into a single semver bump will be left to Release Drafting
 
     # Source: 028-pr-administration — Scenario: an unrecognized change is not mislabelled
-    @wip
     Scenario: An unrecognized change is not mislabelled
       Given a pull request whose title, branch, and changed files matched no managed signal
       When labelling runs
@@ -56,7 +52,6 @@ Feature: No Automated Pipeline — PR Administration
     # I want each pull request to already carry accurate, current category and version labels.
 
     # Source: 028-pr-administration — Scenario: editing the title reconciles the labels (sync)
-    @wip
     Scenario: Editing the title reconciles the labels
       Given a pull request previously labelled "features" from a feature-type title
       When the title is edited to a fix-type change and labelling re-runs
@@ -64,7 +59,6 @@ Feature: No Automated Pipeline — PR Administration
       And the "fixes" label will be applied
 
     # Source: 028-pr-administration — Scenario: a labelling failure does not block the merge
-    @wip
     Scenario: A labelling failure does not block the merge
       Given an otherwise-mergeable pull request
       When the labelling run fails to complete
@@ -72,7 +66,6 @@ Feature: No Automated Pipeline — PR Administration
       And the merge gate will remain solely PR Validation's to decide
 
     # Architecture-informed (proposed by skill — plan concurrency/cancel-in-progress, latest-state sync)
-    @wip
     Scenario: Rapid successive title edits reconcile to the latest title
       Given a pull request whose title is edited several times in quick succession
       When labelling runs
@@ -101,7 +94,6 @@ Feature: No Automated Pipeline — PR Administration
     # I want my pull request labelled on the same terms as an internal one.
 
     # Source: 028-pr-administration — Scenario: a fork pull request is labelled on the same terms
-    @wip
     Scenario: A fork pull request is labelled on the same terms
       Given a pull request opened from a fork by an external contributor
       When labelling runs
