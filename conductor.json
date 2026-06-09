@@ -1,7 +1,0 @@
-{
-  "scripts": {
-    "setup": "go mod download",
-    "run": "go test ./...",
-    "archive": "go clean ./... && rm -f glassfrog"
-  }
-}
