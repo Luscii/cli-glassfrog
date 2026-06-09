@@ -26,7 +26,7 @@ The `base` branch is cut from a main that now contains 021 (the `.goreleaser.yam
 
 ## Phase 1: Release Configuration [Shared]
 
-- [ ] **T001** [Shared] Extend `.goreleaser.yaml` with `archives`, `checksum`, and `release` sections (plus config-guard test)
+- [x] **T001** [Shared] Extend `.goreleaser.yaml` with `archives`, `checksum`, and `release` sections (plus config-guard test) — snapshot emits 4 tar.gz + checksums; `builds`/`ldflags` byte-identical; 8 new config-guard drift cases. Both scenario refs are `@validation`, held @wip for /score:validate.
   - **Scope**: Add to 021's `.goreleaser.yaml` (do **not** touch `builds` or `builds.ldflags`): an `archives` entry (one `tar.gz` per target, name template `glassfrog_{{.Version}}_{{.Os}}_{{.Arch}}`, containing the `glassfrog` binary); a `checksum` entry (single sha256 file, default name `glassfrog_{{.Version}}_checksums.txt`); and a `release` entry with `mode: keep-existing`, `draft: false`, no `prerelease`/`make_latest` override. Extend 021's config-guard (`internal/build` — `CheckConfigGuard`, in `internal/build/config_guard_test.go`; same change-detector rigor) to assert the three new sections are present and the build matrix is still exactly the four targets with `CGO_ENABLED=0`.
   - **Acceptance criteria**:
     - `goreleaser release --snapshot --clean --skip=publish` emits exactly four `tar.gz` archives (one per target) plus one sha256 checksums file under `dist/`, named per the templates above.
@@ -40,7 +40,7 @@ The `base` branch is cut from a main that now contains 021 (the `.goreleaser.yam
 
 ## Phase 2: Release Workflow [Shared]
 
-- [ ] **T002** [Shared] Add `.github/workflows/release.yml` with the `release: published` trigger, build job, and publish job
+- [x] **T002** [Shared] Add `.github/workflows/release.yml` with the `release: published` trigger, build job, and publish job — 6 scenarios un-@wip'd (proven via CheckReleaseWorkflow structural guard, mirroring 021's config-guard-as-proxy); workflow-guard drift suite added. Note: `on:` parses under JSON key `"true"` (YAML 1.1 coercion) — documented in workflow.go.
   - **Scope**: Create the workflow: `on: release: { types: [published] }`, `permissions: contents: write`. A `build` job (`ubuntu-latest`: `actions/checkout@v4` with `fetch-depth: 0`, `actions/setup-go@v5` with `go-version-file: go.mod`, `goreleaser/goreleaser-action@v6` `version: "~> v2"`, run `goreleaser release --clean --skip=publish`, then `actions/upload-artifact` of `dist/`). A `publish` job (`needs: build`) with `env: { GH_TOKEN: ${{ github.token }} }` (required — `gh` authenticates from the token env var, not from `permissions` alone) that downloads `dist/` and uploads **only the release assets** to the triggering release via `gh release upload "${{ github.event.release.tag_name }}" dist/*.tar.gz dist/*checksums.txt --clobber` — never a bare `dist/*`, which would also pick up GoReleaser's metadata (`artifacts.json`, `metadata.json`, `config.yaml`) and per-target build subdirectories. Upload the checksums file last (completeness signal); the step is re-runnable via `--clobber`. (Phase 3 inserts the verify gate between build and publish.)
   - **Acceptance criteria**:
     - Publishing a GitHub Release runs the workflow at the release tag; the build job produces `dist/` and the publish job attaches the four archives + checksums file to that release.
@@ -57,7 +57,7 @@ The `base` branch is cut from a main that now contains 021 (the `.goreleaser.yam
 
 ## Phase 3: Cross-Target Verification Gate [US1]
 
-- [ ] **T003** [US1] Insert the cross-target self-containment verify matrix as a blocking gate before publish
+- [x] **T003** [US1] Insert the cross-target self-containment verify matrix as a blocking gate before publish — verify job (4 targets → ubuntu-latest/ubuntu-24.04-arm/macos-13/macos-14) runs TestSelfContainment_HostBinary against dist; publish now needs [build, verify]; QEMU fallback documented in the workflow. 1 scenario un-@wip'd; CheckVerifyGate guard + 5 drift cases.
   - **Scope**: Add a `verify` job (`needs: build`) with a matrix over the four targets mapped to native-arch runners (linux/amd64 → `ubuntu-latest`, linux/arm64 → `ubuntu-24.04-arm`, darwin/amd64 → `macos-13`, darwin/arm64 → `macos-14`). Each leg downloads `dist/`, selects its target binary, and runs 021's `internal/build` self-containment check (`TestSelfContainment_HostBinary`, dist-artifact-preferred via `DiscoverDistBinary` reading `dist/artifacts.json`): execute → assert exit 0 → inspect dynamic-library linkage against the per-platform OS-only allowlist. Change `publish` to `needs: [build, verify]` so it runs only when build and every matrix leg pass. Document the QEMU-emulation fallback where a native runner is unavailable.
   - **Acceptance criteria**:
     - A self-containment failure on any target leg skips the publish job — nothing is attached (atomic; extends "build failure aborts" to "build-or-verification failure aborts").

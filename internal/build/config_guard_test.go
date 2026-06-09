@@ -5,9 +5,11 @@ import (
 	"testing"
 )
 
-// validConfigYAML is the exact-four-targets, cgo-disabled config the guard must
-// accept. The drift cases below mutate copies of this baseline so each test
-// changes exactly one thing.
+// validConfigYAML is the exact-four-targets, cgo-disabled config plus the 022
+// release sections (archives/checksum/release) the guard must accept. The drift
+// cases below mutate copies of this baseline so each test changes exactly one
+// thing. It mirrors the shipped .goreleaser.yaml structurally; TestConfigGuard_RealConfig
+// pins the real file separately.
 const validConfigYAML = `
 version: 2
 project_name: glassfrog
@@ -27,6 +29,19 @@ builds:
       - -trimpath
     ldflags:
       - ""
+archives:
+  - id: glassfrog
+    ids:
+      - glassfrog
+    formats:
+      - tar.gz
+    name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+checksum:
+  algorithm: sha256
+  name_template: "glassfrog_{{ .Version }}_checksums.txt"
+release:
+  mode: keep-existing
+  draft: false
 `
 
 // TestConfigGuard_RealConfig is the change-detector against the shipped
@@ -104,6 +119,110 @@ func TestConfigGuard_Drift(t *testing.T) {
 				"      - amd64\n      - arm64\n", "      - amd64\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"arm64", "missing"},
+		},
+		{
+			// 022 release sections — a missing section must fail as loudly as an
+			// extra target. Dropping the entire archives section is the loudest miss.
+			name: "a missing archives section is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"archives:\n  - id: glassfrog\n    ids:\n      - glassfrog\n    formats:\n      - tar.gz\n    name_template: \"glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}\"\n",
+				"", 1),
+			wantPass:  false,
+			wantNamed: []string{"archives"},
+		},
+		{
+			name: "an archive format other than tar.gz is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"    formats:\n      - tar.gz\n", "    formats:\n      - zip\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"archives format", "tar.gz"},
+		},
+		{
+			name: "a disabled checksum section is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"checksum:\n  algorithm: sha256\n", "checksum:\n  disable: true\n  algorithm: sha256\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"checksum"},
+		},
+		{
+			name: "a non-sha256 checksum algorithm is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  algorithm: sha256\n", "  algorithm: sha512\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"algorithm", "sha256"},
+		},
+		{
+			name: "a release mode other than keep-existing is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  mode: keep-existing\n", "  mode: replace\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"release mode", "keep-existing"},
+		},
+		{
+			name: "a missing release section (no keep-existing mode) is rejected",
+			yaml: strings.Replace(validConfigYAML,
+				"release:\n  mode: keep-existing\n  draft: false\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"release mode", "keep-existing"},
+		},
+		{
+			name: "release draft: true is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  draft: false\n", "  draft: true\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"release draft"},
+		},
+		{
+			// #2 — a name_template rename silently breaks downstream consumers; pin it.
+			name: "an archive name_template rename is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				`name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"`,
+				`name_template: "glassfrog-{{ .Os }}-{{ .Arch }}"`, 1),
+			wantPass:  false,
+			wantNamed: []string{"archives name_template"},
+		},
+		{
+			// #2 — pointing the archive at a different build must fail.
+			name: "an archive drawing from a different build id is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"    ids:\n      - glassfrog\n", "    ids:\n      - other\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"archives must draw from", "glassfrog"},
+		},
+		{
+			// #1 — a completely missing checksum section parses as the zero value;
+			// it must fail as loudly as an explicit bad algorithm.
+			name: "a missing checksum section entirely is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"checksum:\n  algorithm: sha256\n  name_template: \"glassfrog_{{ .Version }}_checksums.txt\"\n",
+				"", 1),
+			wantPass:  false,
+			wantNamed: []string{"checksum section must be present"},
+		},
+		{
+			// #1 — the checksum filename is part of the consumer contract.
+			name: "a checksum name_template rename is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				`name_template: "glassfrog_{{ .Version }}_checksums.txt"`,
+				`name_template: "checksums.txt"`, 1),
+			wantPass:  false,
+			wantNamed: []string{"checksum name_template"},
+		},
+		{
+			// #8/#9 — a prerelease override violates honor-not-decide.
+			name: "a release prerelease override is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  draft: false\n", "  draft: false\n  prerelease: auto\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"prerelease"},
+		},
+		{
+			// #8/#9 — a make_latest override flips the latest flag the publisher chose.
+			name: "a release make_latest override is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  draft: false\n", "  draft: false\n  make_latest: \"false\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"make_latest"},
 		},
 	}
 
