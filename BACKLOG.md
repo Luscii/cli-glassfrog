@@ -177,7 +177,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Injects the release version at build time with a `go install` build-info fallback so `--version` is correct across install methods; a release without it reports "dev", so it's non-negotiable for shipping.
 - **Dependencies**: → requires: Self-Contained Executable Build
-- **Status**: pending
+- **Status**: specified:023-version-embedding
 
 ### 24. PR Validation
 

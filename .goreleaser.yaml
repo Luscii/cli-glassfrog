@@ -4,7 +4,8 @@
 #
 # Ownership (additive, by spec):
 #   - 021 Self-Contained Executable Build owns the `builds` block (four targets,
-#     CGO_ENABLED=0). `builds.ldflags` is left as 023's version-injection seam.
+#     CGO_ENABLED=0). `builds.ldflags` is 023's version-injection seam — now
+#     filled with the `-X internal/cli.version` stamp (Version Embedding).
 #   - 022 Automated Release Pipeline owns the `archives`, `checksum`, and
 #     `release` sections below — extending this file rather than introducing a
 #     parallel packaging path.
@@ -45,12 +46,18 @@ builds:
     # -trimpath keeps builds path-independent and reproducible across hosts.
     flags:
       - -trimpath
-    # ldflags is intentionally empty in 021 — it is the 023 (Version Embedding)
-    # seam where `-X .../internal/cli.version={{.Version}}` will be injected. The
-    # explicit empty entry overrides GoReleaser's default version -X flags, so
-    # 021 ships no version logic.
+    # Version Embedding (023): stamp the release version into the
+    # internal/cli.version var at link time. `v{{ .Version }}` restores the `v`
+    # prefix GoReleaser strips from .Version, matching the shape Go records in
+    # build info (so --version reads as vX.Y.Z across release AND go-install
+    # source builds); in --snapshot mode it yields a v-prefixed snapshot version
+    # rather than a stale tag. This single -X flag also overrides GoReleaser's
+    # default version flags, so only this var is injected (no commit/date — 003
+    # keeps version output a bare string). The runtime fallback to build info is
+    # in internal/cli (resolveVersion); a config-guard in internal/build asserts
+    # this seam stays wired (a blanked ldflags or a drifted symbol path fails).
     ldflags:
-      - ""
+      - "-X github.com/Luscii/cli-glassfrog/internal/cli.version=v{{ .Version }}"
 
 # --- 022 Automated Release Pipeline: packaging + release sections ------------
 

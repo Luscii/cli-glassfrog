@@ -68,13 +68,23 @@ func TestVersionFlagAndCommandParity(t *testing.T) {
 	}
 }
 
-// The version-unset default is a clear, non-empty placeholder — never empty.
+// When nothing is injected and no build info is available, resolution yields a
+// clear, non-empty placeholder — never an empty string (spec 023, ADR-3). The
+// guarantee moved from the var's default to the resolver's last-resort tier:
+// the var now defaults to "" (the not-injected sentinel), and resolveVersion
+// returns the placeholder.
 func TestVersionDefaultPlaceholder(t *testing.T) {
-	if strings.TrimSpace(version) == "" {
-		t.Fatal("default version must be a non-empty placeholder")
+	got := resolveVersion("", nil, false)
+	if strings.TrimSpace(got) == "" {
+		t.Fatal("resolved version must be a non-empty placeholder when nothing is injected and no build info exists")
 	}
-	if version != "0.0.0-dev" {
-		t.Fatalf("default version = %q, want 0.0.0-dev", version)
+	if got != "0.0.0-dev" {
+		t.Fatalf("placeholder = %q, want 0.0.0-dev", got)
+	}
+	// The injected var itself is empty by default — the sentinel that triggers
+	// the build-info/placeholder fallback.
+	if version != "" {
+		t.Fatalf("default injected version = %q, want empty (the not-injected sentinel)", version)
 	}
 }
 

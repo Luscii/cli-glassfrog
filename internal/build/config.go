@@ -123,6 +123,72 @@ type Build struct {
 	Ldflags []string `json:"ldflags"`
 }
 
+// VersionInjectionTarget is the linker symbol the build must stamp the version
+// into (spec 023): the package-level var in internal/cli that resolveVersion
+// reads as its highest-precedence source. The config-guard below fails if
+// builds.ldflags no longer injects it, so a blanked ldflags seam or a drifted
+// symbol path is caught at config level rather than silently shipping a release
+// that reports the build-info/placeholder value. Importing internal/cli here is
+// avoided deliberately (it would invert the dependency and the build package
+// stays cli-free); the symbol is matched as a string, the same way the linker
+// consumes it.
+const VersionInjectionTarget = "github.com/Luscii/cli-glassfrog/internal/cli.version"
+
+// CheckVersionInjection returns the list of guard violations for version
+// embedding: an empty result means the single build's ldflags inject a
+// v-prefixed value into VersionInjectionTarget via a syntactically valid `-X`
+// flag. It does not pin the exact value (that is GoReleaser's template, not
+// ours), but it does pin the value shape the interface requires: vX.Y.Z /
+// v-prefixed snapshots, matching Go build-info version shape.
+func CheckVersionInjection(cfg Config) []string {
+	if len(cfg.Builds) != 1 {
+		return []string{fmt.Sprintf(
+			"build matrix must be a single builds entry, found %d", len(cfg.Builds))}
+	}
+	for _, entry := range cfg.Builds[0].Ldflags {
+		if ldflagsInjectVersion(entry) {
+			return nil
+		}
+	}
+	return []string{fmt.Sprintf(
+		"builds.ldflags must inject a v-prefixed version via -X %s=v…, but no such flag is present "+
+			"(the 023 seam is blank, the symbol path drifted, or the v prefix was dropped)", VersionInjectionTarget)}
+}
+
+// ldflagsInjectVersion reports whether a single ldflags entry contains a
+// syntactically valid `-X` flag stamping VersionInjectionTarget. It tokenizes
+// the entry (entries may bundle several space-separated flags, e.g.
+// "-s -w -X sym=val") and accepts only the two forms the Go linker actually
+// parses for `-X`:
+//
+//	-X <sym>=<val>   (the flag and its argument as separate tokens)
+//	-X=<sym>=<val>   (the flag and its argument joined by '=')
+//
+// The value must begin with `v`, because spec 023/ADR-4 requires release and
+// snapshot builds to match Go build-info's v-prefixed shape. The concatenated
+// `-X<sym>=<val>` form is rejected — the linker does not parse it as `-X`, so
+// accepting it would let a broken seam pass the guard. Matching the `-X` token
+// structure (rather than a bare substring) also avoids a false positive from the
+// symbol appearing in some unrelated flag.
+func ldflagsInjectVersion(entry string) bool {
+	want := VersionInjectionTarget + "="
+	tokens := strings.Fields(entry)
+	for i, tok := range tokens {
+		if arg, ok := strings.CutPrefix(tok, "-X="); ok {
+			if value, ok := strings.CutPrefix(arg, want); ok && strings.HasPrefix(value, "v") {
+				return true
+			}
+			continue
+		}
+		if tok == "-X" && i+1 < len(tokens) {
+			if value, ok := strings.CutPrefix(tokens[i+1], want); ok && strings.HasPrefix(value, "v") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // RepoRoot walks up from the current working directory to the directory holding
 // go.mod — the repository root, where .goreleaser.yaml lives. Tests in this
 // package run with their package directory as the working directory, so the
