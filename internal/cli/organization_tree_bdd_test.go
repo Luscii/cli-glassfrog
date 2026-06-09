@@ -253,14 +253,6 @@ func (w *orgTreeWorld) transportCalls() int {
 	}
 }
 
-func (w *orgTreeWorld) lastQuery() (string, error) {
-	t, ok := w.transport.(*cannedTransport)
-	if !ok {
-		return "", fmt.Errorf("this scenario's transport does not record the query")
-	}
-	return t.lastQuery.Encode(), nil
-}
-
 // --- Then implementations (shared) ---
 
 func (w *orgTreeWorld) exitWithCode(code int) error {

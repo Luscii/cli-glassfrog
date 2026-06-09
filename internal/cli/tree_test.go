@@ -155,15 +155,14 @@ func TestRunTree_LeafRootRendersSingleNode(t *testing.T) {
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
-	if !strings.Contains(stdout, "Solo Role (role_0123)") {
-		t.Errorf("a leaf root should print its single node:\n%s", stdout)
-	}
-	// No indented child lines (a leaf has nothing nested) and no depth marker.
-	if strings.Contains(stdout, "\n  ") && !strings.Contains(stdout, "\n  Purpose:") {
-		t.Errorf("a leaf root should have no nested children:\n%s", stdout)
-	}
-	if strings.Contains(stdout, "(+ subroles below depth)") {
-		t.Errorf("a true leaf must not carry the depth-boundary marker:\n%s", stdout)
+	// A leaf root renders EXACTLY two lines — the node and its purpose — with no
+	// nested child lines and no depth-boundary marker (has_subroles is false). An
+	// exact-output assertion is what makes "no children" effective: a substring
+	// check on "\n  " can't distinguish an accidental indented child from the
+	// node's own indented Purpose line (PR #63 review).
+	want := "Solo Role (role_0123)\n  Purpose: p\n"
+	if stdout != want {
+		t.Errorf("a leaf root should render exactly the node + purpose lines:\n got: %q\nwant: %q", stdout, want)
 	}
 }
 
