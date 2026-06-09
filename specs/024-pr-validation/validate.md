@@ -20,7 +20,7 @@
 | @wip lifecycle completion | ✓ Pass | 0 |
 | **Validation scenarios** | ✓ Satisfied (3 of 3) | 0 |
 
-**Total**: 5 dimensions checked, 5 passed, 0 findings. 3 of 3 validation scenarios satisfied.
+**Total**: 5 conformance dimensions checked (5 passed, 0 findings). Validation scenarios: 3 of 3 satisfied.
 
 ---
 
