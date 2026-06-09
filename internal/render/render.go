@@ -24,7 +24,22 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+
+	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 )
+
+// RoleView is the data the `role` templates (025) render: the single role's
+// RoleDetail plus the set of ?include values the operator requested. The API
+// returns the same empty array for an unrequested resource and a
+// requested-but-empty one, so Requested is the only signal that lets the
+// template omit an unrequested section yet show an explicit-absence marker for a
+// requested-but-empty one (interface-cli; ADR-2). A template reads a flag with
+// `{{if index .Requested "policies"}}` — index returns false for an absent key,
+// so an unrequested section is simply skipped.
+type RoleView struct {
+	Detail    glassfrog.RoleDetail
+	Requested map[string]bool
+}
 
 // Resource names a read result type. Its constants are the single source of
 // truth for the resource half of a template key: the read commands pass them,
@@ -42,6 +57,14 @@ const (
 	ResourceRoles    Resource = "roles"
 	ResourceActions  Resource = "actions"
 	ResourceProjects Resource = "projects"
+	// ResourceOrgRoles is the org-wide role list (025): GET /roles rendered as
+	// []glassfrog.Role. Distinct from ResourceRoles (the token-scoped `me roles`
+	// list), which is untouched.
+	ResourceOrgRoles Resource = "org-roles"
+	// ResourceRole is the single org role read (025): GET /roles/{id} rendered as
+	// a RoleView (the RoleDetail plus the requested ?include set). Singular,
+	// distinct from ResourceRoles.
+	ResourceRole Resource = "role"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -52,7 +75,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

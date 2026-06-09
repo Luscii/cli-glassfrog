@@ -55,7 +55,10 @@ func TestSmoke_SubprocessExitCodes(t *testing.T) {
 		want int
 	}{
 		{"successful command", "real", []string{"version"}, 0},
-		{"bare group help", "real", []string{"roles"}, 0},
+		// `auth` is a pure group (a `login` child, no action of its own), so a bare
+		// invocation prints help and exits 0. (Role Reads 025 turned the former
+		// stub `roles` group into a runnable leaf, so it no longer fits this case.)
+		{"bare group help", "real", []string{"auth"}, 0},
 		{"unknown command", "real", []string{"nope"}, 2},
 		{"runtime failure", "fixture", []string{"boom"}, 1},
 		{"panic recovers to 1", "fixture", []string{"panicker"}, 1},

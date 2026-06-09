@@ -1,0 +1,3 @@
+{{if not .}}No roles.
+{{else}}{{range .}}{{.ID}}  {{.Name}}  fillers={{len .Fillers}}  subroles={{if .HasSubroles}}yes{{else}}no{{end}}
+{{end}}{{end}}

@@ -17,7 +17,6 @@ Feature: Governance Reads — Role Reads
     # I want to list every role and read one by its id with one command each.
 
     # Source: 025-role-reads — Scenario: List the organization's roles
-    @wip
     Scenario: The organization's roles are listed
       Given a complete connection context with a stored token
       And the API would return several roles in the organization
@@ -26,7 +25,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Scenario: Read a single role by id
-    @wip
     Scenario: A single role is read by id
       Given a complete connection context with a stored token
       And a role "role_0123" exists in the organization
@@ -35,7 +33,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Scenario: No usable token
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog roles"
@@ -44,7 +41,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 2
 
     # Source: 025-role-reads — Scenario: The API cannot be reached
-    @wip
     Scenario: An unreachable API fails as network-unavailable
       Given a complete connection context with a stored token
       And the API is unreachable at the wire
@@ -53,7 +49,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 6
 
     # Source: 025-role-reads — Scenario: A single read for an unknown id
-    @wip
     Scenario: An unknown role id fails with the API status
       Given a complete connection context with a stored token
       And no role "role_ffff" exists in the organization
@@ -62,7 +57,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with a non-zero API-error code
 
     # Source: 025-role-reads — Scenario: The organization has no roles
-    @wip
     Scenario: An empty organization is a clean success
       Given a complete connection context with a stored token
       And the API would return no roles
@@ -84,7 +78,6 @@ Feature: Governance Reads — Role Reads
     # I want to filter the role list by parent, person, tag, or whether a role has subroles.
 
     # Source: 025-role-reads — Scenario: Filter the list by parent circle
-    @wip
     Scenario: The list is filtered by parent circle
       Given a complete connection context with a stored token
       And the parent role "role_aaaa" contains several roles
@@ -94,7 +87,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Scenario: A list filter is rejected on the single read
-    @wip
     Scenario: A filter passed with a role id is a usage error
       Given a complete connection context with a stored token
       When the practitioner runs "glassfrog roles role_0123 --tag marketing"
@@ -108,7 +100,6 @@ Feature: Governance Reads — Role Reads
     # I want to request a single role with its assignments, subroles, parent, policies, notes, or skills embedded inline.
 
     # Source: 025-role-reads — Scenario: Read a single role with related resources embedded
-    @wip
     Scenario: Requested related resources are embedded inline
       Given a complete connection context with a stored token
       And a role "role_0123" exists in the organization
@@ -118,7 +109,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Scenario: An unsupported `--include` value is rejected without an API call
-    @wip
     Scenario: An unsupported include value is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog roles role_0123 --include nonsense"
@@ -140,7 +130,6 @@ Feature: Governance Reads — Role Reads
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 025-role-reads — Scenario: Roles span more than one page (default walk to completion)
-    @wip
     Scenario: A multi-page role list is walked to completion
       Given a complete connection context with a stored token
       And the organization's roles span three pages of API responses
@@ -150,7 +139,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Scenario: First-page opt-out stops at one page and signals more exist
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the organization's roles span more than one page
@@ -160,7 +148,6 @@ Feature: Governance Reads — Role Reads
       And the command will exit with code 0
 
     # Source: 025-role-reads — Proposed: plan ADR-3 mid-walk failure exit semantics
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the role list walk fails after retrieving the first page

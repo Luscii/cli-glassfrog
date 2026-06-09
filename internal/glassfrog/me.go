@@ -51,44 +51,6 @@ type Membership struct {
 	AccessLevel    string `json:"access_level"`
 }
 
-// Role is the shared role shape. The ?include=roles embed (011) projects only
-// ID (role_ / circle_ handle) and Name; My Roles (012) grew THIS SAME type with
-// the full GET /me/roles shape — Purpose plus the role's Domains and
-// Accountabilities — rather than defining a second role type (ADR-1, ADR-4).
-// Decoding is tolerant of extra fields, so the minimal embed and the fuller
-// /me/roles body share one type: the embed simply leaves the grown fields at
-// their zero values. Every field carries an explicit snake_case JSON tag —
-// encoding/json is case-insensitive but does NOT bridge underscores, so an
-// untagged field would silently never bind to the API's snake_case name.
-//
-// Domains and Accountabilities each surface only the item's Description text;
-// the API carries more per item, but the My Roles projection shows description
-// only. Fillers, tags, and classification flags are deliberately absent — the
-// projection never surfaces them (spec Non-Behaviors), so they are not fields.
-// Domain and Accountability are distinct named types (not a shared one) — they
-// are different governance concepts that will grow independently as the schema
-// does, and naming them avoids forcing callers/tests to repeat an anonymous
-// struct literal.
-type Role struct {
-	ID               string           `json:"id"`
-	Name             string           `json:"name"`
-	Purpose          string           `json:"purpose"`
-	Accountabilities []Accountability `json:"accountabilities"`
-	Domains          []Domain         `json:"domains"`
-}
-
-// Accountability is an ongoing activity a Role is accountable for. The My Roles
-// projection surfaces only its Description; the API carries more, ignored here.
-type Accountability struct {
-	Description string `json:"description"`
-}
-
-// Domain is an area of authority a Role controls. The My Roles projection
-// surfaces only its Description; the API carries more, ignored here.
-type Domain struct {
-	Description string `json:"description"`
-}
-
 // Pagination is the shared list-pagination model carried in a list read's
 // meta.pagination (created here by My Roles (012), the first paginated /me*
 // read, and reused verbatim by My Actions (013) and My Projects (014) — never a
