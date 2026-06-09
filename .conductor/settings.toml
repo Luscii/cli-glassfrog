@@ -1,0 +1,6 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+archive = "go clean ./... && rm -f glassfrog"
+run = "go test ./..."
+setup = "go mod download"
