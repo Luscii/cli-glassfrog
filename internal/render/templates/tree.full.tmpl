@@ -1,0 +1,12 @@
+{{range .Rows}}{{$depth := .Depth}}{{$req := $.Requested}}{{indent $depth}}{{.Name}} ({{.ID}}){{if .Flags}} [{{join .Flags ","}}]{{end}}{{if .BelowDepth}}  (+ subroles below depth){{end}}
+{{indent $depth}}  Purpose: {{$p := trimSpace .Purpose}}{{if eq $p ""}}(no purpose set){{else}}{{$p}}{{end}}
+{{if index $req "accountabilities"}}{{indent $depth}}  Accountabilities:
+{{range .Accountabilities}}{{indent $depth}}    - {{.Description}}
+{{else}}{{indent $depth}}    (none)
+{{end}}{{end}}{{if index $req "domains"}}{{indent $depth}}  Domains:
+{{range .Domains}}{{indent $depth}}    - {{.Description}}
+{{else}}{{indent $depth}}    (none)
+{{end}}{{end}}{{if index $req "members"}}{{indent $depth}}  Members:
+{{range .Fillers}}{{indent $depth}}    - {{.Name}} ({{.ID}})
+{{else}}{{indent $depth}}    (none)
+{{end}}{{end}}{{end}}
