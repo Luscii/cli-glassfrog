@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,12 @@ import (
 // is never silently presented as complete (CONSTITUTION VI; interface-cli). The
 // %s is the cause; the command exits non-zero (classifyClientError(Stop)).
 const incompleteWalkNote = "note: result is incomplete — %s; the roles shown are a partial set"
+
+// moreRolesNote is the stderr line the --first-page opt-out writes when the first
+// page reports more pages exist: the operator chose the boundary, so this is not
+// an error (exit 0) — it just keeps a partial list from being read as complete
+// (interface-cli; CONSTITUTION VI).
+const moreRolesNote = "note: more roles exist than shown; re-run without --first-page to fetch all"
 
 // rolesSeam supplies everything the `roles` reads need from the outside, so
 // runRoles is pure over injected values and every branch runs offline. It is the
@@ -140,6 +147,12 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 		return Success, nil
 	}
 
+	// The --first-page opt-out: a single page, no walk, signalling if more exist
+	// (exit 0). The operator chose the boundary, so it is not an error.
+	if cfg.firstPage {
+		return runRolesFirstPage(cfg, exec, format, req)
+	}
+
 	// Default human path: walk every page to completion.
 	res := paging.All[glassfrog.Role](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
 
@@ -168,16 +181,77 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 	return Success, nil
 }
 
+// runRolesFirstPage performs the --first-page opt-out: a single GET /roles page
+// (no walk), rendered as the org-roles projection, with one stderr note when the
+// API reports more pages exist (still exit 0 — the operator chose the boundary).
+// --per-page (if set) sizes the single request; the walker is not involved.
+func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+	if cfg.perPage > 0 {
+		q := cloneRolesQuery(req.Query)
+		q.Set("per_page", strconv.Itoa(cfg.perPage))
+		req.Query = q
+	}
+	var page glassfrog.Page[glassfrog.Role]
+	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
+		return reportClientError(cfg.stderr, err)
+	}
+	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), page.Data)
+	if rerr != nil {
+		fmt.Fprintln(cfg.stderr, rerr.Error())
+		return RuntimeError, rerr
+	}
+	fmt.Fprint(cfg.stdout, text)
+	if page.Meta.Pagination.HasNextPage {
+		fmt.Fprintln(cfg.stderr, moreRolesNote)
+	}
+	return Success, nil
+}
+
 // rolesListQuery builds the GET /roles query from the validated list filters.
-// The filters land in T003; today the list walk sends no parameters.
+// Each filter is sent only when supplied; --has-subroles is tri-state, sent only
+// when the operator set it (cfg.hasSubroles != nil) so omitted ≠ false. A nil
+// return (no filters) leaves the request unparameterised.
 func rolesListQuery(cfg rolesConfig) url.Values {
-	return nil
+	q := url.Values{}
+	if cfg.parent != "" {
+		q.Set("parent_role_id", cfg.parent)
+	}
+	if cfg.person != "" {
+		q.Set("person_id", cfg.person)
+	}
+	if cfg.tag != "" {
+		q.Set("tag", cfg.tag)
+	}
+	if cfg.hasSubroles != nil {
+		q.Set("has_subroles", strconv.FormatBool(*cfg.hasSubroles))
+	}
+	if len(q) == 0 {
+		return nil
+	}
+	return q
 }
 
 // rolesWalkOptions builds the paging options for the default walk. --per-page
-// lands in T003; today the walk uses the walker's default page size.
+// (016's WithPageSize) sizes the walk when set; the API owns the valid range, so
+// an out-of-range value surfaces the API's rejection as the walk's Stop.
 func rolesWalkOptions(cfg rolesConfig) []paging.Option {
+	if cfg.perPage > 0 {
+		return []paging.Option{paging.WithPageSize(cfg.perPage)}
+	}
 	return nil
+}
+
+// cloneRolesQuery returns a shallow-safe copy of a url.Values so the first-page
+// request can set per_page without mutating a caller-shared map. A nil input
+// yields a fresh map ready for Set.
+func cloneRolesQuery(src url.Values) url.Values {
+	dst := make(url.Values, len(src)+1)
+	for k, v := range src {
+		cp := make([]string, len(v))
+		copy(cp, v)
+		dst[k] = cp
+	}
+	return dst
 }
 
 // runRoleGet reads a single role by id. The full single-read branch — --include

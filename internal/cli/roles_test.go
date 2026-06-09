@@ -262,6 +262,166 @@ func TestRunRoles_ListStructuredEmitsRawPayload(t *testing.T) {
 	}
 }
 
+// --- list filters, --first-page, --per-page, completeness (T003) -----------
+
+func TestRunRoles_FilterParentSendsParamAndProjects(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{parent: "role_aaaa000000000000000000000000aaaa"})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	if got := tr.lastQuery.Get("parent_role_id"); got != "role_aaaa000000000000000000000000aaaa" {
+		t.Errorf("parent_role_id = %q, want the parent id", got)
+	}
+}
+
+func TestRunRoles_PersonAndTagFiltersSendParams(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	_, _, _ = runRolesOver(t, seam, rolesConfig{person: "per_x", tag: "marketing"})
+	if got := tr.lastQuery.Get("person_id"); got != "per_x" {
+		t.Errorf("person_id = %q, want per_x", got)
+	}
+	if got := tr.lastQuery.Get("tag"); got != "marketing" {
+		t.Errorf("tag = %q, want marketing", got)
+	}
+}
+
+func TestRunRoles_HasSubrolesIsTriState(t *testing.T) {
+	tru, fls := true, false
+	cases := []struct {
+		name    string
+		ptr     *bool
+		wantKey bool
+		wantVal string
+	}{
+		{"omitted-sends-nothing", nil, false, ""},
+		{"true-sends-true", &tru, true, "true"},
+		{"false-sends-false", &fls, true, "false"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+			seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+			_, _, _ = runRolesOver(t, seam, rolesConfig{hasSubroles: tc.ptr})
+			_, present := tr.lastQuery["has_subroles"]
+			if present != tc.wantKey {
+				t.Errorf("has_subroles present = %v, want %v (omitted ≠ false)", present, tc.wantKey)
+			}
+			if tc.wantKey && tr.lastQuery.Get("has_subroles") != tc.wantVal {
+				t.Errorf("has_subroles = %q, want %q", tr.lastQuery.Get("has_subroles"), tc.wantVal)
+			}
+		})
+	}
+}
+
+// A filter combined with a role id is a usage error with NO request sent
+// (transport tripwire).
+func TestRunRoles_FilterWithIdIsUsageErrorNoRequest(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{args: []string{"role_0123"}, tag: "marketing"})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if !strings.Contains(stderr, "--tag") {
+		t.Errorf("stderr should name the offending --tag flag, got %q", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a rejected combination must send nothing (tripwire), got %d calls", tr.calls)
+	}
+	if seam.assembleCalled {
+		t.Errorf("validation must run before assembly, assembled=%v", seam.assembleCalled)
+	}
+}
+
+// --first-page against a multi-page org prints only the first page, writes the
+// "more roles exist" note, and exits 0 — one request, no walk.
+func TestRunRoles_FirstPageStopsAndSignals(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPage("role_00000000000000000000000000000001", "Only Page Shown", "c1")}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{firstPage: true})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success (the opt-out is not an error)", outcome)
+	}
+	if !strings.Contains(stdout, "Only Page Shown") {
+		t.Errorf("the first page should print, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "more roles exist") {
+		t.Errorf("stderr should note more roles exist, got %q", stderr)
+	}
+	if tr.calls != 1 {
+		t.Errorf("--first-page must not walk, want 1 call, got %d", tr.calls)
+	}
+}
+
+// --first-page on a single-page org prints the page and writes NO note (exit 0).
+func TestRunRoles_FirstPageNoNoteWhenComplete(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{firstPage: true})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("a single-page first-page run writes no note, got %q", stderr)
+	}
+}
+
+// A mid-walk failure renders the partial set, writes the incomplete note naming
+// the cause, and exits non-zero (classified from the Stop error).
+func TestRunRoles_MidWalkFailureYieldsPartialFlaggedIncomplete(t *testing.T) {
+	tr := &seqMeTransport{steps: []seqMeResp{
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000001", "Gathered Role", "c1")},
+		{status: 500, body: `{"detail":"boom"}`},
+	}}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError (the walk stopped on a 500)", outcome)
+	}
+	if !strings.Contains(stdout, "Gathered Role") {
+		t.Errorf("the partial set gathered so far should print, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "incomplete") || !strings.Contains(stderr, "partial set") {
+		t.Errorf("stderr should flag the result incomplete and name a partial set, got %q", stderr)
+	}
+	if tr.calls != 2 {
+		t.Errorf("the walk should issue two requests before stopping, got %d", tr.calls)
+	}
+}
+
+func TestRunRoles_PerPageSizesTheWalk(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	_, _, _ = runRolesOver(t, seam, rolesConfig{perPage: 10})
+	if got := tr.lastQuery.Get("per_page"); got != "10" {
+		t.Errorf("per_page = %q, want 10 (--per-page sizes the walk)", got)
+	}
+}
+
+// A filter that matches nothing prints `No roles.` and exits 0.
+func TestRunRoles_NoMatchFilterIsCleanSuccess(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageEmpty}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{tag: "no-such-tag"})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if strings.TrimRight(stdout, "\n") != "No roles." {
+		t.Errorf("a no-match filter should print `No roles.`, got %q", stdout)
+	}
+}
+
 // --- validateRolesFlags (pure) ---------------------------------------------
 
 func TestValidateRolesFlags(t *testing.T) {
