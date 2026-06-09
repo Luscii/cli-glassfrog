@@ -20,7 +20,7 @@ The workflow maps one-to-one onto the spec's Behavioral Accord:
 pull_request_target  (opened | reopened | synchronize | edited)         ── spec §Trigger
    runs in the BASE-repo context → token can be granted pull-requests: write
    ⇒ fork PRs are labelled too (spec C1), with NO checkout of PR head code
-        │   concurrency group keyed on the PR number, cancel-in-progress
+        │   concurrency group keyed on ${{ github.workflow }}-<PR number>, cancel-in-progress
         ▼
 [label job]   (ubuntu-latest, permissions: pull-requests: write + contents: read)
    pinned labeler action reads PR title + head branch + changed-file list
@@ -125,7 +125,7 @@ The label set is the **contract this feature produces for Release Drafting (030)
 ## Cross-cutting Concerns
 
 - **Non-blocking** (spec §Non-Blocking): the workflow is **not** added to branch protection, so a labelling failure can never block merge (024's `ci-success` remains the sole required check). The label step additionally tolerates transient API hiccups (`continue-on-error`-style) so a flake doesn't surface as a confusing red mark on the PR.
-- **Latest-state semantics**: a `concurrency` group keyed on the PR number with `cancel-in-progress` means rapid `edited`/`synchronize` events reconcile to the latest state without racing — consistent with 024's per-PR concurrency pattern and with B1 sync.
+- **Latest-state semantics**: a `concurrency` group keyed on `${{ github.workflow }}-${{ github.event.pull_request.number }}` (same shape as 024's `ci.yml`, so the workflow name namespaces the group) with `cancel-in-progress` means rapid `edited`/`synchronize` events reconcile to the latest state without racing — consistent with 024's per-PR concurrency pattern and with B1 sync.
 - **Trigger activity types**: `opened, reopened, synchronize, edited`. `edited` is required because the PR **title** drives the semver-bearing labels — a title edit must re-reconcile (spec edge case "editing the title reconciles the labels").
 - **Contract with 030**: the seven label strings are the seam Release Drafting consumes. Until 030 exists there is no automated guard that the names stay in sync; flagged as a risk. The label set should be defined once and treated as stable.
 
