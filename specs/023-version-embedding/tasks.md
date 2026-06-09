@@ -33,7 +33,7 @@ The `base` branch is cut from a main that contains 021 (the empty `builds.ldflag
     - `--version` and the `version` command produce byte-identical output, both reading `resolvedVersion()` (003 version-unify parity preserved); a non-empty injected value is reported by both.
     - `var version` defaults to `""`.
     - All existing 003 tests pass, with `TestVersionDefaultPlaceholder` migrated to target the resolver's placeholder rather than the var default.
-    - Implementation and its tests ship in the same PR (CONSTITUTION I).
+    - Implementation and its tests ship in the same PR (CONSTITUTION VII).
   - **Dependencies**: 021 (Self-Contained Executable Build) — landed
   - **Plan reference**: Implementation Strategy steps 1–2; ADR-1 (pure resolver), ADR-3 (empty default + placeholder)
   - **Scenario references**: version-embedding.feature: "The version is resolved by a fixed precedence"; "Version output is never empty for any build or install path"; "Version resolution produces a value and leaves formatting to Help & Version"; "A tagged source install reports the recorded module version"; "An untagged source install reports the pseudo-version verbatim"; "A plain local build reports Go's development marker"; "A build with no embedded version and no build info reports the placeholder"; "An embedded version wins over recorded build info"; "Version determination needs no network or VCS at runtime"
