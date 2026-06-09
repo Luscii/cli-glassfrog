@@ -27,3 +27,4 @@
 | 023-version-embedding | Implemented | implement | 2026-06-09T09:30:00 |
 | 024-pr-validation | Ready | validate | 2026-06-09T12:30:00 |
 | 025-role-reads | Analyzed | risk | 2026-06-08T23:20:00 |
+| 026-organization-tree | Analyzed | risk | 2026-06-09T15:30:00 |
