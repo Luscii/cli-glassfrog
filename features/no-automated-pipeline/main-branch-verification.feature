@@ -17,7 +17,6 @@ Feature: No Automated Pipeline — Main-Branch Verification
     # I want the full test suite re-run automatically on every merge to main, with a loud red status when it fails.
 
     # Source: 029-main-branch-verification — Scenario: a clean merge to main verifies green
-    @wip
     Scenario: A clean merge to main verifies green
       Given a pull request had merged into "main"
       When the post-merge workflow runs the test matrix against the merge commit
@@ -26,7 +25,6 @@ Feature: No Automated Pipeline — Main-Branch Verification
       And a passing status will be attached to the merge commit
 
     # Source: 029-main-branch-verification — Scenario: each merge is verified against its own commit
-    @wip
     Scenario: Each merge is verified against its own commit
       Given two commits land on "main" one after the other in quick succession
       When the post-merge workflow runs for each
@@ -35,7 +33,6 @@ Feature: No Automated Pipeline — Main-Branch Verification
       And each commit will receive its own pass or fail status
 
     # Source: 029-main-branch-verification — Scenario: a regression that reaches main is surfaced loudly
-    @wip
     Scenario: A regression that reaches main is surfaced loudly
       Given a commit on "main" whose test suite fails in at least one matrix cell
       When the post-merge workflow runs
@@ -44,14 +41,12 @@ Feature: No Automated Pipeline — Main-Branch Verification
       And neither the commit nor the merge will be blocked or reverted
 
     # Source: 029-main-branch-verification — Scenario: a tag push does not trigger verification
-    @wip
     Scenario: A tag push does not trigger verification
       Given a release tag is pushed
       When the push event fires
       Then the post-merge workflow will not run
 
     # Source: 029-main-branch-verification — Scenario: a pull request does not trigger verification
-    @wip
     Scenario: A pull request does not trigger verification
       Given a pull request is opened or updated against "main"
       When its events fire
@@ -99,7 +94,6 @@ Feature: No Automated Pipeline — Main-Branch Verification
     # I want the failing run to name the environment and commit it failed on.
 
     # Source: 029-main-branch-verification — Scenario: a flaky or environment-specific failure names its cell
-    @wip
     Scenario: An environment-specific failure names its cell
       Given the test suite fails in one matrix cell while the other cells pass
       When the post-merge workflow runs on the "main" commit
