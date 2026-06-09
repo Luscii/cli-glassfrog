@@ -431,31 +431,43 @@ func goreleaserArgs(j Job) string {
 	return ""
 }
 
-// uploadsDistArtifact reports whether a step uploads the dist/ directory as a CI
-// artifact.
+// uploadsDistArtifact reports whether a step uploads the dist/ directory as the
+// `dist` CI artifact.
 func uploadsDistArtifact(j Job) bool {
 	for _, s := range j.Steps {
-		if strings.Contains(s.Uses, "actions/upload-artifact") {
-			if p, ok := s.With["path"].(string); ok && strings.Contains(p, "dist") {
-				return true
-			}
+		if distArtifactStep(s, "upload-artifact") {
+			return true
 		}
 	}
 	return false
 }
 
-// downloadsDistArtifact reports whether a step downloads the dist/ directory CI
-// artifact. The verify job must do this so the self-containment check inspects
+// downloadsDistArtifact reports whether a step downloads the `dist` CI artifact
+// into dist/. The verify job must do this so the self-containment check inspects
 // the built dist/ binary rather than falling back to a local `go build`.
 func downloadsDistArtifact(j Job) bool {
 	for _, s := range j.Steps {
-		if strings.Contains(s.Uses, "actions/download-artifact") {
-			if p, ok := s.With["path"].(string); ok && strings.Contains(p, "dist") {
-				return true
-			}
+		if distArtifactStep(s, "download-artifact") {
+			return true
 		}
 	}
 	return false
+}
+
+// distArtifactStep reports whether a step uses actions/<action> for the dist
+// artifact: the artifact `name` must be exactly "dist" and the `path` exactly
+// "dist" or "dist/". The match is exact, NOT substring: a path like "dist2/"
+// would satisfy a Contains(path, "dist") check but break HostBinary's discovery,
+// which expects <repo>/dist/artifacts.json under a dist/ directory — so a drift
+// to a wrong directory or artifact name must fail the guard, not silently let
+// the verify step fall back to a local rebuild.
+func distArtifactStep(s Step, action string) bool {
+	if !strings.Contains(s.Uses, "actions/"+action) {
+		return false
+	}
+	name, _ := s.With["name"].(string)
+	path, _ := s.With["path"].(string)
+	return name == "dist" && (path == "dist" || path == "dist/")
 }
 
 // uploadStepRun returns the shell of the step that runs `gh release upload`, or

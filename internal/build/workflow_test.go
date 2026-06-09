@@ -238,6 +238,36 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 			wantPass:  false,
 			wantNamed: []string{"verify job must download"},
 		},
+		{
+			// round 2 #1 — a substring-y upload path (dist2/) must NOT satisfy the
+			// guard: HostBinary discovery needs a real dist/ directory.
+			name: "a build upload-artifact path of dist2/ (substring false-positive) is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"      - uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n",
+				"      - uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist2/\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"build job must upload dist"},
+		},
+		{
+			// round 2 #1 — the artifact name is pinned too; a renamed artifact breaks
+			// the download-by-name handshake.
+			name: "a build upload-artifact named something other than dist is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"      - uses: actions/upload-artifact@v4\n        with:\n          name: dist\n          path: dist/\n",
+				"      - uses: actions/upload-artifact@v4\n        with:\n          name: dist-bin\n          path: dist/\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"build job must upload dist"},
+		},
+		{
+			// round 2 #2 — same exact-match rule for verify's download (first
+			// download-artifact occurrence; publish's is left intact).
+			name: "a verify download-artifact path of dist2/ is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n",
+				"      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist2/\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"verify job must download"},
+		},
 	}
 
 	for _, tc := range cases {
