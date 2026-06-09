@@ -18,7 +18,7 @@ This feature is two declarative artifacts at the repo root plus one repository-s
 | `.github/workflows/ci.yml` | GitHub event `pull_request` with the default activity types (`opened`, `synchronize`, `reopened`), filtered to `branches: [main]` | The single automated trigger. `synchronize` covers every push to the PR head; the `branches` filter scopes to PRs whose **base** is `main`, so a PR targeting any other base does not run. |
 | Local lint reproduction | `gofmt -l .` + `go vet ./...` + `golangci-lint run` | Reproduces the `lint` job before pushing. |
 | Local test reproduction | `go test ./...` | Reproduces a `test` matrix cell on the developer's host OS. |
-| Branch-protection setup | `gh api --method PATCH …/branches/main/protection/required_status_checks …` (or a repository ruleset) | A one-time maintainer (admin) step that marks `ci-success` a required check. Updates only the required-status-checks sub-resource — never the full protection document. Not auto-applied by any committed file. |
+| Branch-protection setup | a repository ruleset (`POST …/rulesets`), or `gh api --method POST …/required_status_checks/contexts` on existing protection | A one-time maintainer (admin) step that adds `ci-success` as a required check **additively** — never the full-document `PUT …/protection` (full replace) nor a `PATCH …/required_status_checks` sending only `ci-success` (replaces the contexts list). Not auto-applied by any committed file. |
 
 ### `.github/workflows/ci.yml` structure
 
@@ -60,20 +60,24 @@ ci-success:
 
 ### Branch-protection contract (repository settings — ADR-5)
 
-The enforcement half lives in repo settings, applied once by a maintainer with admin rights. The committed artifacts guarantee the stable `ci-success` context; this step makes it required on `main`. Use the **narrow** required-status-checks sub-resource (or a repository ruleset) so applying the gate does **not** disturb any existing review requirements or restrictions:
+The enforcement half lives in repo settings, applied once by a maintainer with admin rights. The committed artifacts guarantee the stable `ci-success` context; this step adds it as a required check on `main` **additively** — without dropping other already-required checks or relaxing unrelated protections. The classic required-check lists are *replace-on-write*, so endpoint choice matters.
+
+**Preferred — a repository ruleset** (`POST …/rulesets`): additive by construction — it layers a `required_status_checks` rule for `ci-success` on top of whatever already exists, works whether or not classic branch protection is configured (no precondition, no 404 on a fresh repo), and never owns the rest of the protection config. The exact ruleset JSON is a setup detail.
+
+**Classic branch protection** — only when a protection rule with required status checks **already exists**, add the context additively (leaves existing required contexts in place):
 
 ```bash
-# Update ONLY the required-status-checks sub-resource — leaves review
-# requirements, restrictions, and other protections untouched.
-gh api --method PATCH \
-  repos/{owner}/{repo}/branches/main/protection/required_status_checks \
-  -F 'strict=true' \
+gh api --method POST \
+  repos/{owner}/{repo}/branches/main/protection/required_status_checks/contexts \
   -f 'contexts[]=ci-success'
 ```
 
-Do **not** use the full-document `PUT …/branches/main/protection` endpoint: it **replaces the entire** protection configuration, so any field omitted (or set to `null` — e.g. `required_pull_request_reviews`, `restrictions`) is disabled, silently relaxing protections unrelated to this gate. If no branch-protection rule exists yet, either (a) add the check purely additively with `POST …/protection/required_status_checks/contexts` (`-f 'contexts[]=ci-success'`), or (b) — preferred — define a **repository ruleset** (`POST …/rulesets`) that adds the `ci-success` required check as an additive layer without owning the rest of the configuration.
+Pitfalls to avoid:
+- **Do not** `PATCH …/protection/required_status_checks` with only `contexts[]=ci-success` — the `contexts` list is **replaced**, silently dropping any already-required checks (e.g. code/secret scanning). If a PATCH is unavoidable, send the **union** of the existing contexts plus `ci-success`.
+- **Do not** use the full-document `PUT …/branches/main/protection` — it **replaces the entire** protection configuration, so any field omitted (or set to `null` — e.g. `required_pull_request_reviews`, `restrictions`) is disabled, relaxing protections unrelated to this gate.
+- The additive `…/required_status_checks/contexts` POST **404s when no protection / required-status-checks config exists yet** — for initial setup, create protection first (a ruleset or the repo UI), then add the context.
 
-Only `ci-success` is required (never the matrix-cell contexts, whose names drift with the matrix — ADR-4). `strict` is an `[ASSUMED]` maintainer policy default (require branches up to date before merging); any admin-enforcement policy (`enforce_admins`) is a separate sub-resource decision, not part of requiring this gate. The load-bearing contract is that `ci-success` is a required check that blocks merge until green.
+Only `ci-success` is required (never the matrix-cell contexts, whose names drift with the matrix — ADR-4). `strict` (require branches up to date before merge) and any admin-enforcement policy (`enforce_admins`) are separate `[ASSUMED]` maintainer-policy decisions, not part of requiring this gate. The load-bearing contract is that `ci-success` is a required check that blocks merge until green.
 
 ---
 
