@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -103,6 +104,17 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 	}); err != nil {
 		fmt.Fprintln(cfg.stderr, err.Error())
 		return UsageError, err
+	}
+
+	// 2b. On the single branch, validate --include against the closed enum BEFORE
+	//     any request (a bad value would be silently ignored by the API, returning
+	//     the role without the embed — 013's validateStatus rationale). The id is
+	//     NOT validated locally (ADR-4): the API 404s an unknown/malformed id.
+	if hasID {
+		if err := validateRolesInclude(cfg.include); err != nil {
+			fmt.Fprintln(cfg.stderr, err.Error())
+			return UsageError, err
+		}
 	}
 
 	// 3. Resolve the connection and build the client + retrying executor once. A
@@ -254,11 +266,112 @@ func cloneRolesQuery(src url.Values) url.Values {
 	return dst
 }
 
-// runRoleGet reads a single role by id. The full single-read branch — --include
-// validation, the RoleDetail document decode, and the guarded `role` render
-// sections — lands in T004; until then the branch is wired but inert.
+// runRoleGet reads a single role by id (GET /roles/{id}). It sends one Execute
+// (no walk) with ?include= built from the already-validated --include values
+// (comma-joined, style:form explode:false), passing the id through unvalidated
+// (ADR-4) so an unknown/malformed id surfaces as the API's 404/4xx via the shared
+// classifier. A structured --output emits the raw {data: RoleDetail} payload
+// verbatim (018); the human path decodes the RoleDetail and renders the `role`
+// template over a RoleView that also carries the requested-include set, so each
+// section is omitted when unrequested and shows an explicit-absence marker when
+// requested-but-empty (ADR-2).
 func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id string) (Outcome, error) {
-	return RuntimeError, fmt.Errorf("single-role read is not yet implemented")
+	var q url.Values
+	if len(cfg.include) > 0 {
+		q = url.Values{"include": {strings.Join(cfg.include, ",")}}
+	}
+	req := apiclient.Request{Method: http.MethodGet, Path: "/roles/" + id, Query: q}
+
+	if machineFmt, ok := format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportClientError(cfg.stderr, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	var doc glassfrog.RoleDocument
+	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
+		return reportClientError(cfg.stderr, err)
+	}
+	view := render.RoleView{Detail: doc.Data, Requested: includeSet(cfg.include)}
+	text, rerr := renderFn(render.ResourceRole, humanFormat(format), view)
+	if rerr != nil {
+		fmt.Fprintln(cfg.stderr, rerr.Error())
+		return RuntimeError, rerr
+	}
+	fmt.Fprint(cfg.stdout, text)
+	return Success, nil
+}
+
+// supportedRoleIncludes is the closed enum of --include values getRole accepts
+// (spec). A value outside it is rejected fail-fast (validateRolesInclude).
+var supportedRoleIncludes = map[string]bool{
+	"assignments": true,
+	"subroles":    true,
+	"parent_role": true,
+	"policies":    true,
+	"notes":       true,
+	"skills":      true,
+}
+
+// validateRolesInclude rejects any unsupported --include value against the closed
+// enum, before any request (the 011 validateInclude shape, pinned by a transport
+// tripwire): the API would silently ignore a bad value and return the role
+// WITHOUT the requested embed, so this fails loud naming the offending value(s)
+// and the supported set. Each unsupported value is quoted individually and the
+// noun agrees in number; values are reported in stable (sorted) order.
+func validateRolesInclude(targets []string) error {
+	var unsupported []string
+	for _, t := range targets {
+		if !supportedRoleIncludes[t] {
+			unsupported = append(unsupported, t)
+		}
+	}
+	if len(unsupported) == 0 {
+		return nil
+	}
+	sort.Strings(unsupported)
+	quoted := make([]string, len(unsupported))
+	for i, t := range unsupported {
+		quoted[i] = fmt.Sprintf("%q", t)
+	}
+	noun := "value"
+	if len(unsupported) > 1 {
+		noun = "values"
+	}
+	return fmt.Errorf(
+		"unsupported --include %s %s — supported: %s",
+		noun, strings.Join(quoted, ", "), strings.Join(supportedRoleIncludeNames(), ", "),
+	)
+}
+
+// supportedRoleIncludeNames lists the supported include values in stable order
+// for the usage message.
+func supportedRoleIncludeNames() []string {
+	names := make([]string, 0, len(supportedRoleIncludes))
+	for name := range supportedRoleIncludes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// includeSet turns the validated --include slice into a presence set the `role`
+// RoleView carries, so the template can tell a requested-but-empty section from
+// an unrequested one.
+func includeSet(includes []string) map[string]bool {
+	m := make(map[string]bool, len(includes))
+	for _, v := range includes {
+		m[v] = true
+	}
+	return m
 }
 
 // rolesFlagState carries which list/single flags were supplied, so

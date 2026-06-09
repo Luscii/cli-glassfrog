@@ -422,6 +422,178 @@ func TestRunRoles_NoMatchFilterIsCleanSuccess(t *testing.T) {
 	}
 }
 
+// --- single-role read (T004) ----------------------------------------------
+
+// roleDetailBody is a GET /roles/{id} body with policies + subroles embedded
+// (as ?include=policies,subroles would return) plus the base role fields.
+const roleDetailBody = `{
+  "data": {
+    "id": "role_0123456789abcdef0123456789abcdef", "type": "role", "name": "Marketing Lead",
+    "purpose": "A market that knows us", "parent_role_id": null, "has_subroles": true, "flags": [],
+    "domains": [{"id": "dom_1", "description": "The marketing budget"}],
+    "accountabilities": [{"id": "acct_1", "description": "Defining the campaign"}],
+    "fillers": [{"id": "per_x", "name": "Alice Smith", "kind": "human"}], "tags": [],
+    "policies": [{"id": "pol_1", "title": "All PRs require two approvals", "body": "b"}],
+    "subroles": [{"id": "role_sub00000000000000000000000000sub", "type": "role", "name": "Press Officer"}]
+  }
+}`
+
+func TestRunRoles_SingleReadProjectsBaseFields(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: roleDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{args: []string{"role_0123456789abcdef0123456789abcdef"}})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{
+		"Marketing Lead (role_0123456789abcdef0123456789abcdef)",
+		"Purpose: A market that knows us",
+		"The marketing budget", "Defining the campaign",
+		"Fillers:", "Alice Smith (per_x)",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/roles/role_0123456789abcdef0123456789abcdef") {
+		t.Errorf("path = %q, want it to target /roles/{id}", got)
+	}
+	// No --include: an unrequested section is omitted entirely (not even a marker).
+	if strings.Contains(stdout, "Policies:") || strings.Contains(stdout, "Subroles:") {
+		t.Errorf("unrequested include sections must be omitted:\n%s", stdout)
+	}
+}
+
+func TestRunRoles_SingleReadIncludeEmbedsInlineAndSendsParam(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: roleDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{
+		args:    []string{"role_0123456789abcdef0123456789abcdef"},
+		include: []string{"policies", "subroles"},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	if got := tr.lastQuery.Get("include"); got != "policies,subroles" {
+		t.Errorf("include = %q, want comma-joined policies,subroles", got)
+	}
+	for _, want := range []string{"Policies:", "All PRs require two approvals", "Subroles:", "Press Officer"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("requested include should render inline; missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// A requested-but-empty include renders its explicit-absence marker; an
+// unrequested sibling is omitted entirely.
+func TestRunRoles_SingleReadRequestedEmptyIncludeShowsMarker(t *testing.T) {
+	body := `{"data":{"id":"role_0123456789abcdef0123456789abcdef","type":"role","name":"Bare","purpose":"p","parent_role_id":null,"has_subroles":false,"flags":[],"domains":[],"accountabilities":[],"fillers":[],"tags":[],"policies":[]}}`
+	tr := &cannedTransport{status: 200, body: body}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{
+		args:    []string{"role_0123456789abcdef0123456789abcdef"},
+		include: []string{"policies"},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if !strings.Contains(stdout, "Policies:") || !strings.Contains(stdout, "(none)") {
+		t.Errorf("a requested-but-empty include should show its section with (none):\n%s", stdout)
+	}
+	if strings.Contains(stdout, "Notes:") || strings.Contains(stdout, "Skills:") {
+		t.Errorf("unrequested sections must stay omitted:\n%s", stdout)
+	}
+}
+
+// An unsupported --include value is a usage error naming the value and the
+// supported set, with NO request sent (transport tripwire).
+func TestRunRoles_UnsupportedIncludeRejectedBeforeAnyRequest(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: roleDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runRolesOver(t, seam, rolesConfig{
+		args:    []string{"role_0123456789abcdef0123456789abcdef"},
+		include: []string{"nonsense"},
+	})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if !strings.Contains(stderr, "nonsense") || !strings.Contains(stderr, "policies") {
+		t.Errorf("stderr should name the bad value and the supported set, got %q", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("an unsupported include must send nothing (tripwire), got %d calls", tr.calls)
+	}
+	if seam.assembleCalled {
+		t.Errorf("include validation must run before assembly, assembled=%v", seam.assembleCalled)
+	}
+}
+
+// An unknown role id is passed through to the API and surfaces as its status —
+// the id is NOT validated locally (ADR-4).
+func TestRunRoles_UnknownIdSurfacesAPIStatus(t *testing.T) {
+	tr := &cannedTransport{status: 404, body: `{"detail":"Role not found"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{args: []string{"role_ffffffffffffffffffffffffffffffff"}})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no projection should print on an unknown id, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "404") {
+		t.Errorf("stderr should name the 404 status, got %q", stderr)
+	}
+	if tr.calls != 1 {
+		t.Errorf("the id should be passed through (one request), got %d calls", tr.calls)
+	}
+}
+
+func TestRunRoles_SingleReadStructuredEmitsRawPayload(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: roleDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{
+		args:    []string{"role_0123456789abcdef0123456789abcdef"},
+		include: []string{"policies"},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if !strings.Contains(stdout, `"data"`) || !strings.Contains(stdout, "All PRs require two approvals") {
+		t.Errorf("structured single read should emit the raw {data:…} payload:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "Purpose:") {
+		t.Errorf("structured output must not render the human projection:\n%s", stdout)
+	}
+}
+
+// --- validateRolesInclude (pure) -------------------------------------------
+
+func TestValidateRolesInclude(t *testing.T) {
+	if err := validateRolesInclude(nil); err != nil {
+		t.Errorf("absent --include is valid, got %v", err)
+	}
+	if err := validateRolesInclude([]string{"policies", "subroles", "parent_role", "notes", "skills", "assignments"}); err != nil {
+		t.Errorf("all six supported values should pass, got %v", err)
+	}
+	err := validateRolesInclude([]string{"nonsense"})
+	if err == nil || !strings.Contains(err.Error(), `"nonsense"`) {
+		t.Errorf("an unsupported value should be quoted in the error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "value ") || strings.Contains(err.Error(), "values ") {
+		t.Errorf("a single bad value should use the singular noun, got %q", err.Error())
+	}
+	multi := validateRolesInclude([]string{"bogus", "nope"})
+	if multi == nil || !strings.Contains(multi.Error(), "values ") {
+		t.Errorf("multiple bad values should use the plural noun, got %v", multi)
+	}
+}
+
 // --- validateRolesFlags (pure) ---------------------------------------------
 
 func TestValidateRolesFlags(t *testing.T) {
