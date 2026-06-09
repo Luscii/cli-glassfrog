@@ -47,6 +47,16 @@ const (
 	// replaces an existing release's body, so a direct `goreleaser release` can
 	// not clobber #30's notes or the publisher's pre-release/latest status.
 	ReleaseMode = "keep-existing"
+
+	// ArchiveNameTemplate and ChecksumNameTemplate are the exact name templates
+	// downstream consumers (#27 install script, #36 Homebrew, #37 npm) depend on.
+	// The guard pins them verbatim so a rename — which would silently break those
+	// consumers — fails here. ArchiveBuildID is the build the archive must draw
+	// from (021's single build); pinning it stops an archive from being pointed at
+	// a different (or future) build.
+	ArchiveNameTemplate  = "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+	ChecksumNameTemplate = "glassfrog_{{ .Version }}_checksums.txt"
+	ArchiveBuildID       = "glassfrog"
 )
 
 // Config is the subset of the GoReleaser schema the guard inspects. Fields the
@@ -85,11 +95,20 @@ type Checksum struct {
 }
 
 // Release mirrors the GoReleaser release section. The guard pins Mode to
-// keep-existing and Draft to false so a direct `goreleaser release` honors the
-// existing release's body and status (022's honor-not-decide contract).
+// keep-existing and Draft to false, and requires Prerelease/MakeLatest to be
+// absent, so a direct `goreleaser release` honors the existing release's body
+// AND its pre-release/latest status (022's honor-not-decide contract).
+//
+// Prerelease/MakeLatest are modeled as interface{} so the guard can distinguish
+// "absent" (nil — the only acceptable state) from "set to anything" (a non-nil
+// value, including the string "auto" or a bool). They are NOT typed bool/string:
+// a typed field could not tell an explicit `prerelease: false` from an omitted
+// one, and the contract is that 022 sets neither.
 type Release struct {
-	Mode  string `json:"mode"`
-	Draft bool   `json:"draft"`
+	Mode       string      `json:"mode"`
+	Draft      bool        `json:"draft"`
+	Prerelease interface{} `json:"prerelease"`
+	MakeLatest interface{} `json:"make_latest"`
 }
 
 // Build mirrors a single GoReleaser builds entry.
@@ -196,45 +215,78 @@ func CheckConfigGuard(cfg Config) []string {
 	return violations
 }
 
-// checkArchives requires exactly one archives entry producing a single tar.gz.
-// One archive per build target is GoReleaser's per-target fan-out of this one
-// entry, so the entry count is one (not four). The format is read from either
-// the v2 `formats` list or the legacy singular `format`; anything other than a
-// lone tar.gz fails, naming the archives section.
+// checkArchives requires exactly one archives entry producing a single tar.gz,
+// drawing from the glassfrog build, with the pinned name template. One archive
+// per build target is GoReleaser's per-target fan-out of this one entry, so the
+// entry count is one (not four). The format is read from either the v2 `formats`
+// list or the legacy singular `format`. The name_template and ids are pinned
+// because downstream consumers depend on the asset names and on the archive
+// carrying 021's build — a rename or a re-pointed build would otherwise pass.
 func checkArchives(archives []Archive) []string {
 	if len(archives) != 1 {
 		return []string{fmt.Sprintf(
 			"archives section must declare exactly one archive entry (one tar.gz per target), found %d", len(archives))}
 	}
-	formats := archives[0].Formats
-	if len(formats) == 0 && archives[0].Format != "" {
-		formats = []string{archives[0].Format}
+	a := archives[0]
+	var violations []string
+
+	formats := a.Formats
+	if len(formats) == 0 && a.Format != "" {
+		formats = []string{a.Format}
 	}
 	if len(formats) != 1 || formats[0] != ArchiveFormat {
-		return []string{fmt.Sprintf(
-			"archives format must be exactly %q, got %v", ArchiveFormat, formats)}
+		violations = append(violations, fmt.Sprintf(
+			"archives format must be exactly %q, got %v", ArchiveFormat, formats))
 	}
-	return nil
+	if a.NameTemplate != ArchiveNameTemplate {
+		violations = append(violations, fmt.Sprintf(
+			"archives name_template must be exactly %q (downstream consumers depend on the asset names), got %q",
+			ArchiveNameTemplate, a.NameTemplate))
+	}
+	// The archive must draw from 021's single build. GoReleaser accepts the
+	// build reference under `ids:` (v2) or the legacy singular `id:`; require the
+	// glassfrog build via whichever is set, and reject any other/extra reference.
+	ids := a.IDs
+	if len(ids) == 0 && a.ID != "" {
+		ids = []string{a.ID}
+	}
+	if len(ids) != 1 || ids[0] != ArchiveBuildID {
+		violations = append(violations, fmt.Sprintf(
+			"archives must draw from exactly the %q build (ids/id), got %v", ArchiveBuildID, ids))
+	}
+	return violations
 }
 
-// checkChecksum requires the checksum section to be enabled (not disabled) and
-// to use sha256. An empty algorithm is GoReleaser's sha256 default, so it is
-// accepted; any other explicit value fails. The message names the checksum
-// section so drift is actionable.
+// checkChecksum requires the checksum section to be present, enabled, sha256, and
+// to carry the pinned name template. The algorithm is pinned to a non-empty
+// "sha256" (NOT accepting empty-as-default): a completely missing `checksum:`
+// section parses as the zero-value Checksum{}, and accepting an empty algorithm
+// would let that missing section pass — exactly the change-detector hole the
+// guard exists to close. The shipped config sets the algorithm explicitly.
 func checkChecksum(c Checksum) []string {
 	if c.Disable {
 		return []string{"checksum section must not be disabled — the checksums file is the only integrity mechanism"}
 	}
-	if c.Algorithm != "" && c.Algorithm != ChecksumAlgorithm {
-		return []string{fmt.Sprintf(
-			"checksum algorithm must be %q, got %q", ChecksumAlgorithm, c.Algorithm)}
+	var violations []string
+	if c.Algorithm != ChecksumAlgorithm {
+		violations = append(violations, fmt.Sprintf(
+			"checksum section must be present with algorithm %q, got %q (an empty algorithm means the checksum section is missing)",
+			ChecksumAlgorithm, c.Algorithm))
 	}
-	return nil
+	if c.NameTemplate != ChecksumNameTemplate {
+		violations = append(violations, fmt.Sprintf(
+			"checksum name_template must be exactly %q, got %q", ChecksumNameTemplate, c.NameTemplate))
+	}
+	return violations
 }
 
-// checkRelease pins the release section to keep-existing/draft:false so a direct
-// `goreleaser release` honors the existing release's body and status rather than
-// authoring or replacing them.
+// checkRelease pins the release section to keep-existing/draft:false and rejects
+// any prerelease/make_latest override, so a direct `goreleaser release` honors
+// the existing release's body AND its pre-release/latest status rather than
+// authoring, replacing, or flipping them (022's honor-not-decide contract). A
+// non-nil prerelease/make_latest means the field was set to something — the
+// contract is that 022 sets neither, so any value (including "auto" or false) is
+// a violation.
 func checkRelease(r Release) []string {
 	var violations []string
 	if r.Mode != ReleaseMode {
@@ -244,6 +296,14 @@ func checkRelease(r Release) []string {
 	if r.Draft {
 		violations = append(violations,
 			"release draft must be false — 022 attaches to an already-published release, it does not draft one")
+	}
+	if r.Prerelease != nil {
+		violations = append(violations, fmt.Sprintf(
+			"release must not set prerelease — it honors the published release's status (got %v)", r.Prerelease))
+	}
+	if r.MakeLatest != nil {
+		violations = append(violations, fmt.Sprintf(
+			"release must not set make_latest — it honors the published release's latest status (got %v)", r.MakeLatest))
 	}
 	return violations
 }

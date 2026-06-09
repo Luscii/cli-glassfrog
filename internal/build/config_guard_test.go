@@ -149,7 +149,7 @@ func TestConfigGuard_Drift(t *testing.T) {
 			yaml: strings.Replace(validConfigYAML,
 				"  algorithm: sha256\n", "  algorithm: sha512\n", 1),
 			wantPass:  false,
-			wantNamed: []string{"checksum algorithm", "sha256"},
+			wantNamed: []string{"algorithm", "sha256"},
 		},
 		{
 			name: "a release mode other than keep-existing is rejected and named",
@@ -171,6 +171,58 @@ func TestConfigGuard_Drift(t *testing.T) {
 				"  draft: false\n", "  draft: true\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"release draft"},
+		},
+		{
+			// #2 — a name_template rename silently breaks downstream consumers; pin it.
+			name: "an archive name_template rename is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				`name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"`,
+				`name_template: "glassfrog-{{ .Os }}-{{ .Arch }}"`, 1),
+			wantPass:  false,
+			wantNamed: []string{"archives name_template"},
+		},
+		{
+			// #2 — pointing the archive at a different build must fail.
+			name: "an archive drawing from a different build id is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"    ids:\n      - glassfrog\n", "    ids:\n      - other\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"archives must draw from", "glassfrog"},
+		},
+		{
+			// #1 — a completely missing checksum section parses as the zero value;
+			// it must fail as loudly as an explicit bad algorithm.
+			name: "a missing checksum section entirely is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"checksum:\n  algorithm: sha256\n  name_template: \"glassfrog_{{ .Version }}_checksums.txt\"\n",
+				"", 1),
+			wantPass:  false,
+			wantNamed: []string{"checksum section must be present"},
+		},
+		{
+			// #1 — the checksum filename is part of the consumer contract.
+			name: "a checksum name_template rename is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				`name_template: "glassfrog_{{ .Version }}_checksums.txt"`,
+				`name_template: "checksums.txt"`, 1),
+			wantPass:  false,
+			wantNamed: []string{"checksum name_template"},
+		},
+		{
+			// #8/#9 — a prerelease override violates honor-not-decide.
+			name: "a release prerelease override is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  draft: false\n", "  draft: false\n  prerelease: auto\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"prerelease"},
+		},
+		{
+			// #8/#9 — a make_latest override flips the latest flag the publisher chose.
+			name: "a release make_latest override is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"  draft: false\n", "  draft: false\n  make_latest: \"false\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"make_latest"},
 		},
 	}
 
