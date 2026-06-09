@@ -10,7 +10,7 @@
 {{range .Detail.Fillers}}    - {{.Name}} ({{.ID}})
 {{else}}    (none)
 {{end}}{{if index .Requested "assignments"}}  Assignments:
-{{range .Detail.Assignments}}    - {{.Actor.Name}} ({{.ActorID}})
+{{range .Detail.Assignments}}    - {{$n := trimSpace .Actor.Name}}{{if eq $n ""}}{{.ActorID}}{{else}}{{$n}} ({{.ActorID}}){{end}}
 {{else}}    (none)
 {{end}}{{end}}{{if index .Requested "subroles"}}  Subroles:
 {{range .Detail.Subroles}}    - {{.Name}} ({{.ID}})

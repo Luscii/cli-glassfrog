@@ -1,6 +1,7 @@
 package render
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -168,6 +169,37 @@ func TestRender_RolesCompact_OneLinePerRecord_Golden(t *testing.T) {
 	want := "role_1  Marketing Lead  domains=1  accountabilities=2\n" +
 		"role_2  Facilitator  domains=0  accountabilities=1\n"
 	assertRender(t, ResourceRoles, FormatCompact, resp, want)
+}
+
+// The `role` full template falls back to the actor id when an embedded
+// assignment's actor object is absent (Name empty) — the actor is optional on a
+// role's ?include=assignments, and a blank name would otherwise render a stray
+// "-  (per_x)". A present name renders "Name (per_x)".
+func TestRender_RoleFull_AssignmentActorNameFallsBackToID(t *testing.T) {
+	// Decode the detail from JSON so the test is decoupled from the embedded
+	// Actor struct's shape: one assignment carries an actor object, one does not.
+	var doc glassfrog.RoleDocument
+	body := `{"data":{"id":"role_1","name":"Lead","purpose":"p","assignments":[
+	  {"id":"asgn_1","actor_id":"per_noname"},
+	  {"id":"asgn_2","actor_id":"per_named","actor":{"id":"per_named","name":"Alice Smith","kind":"human"}}
+	]}}`
+	if err := json.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("fixture decode failed: %v", err)
+	}
+	view := RoleView{Detail: doc.Data, Requested: map[string]bool{"assignments": true}}
+	out, err := Render(ResourceRole, FormatFull, view)
+	if err != nil {
+		t.Fatalf("render failed: %v", err)
+	}
+	if !strings.Contains(out, "- per_noname\n") {
+		t.Errorf("an empty actor name should fall back to the bare actor id, got:\n%s", out)
+	}
+	if strings.Contains(out, "-  (per_noname)") {
+		t.Errorf("a blank actor name must not render a stray double space:\n%s", out)
+	}
+	if !strings.Contains(out, "- Alice Smith (per_named)") {
+		t.Errorf("a present actor name should render `Name (id)`, got:\n%s", out)
+	}
 }
 
 // compact surfaces the actor's id and renders the embedded roles collection as a
