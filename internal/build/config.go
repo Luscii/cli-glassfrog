@@ -63,23 +63,53 @@ const VersionInjectionTarget = "github.com/Luscii/cli-glassfrog/internal/cli.ver
 
 // CheckVersionInjection returns the list of guard violations for version
 // embedding: an empty result means the single build's ldflags inject
-// VersionInjectionTarget via a `-X` flag. It is intentionally tolerant of `-X`
-// spacing and of the value template (the value is GoReleaser's, not ours to
-// pin) — it asserts only that the seam targets the right symbol, which is the
-// regression that matters (the 021/022 config-guard ignores ldflags entirely).
+// VersionInjectionTarget via a syntactically valid `-X` flag. It does not pin
+// the value (that is GoReleaser's template, not ours) — only that the seam
+// targets the right symbol through a real `-X` form, which is the regression
+// that matters (the 021/022 config-guard ignores ldflags entirely).
 func CheckVersionInjection(cfg Config) []string {
 	if len(cfg.Builds) != 1 {
 		return []string{fmt.Sprintf(
 			"build matrix must be a single builds entry, found %d", len(cfg.Builds))}
 	}
-	for _, f := range cfg.Builds[0].Ldflags {
-		if strings.Contains(f, "-X") && strings.Contains(f, VersionInjectionTarget+"=") {
+	for _, entry := range cfg.Builds[0].Ldflags {
+		if ldflagsInjectVersion(entry) {
 			return nil
 		}
 	}
 	return []string{fmt.Sprintf(
 		"builds.ldflags must inject the version via -X %s=…, but no such flag is present "+
 			"(the 023 seam is blank or the symbol path drifted)", VersionInjectionTarget)}
+}
+
+// ldflagsInjectVersion reports whether a single ldflags entry contains a
+// syntactically valid `-X` flag stamping VersionInjectionTarget. It tokenizes
+// the entry (entries may bundle several space-separated flags, e.g.
+// "-s -w -X sym=val") and accepts only the two forms the Go linker actually
+// parses for `-X`:
+//
+//	-X <sym>=<val>   (the flag and its argument as separate tokens)
+//	-X=<sym>=<val>   (the flag and its argument joined by '=')
+//
+// The concatenated `-X<sym>=<val>` form is rejected — the linker does not parse
+// it as `-X`, so accepting it would let a broken seam pass the guard. Matching
+// the `-X` token structure (rather than a bare substring) also avoids a false
+// positive from the symbol appearing in some unrelated flag.
+func ldflagsInjectVersion(entry string) bool {
+	want := VersionInjectionTarget + "="
+	tokens := strings.Fields(entry)
+	for i, tok := range tokens {
+		if arg, ok := strings.CutPrefix(tok, "-X="); ok {
+			if strings.HasPrefix(arg, want) {
+				return true
+			}
+			continue
+		}
+		if tok == "-X" && i+1 < len(tokens) && strings.HasPrefix(tokens[i+1], want) {
+			return true
+		}
+	}
+	return false
 }
 
 // RepoRoot walks up from the current working directory to the directory holding

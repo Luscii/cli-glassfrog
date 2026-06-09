@@ -23,9 +23,10 @@ func TestVersionInjection_RealConfig(t *testing.T) {
 }
 
 // TestVersionInjection_Drift exercises the guard against in-memory configs: a
-// blanked seam, a missing ldflags, and a drifted symbol path must each fail and
-// NAME the target symbol; a correctly-targeted -X must pass regardless of the
-// value template, the -X spacing, or other flags sharing the entry.
+// blanked seam, a missing ldflags, a drifted symbol path, and a malformed `-X`
+// form must each fail and NAME the target symbol; a correctly-targeted -X must
+// pass in either valid form (`-X sym=val` or `-X=sym=val`), regardless of the
+// value template or other flags sharing the entry.
 func TestVersionInjection_Drift(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -35,8 +36,12 @@ func TestVersionInjection_Drift(t *testing.T) {
 		{"blanked seam", []string{""}, true},
 		{"no ldflags at all", nil, true},
 		{"drifted symbol path (main.version)", []string{"-X github.com/Luscii/cli-glassfrog/main.version=v1.0.0"}, true},
+		// `-Xsym=val` (no separator) is not a form the Go linker parses as -X, so
+		// the guard must reject it rather than let a broken seam through.
+		{"malformed -X without separator", []string{"-Xgithub.com/Luscii/cli-glassfrog/internal/cli.version=1.0.0"}, true},
+		{"target named outside a -X flag", []string{"-s -w -extldflags github.com/Luscii/cli-glassfrog/internal/cli.version=x"}, true},
 		{"correct injection with template", []string{"-X github.com/Luscii/cli-glassfrog/internal/cli.version=v{{ .Version }}"}, false},
-		{"correct injection, no space after -X", []string{"-Xgithub.com/Luscii/cli-glassfrog/internal/cli.version=1.0.0"}, false},
+		{"correct injection, -X=sym=val form", []string{"-X=github.com/Luscii/cli-glassfrog/internal/cli.version=1.0.0"}, false},
 		{"correct injection among other flags", []string{"-s -w -X github.com/Luscii/cli-glassfrog/internal/cli.version=v2.0.0"}, false},
 	}
 	for _, tc := range cases {
