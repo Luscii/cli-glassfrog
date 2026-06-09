@@ -1,9 +1,16 @@
-// Package build holds the executable verification of the project's build
-// contract: that the GoReleaser configuration declares exactly the four
-// supported, cgo-disabled targets (the config-guard), and that a produced
-// glassfrog binary runs on a clean host of its target depending only on
-// OS-provided libraries (the self-containment check). There is no runtime
-// component here — the "system" under test is the build itself (021).
+// Package build holds the executable verification of the project's build and
+// release contract:
+//   - the GoReleaser configuration declares exactly the four supported,
+//     cgo-disabled targets and the 022 release sections (archives/checksum/
+//     release) — the config-guard;
+//   - a produced glassfrog binary runs on a clean host of its target depending
+//     only on OS-provided libraries — the self-containment check;
+//   - the release workflow triggers, gates, and publishes as specified — the
+//     release-workflow guard (022).
+//
+// There is no runtime component here — the "system" under test is the build and
+// release pipeline itself (021 build matrix + self-containment; 022 packaging,
+// release workflow, and cross-target verification gate).
 package build
 
 import (
@@ -29,13 +36,79 @@ var (
 	SupportedGoarch = []string{"amd64", "arm64"}
 )
 
+// ArchiveFormat is the single archive format the guard requires (one tar.gz per
+// target). ChecksumAlgorithm is the single checksum algorithm required. Both are
+// closed: a drift away from these values fails the guard as loudly as a missing
+// section, mirroring the build matrix's change-detector rigor.
+const (
+	ArchiveFormat     = "tar.gz"
+	ChecksumAlgorithm = "sha256"
+	// ReleaseMode is the only accepted `release.mode`: keep-existing never
+	// replaces an existing release's body, so a direct `goreleaser release` can
+	// not clobber #30's notes or the publisher's pre-release/latest status.
+	ReleaseMode = "keep-existing"
+
+	// ArchiveNameTemplate and ChecksumNameTemplate are the exact name templates
+	// downstream consumers (#27 install script, #36 Homebrew, #37 npm) depend on.
+	// The guard pins them verbatim so a rename — which would silently break those
+	// consumers — fails here. ArchiveBuildID is the build the archive must draw
+	// from (021's single build); pinning it stops an archive from being pointed at
+	// a different (or future) build.
+	ArchiveNameTemplate  = "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+	ChecksumNameTemplate = "glassfrog_{{ .Version }}_checksums.txt"
+	ArchiveBuildID       = "glassfrog"
+)
+
 // Config is the subset of the GoReleaser schema the guard inspects. Fields the
 // guard does not assert on (project_name, flags, ldflags) are kept so a round
 // trip is lossless enough for debugging and so the ldflags 023 seam is visible.
+//
+// 022 adds Archives/Checksum/Release; the guard asserts those sections are
+// present and unchanged alongside 021's build matrix.
 type Config struct {
-	Version     int     `json:"version"`
-	ProjectName string  `json:"project_name"`
-	Builds      []Build `json:"builds"`
+	Version     int       `json:"version"`
+	ProjectName string    `json:"project_name"`
+	Builds      []Build   `json:"builds"`
+	Archives    []Archive `json:"archives"`
+	Checksum    Checksum  `json:"checksum"`
+	Release     Release   `json:"release"`
+}
+
+// Archive mirrors a single GoReleaser archives entry. GoReleaser v2 renamed the
+// single `format` field to a `formats` list; both are captured so the guard can
+// read either spelling and fail clearly if neither yields tar.gz.
+type Archive struct {
+	ID           string   `json:"id"`
+	IDs          []string `json:"ids"`
+	Formats      []string `json:"formats"`
+	Format       string   `json:"format"`
+	NameTemplate string   `json:"name_template"`
+}
+
+// Checksum mirrors the GoReleaser checksum section. Disable is captured so the
+// guard fails if checksums are turned off (the integrity mechanism is the only
+// one — there is no signing).
+type Checksum struct {
+	Algorithm    string `json:"algorithm"`
+	NameTemplate string `json:"name_template"`
+	Disable      bool   `json:"disable"`
+}
+
+// Release mirrors the GoReleaser release section. The guard pins Mode to
+// keep-existing and Draft to false, and requires Prerelease/MakeLatest to be
+// absent, so a direct `goreleaser release` honors the existing release's body
+// AND its pre-release/latest status (022's honor-not-decide contract).
+//
+// Prerelease/MakeLatest are modeled as interface{} so the guard can distinguish
+// "absent" (nil — the only acceptable state) from "set to anything" (a non-nil
+// value, including the string "auto" or a bool). They are NOT typed bool/string:
+// a typed field could not tell an explicit `prerelease: false` from an omitted
+// one, and the contract is that 022 sets neither.
+type Release struct {
+	Mode       string      `json:"mode"`
+	Draft      bool        `json:"draft"`
+	Prerelease interface{} `json:"prerelease"`
+	MakeLatest interface{} `json:"make_latest"`
 }
 
 // Build mirrors a single GoReleaser builds entry.
@@ -108,16 +181,25 @@ func ParseConfig(raw []byte) (Config, error) {
 // model) can correct the drift without re-reading the config.
 //
 // The guard enforces, with change-detector rigor (presence AND absence):
+//
+// 021 build matrix:
 //   - exactly one builds entry (the single glassfrog build),
 //   - CGO_ENABLED=0 present in that entry's env,
 //   - the goos set is exactly SupportedGoos (no windows, none missing),
 //   - the goarch set is exactly SupportedGoarch.
+//
+// 022 release sections (a missing section fails as loudly as an extra one):
+//   - exactly one archives entry, format tar.gz,
+//   - the checksum section is enabled with algorithm sha256,
+//   - the release section is mode keep-existing, draft false.
 func CheckConfigGuard(cfg Config) []string {
 	var violations []string
 
 	if len(cfg.Builds) != 1 {
 		violations = append(violations, fmt.Sprintf(
 			"build matrix must be a single builds entry, found %d", len(cfg.Builds)))
+		// The build matrix is the precondition for everything else; bail here so
+		// the message set stays focused on the structural break.
 		return violations
 	}
 	b := cfg.Builds[0]
@@ -126,6 +208,103 @@ func CheckConfigGuard(cfg Config) []string {
 	violations = append(violations, diffTargetSet("OS target", b.Goos, SupportedGoos)...)
 	violations = append(violations, diffTargetSet("architecture target", b.Goarch, SupportedGoarch)...)
 
+	violations = append(violations, checkArchives(cfg.Archives)...)
+	violations = append(violations, checkChecksum(cfg.Checksum)...)
+	violations = append(violations, checkRelease(cfg.Release)...)
+
+	return violations
+}
+
+// checkArchives requires exactly one archives entry producing a single tar.gz,
+// drawing from the glassfrog build, with the pinned name template. One archive
+// per build target is GoReleaser's per-target fan-out of this one entry, so the
+// entry count is one (not four). The format is read from either the v2 `formats`
+// list or the legacy singular `format`. The name_template and ids are pinned
+// because downstream consumers depend on the asset names and on the archive
+// carrying 021's build — a rename or a re-pointed build would otherwise pass.
+func checkArchives(archives []Archive) []string {
+	if len(archives) != 1 {
+		return []string{fmt.Sprintf(
+			"archives section must declare exactly one archive entry (one tar.gz per target), found %d", len(archives))}
+	}
+	a := archives[0]
+	var violations []string
+
+	formats := a.Formats
+	if len(formats) == 0 && a.Format != "" {
+		formats = []string{a.Format}
+	}
+	if len(formats) != 1 || formats[0] != ArchiveFormat {
+		violations = append(violations, fmt.Sprintf(
+			"archives format must be exactly %q, got %v", ArchiveFormat, formats))
+	}
+	if a.NameTemplate != ArchiveNameTemplate {
+		violations = append(violations, fmt.Sprintf(
+			"archives name_template must be exactly %q (downstream consumers depend on the asset names), got %q",
+			ArchiveNameTemplate, a.NameTemplate))
+	}
+	// The archive must draw from 021's single build. GoReleaser accepts the
+	// build reference under `ids:` (v2) or the legacy singular `id:`; require the
+	// glassfrog build via whichever is set, and reject any other/extra reference.
+	ids := a.IDs
+	if len(ids) == 0 && a.ID != "" {
+		ids = []string{a.ID}
+	}
+	if len(ids) != 1 || ids[0] != ArchiveBuildID {
+		violations = append(violations, fmt.Sprintf(
+			"archives must draw from exactly the %q build (ids/id), got %v", ArchiveBuildID, ids))
+	}
+	return violations
+}
+
+// checkChecksum requires the checksum section to be present, enabled, sha256, and
+// to carry the pinned name template. The algorithm is pinned to a non-empty
+// "sha256" (NOT accepting empty-as-default): a completely missing `checksum:`
+// section parses as the zero-value Checksum{}, and accepting an empty algorithm
+// would let that missing section pass — exactly the change-detector hole the
+// guard exists to close. The shipped config sets the algorithm explicitly.
+func checkChecksum(c Checksum) []string {
+	if c.Disable {
+		return []string{"checksum section must not be disabled — the checksums file is the only integrity mechanism"}
+	}
+	var violations []string
+	if c.Algorithm != ChecksumAlgorithm {
+		violations = append(violations, fmt.Sprintf(
+			"checksum section must be present with algorithm %q, got %q (an empty algorithm means the checksum section is missing)",
+			ChecksumAlgorithm, c.Algorithm))
+	}
+	if c.NameTemplate != ChecksumNameTemplate {
+		violations = append(violations, fmt.Sprintf(
+			"checksum name_template must be exactly %q, got %q", ChecksumNameTemplate, c.NameTemplate))
+	}
+	return violations
+}
+
+// checkRelease pins the release section to keep-existing/draft:false and rejects
+// any prerelease/make_latest override, so a direct `goreleaser release` honors
+// the existing release's body AND its pre-release/latest status rather than
+// authoring, replacing, or flipping them (022's honor-not-decide contract). A
+// non-nil prerelease/make_latest means the field was set to something — the
+// contract is that 022 sets neither, so any value (including "auto" or false) is
+// a violation.
+func checkRelease(r Release) []string {
+	var violations []string
+	if r.Mode != ReleaseMode {
+		violations = append(violations, fmt.Sprintf(
+			"release mode must be %q (never replace an existing release body), got %q", ReleaseMode, r.Mode))
+	}
+	if r.Draft {
+		violations = append(violations,
+			"release draft must be false — 022 attaches to an already-published release, it does not draft one")
+	}
+	if r.Prerelease != nil {
+		violations = append(violations, fmt.Sprintf(
+			"release must not set prerelease — it honors the published release's status (got %v)", r.Prerelease))
+	}
+	if r.MakeLatest != nil {
+		violations = append(violations, fmt.Sprintf(
+			"release must not set make_latest — it honors the published release's latest status (got %v)", r.MakeLatest))
+	}
 	return violations
 }
 
