@@ -1,0 +1,51 @@
+# golangci-lint configuration — PR Validation (spec 024).
+#
+# Drives the `golangci-lint run` step of ci.yml's lint job. golangci-lint is a
+# CI-host dev tool, NOT a dependency of the produced binary — CONSTITUTION XII
+# governs the artifact's runtime, the same standing this project gives
+# GoReleaser and sigs.k8s.io/yaml.
+#
+# Config schema v2 (golangci-lint v2.x): formatters (gofmt) live in their own
+# `formatters:` section, separate from `linters:`. The pinned golangci-lint
+# version is set in ci.yml's golangci-lint-action `version:` input (not `latest`)
+# so a new upstream release can never redden an unrelated PR — bumping it is a
+# deliberate, reviewable PR that itself runs through this gate.
+#
+# Conservative, low-false-positive starting set (tunable in a follow-up without
+# changing PR Validation's contract — the lint job's existence and its three
+# categories are fixed; the enabled-linter list is policy):
+version: "2"
+
+linters:
+  # Only the explicitly enabled linters run — a deterministic set rather than
+  # whatever golangci-lint's defaults happen to be in the pinned version.
+  default: none
+  enable:
+    - errcheck     # unchecked error returns
+    - govet        # go vet's analyzers (also run standalone in the lint job)
+    - ineffassign  # assignments never used
+    - staticcheck  # the staticcheck suite (SA/ST/QF; subsumes v1 gosimple/stylecheck)
+    - misspell     # common English misspellings in comments/strings
+    - unused       # unused constants, variables, functions, types
+
+  exclusions:
+    # `std-error-handling` is golangci-lint's built-in preset that drops
+    # errcheck reports for the idiomatic-to-ignore stdlib calls (fmt.Print*/
+    # Fprint* to stdout/stderr, *.Close on cleanup, etc.) whose returned error
+    # is conventionally not actionable. Conservative and widely used.
+    presets:
+      - std-error-handling
+    rules:
+      # Relax staticcheck's style/quickfix nits (ST*/S1*/QF*) on test files —
+      # 024 adds and modifies no tests (plan §What This Plan Does Not Cover), so
+      # the gate's enforcement concentrates on production code. SA* correctness
+      # checks still apply to production code; only test-file style is relaxed.
+      - path: _test\.go
+        linters:
+          - staticcheck
+
+formatters:
+  # gofmt is also checked explicitly in ci.yml (gofmt -l .) for a fast,
+  # dependency-light signal; enabling it here keeps golangci-lint's view aligned.
+  enable:
+    - gofmt

@@ -18,7 +18,6 @@ Feature: No Automated Pipeline — PR Validation
     # I want lint and the full test suite to run automatically on every pull request and block the merge until they pass.
 
     # Source: 024-pr-validation — Scenario: a clean pull request passes and becomes mergeable
-    @wip
     Scenario: A clean pull request passes and becomes mergeable
       Given a pull request had been opened against "main"
       When the lint job and the test matrix run
@@ -27,7 +26,6 @@ Feature: No Automated Pipeline — PR Validation
       And the pull request will be mergeable with respect to the gate
 
     # Source: 024-pr-validation — Scenario: pushing a fix re-runs validation against the new head
-    @wip
     Scenario: Pushing a fix re-runs validation against the new head
       Given a pull request whose validation had previously failed
       When the contributor pushes a new commit to the pull request
@@ -35,7 +33,6 @@ Feature: No Automated Pipeline — PR Validation
       And the reported status will reflect the latest commit rather than the superseded one
 
     # Source: 024-pr-validation — Scenario: rapid successive pushes resolve to the latest commit
-    @wip
     Scenario: Rapid successive pushes resolve to the latest commit
       Given a pull request that receives several pushes in quick succession
       When validation runs
@@ -43,7 +40,6 @@ Feature: No Automated Pipeline — PR Validation
       And a result for an earlier superseded commit will not satisfy the gate
 
     # Source: 024-pr-validation — Scenario: a pull request targeting a non-main branch does not trigger the gate
-    @wip
     Scenario: A pull request targeting a non-main branch does not trigger the gate
       Given a pull request whose base branch is not "main"
       When the pull request is opened or updated
@@ -63,7 +59,6 @@ Feature: No Automated Pipeline — PR Validation
     # I want to see exactly which check failed — the lint problem or the failing test environment — on the pull request.
 
     # Source: 024-pr-validation — Scenario: a failing test in one matrix cell blocks the merge
-    @wip
     Scenario: A failing test in one matrix cell blocks the merge
       Given a pull request targeting "main"
       When the test suite fails in one matrix cell while the other cells pass
@@ -72,7 +67,6 @@ Feature: No Automated Pipeline — PR Validation
       And the merge will be blocked until the failure is fixed
 
     # Source: 024-pr-validation — Scenario: a lint problem blocks the merge
-    @wip
     Scenario: A lint problem blocks the merge
       Given a pull request targeting "main"
       When the lint job reports a formatting, "go vet", or configured-linter problem
@@ -86,7 +80,6 @@ Feature: No Automated Pipeline — PR Validation
     # I want the validation status to be a required gate, not just an advisory signal.
 
     # Source: 024-pr-validation — Scenario: a green pull request is allowed to merge
-    @wip
     Scenario: A green pull request is allowed to merge
       Given a pull request targeting "main" with a passing "ci-success" status
       When a maintainer attempts to merge it
