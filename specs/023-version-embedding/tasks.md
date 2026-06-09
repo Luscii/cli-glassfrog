@@ -45,7 +45,7 @@ The `base` branch is cut from a main that contains 021 (the empty `builds.ldflag
     - `goreleaser build --snapshot --clean --single-target` produces a host binary whose `--version` reports the GoReleaser-derived, `v`-prefixed version (e.g. `v…`) — **not** the `0.0.0-dev` placeholder.
     - The `builds` matrix, `env`, and `flags` are byte-unchanged from 021, and the existing `internal/build` `TestConfigGuard_RealConfig` still passes.
     - The new config-regression test fails loudly if `builds[0].ldflags` is blanked or no longer injects `internal/cli.version`.
-    - Implementation and its test ship in the same PR (CONSTITUTION I).
+    - Implementation and its test ship in the same PR (CONSTITUTION VII).
   - **Dependencies**: T001
   - **Plan reference**: Implementation Strategy step 3; ADR-2 (ldflags injection), ADR-4 (`vX.Y.Z` shape)
   - **Scenario references**: version-embedding.feature: "A release build reports the stamped version"; "A pre-release version is reported verbatim"; "A blanked version-injection seam is caught before release"
