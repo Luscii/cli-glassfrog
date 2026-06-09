@@ -16,7 +16,6 @@ Feature: Governance Reads — Organization Tree
     # I want to read the entire role tree as a single nested document.
 
     # Source: 026-organization-tree — Scenario: Read the whole organization tree
-    @wip
     Scenario: The whole organization tree is read
       Given a complete connection context with a stored token
       And the API would return a nested role tree for the organization
@@ -25,7 +24,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: No usable token
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog tree"
@@ -47,7 +45,6 @@ Feature: Governance Reads — Organization Tree
     # I want to read the subtree rooted at a specific role, optionally bounding how deep it goes.
 
     # Source: 026-organization-tree — Scenario: Read the subtree rooted at a role
-    @wip
     Scenario: A subtree rooted at a role is read
       Given a complete connection context with a stored token
       And a role "role_0123" exists in the organization
@@ -56,7 +53,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: Read a tree with related resources on each node
-    @wip
     Scenario: Requested per-node resources are embedded in the tree
       Given a complete connection context with a stored token
       And a role "role_0123" exists in the organization
@@ -66,7 +62,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: A tree read for an unknown role id
-    @wip
     Scenario: An unknown role id fails with the API status
       Given a complete connection context with a stored token
       And no role "role_ffff" exists in the organization
@@ -75,7 +70,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with a non-zero API-error code
 
     # Source: 026-organization-tree — Scenario: An unsupported `--include` value is rejected without an API call
-    @wip
     Scenario: An unsupported tree include value is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tree role_0123 --include nonsense"
@@ -84,7 +78,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 2
 
     # Source: 026-organization-tree — Scenario: A leaf role's tree is a single node
-    @wip
     Scenario: A leaf root renders as a single node
       Given a complete connection context with a stored token
       And a role "role_0123" exists with no child roles
@@ -106,7 +99,6 @@ Feature: Governance Reads — Organization Tree
     # I want to list a role's immediate subroles and trust the list is complete or plainly flagged incomplete.
 
     # Source: 026-organization-tree — Scenario: List a role's immediate subroles
-    @wip
     Scenario: A role's immediate subroles are listed
       Given a complete connection context with a stored token
       And the circle role "role_0123" has several child roles
@@ -115,7 +107,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: List subroles with related resources embedded
-    @wip
     Scenario: Requested related resources are embedded on each child
       Given a complete connection context with a stored token
       And the circle role "role_0123" has several child roles
@@ -125,7 +116,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: First-page opt-out on subroles stops at one page and signals more exist
-    @wip
     Scenario: The subroles first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the subroles of "role_0123" span more than one page
@@ -135,7 +125,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: A leaf role has no subroles
-    @wip
     Scenario: A leaf role's subroles are an empty success
       Given a complete connection context with a stored token
       And the role "role_0123" has no child roles
@@ -144,7 +133,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: Subroles span more than one page (default walk to completion)
-    @wip
     Scenario: A multi-page subroles list is walked to completion
       Given a complete connection context with a stored token
       And the subroles of "role_0123" span three pages of API responses
@@ -154,7 +142,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: `--depth` is rejected on the subroles read
-    @wip
     Scenario: A depth flag on subroles is a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog subroles role_0123 --depth 2"
@@ -163,7 +150,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 2
 
     # Source: 026-organization-tree — Proposed: plan ADR-3 mid-walk failure exit semantics
-    @wip
     Scenario: A mid-walk subroles failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the subroles walk for "role_0123" fails after retrieving the first page
@@ -186,7 +172,6 @@ Feature: Governance Reads — Organization Tree
     # I want to cap the tree depth so I read only as far down as I need.
 
     # Source: 026-organization-tree — Scenario: Bound the tree depth
-    @wip
     Scenario: A depth flag bounds the tree to direct children
       Given a complete connection context with a stored token
       And the organization has a deep role hierarchy
@@ -196,7 +181,6 @@ Feature: Governance Reads — Organization Tree
       And the command will exit with code 0
 
     # Source: 026-organization-tree — Scenario: A depth-capped node is marked as having more below
-    @wip
     Scenario: A depth-capped node is marked as having subroles below
       Given a complete connection context with a stored token
       And the organization is deeper than one level
