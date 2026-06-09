@@ -50,6 +50,38 @@ type Build struct {
 	Ldflags []string `json:"ldflags"`
 }
 
+// VersionInjectionTarget is the linker symbol the build must stamp the version
+// into (spec 023): the package-level var in internal/cli that resolveVersion
+// reads as its highest-precedence source. The config-guard below fails if
+// builds.ldflags no longer injects it, so a blanked ldflags seam or a drifted
+// symbol path is caught at config level rather than silently shipping a release
+// that reports the build-info/placeholder value. Importing internal/cli here is
+// avoided deliberately (it would invert the dependency and the build package
+// stays cli-free); the symbol is matched as a string, the same way the linker
+// consumes it.
+const VersionInjectionTarget = "github.com/Luscii/cli-glassfrog/internal/cli.version"
+
+// CheckVersionInjection returns the list of guard violations for version
+// embedding: an empty result means the single build's ldflags inject
+// VersionInjectionTarget via a `-X` flag. It is intentionally tolerant of `-X`
+// spacing and of the value template (the value is GoReleaser's, not ours to
+// pin) — it asserts only that the seam targets the right symbol, which is the
+// regression that matters (the 021/022 config-guard ignores ldflags entirely).
+func CheckVersionInjection(cfg Config) []string {
+	if len(cfg.Builds) != 1 {
+		return []string{fmt.Sprintf(
+			"build matrix must be a single builds entry, found %d", len(cfg.Builds))}
+	}
+	for _, f := range cfg.Builds[0].Ldflags {
+		if strings.Contains(f, "-X") && strings.Contains(f, VersionInjectionTarget+"=") {
+			return nil
+		}
+	}
+	return []string{fmt.Sprintf(
+		"builds.ldflags must inject the version via -X %s=…, but no such flag is present "+
+			"(the 023 seam is blank or the symbol path drifted)", VersionInjectionTarget)}
+}
+
 // RepoRoot walks up from the current working directory to the directory holding
 // go.mod — the repository root, where .goreleaser.yaml lives. Tests in this
 // package run with their package directory as the working directory, so the

@@ -19,7 +19,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
     # I want --version to report the real release version that was shipped, not a development placeholder.
 
     # Source: 023-version-embedding — Scenario: a pre-release version is embedded verbatim
-    @wip
     Scenario: A pre-release version is reported verbatim
       Given a build had the release version "v1.4.0-rc.1" supplied
       When the produced binary is asked for its version
@@ -96,7 +95,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
     # I want the release version to be stamped into every binary through the one build entry point the pipeline already invokes.
 
     # Source: 023-version-embedding — Scenario: a release build reports the stamped version
-    @wip
     Scenario: A release build reports the stamped version
       Given a build had the release version "v1.4.0" supplied
       When the produced binary is asked for its version via "--version"
@@ -113,7 +111,6 @@ Feature: Runtime-Dependent Distribution — Version Embedding
       And it will not add commit or date build metadata to the value
 
     # Source: 023-version-embedding — Proposed: a blanked injection seam is caught by a config assertion (plan Risks; interface Error Communication)
-    @wip
     Scenario: A blanked version-injection seam is caught before release
       Given the build configuration had its version-injection seam blanked so no version is stamped
       When the build-config assertion runs

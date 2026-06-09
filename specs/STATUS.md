@@ -24,4 +24,4 @@
 | 020-output-format-selection | Complete | validate | 2026-06-08T17:00:00 |
 | 021-self-contained-executable-build | Complete | validate | 2026-06-08T19:00:00 |
 | 022-automated-release-pipeline | Tasks ready | tasks | 2026-06-08T17:50:00 |
-| 023-version-embedding | Implementing | implement | 2026-06-09T09:00:00 |
+| 023-version-embedding | Implemented | implement | 2026-06-09T09:30:00 |
