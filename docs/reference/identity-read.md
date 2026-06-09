@@ -18,9 +18,10 @@ The command makes exactly one request: no retry, no paging.
 ## Synopsis
 
 ```
-glassfrog me [--include <target>]
+glassfrog me [--include roles] [-o <format>] [--base-url URL]
 ```
 
+- `-o, --output` and `--base-url` are persistent flags inherited from the root; they are accepted anywhere on the command path.
 - Takes no positional arguments. An unexpected positional is a usage error.
 - Output goes to stdout. Diagnostics and error messages go to stderr. The outcome class is also signalled by the exit code.
 
@@ -30,12 +31,13 @@ glassfrog me [--include <target>]
 |---|---|---|---|
 | `--include` | Local to `me` | `roles` | Opt-in: embeds the requester's roles in the same read (maps to the API's `?include=roles`). Default absent → identity only. An unsupported target is rejected before any request is issued. |
 | `--base-url` | Persistent, on the root | A URL | The GlassFrog API base URL — the highest-precedence rung of base-URL resolution (flag → `GLASSFROG_BASE_URL` → `.glassfrogrc base_url` → built-in default). Registered once on the root and inherited by every API command; `me` reads its value. |
+| `-o`, `--output` | Persistent, on the root | `full` \| `compact` \| `json` \| `yaml` | Selects the output format for this invocation (default `full`). Inherited from the root and accepted anywhere on the command path. `full`/`compact` route the projection through the human templates; `json`/`yaml` emit the structured payload. See [Output Format Selection](output-format-selection.md). |
 
 `--include` accepts a single supported target: `roles`. Any other value is rejected locally as a usage error naming the unsupported target, with no request issued.
 
 ## Output
 
-On a `200`, `me` prints a reshaped projection (not raw JSON). Each fact is on its own labelled line, in a stable order. The id values are always present. The token value never appears in the projection.
+On a `200` under the default `full` format, `me` prints a reshaped projection (not raw JSON). Each fact is on its own labelled line, in a stable order. The id values are always present. The token value never appears in the projection. Under `-o json` / `-o yaml` the same read is emitted as the structured payload instead (see [Output Format Selection](output-format-selection.md)).
 
 Fields, in order:
 
@@ -103,5 +105,5 @@ Every non-2xx response maps to `3` and surfaces the status code but not a tailor
 
 ## Notes
 
-- A structured `--output json` mode is deferred to a future capability. This command emits only the reshaped projection described above. When `--output json` lands it is expected to be a cross-cutting flag, not a `me`-local concern.
+- Structured output is available: the persistent `-o, --output` flag selects `full` \| `compact` \| `json` \| `yaml`, so `me -o json` emits the structured payload. The reshaped projection above is the default (`full`) rendering. The flag is a cross-cutting root flag, not a `me`-local concern — see [Output Format Selection](output-format-selection.md). On failure under `json`/`yaml`, the cause-plus-next-step message still prints as text on stderr (structured failure rendering is not yet wired in).
 - For the full resolution chain behind `--base-url` (env var, `.glassfrogrc`, default) and for token resolution (`GLASSFROG_TOKEN`, `.glassfrogrc token`), see the connection-configuration capability docs. This command introduces no env var or `.glassfrogrc` key of its own.

@@ -144,7 +144,7 @@ actn_00000000000000000000000000000001  [waiting]   Draft Q2 plan
 ```
 
 The command exits successfully. If you own no actions, the projection prints an
-explicit empty-result line (`no actions`) rather than nothing — again, a valid
+explicit empty-result line (`No actions.`) rather than nothing — again, a valid
 answer, not a failure.
 
 When you want to focus on just the live work, add a status filter:

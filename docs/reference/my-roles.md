@@ -18,7 +18,7 @@ The command resolves the connection context once, builds the request client once
 ## Synopsis
 
 ```
-glassfrog me roles [--base-url URL]
+glassfrog me roles [-o <format>] [--base-url URL]
 ```
 
 - Takes no positional arguments. Stray positionals are rejected.
@@ -29,12 +29,13 @@ glassfrog me roles [--base-url URL]
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--base-url` | string | Base-URL resolution chain | Override the API base URL. Registered by Identity Read as a persistent flag on the root and inherited by `me roles` — this command does not declare it. Highest rung of the precedence chain (flag → `GLASSFROG_BASE_URL` → `.glassfrogrc base_url` → built-in default). |
+| `-o`, `--output` | string | `full` | Output format: `full` \| `compact` \| `json` \| `yaml`. Persistent root flag, inherited by `me roles` and accepted anywhere on the command path. `full`/`compact` render the human projection below; `json`/`yaml` emit the structured payload. See [Output Format Selection](output-format-selection.md). |
 
-This command exposes no `--output json` mode and no filter flags. `/me/roles` offers no `?status=` filter.
+This command declares no filter flags of its own — `/me/roles` offers no `?status=` filter. Output format is selected by the inherited `-o, --output` flag.
 
 ## Output
 
-On success, stdout carries a reshaped projection: one block per role, blocks separated by a blank line. The raw API JSON envelope is never emitted. The token value never appears.
+On success under the default `full` format, stdout carries a reshaped projection: one block per role, blocks separated by a blank line. The token value never appears. Under `-o json` / `-o yaml` the structured payload is emitted instead (see [Output Format Selection](output-format-selection.md)).
 
 Per-role block shape (exact labels and glyphs are a build detail; the field selection, presence, and Domains-before-Accountabilities order are the contract):
 
@@ -109,5 +110,5 @@ Every non-2xx response maps to `3` and reports the HTTP status without interpret
 
 ## Notes
 
-- This command exposes no `--output json` mode and no filter flags; the default reshaped projection is the only output mode.
+- This command declares no filter flags. Output format is chosen by the inherited persistent `-o, --output` flag (`full` \| `compact` \| `json` \| `yaml`, default `full`); `me roles -o json` emits the structured payload. See [Output Format Selection](output-format-selection.md). On failure under `json`/`yaml`, the cause-plus-next-step message still prints as text on stderr (structured failure rendering is not yet wired in).
 - For the full base-URL resolution chain and token resolution, see the connection-configuration capability docs. This command introduces no env var or `.glassfrogrc` key of its own.

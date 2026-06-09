@@ -66,7 +66,7 @@ glassfrog me projects --status current
   exits with code `0`. An empty result prints `No roles.` and still exits `0`.
 - **Actions:** stdout lists each action with its id, status, description, and
   owning role, and the command exits successfully. No matching actions prints
-  the empty-result line `no actions` and exits successfully.
+  the empty-result line `No actions.` and exits successfully.
 - **Projects:** stdout lists each project with its id, status, description, and
   owning role, and the command exits successfully. No matching projects prints
   `no projects` and exits successfully.
@@ -97,8 +97,8 @@ tools.
 All failure messages go to **stderr**, name a next step, and never include your
 token. The exit code signals the outcome class.
 
-- **"no matching X" is not an error.** An empty list (`No roles.`, `no
-  actions`, `no projects`) is a successful result and exits `0`. If you used
+- **"no matching X" is not an error.** An empty list (`No roles.`,
+  `No actions.`, `no projects`) is a successful result and exits `0`. If you used
   `--status`, no matches for that status is also a clean empty result — try a
   different status or drop the filter.
 

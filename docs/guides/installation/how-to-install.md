@@ -9,7 +9,15 @@
 
 # How to install the CLI
 
-This guide shows how to install the `glassfrog` CLI on a fresh Linux or macOS machine using the hosted one-liner, then verify the install.
+This guide shows how the `glassfrog` CLI is intended to be installed on a fresh Linux or macOS machine using the hosted one-liner, then how to verify the install.
+
+> **🚧 Not yet available — planned.** The one-liner below is the *specified* install path (spec 027), but it does **not work yet**: there is no `install.sh` in the repository and no published release archives for it to download, so running it currently fails (the URL 404s). Until the install script and the release pipeline ship, install from source instead:
+>
+> ```
+> go install github.com/Luscii/cli-glassfrog@latest
+> ```
+>
+> This builds the `glassfrog` binary into your Go bin directory (`$(go env GOPATH)/bin`); ensure that directory is on your `PATH`. Then skip to [Verify](#verify). The rest of this guide describes the forthcoming one-liner.
 
 The one-liner detects your platform, downloads the matching release archive and its checksums file, verifies the archive's integrity, and installs the binary into a per-user directory — no runtime, no package manager, no `sudo`. For the full behavior, see [Install Script Reference](../../reference/install-script.md).
 

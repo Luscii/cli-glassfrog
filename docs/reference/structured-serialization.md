@@ -7,13 +7,15 @@
 
 # Structured Serialization Reference
 
-Machine-readable serialization of a command's result as JSON or YAML — the raw API payload verbatim on success, and a unified error envelope on failure.
+Machine-readable serialization of a command's result as JSON or YAML — the raw API payload verbatim on success. A unified error envelope shape is also defined for failures, but the CLI does not emit it yet (see Availability below).
 
 ## Overview
 
-Structured Serialization defines two machine output formats, `json` and `yaml`, and the document shapes a consumer (such as an AI agent) parses from them. On success the output is the raw 2xx API payload encoded verbatim; on failure the output is a single unified error envelope encoded in the same format.
+Structured Serialization defines two machine output formats, `json` and `yaml`, and the document shapes a consumer (such as an AI agent) parses from them. On success the output is the raw 2xx API payload encoded verbatim. The capability also defines a single unified error envelope shape (and its encoder) for failures.
 
 Structured Serialization owns no command and no flag. Format selection arrives through the `--output` flag (see [Output Format Selection](output-format-selection.md)). This reference describes the formats and the document shapes those formats produce.
+
+> **Availability.** Structured **success** output is live: `glassfrog … -o json` (or `yaml`) emits the success document described below. The **error envelope is a defined shape and encoder, not yet wired into command failures.** Today a command failure under `json`/`yaml` still prints its cause-plus-next-step message as text on **stderr** and leaves stdout empty — the structured envelope is not produced. Wiring the envelope into failures (Output-Aware Failure Rendering) is a later capability. The envelope shape is documented here so consumers can anticipate it; treat it as forthcoming, not current behavior.
 
 ## Formats
 
@@ -21,8 +23,8 @@ Two machine formats are supported:
 
 | Format | On success | On failure |
 |---|---|---|
-| `json` | The raw 2xx body, normalized — valid and consistently indented. | The error envelope, marshalled as JSON. |
-| `yaml` | The same data as the JSON form, transformed to YAML. | The error envelope, as YAML. |
+| `json` | The raw 2xx body, normalized — valid and consistently indented. | *(Not yet emitted)* — failures print text on stderr; stdout stays empty. The defined shape is the error envelope marshalled as JSON. |
+| `yaml` | The same data as the JSON form, transformed to YAML. | *(Not yet emitted)* — as above; the defined shape is the error envelope as YAML. |
 
 The JSON form and the YAML form carry identical data. Both derive from the same JSON bytes, so parsing either yields structurally equivalent data — neither encoding carries a field the other lacks.
 
@@ -39,7 +41,9 @@ A single render call produces the whole document, written to stdout as the sole 
 
 ## Error envelope
 
-Every failure renders as one unified error envelope in the active format. There is one envelope shape for every failure origin.
+> **Defined shape, not yet emitted.** The envelope below is the structure the CLI *will* render when Output-Aware Failure Rendering lands. It is **not produced today** — current command failures under `json`/`yaml` print cause-plus-next-step text on stderr with empty stdout. This section documents the planned shape so consumers can prepare for it.
+
+The envelope is one unified shape for every failure origin: when emitted, a single envelope in the active format carries the failure regardless of where it originated.
 
 ### Fields
 

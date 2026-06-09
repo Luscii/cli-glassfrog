@@ -9,9 +9,11 @@
 
 The POSIX shell one-liner that installs the `glassfrog` CLI on a Linux or macOS host: its invocation forms, configuration variables, supported platforms, integrity verification, install location, and failure modes.
 
+> **🚧 Not yet available — planned.** This documents the *specified* installer (spec 027). The `install.sh` script is **not yet present in the repository** and the automated release pipeline that publishes the archives it downloads has not shipped, so the one-liners below do **not work today** — running them currently fails (the raw URL 404s). This page describes the intended mechanism so the design is reviewable; treat it as forthcoming until the install script and a published release exist. For installing today, build from source with the Go toolchain (`go install github.com/Luscii/cli-glassfrog@latest`).
+
 ## Overview
 
-The installer is a single POSIX shell script, `install.sh`, hosted at the repository root and invoked over the network as a one-liner. It detects the host OS and architecture, resolves a release, downloads the matching archive and the checksums file, verifies the archive's integrity, and installs the binary into a per-user directory. It adds no command to the CLI, requires no runtime or package manager, and never escalates privileges (no `sudo`).
+The installer is specified as a single POSIX shell script, `install.sh`, to be hosted at the repository root and invoked over the network as a one-liner. It detects the host OS and architecture, resolves a release, downloads the matching archive and the checksums file, verifies the archive's integrity, and installs the binary into a per-user directory. It adds no command to the CLI, requires no runtime or package manager, and never escalates privileges (no `sudo`).
 
 Because the hosted URL points at the `main`-branch raw content, the one-liner always resolves the newest stable release and therefore doubles as the upgrade path.
 

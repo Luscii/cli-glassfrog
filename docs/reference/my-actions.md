@@ -18,9 +18,10 @@ The command makes exactly one request and prints the first page. A further page 
 ## Synopsis
 
 ```
-glassfrog me actions [--status <status>]
+glassfrog me actions [--status <status>] [-o <format>] [--base-url URL]
 ```
 
+- `-o, --output` and `--base-url` are persistent flags inherited from the root; they are accepted anywhere on the command path.
 - Takes no positional arguments. An unexpected positional is a usage error.
 - Output goes to stdout. Diagnostics and error messages go to stderr. The outcome class is also signalled by the exit code.
 
@@ -30,12 +31,13 @@ glassfrog me actions [--status <status>]
 |---|---|---|---|
 | `--status` | Local to `me actions` | One of `archived` `cancelled` `completed` `current` `scheduled` `someday` `waiting` | Optional filter mapped to the API's `?status=`. Validated before any request: an unsupported value is rejected as a usage error naming the value and the supported set, with no request issued. Absent → no status constraint. |
 | `--base-url` | Persistent, on the root | A URL | The GlassFrog API base URL — highest-precedence rung of base-URL resolution (flag → `GLASSFROG_BASE_URL` → `.glassfrogrc base_url` → built-in default). Registered once on the root by Identity Read and inherited here; `me actions` reads its value and registers nothing. |
+| `-o`, `--output` | Persistent, on the root | `full` \| `compact` \| `json` \| `yaml` | Selects the output format for this invocation (default `full`). Inherited from the root and accepted anywhere on the command path. `full`/`compact` render the projection below; `json`/`yaml` emit the structured payload. See [Output Format Selection](output-format-selection.md). |
 
 Supported `--status` values: `archived`, `cancelled`, `completed`, `current`, `scheduled`, `someday`, `waiting`.
 
 ## Output
 
-On a `200`, `me actions` prints a reshaped projection (not raw JSON), one entry per action, in the order the API returned them. The id is always present. The token value never appears.
+On a `200` under the default `full` format, `me actions` prints a reshaped projection (not raw JSON), one entry per action, in the order the API returned them. The id is always present. The token value never appears. Under `-o json` / `-o yaml` the structured payload is emitted instead (see [Output Format Selection](output-format-selection.md)).
 
 Per-action fields:
 
@@ -58,10 +60,10 @@ actn_00000000000000000000000000000001  [waiting]   Draft Q2 plan
 … more results available — showing the first page (pagination lands with a later capability)
 ```
 
-**Empty result.** When the practitioner owns no matching actions, the projection prints an explicit empty-result line rather than nothing:
+**Empty result.** When the practitioner owns no matching actions, the projection prints an explicit empty-result line rather than nothing — exactly:
 
 ```
-no actions
+No actions.
 ```
 
 ## Pagination Signal
@@ -102,6 +104,6 @@ Every non-2xx response maps to `3` and surfaces the status code but not a tailor
 
 ## Notes
 
-- A structured `--output json` mode is deferred to a future cross-cutting capability. This command emits only the reshaped projection described above.
+- Output format is chosen by the inherited persistent `-o, --output` flag (`full` \| `compact` \| `json` \| `yaml`, default `full`); `me actions -o json` emits the structured payload. See [Output Format Selection](output-format-selection.md). On failure under `json`/`yaml`, the cause-plus-next-step message still prints as text on stderr (structured failure rendering is not yet wired in).
 - Pagination flags (`--per-page`, `--cursor`) and the multi-page walk are a later capability; this command exposes neither and fetches one page.
 - For the full base-URL resolution chain and token resolution, see the connection-configuration capability docs. This command introduces no env var or `.glassfrogrc` key of its own.

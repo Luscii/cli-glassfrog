@@ -59,13 +59,13 @@ Notes:
 
 ## Verify
 
-Run the command and confirm it reaches the intended endpoint. Resolution reports which source supplied the value (`Flag`, `Environment`, `File`, or `Default`):
+Run the command and confirm it reaches the intended endpoint. The CLI does **not** print the resolved base URL or which source won on a successful read — the effective value is used silently, and the source is named only in an error message when resolution fails. Reason about which source should win from the precedence order:
 
-- With the flag set (Option A), the source is the flag, and no other source is consulted.
-- With `GLASSFROG_BASE_URL` set and no flag (Option B), the source is the environment variable, and no configuration file is read.
+- With the flag set (Option A), the flag wins, and no other source is consulted.
+- With `GLASSFROG_BASE_URL` set and no flag (Option B), the environment variable wins; the configuration file is not read.
 - With only a project-local `.glassfrogrc` (Option C), the value comes from the current directory's file rather than the home file.
 
-For the same flag value, environment, and filesystem, resolution is deterministic — repeated runs return the same value from the same source.
+To confirm an endpoint is actually in effect, point it at a URL you control (or a deliberately wrong one) and observe where the request lands — a misdirected or unreachable endpoint surfaces as a transport error naming the host. For the same flag value, environment, and filesystem, resolution is deterministic: repeated runs resolve the same value from the same source.
 
 ## Troubleshooting
 
