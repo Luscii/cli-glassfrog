@@ -33,7 +33,7 @@ Plain JSON-tagged structs, tolerant of unknown/extra fields. Leaf package — no
 |---|---|---|
 | `newRolesCommand` | `(seam rolesSeam) *cobra.Command` | Guard-registered `roles` leaf (`Use:"roles [id]"`, `Args: cobra.MaximumNArgs(1)`, non-empty `Short`, `SilenceErrors`/`SilenceUsage`); declares the list + single flags; reads inherited `--base-url`/`--output`; delegates to `runRoles`. **Replaces** the existing stub `roles` group (its `list`/`get` children are removed); the existing `Assemble()` wiring is updated to this seam-taking constructor. |
 | `runRoles` | `(cfg rolesConfig) (Outcome, error)` | Pure over injected values. Branches on whether an id is present: validates flag combos + (single) `--include` + resolves `--output` **before** assembly; then list → `runRolesList`, single → `runRoleGet`. Writes result to `cfg.stdout`, diagnostics/notes to `cfg.stderr`; returns the code-free `Outcome`. |
-| `runRolesList` | `(cfg) (records []glassfrog.Role, complete bool, out Outcome)` | Default: `paging.All[Role]` over the seam's executor → `Result.Records`/`Result.Complete`/`Result.Stop`. `--first-page`: one `Execute` into `Page[Role]` → `Data`/`!HasNextPage`. Maps a `Result.Stop` via `classifyClientError`. |
+| `runRolesList` | `(cfg, exec, format) (Outcome, error)` | Walks `GET /roles` to completion in **every** format (the format changes rendering, not fetch depth). Human: `paging.All[Role]` → render `org-roles`. Structured: `paging.All[json.RawMessage]` → aggregate the verbatim per-role bytes into `{data:[…]}` (018 fidelity; the synthesized envelope drops per-page `meta`). `--first-page` opts out to one page in both formats. A first-page failure (no records) reports like any read error; a mid-walk failure renders the partial set + stderr note + non-zero via `classifyClientError(Stop)` — identical signalling in both formats. |
 | `runRoleGet` | `(cfg, id string) (RoleDetail, Outcome)` | One `Execute` into a `RoleDetail` document; `?include=` from validated `--include`. |
 | `validateRolesInclude` | `(targets []string) error` | Rejects an unsupported `--include` value against `{assignments,subroles,parent_role,policies,notes,skills}` before any request (011 `validateInclude` shape). |
 | `validateRolesFlags` | `(hasID bool, flags…) error` | The flag-combination guard: `--include` requires an id; list filters/`--first-page`/`--per-page` forbid an id. Returns a usage error naming the misuse. |
@@ -70,10 +70,19 @@ resp, err := ex.Execute(reqCtx,
               &doc)                                                                 // 2xx → doc.Data; non-2xx → *ResponseError
 renderResult("role", resolvedFormat, doc.Data)                                      // 020 dispatch
 
-// list (default walk) — filters is a url.Values built from the validated flags
-var filters url.Values
-res := paging.All[glassfrog.Role](reqCtx, ex, apiclient.Request{Method: "GET", Path: "/roles", Query: filters})
-renderResult("org-roles", resolvedFormat, res.Records)                                  // res.Complete drives the stderr note
+// list (default walk) — filters is a url.Values built from the validated flags.
+// EVERY format walks to completion; the format only changes how the set renders.
+req := apiclient.Request{Method: "GET", Path: "/roles", Query: filters}
+if machineFmt, ok := format.MachineFormat(); ok {                                   // structured
+    res := paging.All[json.RawMessage](reqCtx, ex, req)                             // per-role raw bytes preserved
+    doc, _ := aggregateRawRoles(machineFmt, res.Records)                            // {"data":[<raw>,…]} (018 fidelity)
+    stdout.Write(doc)
+    // res.Stop != nil → reportIncompleteWalk (partial set + stderr note + non-zero)
+} else {                                                                            // human
+    res := paging.All[glassfrog.Role](reqCtx, ex, req)
+    text, _ := render.Render("org-roles", humanFmt, res.Records)
+    stdout.Write(text)                                                              // res.Stop != nil → same incomplete note
+}
 ```
 
 ---
@@ -82,8 +91,8 @@ renderResult("org-roles", resolvedFormat, res.Records)                          
 
 - **Validate-before-call**: `validateRolesFlags` + `validateRolesInclude` + `output.ResolveFormat` all run before `seam.assemble`, so a misuse or bad include/format costs no network call (a tripwire fake asserts the executor is never invoked on rejection).
 - **One executor, two consumers**: the seam builds the executor once; the single read calls `Execute` directly, the list passes the same executor to `paging.All`. Resolution happened at assembly (009); the reads re-resolve nothing and never read `ctx.Cred.Token`.
-- **Decode targets**: list → `Page[Role]` (per page, by the walker); single → `RoleDocument` (`{data: RoleDetail}`). Under a structured `--output`, the dispatch instead decodes `json.RawMessage` (018 ADR-2) — the typed structs are the human path.
-- **Completeness → exit**: `runRolesList` returns `(records, complete)`; the command renders `records` and, when `!complete`, writes the stderr note and (mid-walk failure only) returns the classified non-zero `Outcome`. The `--first-page` opt-out returns `complete=false` with `Success`.
+- **Decode targets**: human list → `Page[Role]` (per page, by the walker); structured list → `Page[json.RawMessage]` (per-role raw bytes preserved across the walk, then aggregated into `{data:[…]}`); single → `RoleDocument` (`{data: RoleDetail}`) for the human path, raw `json.RawMessage` verbatim for the structured path (018 ADR-2).
+- **Completeness → exit, format-independent**: both walks render the gathered set and, on a mid-walk failure, write the stderr incomplete note and return the classified non-zero `Outcome` (`reportIncompleteWalk`); a first-page failure (no records) reports like any read error. The `--first-page` opt-out renders one page with `Success` and a stderr note when more exist. Structured and human signal incompleteness the same way — neither relies on in-band `meta`.
 
 ---
 

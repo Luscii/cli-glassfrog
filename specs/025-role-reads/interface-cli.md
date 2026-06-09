@@ -50,7 +50,9 @@ glassfrog roles <ROLE_ID> [--include a,b,…] [--base-url URL] [-o FORMAT]
 | `--base-url` | 011 | Override API base URL (top rung of 008's precedence chain). |
 | `-o`, `--output` | 020 | `full` (default) \| `compact` \| `json` \| `yaml`. |
 
-**Output** (success, stdout): the result is rendered by Output Format Selection (020) in the resolved format — `json`/`yaml` emit the raw API payload verbatim (018), `full`/`compact` render the human projection (019). The raw API envelope is never emitted under a human format.
+**Output** (success, stdout): the result is rendered by Output Format Selection (020) in the resolved format — `json`/`yaml` emit the structured document, `full`/`compact` render the human projection (019). The raw API envelope is never emitted under a human format.
+
+**Format changes rendering, not fetch depth.** Every format fetches the *same* roles: the list walks to completion by default (and `--first-page` limits *all* formats to one page) — `json`/`yaml` never return a shorter set than `full`/`compact`. For the **single read**, `json`/`yaml` emit the API's `{data: RoleDetail}` body verbatim (018, raw bytes — no field dropped, no number coerced). For the **list**, structured output is the aggregated document `{ "data": [ <role>, … ] }`, where each role's bytes are preserved verbatim across the walk (018 fidelity); only the `data` envelope is synthesized, because an aggregate of N pages has no single page's `meta`. List completeness is therefore signalled the same way in every format — a stderr note (below), never an in-band per-page `meta` and never a silently short list.
 
 *List, `full`* — one block per role, blocks separated by a blank line:
 ```
@@ -73,7 +75,7 @@ Notes:         - <note title> | (none)
 Skills:        - <skill name> (summary; full content via skills read) | (none)
 ```
 
-**Empty result** (the org has no roles, or no role matches the filters): under `full`/`compact`, stdout is exactly `No roles.` and the command exits `0` — an empty list is a valid answer, not an error. (Structured formats emit the empty payload as the API returned it.)
+**Empty result** (the org has no roles, or no role matches the filters): under `full`/`compact`, stdout is exactly `No roles.` and the command exits `0` — an empty list is a valid answer, not an error. (Structured formats emit a valid empty list — `{"data": []}` for `json` — never `null`.)
 
 ## Interactions
 

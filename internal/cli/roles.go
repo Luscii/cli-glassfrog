@@ -132,23 +132,39 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 	return runRolesList(cfg, exec, format)
 }
 
-// runRolesList performs the org-wide list read. The default path walks GET /roles
-// to completion via paging.All over the retrying executor and renders the
-// complete []Role; a mid-walk failure (a partial set was gathered) renders the
-// partial set, writes the incomplete note to stderr, and exits non-zero via
-// classifyClientError(Stop). A structured --output instead captures the first
-// page's raw bytes verbatim (018) — the pagination metadata rides the document
-// in-band, so a machine consumer reads completeness from it (the typed walk is
-// the human path; no stderr note on the structured path).
+// runRolesList performs the org-wide list read. The output format changes ONLY
+// how the gathered set is rendered — never how much is fetched: json/yaml and
+// full/compact return the same roles, walked to completion by default, and
+// signal incompleteness the same way (a stderr note, never a silently short
+// list). A different fetch depth per format would be unpredictable, so both
+// formats share the walk.
+//
+// The default path walks GET /roles to completion via paging.All; --first-page
+// opts out to a single page (both formats). A first-page failure (no records
+// gathered) reports like any read error — nothing on stdout; a mid-walk failure
+// renders the partial set and exits non-zero via classifyClientError(Stop). The
+// structured walk preserves each role's raw bytes (paging.All over
+// json.RawMessage), so no field is dropped or number coerced (018 fidelity);
+// only the {data:[…]} envelope is synthesized, because an aggregate of N pages
+// has no single page's meta — completeness travels on stderr, in-band meta is
+// not needed.
 func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (Outcome, error) {
 	req := apiclient.Request{Method: http.MethodGet, Path: "/roles", Query: rolesListQuery(cfg)}
 
+	// The --first-page opt-out: a single page in EVERY format, signalling if more
+	// exist (exit 0). The operator chose the boundary, so it is not an error.
+	if cfg.firstPage {
+		return runRolesFirstPage(cfg, exec, format, req)
+	}
+
+	// Structured: walk to completion preserving each role's raw bytes, then emit
+	// the aggregated {data:[…]} document.
 	if machineFmt, ok := format.MachineFormat(); ok {
-		var raw json.RawMessage
-		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportClientError(cfg.stderr, err)
+		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
+		if res.Stop != nil && len(res.Records) == 0 {
+			return reportClientError(cfg.stderr, res.Stop)
 		}
-		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		doc, rerr := aggregateRawRoles(machineFmt, res.Records)
 		if rerr != nil {
 			// Buffer-then-write: a render failure leaves stdout empty and maps to
 			// RuntimeError(1). The error is token-free (018 contract).
@@ -156,53 +172,94 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 			return RuntimeError, rerr
 		}
 		_, _ = cfg.stdout.Write(doc)
+		if res.Stop != nil {
+			return reportIncompleteWalk(cfg.stderr, res.Stop)
+		}
 		return Success, nil
 	}
 
-	// The --first-page opt-out: a single page, no walk, signalling if more exist
-	// (exit 0). The operator chose the boundary, so it is not an error.
-	if cfg.firstPage {
-		return runRolesFirstPage(cfg, exec, format, req)
-	}
-
-	// Default human path: walk every page to completion.
+	// Human: walk to completion, render the org-roles projection.
 	res := paging.All[glassfrog.Role](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
-
-	// A walk that stopped before gathering any record is a clean failure (e.g. a
-	// first-page transport/auth/API error): there is no partial set to show, so
-	// report it like any read error — nothing on stdout.
 	if res.Stop != nil && len(res.Records) == 0 {
+		// A walk that stopped before gathering any record is a clean failure (e.g. a
+		// first-page transport/auth/API error): no partial set to show, so report it
+		// like any read error — nothing on stdout.
 		return reportClientError(cfg.stderr, res.Stop)
 	}
-
 	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), res.Records)
 	if rerr != nil {
 		fmt.Fprintln(cfg.stderr, rerr.Error())
 		return RuntimeError, rerr
 	}
 	fmt.Fprint(cfg.stdout, text)
-
 	if res.Stop != nil {
-		// Mid-walk failure: the partial set is already on stdout. Name the cause on
-		// stderr and exit non-zero via the shared classifier (refined once so a
-		// non-2xx splits into permission/rate-limit as 015 landed).
-		refined := refineClientError(res.Stop)
-		fmt.Fprintf(cfg.stderr, incompleteWalkNote+"\n", refined.Error())
-		return classifyClientError(refined), res.Stop
+		return reportIncompleteWalk(cfg.stderr, res.Stop)
 	}
 	return Success, nil
 }
 
+// reportIncompleteWalk writes the mid-walk incomplete note (the partial set is
+// already on stdout) and returns the classified non-zero outcome. The Stop error
+// is refined once so a non-2xx splits into permission/rate-limit as 015 landed.
+// Shared by the human and structured walks so both flag incompleteness the same
+// way.
+func reportIncompleteWalk(stderr io.Writer, stop error) (Outcome, error) {
+	refined := refineClientError(stop)
+	fmt.Fprintf(stderr, incompleteWalkNote+"\n", refined.Error())
+	return classifyClientError(refined), stop
+}
+
+// aggregateRawRoles concatenates the verbatim per-role bytes gathered across the
+// walk into a single {"data":[…]} document and renders it in the structured
+// format. Each role's bytes are preserved exactly (no struct round-trip → no
+// field dropped, no number coerced — 018 fidelity); only the envelope is
+// synthesized, because an aggregate of N pages has no single page's meta. A nil
+// record set renders {"data":[]}, not {"data":null}, so an empty org is a valid
+// empty list rather than a null.
+func aggregateRawRoles(f output.Format, records []json.RawMessage) ([]byte, error) {
+	if records == nil {
+		records = []json.RawMessage{}
+	}
+	payload, err := json.Marshal(struct {
+		Data []json.RawMessage `json:"data"`
+	}{Data: records})
+	if err != nil {
+		return nil, err
+	}
+	return output.RenderSuccess(f, payload)
+}
+
 // runRolesFirstPage performs the --first-page opt-out: a single GET /roles page
-// (no walk), rendered as the org-roles projection, with one stderr note when the
-// API reports more pages exist (still exit 0 — the operator chose the boundary).
-// --per-page (if set) sizes the single request; the walker is not involved.
+// (no walk) in EVERY format, with one stderr note when the API reports more
+// pages exist (still exit 0 — the operator chose the boundary). The structured
+// path emits the same {data:[…]} envelope the default walk does (so the json
+// shape does not change with --first-page); the human path renders the
+// projection. --per-page (if set) sizes the single request; the walker is not
+// involved.
 func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
 	if cfg.perPage > 0 {
 		q := cloneRolesQuery(req.Query)
 		q.Set("per_page", strconv.Itoa(cfg.perPage))
 		req.Query = q
 	}
+
+	if machineFmt, ok := format.MachineFormat(); ok {
+		var page glassfrog.Page[json.RawMessage]
+		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
+			return reportClientError(cfg.stderr, err)
+		}
+		doc, rerr := aggregateRawRoles(machineFmt, page.Data)
+		if rerr != nil {
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		if page.Meta.Pagination.HasNextPage {
+			fmt.Fprintln(cfg.stderr, moreRolesNote)
+		}
+		return Success, nil
+	}
+
 	var page glassfrog.Page[glassfrog.Role]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
 		return reportClientError(cfg.stderr, err)

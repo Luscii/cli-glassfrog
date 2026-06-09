@@ -241,9 +241,9 @@ func TestRunRoles_ListInvalidOutputIsUsageErrorNothingSent(t *testing.T) {
 	}
 }
 
-// -o json emits the raw API payload verbatim (normalized), not the human
-// projection — the data/meta envelope is present.
-func TestRunRoles_ListStructuredEmitsRawPayload(t *testing.T) {
+// -o json emits the aggregated {data:[…]} document with each role's raw bytes
+// preserved (no human projection, no per-page meta — completeness rides stderr).
+func TestRunRoles_ListStructuredEmitsAggregatedData(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: orgRolesPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
 
@@ -251,14 +251,83 @@ func TestRunRoles_ListStructuredEmitsRawPayload(t *testing.T) {
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
-	for _, want := range []string{`"data"`, `"meta"`, `"has_next_page"`, "Marketing Lead"} {
+	for _, want := range []string{`"data"`, "Marketing Lead", "Anchor Circle", `"has_subroles"`} {
 		if !strings.Contains(stdout, want) {
-			t.Errorf("structured output should carry the raw envelope field %q:\n%s", want, stdout)
+			t.Errorf("structured output should carry the role data field %q:\n%s", want, stdout)
 		}
+	}
+	// The synthesized envelope drops per-page pagination meta (an aggregate has no
+	// single page's meta); completeness is signalled on stderr instead.
+	if strings.Contains(stdout, `"meta"`) || strings.Contains(stdout, "has_next_page") {
+		t.Errorf("the aggregated document should not carry per-page meta:\n%s", stdout)
 	}
 	// The human projection header must not appear under a structured format.
 	if strings.Contains(stdout, "Purpose:") {
 		t.Errorf("structured output must not render the human projection:\n%s", stdout)
+	}
+}
+
+// json and human fetch the SAME set: a structured default read walks every page
+// to completion, just like the human default — the format changes rendering, not
+// fetch depth.
+func TestRunRoles_ListStructuredWalksEveryPage(t *testing.T) {
+	tr := &seqMeTransport{steps: []seqMeResp{
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000001", "Page One Role", "c1")},
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000002", "Page Two Role", "c2")},
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000003", "Page Three Role", "")},
+	}}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{"Page One Role", "Page Two Role", "Page Three Role"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured output must include every page's roles, missing %q:\n%s", want, stdout)
+		}
+	}
+	if tr.calls != 3 {
+		t.Errorf("the structured walk should issue three requests, got %d", tr.calls)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Errorf("a completed structured walk writes nothing to stderr, got %q", stderr)
+	}
+}
+
+// A mid-walk failure under -o json emits the partial set as a valid document,
+// flags incompleteness on stderr, and exits non-zero — identical signalling to
+// the human path.
+func TestRunRoles_ListStructuredMidWalkFailureIsPartialAndIncomplete(t *testing.T) {
+	tr := &seqMeTransport{steps: []seqMeResp{
+		{status: 200, body: orgRolesPage("role_00000000000000000000000000000001", "Gathered Role", "c1")},
+		{status: 500, body: `{"detail":"boom"}`},
+	}}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
+
+	outcome, stdout, stderr := runRolesOver(t, seam, rolesConfig{})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
+	}
+	if !strings.Contains(stdout, "Gathered Role") || !strings.Contains(stdout, `"data"`) {
+		t.Errorf("the partial set should be emitted as a structured document:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "incomplete") {
+		t.Errorf("stderr should flag the structured result incomplete, got %q", stderr)
+	}
+}
+
+// An empty org under -o json emits a valid empty list ({"data":[]}), not null.
+func TestRunRoles_ListStructuredEmptyIsEmptyArray(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: orgRolesPageEmpty}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}
+
+	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if !strings.Contains(stdout, `"data": []`) {
+		t.Errorf("an empty org should emit {\"data\": []}, got:\n%s", stdout)
 	}
 }
 
