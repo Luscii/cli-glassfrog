@@ -27,14 +27,24 @@ type veState struct {
 // assembleAndRun assembles a fresh root (with the current package version var)
 // and runs args, returning the trimmed combined output. Used by the end-to-end
 // scenarios that assert what the assembled CLI reports for --version and the
-// version command.
-func assembleAndRun(args ...string) string {
+// version command. It surfaces the run's Outcome/error as a step error rather
+// than swallowing them: a --version/version invocation that fails (e.g. a
+// UsageError that still wrote output) must fail the scenario loudly, not pass on
+// a misleading output comparison.
+func assembleAndRun(args ...string) (string, error) {
 	root := Assemble()
 	buf := &bytes.Buffer{}
 	root.SetOut(buf)
 	root.SetErr(buf)
-	_, _ = Run(root, args)
-	return strings.TrimSpace(buf.String())
+	outcome, err := Run(root, args)
+	out := strings.TrimSpace(buf.String())
+	if err != nil {
+		return out, fmt.Errorf("glassfrog %s failed: outcome=%v err=%w", strings.Join(args, " "), outcome, err)
+	}
+	if outcome != Success {
+		return out, fmt.Errorf("glassfrog %s: outcome=%v, want Success (output %q)", strings.Join(args, " "), outcome, out)
+	}
+	return out, nil
 }
 
 // registerVersionEmbeddingSteps wires the Version Embedding (023) Given/When/Then
@@ -169,12 +179,19 @@ func (w *world) veGivenReleaseVersion(v string) error {
 }
 
 func (w *world) veWhenAskedViaFlag() error {
-	w.ve.resolved = assembleAndRun("--version")
+	out, err := assembleAndRun("--version")
+	if err != nil {
+		return err
+	}
+	w.ve.resolved = out
 	return nil
 }
 
 func (w *world) veThenVersionCommandSame(want string) error {
-	cmdOut := assembleAndRun("version")
+	cmdOut, err := assembleAndRun("version")
+	if err != nil {
+		return err
+	}
 	if cmdOut != want {
 		return fmt.Errorf("version command reported %q, want %q", cmdOut, want)
 	}
