@@ -61,7 +61,7 @@ glassfrog roles <ROLE_ID> [--include a,b,…] [--base-url URL] [-o FORMAT]
   Accountabilities:
     - <accountability description> | (none)
 ```
-*List, `compact`* — one line per role: `<Role Name> (role_0123…) — fillers=<N>, subroles=<yes|no>`.
+*List, `compact`* — one line per role, following the repo's compact convention (resource id first, then double-space-separated `key=value` fragments — see `internal/render/templates/roles.compact.tmpl` / `actions.compact.tmpl`): `role_0123…  <Role Name>  fillers=<N>  subroles=<yes|no>`.
 
 *Single, `full`* — the role block above, followed by one guarded section per **requested** `--include` resource (omitted entirely when not requested; rendered with an explicit-absence marker when requested-but-empty):
 ```
@@ -69,7 +69,7 @@ Assignments:   - <actor name> (per_… | agt_…) | (none)
 Subroles:      - <subrole name> (role_…) | (none)
 Parent role:   <parent name> (role_…) | (none — anchor role)
 Policies:      - <policy title> | (none)
-Notes:         - <note text> | (none)
+Notes:         - <note title> | (none)
 Skills:        - <skill name> (summary; full content via skills read) | (none)
 ```
 
