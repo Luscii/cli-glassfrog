@@ -71,7 +71,6 @@ Feature: No Automated Pipeline — Main-Branch Verification
     # I want the post-merge run to mirror the same test suite and environment matrix the pull-request gate ran.
 
     # Source: 029-main-branch-verification — Scenario: the post-merge run mirrors the pre-merge matrix
-    @wip
     Scenario: The post-merge run mirrors the pre-merge matrix
       Given a commit that passed PR Validation across its environment matrix
       When the post-merge workflow runs

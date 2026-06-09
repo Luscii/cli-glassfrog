@@ -1,0 +1,52 @@
+# Shared test matrix (spec 029, ADR-1).
+#
+# The single source of truth for the project's OS test matrix. It is invocable
+# only via `workflow_call`, and is called by BOTH the pre-merge gate
+# (ci.yml, spec 024) and the post-merge net (main-verify.yml, spec 029). Because
+# the matrix and the `go test ./...` invocation live here in exactly one place,
+# "green on main" is the same computation as "green on the PR" by construction —
+# the two cannot silently drift.
+#
+# It adds NO Go package, NO cobra command, and NO test: it orchestrates the
+# suite the repo already has — the existing unit tests, every godog BDD suite,
+# the internal/build host self-containment test, and the internal/build
+# .goreleaser.yaml config-guard test.
+#
+# Lint is NOT here: it is OS-independent and stays a pre-merge-only concern in
+# ci.yml (029 runs tests only). The Go version comes from go.mod via
+# go-version-file, so this workflow needs no `inputs:`; a go-version input is an
+# additive knob if a version axis is ever wanted, passed identically by both
+# callers to keep the single-source-of-truth property.
+name: Test
+
+on:
+  workflow_call:
+
+# A called workflow runs under permissions no broader than the caller grants;
+# both callers grant exactly this. The suite builds and tests, it never writes.
+permissions:
+  contents: read
+
+jobs:
+  # Tests run across an OS matrix (024 ADR-3): ubuntu + macos, the two families
+  # the tool ships to — exercising the OS-divergent paths that matter
+  # (internal/build inspects linkage with otool on darwin vs ldd on linux;
+  # golang.org/x/term has per-OS paths). amd64 + single go.mod-pinned Go version
+  # keeps per-run cost bounded.
+  test:
+    strategy:
+      # Every cell must pass. fail-fast: false lets one OS finish and report
+      # even when the other fails, so the failing OS is identifiable by its
+      # cell name (e.g. `test (macos-latest)`).
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test
+        run: go test ./...
