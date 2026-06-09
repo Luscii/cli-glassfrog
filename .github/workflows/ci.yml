@@ -107,3 +107,29 @@ jobs:
           cache: true
       - name: go test
         run: go test ./...
+
+  # The single stable required status check (ADR-4). A matrix `test` job
+  # publishes one check PER cell (test (ubuntu-latest), test (macos-latest)),
+  # and those names drift whenever the matrix changes — so branch protection
+  # requires ONLY this aggregating context, never the cell contexts. The matrix
+  # can grow or shrink underneath without touching the protection rule.
+  #
+  # `if: always()` makes this job run even when a dependency failed or was
+  # cancelled, so it fails LOUDLY rather than being skipped (a skipped required
+  # check would leave the gate unmet but unexplained).
+  ci-success:
+    needs: [lint, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs succeeded
+        # needs.test.result aggregates the WHOLE matrix: it is "success" only
+        # when every cell succeeded, and "failure"/"cancelled" otherwise. So a
+        # failed cell, or a superseded (cancelled) run, fails this gate and can
+        # never silently satisfy it.
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more required jobs did not succeed (lint=${{ needs.lint.result }}, test=${{ needs.test.result }})."
+            exit 1
+          fi
+          echo "All required jobs succeeded."
