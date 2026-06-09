@@ -231,7 +231,11 @@ func (w *world) veThenVersionCommandSame(want string) error {
 		return fmt.Errorf("version command reported %q, want %q", cmdOut, want)
 	}
 	if cmdOut != w.ve.resolved {
-		return fmt.Errorf("version command (%q) and --version (%q) must be byte-identical", cmdOut, w.ve.resolved)
+		// Both values are trimmed (assembleAndRun applies strings.TrimSpace), so
+		// this asserts the two request forms report the SAME version value — not
+		// raw byte-identity. The raw byte-for-byte parity of --version and the
+		// version command is pinned separately by 003's TestVersionFlagAndCommandParity.
+		return fmt.Errorf("version command (%q) and --version (%q) must report the same value", cmdOut, w.ve.resolved)
 	}
 	return nil
 }
