@@ -661,6 +661,29 @@ func TestRunRoles_UnknownIdSurfacesAPIStatus(t *testing.T) {
 	}
 }
 
+// The role id is escaped as a single path segment: a `/` in the id must not
+// create extra path segments (endpoint redirection) — it is passed through
+// unvalidated (ADR-4) but never allowed to change the targeted endpoint.
+func TestRunRoles_SingleReadEscapesIdInPath(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: roleDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	_, _, _ = runRolesOver(t, seam, rolesConfig{args: []string{"role_x/subroles"}})
+	if strings.Contains(tr.lastPath, "roles/role_x/subroles") {
+		t.Errorf("a `/` in the id must not create extra path segments (endpoint redirection): %q", tr.lastPath)
+	}
+	if !strings.Contains(tr.lastPath, "role_x%2Fsubroles") {
+		t.Errorf("the id should be escaped as a single path segment, got %q", tr.lastPath)
+	}
+	// A valid role_… id is unaffected (PathEscape is a no-op for unreserved chars).
+	tr2 := &cannedTransport{status: 200, body: roleDetailBody}
+	seam2 := &fakeMeSeam{ctx: validMeContext(), transport: tr2}
+	_, _, _ = runRolesOver(t, seam2, rolesConfig{args: []string{"role_0123456789abcdef0123456789abcdef"}})
+	if !strings.HasSuffix(tr2.lastPath, "/roles/role_0123456789abcdef0123456789abcdef") {
+		t.Errorf("a valid id should pass through unchanged, got %q", tr2.lastPath)
+	}
+}
+
 func TestRunRoles_SingleReadStructuredEmitsRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: roleDetailBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr, envOutput: "json"}

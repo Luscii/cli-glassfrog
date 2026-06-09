@@ -348,7 +348,13 @@ func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id s
 	if len(cfg.include) > 0 {
 		q = url.Values{"include": {strings.Join(cfg.include, ",")}}
 	}
-	req := apiclient.Request{Method: http.MethodGet, Path: "/roles/" + id, Query: q}
+	// Escape the id as a single path segment: the id is passed through unvalidated
+	// (ADR-4), but a raw `/` or `..` would otherwise redirect the request to a
+	// different endpoint or traverse the path. PathEscape is a no-op for a valid
+	// role_… id and keeps a malformed/adversarial id one opaque segment the API
+	// reports as a 404 — upholding ADR-4 (don't validate locally) while preventing
+	// endpoint injection.
+	req := apiclient.Request{Method: http.MethodGet, Path: "/roles/" + url.PathEscape(id), Query: q}
 
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
