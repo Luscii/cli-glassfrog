@@ -1,0 +1,9 @@
+{{$p := .Policy}}{{$p.Title}} ({{$p.ID}})
+  Role:    {{if eq (trimSpace $p.RoleID) ""}}(org-level — no role){{else}}{{$p.RoleID}}{{end}}
+  Domain:  {{if eq (trimSpace $p.DomainID) ""}}(whole-role — no domain){{else}}{{$p.DomainID}}{{end}}
+  Created: {{if eq (trimSpace $p.CreatedAt) ""}}(unknown){{else}}{{$p.CreatedAt}}{{end}}
+  Updated: {{if eq (trimSpace $p.UpdatedAt) ""}}(unknown){{else}}{{$p.UpdatedAt}}{{end}}
+  Body:
+{{if eq (trimSpace $p.Body) ""}}    (no body set)
+{{else}}{{$p.Body}}
+{{end}}

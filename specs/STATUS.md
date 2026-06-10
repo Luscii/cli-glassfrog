@@ -34,4 +34,4 @@
 | 031-diagnostic-normalization | Complete | validate | 2026-06-10T14:30:00 |
 | 032-output-aware-failure-rendering | Analyzed | analyze | 2026-06-10T20:07:05 |
 | 033-role-domains | Analyzed | risk | 2026-06-10T11:50:00 |
-| 034-role-policies | Analyzed | risk | 2026-06-10T12:00:00 |
+| 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
