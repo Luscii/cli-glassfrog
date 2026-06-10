@@ -6,5 +6,7 @@
 
 # Build artifacts
 /glassfrog
+# Plain `go build` dev binary (named after the repo when built with no -o)
+/cli-glassfrog
 # GoReleaser output (snapshot/matrix binaries + the artifacts.json manifest)
 /dist/
