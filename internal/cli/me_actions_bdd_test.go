@@ -98,7 +98,7 @@ func initializeMeActionsScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^the command will surface a transport failure naming the cause$`, w.surfacesTransportFailure)
 	sc.Step(`^it will not retry$`, w.didNotRetry)
 	sc.Step(`^the command will surface a decode failure$`, w.surfacesDecodeFailure)
-	sc.Step(`^it will exit with the internal-error result rather than a success$`, w.exitInternalError)
+	sc.Step(`^it will exit with the general API error result rather than a success$`, w.exitAPIError)
 	sc.Step(`^the command will surface the base-URL problem as a usage error$`, w.surfacesBaseURLUsageError)
 	sc.Step(`^the message will explain the next step to correct the configured base URL$`, w.baseURLNextStep)
 	sc.Step(`^no request will reach the API$`, w.noRequestReachedAPI)
@@ -313,8 +313,10 @@ func (w *meActionsWorld) didNotRetry() error {
 }
 
 func (w *meActionsWorld) surfacesDecodeFailure() error {
-	if w.outcome != RuntimeError {
-		return fmt.Errorf("an undecodable 2xx should surface RuntimeError, got %v", w.outcome)
+	// 031 ADR-2: an undecodable 2xx is an API-exchange problem (APIError), not a
+	// CLI-internal fault. The stderr cause/next-step wording is unchanged.
+	if w.outcome != APIError {
+		return fmt.Errorf("an undecodable 2xx should surface APIError, got %v", w.outcome)
 	}
 	if strings.TrimSpace(w.stderr) == "" {
 		return errors.New("a decode failure should be reported on stderr")
@@ -325,6 +327,15 @@ func (w *meActionsWorld) surfacesDecodeFailure() error {
 func (w *meActionsWorld) exitInternalError() error {
 	if w.outcome != RuntimeError || w.exitCode != 1 {
 		return fmt.Errorf("the internal-error result is RuntimeError/1, got outcome=%v code=%d", w.outcome, w.exitCode)
+	}
+	return nil
+}
+
+// exitAPIError pins the 031 ADR-2 reclassification: an undecodable 2xx exits with
+// the general API error code (3), not the internal-error code (1).
+func (w *meActionsWorld) exitAPIError() error {
+	if w.outcome != APIError || w.exitCode != 3 {
+		return fmt.Errorf("the general API error result is APIError/3, got outcome=%v code=%d", w.outcome, w.exitCode)
 	}
 	return nil
 }

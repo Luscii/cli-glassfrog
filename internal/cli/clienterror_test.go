@@ -35,7 +35,7 @@ func TestClassifyClientError_Table(t *testing.T) {
 		{"problem-403-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}), PermissionError},
 		{"problem-429-is-rate-limited", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}), RateLimited},
 		{"problem-404-is-api-error", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}), APIError},
-		{"decode-is-runtime", &apiclient.DecodeError{StatusCode: 200}, RuntimeError},
+		{"decode-is-api-error", &apiclient.DecodeError{StatusCode: 200}, APIError}, // 031 ADR-2: was RuntimeError
 		{"base-url-error-is-usage", &apiclient.BaseURLError{Source: "--base-url"}, UsageError},
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
 		{"rcfile-format-error-is-usage", &rcfile.FormatError{}, UsageError},
