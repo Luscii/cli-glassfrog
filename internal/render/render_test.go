@@ -473,6 +473,37 @@ func TestRender_SubrolesCompact_OneLinePerChild_Golden(t *testing.T) {
 	assertRender(t, ResourceSubroles, FormatCompact, SubrolesView{Children: children}, want)
 }
 
+// --- domains (033 list) -----------------------------------------------------
+
+func TestRender_DomainsFull_Empty_Golden(t *testing.T) {
+	assertRender(t, ResourceDomains, FormatFull, DomainsView{}, "No domains.\n")
+}
+
+func TestRender_DomainsCompact_Empty_Golden(t *testing.T) {
+	assertRender(t, ResourceDomains, FormatCompact, DomainsView{}, "No domains.\n")
+}
+
+func TestRender_DomainsFull_OneBlockPerDomain_Golden(t *testing.T) {
+	domains := []glassfrog.Domain{
+		{ID: "dom_1", Description: "The marketing budget"},
+		{ID: "dom_2", Description: "The brand guidelines"},
+	}
+	// One block per domain (description headline + trailing id), blocks separated
+	// by a blank line.
+	want := "The marketing budget (dom_1)\n\nThe brand guidelines (dom_2)\n"
+	assertRender(t, ResourceDomains, FormatFull, DomainsView{Domains: domains}, want)
+}
+
+func TestRender_DomainsCompact_OneLinePerDomain_Golden(t *testing.T) {
+	domains := []glassfrog.Domain{
+		{ID: "dom_1", Description: "The marketing budget"},
+		{ID: "dom_2", Description: "The brand guidelines"},
+	}
+	want := "dom_1  The marketing budget\n" +
+		"dom_2  The brand guidelines\n"
+	assertRender(t, ResourceDomains, FormatCompact, DomainsView{Domains: domains}, want)
+}
+
 func roleWith(id, name, purpose string, domains, accountabilities []string) glassfrog.Role {
 	r := glassfrog.Role{ID: id, Name: name, Purpose: purpose}
 	for _, d := range domains {

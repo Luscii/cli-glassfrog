@@ -124,6 +124,15 @@ type SubrolesView struct {
 	Requested map[string]bool
 }
 
+// DomainsView is the data the `domains` templates (033) render: the gathered
+// domains a role controls (walked to completion). The list has no ?include, so —
+// unlike RoleView/SubrolesView — it carries no Requested set. An empty Domains
+// slice renders the explicit `No domains.` line (a role that controls no domains,
+// or a search that matched none, is a valid empty answer, not an error).
+type DomainsView struct {
+	Domains []glassfrog.Domain
+}
+
 // Resource names a read result type. Its constants are the single source of
 // truth for the resource half of a template key: the read commands pass them,
 // the template names derive from them (<resource>.<format>), and 020 maps its
@@ -158,6 +167,10 @@ const (
 	// RoleDetails plus the requested ?include set). Distinct from ResourceRole
 	// (singular) and ResourceOrgRoles (the whole-org flat list).
 	ResourceSubroles Resource = "subroles"
+	// ResourceDomains is the paginated role-scoped domains list (033):
+	// GET /roles/{id}/domains rendered as a DomainsView (the gathered domains a
+	// role controls). Plural — distinct from ResourceDomain (the single read).
+	ResourceDomains Resource = "domains"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -168,7 +181,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
