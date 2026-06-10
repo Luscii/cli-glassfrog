@@ -89,7 +89,7 @@ The `Domain.role_id` field is **nullable** (spec); when it is null the render sh
 
 ## Interactions
 
-**Dispatch**: each command is a single runnable leaf; there is no sub-branching on arg count (both take exactly one positional). Before any network call, in order: (1) cobra `Args`/flag parsing; (2) flag-applicability checks (`--query`/`--first-page`/`--per-page` forbidden on `domain`; `--include` forbidden on `domains`); (3) `--include` value validation against `{policies}` (on `domain`) and `--output` resolution (020). Any failure here is a fail-fast usage error and **no request is sent** (a transport tripwire asserts this, per 011/013/025/026).
+**Dispatch**: each command is a single runnable leaf; there is no sub-branching on arg count (both take exactly one positional). Before any network call, in order: (1) cobra `Args`/flag parsing; (2) **`--output` resolution (020) — resolved first** so an invalid `--output` fails fast before any other validation or assembly (matching the landed read pattern in `roles.go`/`subroles.go` and this spec's tasks T002/T003); (3) flag-applicability checks (`--query`/`--first-page`/`--per-page` forbidden on `domain`; `--include` forbidden on `domains`); (4) `--include` value validation against `{policies}` (on `domain`). Any failure here is a fail-fast usage error and **no request is sent** (a transport tripwire asserts this, per 011/013/025/026).
 
 **Search composes with the walk** (plan ADR-3): when `--query` carries a non-blank term, `q` rides every page request of the default walk and the `--first-page` opt-out alike — search narrows the set server-side, completeness behaves identically. A blank/whitespace term sends no `q`.
 

@@ -10,13 +10,13 @@
 
 Phase 1: `internal/glassfrog` schema (1 task, no phase dependencies) [Shared]
 Phase 2: The `domains` list read (1 task, depends on Phase 1 · T001) [Shared]
-Phase 3: The `domain` single read + acceptance (2 tasks, depends on Phase 1 · T001) [US2] / [Shared]
+Phase 3: The `domain` single read + acceptance (2 tasks; T003 depends on Phase 1 · T001, T004 depends on Phase 2 · T002 + T003) [US2] / [Shared]
 
 4 tasks total | T001 startable immediately | T002 and T003 parallel once T001 lands | Builder: pipeline (with role-based awareness — see Branching Guidance)
 
 > **Story mapping** (spec User Scenarios): US1 = list a role's domains by id · US2 = read one domain with its policies · US3 = search a role's domains · US4 = trust list completeness. T001 (schema) is `[Shared]`. T002 (the `domains` list) serves US1 + US3 (search is a list flag) + US4 (completeness is the list's walk) → `[Shared]`. T003 (the `domain` single read) serves US2. T004 (executable acceptance) is `[Shared]`. The plan's three phases map to: schema growth (T001) → `domains` list (T002) → `domain` single (T003) + godog acceptance (T004).
 >
-> **Hard dependencies are landed on main, including 025.** Per STATUS.md, 007/009/010/015/016/017/018/019/020 are Complete **and 025-role-reads is Complete** — so `internal/glassfrog` already holds `Domain` (minimal `{ID, Description}`), `Policy`, `RoleDetail`, the generic `Page[T]`, and `RoleDocument`; `internal/cli` holds the `roles`/`subroles` leaves; `internal/render` ships the `org-roles`/`role`/`subroles`/`tree` keys. **Unlike 026, there is no first-to-land schema coordination** — the role-detail schema and `Policy` already exist. 033's base is cut from current main and **grows** `Domain` rather than creating it.
+> **Hard dependencies are landed on main, including 025.** Per STATUS.md, 007/009/010/015/016/017/018/019/020 are landed on main **and 025-role-reads is Complete** — so `internal/glassfrog` already holds `Domain` (minimal `{ID, Description}`), `Policy`, `RoleDetail`, the generic `Page[T]`, and `RoleDocument`; `internal/cli` holds the `roles`/`subroles` leaves; `internal/render` ships the `org-roles`/`role`/`subroles`/`tree` keys. **Unlike 026, there is no first-to-land schema coordination** — the role-detail schema and `Policy` already exist. 033's base is cut from current main and **grows** `Domain` rather than creating it.
 >
 > **Existing main state 033 builds on, not around**: 033 adds **two new sibling commands** (`domains <role-id>` list, `domain <dom-id>` single) — never children of `roles` (plan ADR-1 / 025 ADR-1 foreclosure), and **not** a `role` group — and **two new** render keys (`domains`, `domain`), distinct from every shipped key. It **grows** the shared `Domain` (additively) and **reuses** the landed `Policy`. It adds **no** new `Outcome` category, `ExitCode` case, validator-beyond-its-own, or root flag.
 
