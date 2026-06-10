@@ -31,3 +31,4 @@
 | 027-install-script | Analyzed | analyze | 2026-06-09T18:00:00 |
 | 028-pr-administration | Analyzed | risk | 2026-06-09T17:45:00 |
 | 029-main-branch-verification | Analyzed | analyze | 2026-06-09T17:35:00 |
+| 033-role-domains | Analyzed | risk | 2026-06-10T11:50:00 |

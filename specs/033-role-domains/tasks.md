@@ -1,0 +1,96 @@
+# Tasks: Role Domains
+
+**Feature**: 033-role-domains
+**Concretization**: Full context (plan + spec + interface-cli + scenarios)
+**Inputs**: plan.md, spec.md, interface-cli.md, features/governance-reads/role-domains.feature
+
+---
+
+## Dependency Graph
+
+Phase 1: `internal/glassfrog` schema (1 task, no phase dependencies) [Shared]
+Phase 2: The `domains` list read (1 task, depends on Phase 1 · T001) [Shared]
+Phase 3: The `domain` single read + acceptance (2 tasks, depends on Phase 1 · T001) [US2] / [Shared]
+
+4 tasks total | T001 startable immediately | T002 and T003 parallel once T001 lands | Builder: pipeline (with role-based awareness — see Branching Guidance)
+
+> **Story mapping** (spec User Scenarios): US1 = list a role's domains by id · US2 = read one domain with its policies · US3 = search a role's domains · US4 = trust list completeness. T001 (schema) is `[Shared]`. T002 (the `domains` list) serves US1 + US3 (search is a list flag) + US4 (completeness is the list's walk) → `[Shared]`. T003 (the `domain` single read) serves US2. T004 (executable acceptance) is `[Shared]`. The plan's three phases map to: schema growth (T001) → `domains` list (T002) → `domain` single (T003) + godog acceptance (T004).
+>
+> **Hard dependencies are landed on main, including 025.** Per STATUS.md, 007/009/010/015/016/017/018/019/020 are Complete **and 025-role-reads is Complete** — so `internal/glassfrog` already holds `Domain` (minimal `{ID, Description}`), `Policy`, `RoleDetail`, the generic `Page[T]`, and `RoleDocument`; `internal/cli` holds the `roles`/`subroles` leaves; `internal/render` ships the `org-roles`/`role`/`subroles`/`tree` keys. **Unlike 026, there is no first-to-land schema coordination** — the role-detail schema and `Policy` already exist. 033's base is cut from current main and **grows** `Domain` rather than creating it.
+>
+> **Existing main state 033 builds on, not around**: 033 adds **two new sibling commands** (`domains <role-id>` list, `domain <dom-id>` single) — never children of `roles` (plan ADR-1 / 025 ADR-1 foreclosure), and **not** a `role` group — and **two new** render keys (`domains`, `domain`), distinct from every shipped key. It **grows** the shared `Domain` (additively) and **reuses** the landed `Policy`. It adds **no** new `Outcome` category, `ExitCode` case, validator-beyond-its-own, or root flag.
+
+---
+
+## Branching Guidance
+
+**Pipeline mode**: `spec/033-role-domains/base` → `spec/033-role-domains/task-1`, `…/task-2`, … (one task branch per T-id, merged back into the spec base). Cut the base from current main (all hard dependencies, incl. 025, landed).
+
+**Role-based awareness**: parallel Conductor workspaces may carry sibling per-role reads (#34 Role Policies has the identical `GET /roles/{id}/X` + `GET /X/{id}` shape and reuses `Policy` + this two-sibling precedent). 033 touches `internal/glassfrog` (grows `Domain`, adds `DomainDocument`), `internal/cli` (two new leaves + `Assemble()` wiring), and `internal/render` (two new keys). The `Domain` growth is additive — coordinate only if another in-flight spec also edits the `Domain` struct.
+
+---
+
+## Phase 1: `internal/glassfrog` schema [Shared]
+
+- [ ] **T001** [Shared] Grow the shared `Domain` to the standalone shape (+ optional `Policies`), add the `DomainDocument` wrapper, confirm `Page[Domain]` decodes — RED-first decode tests; `internal/glassfrog/domains.go` (or grow `roles.go`) + tests
+  - **Scope**: In `internal/glassfrog`, **grow the existing `Domain`** (today `{ID, Description}`, the inline-on-Role/TreeNode projection) to the full `getDomain`/`listRoleDomains` shape: add `Type string`, `RoleID *string` (`role_id`, nullable per spec), `CreatedAt string`, `UpdatedAt string`, and `Policies []Policy` (the only `?include`-gated field — stays nil/empty unless `include=policies` was requested). **Reuse the landed `Policy`** — never a second policy type (011 ADR-1 / 025 precedent). Add a single-object document wrapper `DomainDocument{ Data Domain }` (the `RoleDocument` sibling) for the single read. The list decodes the **existing** generic `Page[Domain]` (016) — do not define a new envelope. Growth is **additive**: do not rename/remove fields, so the inline embeds on `Role` (025) and `TreeNode` (026) keep decoding unchanged. Decoding tolerates unknown/extra fields; no transport, cobra, or exit codes; the token is never a field.
+  - **Acceptance criteria**:
+    - A `GET /domains/{id}` fixture decodes into `DomainDocument`; `Description`, `Type`, `RoleID`, `CreatedAt`, `UpdatedAt` populate; a null `role_id` decodes as nil without error
+    - With `?include=policies`, `Policies` populates (reusing `Policy`); when absent it stays nil/empty
+    - A `GET /roles/{id}/domains` page fixture decodes into `Page[Domain]` with `Data` populated and `Meta.Pagination` read
+    - The existing inline-on-Role and inline-on-TreeNode decode tests still pass (additive growth — no regression); unknown/extra fields ignored
+    - No new internal imports; `go build ./...` and `go vet ./...` clean
+  - **Dependencies**: None (leaf schema). Reuses the landed `Policy`, `Page[T]`/`Pagination` (016).
+  - **Plan reference**: Phase 1 (Schema); ADR-2 (grow shared `Domain` + optional `Policies`, `DomainDocument` wrapper, reuse `Policy`, no `DomainDetail`); System Architecture (`internal/glassfrog`)
+  - **Interface references**: interface-cli.md — Surface (domains list + domain single output shapes)
+  - **Scenario references**: role-domains.feature: "A single domain is read by id", "Requested policies are embedded inline on the domain", "A role's domains are listed"
+  - **Risk**: ⚠️ **Grow** the shared `Domain`; never fork a list/detail type (011 ADR-1) — there is no `DomainDetail` (one optional embed only). ⚠️ Growth must be additive — `Role`/`TreeNode` embed `[]Domain`; a rename/removal breaks 025/026 decode + render. ⚠️ Reuse the landed `Policy`; do not redefine it. ⚠️ Single-object wrapper (`DomainDocument`) for the single read; reuse `Page[Domain]` for the list — no 033-local envelope. ⚠️ `role_id` is nullable. ⚠️ Token is never a field.
+
+## Phase 2: The `domains` list read [Shared]
+
+- [ ] **T002** [Shared] Add the `domains <role-id>` command: `--query` search, the page walk + `--first-page` opt-out + completeness signalling + `--per-page`, the `domains` render, wiring — RED-first unit tests for every branch; new `internal/cli/domains.go` + `domains_test.go`, new `domains` render templates
+  - **Scope**: New guard-registered (001), explicitly-wired leaf. `newDomainsCommand(seam domainsSeam) *cobra.Command`: `Use:"domains <id>"`, `Args: cobra.ExactArgs(1)`, non-empty `Short` (cross-referencing the singular `domain` read), `SilenceErrors`/`SilenceUsage`; reads the persistent `--base-url` (011) + `--output`/`-o` (020); declares local `--query`/`-q`, `--first-page`, `--per-page`. The `domainsSeam` mirrors `subrolesSeam` (`assemble` + `newClient` + `sleep` + `resolveFormat`); production passes `productionSeam{}`. Delegates to pure `runDomains(cfg)`: resolve `--output` (020) first; validate flags **before** assembly (transport tripwire) — `--include` is rejected here (single-read concern, UsageError(2)). Build `GET /roles/{id}/domains`; set the `q` query parameter **only when the trimmed `--query` value is non-blank** (plan ADR-3 — a blank/whitespace term sends no `q`); the role **id is passed through**, path-escaped as one segment (`url.PathEscape`). Default path walks to completion via `paging.All[Domain]` over the seam's `RetryExecutor` (016/017), carrying `q` on every page; `--first-page` does a single `Execute` into `Page[Domain]` (no walk), rendering the first page and writing one stderr note when `HasNextPage` (exit 0); a mid-walk failure renders the partial `Records`, writes one stderr "incomplete — <cause>" note, and exits non-zero via `classifyClientError(Stop)` (the `reportIncompleteSubrolesWalk` shape). `--per-page` sets the walk page size (016 `WithPageSize`, presence not value). Structured `json`/`yaml` aggregate the walked pages to one `{data:[…]}` document (the existing raw aggregator over `Page[json.RawMessage]`); human formats render via `renderResult`/`render.DomainsView`. Register **new** `domains` `full`/`compact` templates in `internal/render` (one block/line per domain — description + id; empty set prints `No domains.`); registry exhaustiveness guard. Wire `MustRegister(root, newDomainsCommand(...))` in `Assemble()`. Never reads `ctx.Cred.Token`.
+  - **Acceptance criteria**:
+    - `glassfrog domains role_0123` walks every page (`paging.All`) and prints each domain projection; exits 0
+    - A role with no domains prints `No domains.` (human format) and exits 0; a `--query` matching none is the same clean empty success
+    - `--query review` (non-blank) sets `q=review` on every page request and prints only matching domains; a blank/whitespace `--query` sends no `q`
+    - `--first-page` against a multi-page role prints only the first page, writes a "more domains exist" stderr note, and exits 0; a mid-walk failure prints the partial set, writes an "incomplete — <cause>" stderr note, and exits non-zero (classified from `Stop`)
+    - `--include` on `domains` is UsageError(2) with **no request sent** (tripwire); a missing/extra positional is a usage error
+    - `*AuthError{NoCredentials}` → UsageError(2); `*TransportError` → NetworkUnavailable(6); `*ResponseError` → APIError(3)/PermissionError(4)/RateLimited(5) (incl. API `400` on a malformed request); `*MalformedPageError` → RuntimeError(1); an unknown role id surfaces the API status
+    - `-o json`/`yaml` emit the aggregated raw payload (018); the new `domains` render key has both formats and passes the registry guard; no `Outcome`/`ExitCode`/root flag added
+    - No output renders the token; all branches run offline over the fake seam; `go build`/`go vet` clean
+  - **Dependencies**: T001 (`Domain` growth / `Page[Domain]`). Reuses 009/010/011/015/016/017/018/019/020 + 025's `paging.All`/`RetryExecutor`/aggregator shape (all landed).
+  - **Plan reference**: Phase 2 (List read); ADR-1 (`domains <role-id>` required-positional sibling, `--include` rejected), ADR-3 (`q` list-only search non-blank-only + walk composition; completeness reuses 025 verbatim), ADR-4 (pass id through); Cross-cutting (error handling, output, testing)
+  - **Interface references**: interface-cli.md — `glassfrog domains` Surface, Interactions (search composes with walk, list completeness), Error Communication
+  - **Scenario references**: role-domains.feature: "A role's domains are listed", "A missing token fails as a not-authenticated usage error", "An unreachable API fails as network-unavailable", "A role with no domains is a clean success", "A role's domains are searched by a full-text term", "An include passed to the list is a usage error", "A multi-page domains list is walked to completion", "The first-page opt-out stops at one page and signals more", "A mid-walk failure yields a partial set flagged incomplete"
+  - **Risk**: ⚠️ Reuse 025's pagination shape verbatim — `paging.All` default + single-page `--first-page` signal (not `paging.WithMaxPages`), preserve 016's `Result.Complete == (Stop==nil)` invariant. ⚠️ Never silently truncate — every incomplete path writes an explicit stderr note (CONSTITUTION VI). ⚠️ `q` sent only when non-blank (trim first); it must ride **every** walked page, not just the first. ⚠️ Reject `--include` on the list. ⚠️ Pass the role id through (plan ADR-4); path-escape it. ⚠️ Reuse `classifyClientError`/`renderResult`/`paging.All`/`RetryExecutor`/the raw aggregator — inline no second chain, render branch, or page loop. ⚠️ Temp-file capture in tests, not `os.Pipe` (PR #10 LEARNINGS). ⚠️ Never read `ctx.Cred.Token`.
+
+## Phase 3: The `domain` single read + acceptance
+
+- [ ] **T003** [US2] Add the `domain <dom-id>` command: `--include {policies}` validation, the single read, the `domain` render (guarded policies section), wiring — RED-first unit tests for every branch; new `internal/cli/domain.go` + `domain_test.go`, new `domain` render templates
+  - **Scope**: New guard-registered, explicitly-wired leaf. `newDomainCommand(seam domainSeam) *cobra.Command`: `Use:"domain <id>"`, `Args: cobra.ExactArgs(1)`, non-empty `Short` (cross-referencing the plural `domains` list), `SilenceErrors`/`SilenceUsage`; reads the persistent `--base-url` + `--output`/`-o`; declares local `--include`. The `domainSeam` mirrors `rolesSeam`'s single-read shape (`assemble` + `newClient` + `resolveFormat`; no walker needed — unpaginated). Delegates to pure `runDomain(cfg)`: resolve `--output` (020) first; validate **before** assembly (tripwire) — `--query`/`--first-page`/`--per-page` are rejected (single read is unpaginated/unsearchable, UsageError(2)); `validateIncludeSet(cfg.include, {policies})` rejects any value outside `{policies}` (the 011 `validateInclude` shape; UsageError(2)) — even though the API would silently ignore it (plan ADR-4). Build `GET /domains/{id}`, sending `?include=policies` from the validated values; the domain **id is passed through**, path-escaped. Issue **one** `Execute` into `DomainDocument` (no walk, no `If-None-Match`), then dispatch through `renderResult("domain", format, doc.Data)`. Register **new** `domain` `full`/`compact` templates in `internal/render`: the domain's description + id + controlling role, with a **guarded** `Policies:` section (omit when `--include` absent; explicit-absence marker when requested-but-empty — 019 `{{if}}` + `missingkey=error`); registry exhaustiveness guard. Wire `MustRegister(root, newDomainCommand(...))` in `Assemble()`. Never reads `ctx.Cred.Token`.
+  - **Acceptance criteria**:
+    - `glassfrog domain dom_0123` reads `GET /domains/{id}` and prints the domain's description + controlling role; exits 0
+    - `--include policies` sends `include=policies` and renders the policies inline under the domain; requested-but-empty renders the explicit-absence marker; not requested omits the section
+    - An unsupported `--include` value is UsageError(2) naming the value + the supported set `{policies}`, **no request sent** (tripwire); `--query`/`--first-page`/`--per-page` on `domain` are UsageError(2); a missing/extra positional is a usage error
+    - An unknown domain id surfaces the API status via the shared classifier (APIError(3)/PermissionError(4)/RateLimited(5)); `*AuthError{NoCredentials}` → UsageError(2); `*TransportError` → NetworkUnavailable(6); `*DecodeError` → RuntimeError(1); base-URL error / invalid `--output` → UsageError(2)
+    - `-o json`/`yaml` emit the raw `{data}` payload verbatim (018); the new `domain` render key has both formats and passes the registry guard; no `Outcome`/`ExitCode`/root flag added
+    - No output renders the token; all branches run offline over the fake seam; `go build`/`go vet` clean
+  - **Dependencies**: T001 (`DomainDocument` decode target). Reuses 009/010/011/015/018/019/020 (all landed). Independent of T002 (parallel) but reuses its render/test conventions.
+  - **Plan reference**: Phase 3 (Single read); ADR-1 (`domain <dom-id>` required-positional sibling, pagination/search flags rejected), ADR-2 (`DomainDocument`, guarded `Policies` render), ADR-4 (validate `--include` against `{policies}`, pass id through); Cross-cutting (error handling, output, no caching, testing)
+  - **Interface references**: interface-cli.md — `glassfrog domain` Surface, Interactions (unpaginated, no caching), Error Communication
+  - **Scenario references**: role-domains.feature: "A single domain is read by id", "Requested policies are embedded inline on the domain", "An unknown domain id fails with the API status", "An unsupported include value is rejected before any request"
+  - **Risk**: ⚠️ Single read is unpaginated — one `Execute`, no `paging.All`, no `--first-page`/`--per-page`/`--query`. ⚠️ Reject unknown `--include` locally even though the API silently ignores it (plan ADR-4); validate against `{policies}` only — never the role/subroles include set. ⚠️ Guard the policies render section (omit-when-unrequested vs marker-when-empty) — never invent a value (019). ⚠️ Pass the domain id through; path-escape it. ⚠️ Reuse `classifyClientError`/`renderResult` — no second `errors.As` chain or render branch. ⚠️ Send no `If-None-Match` (no caching — spec Non-Behavior). ⚠️ Temp-file capture in tests, not `os.Pipe` (PR #10). ⚠️ Never read `ctx.Cred.Token`.
+
+- [ ] **T004** [Shared] Make the driving scenarios pass as executable acceptance — new `internal/cli` godog suite over `role-domains.feature`; un-@wip the behavioral scenarios, keep `@validation` held
+  - **Scope**: Add godog step definitions for `features/governance-reads/role-domains.feature` in a **new** `internal/cli` godog suite (e.g. `TestRoleDomainsFeatures`) whose `Paths` names **only** that feature file (LEARNINGS: a suite points at its own file, never the `features/` directory). Drive `domains` and `domain` through their seams over a fake base `http.RoundTripper` returning canned `GET /roles/{id}/domains` (single-page, multi-page, empty, search-filtered, and mid-walk-error) and `GET /domains/{id}` (with and without `include=policies`, and an unknown id) responses. Remove `@wip` from the spec-derived + architecture-informed behavioral scenarios; keep the `@validation` scenarios `@wip` (held for validate). Reuse existing `internal/cli` step phrasings where assertions already exist (grep `sc.Step(` registrations first — exit-code, stderr-substring, request-query, projection, and completeness-note phrasings are shared with the `roles`/`subroles` reads); step helpers return errors, never panic.
+  - **Acceptance criteria**:
+    - Every non-`@validation` role-domains scenario has an executable, passing path; `@wip` removed from them
+    - The 3 `@validation` scenarios keep `@wip`
+    - The new suite's `Paths` names only `role-domains.feature`; all `internal/cli` godog suites run and report their own independent scenario counts
+    - No real network (fake base transport / loopback only) and no real home/filesystem are touched; `go build ./...`, `go vet ./...`, and the feature suites run clean
+  - **Dependencies**: T002 (`domains` list), T003 (`domain` single) — all behavioral scenarios must be implementable
+  - **Plan reference**: Phase 2 + Phase 3; System Architecture (single `Assemble()` wiring site); Cross-cutting (testing)
+  - **Interface references**: interface-cli.md — Surface, Interactions, Error Communication
+  - **Scenario references**: role-domains.feature: all behavioral Rule-block scenarios (the 3 `@validation` scenarios stay held for validate)
+  - **Risk**: ⚠️ Suite scoping — point the suite at `role-domains.feature` only (not the directory); verify it reports its own count. ⚠️ Grep existing `sc.Step(` registrations and reuse shared read phrasings before writing new bindings; step helpers return errors, never panic (LEARNINGS). ⚠️ Cover the multi-page, search-filtered, empty, mid-walk-error, and include-policies fakes so the search, completeness, and embed scenarios genuinely exercise the behavior.
