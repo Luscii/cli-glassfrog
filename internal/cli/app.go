@@ -28,6 +28,12 @@ func Assemble() *cobra.Command {
 	// children, paginated and walked to completion by default (reusing 025's walk +
 	// --first-page opt-out). Also a sibling of `roles` (ADR-1).
 	MustRegister(root, newSubrolesCommand(productionSeam{}))
+	// Role Policies (034): the `policies <role-id>` command — the addressable
+	// per-role policy list, paginated and walked to completion by default (reusing
+	// 025's walk + --first-page opt-out), narrowable with --query. A sibling of
+	// `roles`, not a child (ADR-1). productionSeam binds the real transport + clock;
+	// `policies` reads the inherited persistent --base-url/--output.
+	MustRegister(root, newPoliciesCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
