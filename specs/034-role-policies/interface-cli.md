@@ -104,13 +104,13 @@ Errors go to **stderr**; the process exit code is the category from Exit-Code Co
 | Unreadable / malformed credential file | `*AuthError{CredentialError}` | `RuntimeError` | 1 | names the path — "fix or remove the malformed `.glassfrogrc`" |
 | Unknown/forbidden role id or policy id, or other non-2xx (401/403/429/4xx/5xx) | `*ResponseError` (→ `*ProblemError`, 015) | `APIError` 3 / `PermissionError` 4 / `RateLimited` 5 | 3/4/5 | names the HTTP status + extracted detail (015), per-class next step (permission: "check the token's access"; rate-limit: "retry later") |
 | Could not reach the wire | `*TransportError` | `NetworkUnavailable` | 6 | names the transport failure + host — "check network access and the base URL" |
-| 2xx body did not match the expected shape | `*DecodeError` | `RuntimeError` | 1 | "the API response did not match the expected shape — may be an API change; report it" |
+| 2xx body did not match the expected shape | `*DecodeError` | `APIError` 3 | 3 | "the API response did not match the expected shape — may be an API change; report it" |
 | Malformed paging mid-walk (`policies`) | `*MalformedPageError` (016) | `RuntimeError` | 1 | "the API returned malformed pagination — partial set shown" |
 | Base-URL configuration error | base-URL error from `NewClient` | `UsageError` | 2 | names the malformed base URL + source |
 | Invalid `--output` selector | `*output.FormatError` (020) | `UsageError` | 2 | names the bad format value + the four valid names |
 | List-only flag on `policy`, or wrong positional count (zero / >1) | — (cobra) | `UsageError` | 2 | cobra's unknown-flag / arg-count message; no request sent |
 
-Codes `4`/`5` arrive via 015's landed split of `APIError`(3) at the shared classifier; these commands benefit with no edit. The token value never appears in any message.
+Codes `4`/`5` arrive via 015's landed split of `APIError`(3) at the shared classifier; these commands benefit with no edit. A `*DecodeError` (a 2xx body that will not parse) maps to `APIError`(3), not `RuntimeError`(1) — **Diagnostic Normalization (031 ADR-2)** reclassified it as part of consolidating the error→category mapping into the shared `Diagnose` normalizer (which `classifyClientError` now delegates to). Role Policies documents but does not own that mapping, so it inherits the change with no code edit. The token value never appears in any message.
 
 ## Consistency Notes
 
