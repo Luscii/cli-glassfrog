@@ -16,7 +16,6 @@ Feature: Governance Reads — Role Policies
     # I want to list the policies governing any role by its id with one command.
 
     # Source: 034-role-policies — Scenario: List the policies on a role
-    @wip
     Scenario: A role's policies are listed
       Given a complete connection context with a stored token
       And the role "role_0123" is governed by several policies
@@ -26,7 +25,6 @@ Feature: Governance Reads — Role Policies
       And the command will exit with code 0
 
     # Source: 034-role-policies — Scenario: Role has no policies
-    @wip
     Scenario: A role with no policies is a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" is governed by no policies
@@ -35,7 +33,6 @@ Feature: Governance Reads — Role Policies
       And the command will exit with code 0
 
     # Source: 034-role-policies — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog policies role_0123"
@@ -57,7 +54,6 @@ Feature: Governance Reads — Role Policies
     # I want to fetch a single policy by its id and see its full body.
 
     # Source: 034-role-policies — Scenario: Read a single policy with its full body
-    @wip
     Scenario: A single policy is read with its full body
       Given a complete connection context with a stored token
       And a policy "pol_0123" exists
@@ -66,7 +62,6 @@ Feature: Governance Reads — Role Policies
       And the command will exit with code 0
 
     # Source: 034-role-policies — Scenario: Policy id does not exist
-    @wip
     Scenario: An unknown policy id fails with the API status
       Given a complete connection context with a stored token
       And no policy "pol_ffff" exists
@@ -75,7 +70,6 @@ Feature: Governance Reads — Role Policies
       And the command will exit with a non-zero API-error code
 
     # Source: 034-role-policies — Scenario: Search flag on the single read is rejected
-    @wip
     Scenario: The search flag is rejected on the single read
       Given a complete connection context with a stored token
       When a practitioner runs "glassfrog policy pol_0123 --query approvals"
@@ -97,7 +91,6 @@ Feature: Governance Reads — Role Policies
     # I want to narrow the role's policy list with a free-text search.
 
     # Source: 034-role-policies — Scenario: Narrow a role's policies with a search
-    @wip
     Scenario: The policy list is narrowed by a search query
       Given a complete connection context with a stored token
       And the role "role_0123" is governed by a policy titled "All PRs require two approvals"
@@ -112,7 +105,6 @@ Feature: Governance Reads — Role Policies
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 034-role-policies — Scenario: Paginated list with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" has policies spanning more than one page
@@ -122,7 +114,6 @@ Feature: Governance Reads — Role Policies
       And the command will exit with code 0
 
     # Source: 034-role-policies — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the policy list walk fails after retrieving the first page
