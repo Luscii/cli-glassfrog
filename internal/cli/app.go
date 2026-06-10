@@ -34,6 +34,12 @@ func Assemble() *cobra.Command {
 	// child (plan ADR-1). productionSeam binds the real transport + clock; it reads
 	// the inherited persistent --base-url/--output.
 	MustRegister(root, newDomainsCommand(productionSeam{}))
+	// Role Domains (033): the `domain <dom-id>` command — one domain read by its
+	// own id, optionally embedding its policies with --include policies. The
+	// singular sibling of the plural `domains` list (plan ADR-1); unpaginated, so
+	// it issues one request and rejects the list's walk/search flags. productionSeam
+	// binds the real transport; it reads the inherited persistent --base-url/--output.
+	MustRegister(root, newDomainCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

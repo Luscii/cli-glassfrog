@@ -504,6 +504,77 @@ func TestRender_DomainsCompact_OneLinePerDomain_Golden(t *testing.T) {
 	assertRender(t, ResourceDomains, FormatCompact, DomainsView{Domains: domains}, want)
 }
 
+// --- domain (033 single read) -----------------------------------------------
+
+func roleIDPtr(s string) *string { return &s }
+
+func TestRender_DomainFull_ShowsDescriptionAndControllingRole(t *testing.T) {
+	d := glassfrog.Domain{ID: "dom_1", Description: "The marketing budget", RoleID: roleIDPtr("role_0123")}
+	got, err := Render(ResourceDomain, FormatFull, DomainView{Domain: d, Requested: map[string]bool{}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, want := range []string{"The marketing budget (dom_1)", "Role: role_0123"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("domain full missing %q:\n%s", want, got)
+		}
+	}
+	// No --include policies → the Policies section is omitted.
+	if strings.Contains(got, "Policies:") {
+		t.Errorf("an unrequested policies section must be omitted:\n%s", got)
+	}
+}
+
+func TestRender_DomainFull_NullRoleShowsMarker(t *testing.T) {
+	d := glassfrog.Domain{ID: "dom_1", Description: "An unbound area", RoleID: nil}
+	got, err := Render(ResourceDomain, FormatFull, DomainView{Domain: d, Requested: map[string]bool{}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(got, "Role: (no controlling role)") {
+		t.Errorf("a null role_id must render the explicit-absence marker, never a bare/empty Role line:\n%s", got)
+	}
+}
+
+func TestRender_DomainFull_RequestedPoliciesEmbedInline(t *testing.T) {
+	d := glassfrog.Domain{
+		ID: "dom_1", Description: "The marketing budget", RoleID: roleIDPtr("role_0123"),
+		Policies: []glassfrog.Policy{{Title: "Spend under $10k needs no approval"}},
+	}
+	got, err := Render(ResourceDomain, FormatFull, DomainView{Domain: d, Requested: map[string]bool{"policies": true}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, want := range []string{"  Policies:", "    - Spend under $10k needs no approval"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("requested policies must embed inline; missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRender_DomainFull_RequestedButEmptyPoliciesShowsMarker(t *testing.T) {
+	d := glassfrog.Domain{ID: "dom_1", Description: "The marketing budget", RoleID: roleIDPtr("role_0123")}
+	got, err := Render(ResourceDomain, FormatFull, DomainView{Domain: d, Requested: map[string]bool{"policies": true}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(got, "  Policies:") || !strings.Contains(got, "    (none)") {
+		t.Errorf("requested-but-empty policies must show the explicit-absence marker:\n%s", got)
+	}
+}
+
+func TestRender_DomainCompact_OneLineWithRole_Golden(t *testing.T) {
+	d := glassfrog.Domain{ID: "dom_1", Description: "The marketing budget", RoleID: roleIDPtr("role_0123")}
+	want := "dom_1  The marketing budget  role=role_0123\n"
+	assertRender(t, ResourceDomain, FormatCompact, DomainView{Domain: d, Requested: map[string]bool{}}, want)
+}
+
+func TestRender_DomainCompact_NullRoleShowsMarker_Golden(t *testing.T) {
+	d := glassfrog.Domain{ID: "dom_1", Description: "An unbound area", RoleID: nil}
+	want := "dom_1  An unbound area  role=(no controlling role)\n"
+	assertRender(t, ResourceDomain, FormatCompact, DomainView{Domain: d, Requested: map[string]bool{}}, want)
+}
+
 func roleWith(id, name, purpose string, domains, accountabilities []string) glassfrog.Role {
 	r := glassfrog.Role{ID: id, Name: name, Purpose: purpose}
 	for _, d := range domains {
