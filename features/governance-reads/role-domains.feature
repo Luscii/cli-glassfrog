@@ -16,7 +16,6 @@ Feature: Governance Reads — Role Domains
     # I want to list a role's domains by its id.
 
     # Source: 033-role-domains — Scenario: List a role's domains
-    @wip
     Scenario: A role's domains are listed
       Given a complete connection context with a stored token
       And the role "role_0123" controls several domains
@@ -25,7 +24,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 0
 
     # Source: 033-role-domains — Scenario: No usable token
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog domains role_0123"
@@ -34,7 +32,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 2
 
     # Source: 033-role-domains — Scenario: The API cannot be reached
-    @wip
     Scenario: An unreachable API fails as network-unavailable
       Given a complete connection context with a stored token
       And the API is unreachable at the wire
@@ -43,7 +40,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 6
 
     # Source: 033-role-domains — Scenario: The role controls no domains
-    @wip
     Scenario: A role with no domains is a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" controls no domains
@@ -65,7 +61,6 @@ Feature: Governance Reads — Role Domains
     # I want to read one domain by its id with its policies embedded inline.
 
     # Source: 033-role-domains — Scenario: Read a single domain by id
-    @wip
     Scenario: A single domain is read by id
       Given a complete connection context with a stored token
       And a domain "dom_0123" exists in the organization
@@ -74,7 +69,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 0
 
     # Source: 033-role-domains — Scenario: Read a single domain with its policies embedded
-    @wip
     Scenario: Requested policies are embedded inline on the domain
       Given a complete connection context with a stored token
       And a domain "dom_0123" exists in the organization
@@ -84,7 +78,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 0
 
     # Source: 033-role-domains — Scenario: A single read for an unknown domain id
-    @wip
     Scenario: An unknown domain id fails with the API status
       Given a complete connection context with a stored token
       And no domain "dom_ffff" exists in the organization
@@ -93,7 +86,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with a non-zero API-error code
 
     # Source: 033-role-domains — Scenario: An unsupported `--include` value is rejected without an API call
-    @wip
     Scenario: An unsupported include value is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog domain dom_0123 --include nonsense"
@@ -102,7 +94,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 2
 
     # Source: 033-role-domains — Scenario: `--include` is rejected on the role-scoped list
-    @wip
     Scenario: An include passed to the list is a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog domains role_0123 --include policies"
@@ -124,7 +115,6 @@ Feature: Governance Reads — Role Domains
     # I want to search a role's domains by a full-text term.
 
     # Source: 033-role-domains — Scenario: Search a role's domains
-    @wip
     Scenario: A role's domains are searched by a full-text term
       Given a complete connection context with a stored token
       And the role "role_0123" controls a domain matching "review"
@@ -139,7 +129,6 @@ Feature: Governance Reads — Role Domains
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 033-role-domains — Scenario: A role's domains span more than one page (default walk to completion)
-    @wip
     Scenario: A multi-page domains list is walked to completion
       Given a complete connection context with a stored token
       And the role "role_0123" controls domains spanning three pages of API responses
@@ -149,7 +138,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 0
 
     # Source: 033-role-domains — Scenario: First-page opt-out stops at one page and signals more exist
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" controls domains spanning more than one page
@@ -159,7 +147,6 @@ Feature: Governance Reads — Role Domains
       And the command will exit with code 0
 
     # Source: 033-role-domains — Proposed: plan ADR-3 mid-walk failure exit semantics
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the domains list walk fails after retrieving the first page

@@ -143,7 +143,7 @@ func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputForm
 		if res.Stop != nil && len(res.Records) == 0 {
 			return reportClientError(cfg.stderr, res.Stop)
 		}
-		doc, rerr := aggregateRawRoles(machineFmt, res.Records)
+		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
 			fmt.Fprintln(cfg.stderr, rerr.Error())
 			return RuntimeError, rerr
@@ -186,7 +186,7 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
-		q := cloneRolesQuery(req.Query)
+		q := cloneQuery(req.Query)
 		q.Set("per_page", strconv.Itoa(cfg.perPage))
 		req.Query = q
 	}
@@ -196,7 +196,7 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
 			return reportClientError(cfg.stderr, err)
 		}
-		doc, rerr := aggregateRawRoles(machineFmt, page.Data)
+		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
 			fmt.Fprintln(cfg.stderr, rerr.Error())
 			return RuntimeError, rerr

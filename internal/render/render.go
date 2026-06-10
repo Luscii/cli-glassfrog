@@ -142,6 +142,41 @@ type SubrolesView struct {
 	Requested map[string]bool
 }
 
+// DomainsView is the data the `domains` templates (033) render: the gathered
+// domains a role controls (walked to completion). The list has no ?include, so —
+// unlike RoleView/SubrolesView — it carries no Requested set. An empty Domains
+// slice renders the explicit `No domains.` line (a role that controls no domains,
+// or a search that matched none, is a valid empty answer, not an error).
+type DomainsView struct {
+	Domains []glassfrog.Domain
+}
+
+// DomainView is the data the `domain` templates (033) render: the single domain
+// read by id plus the set of ?include values the operator requested. Like
+// RoleView, Requested is the only signal that lets the template omit an
+// unrequested section yet show an explicit-absence marker for a
+// requested-but-empty one — here the single optional embed is `policies` (033
+// ADR-2). The Domain's RoleID is nullable; ControllingRole below dereferences it
+// so the template prints the id or its explicit-absence marker, never a pointer
+// literal or a fabricated id (CONSTITUTION VIII).
+type DomainView struct {
+	Domain    glassfrog.Domain
+	Requested map[string]bool
+}
+
+// ControllingRole returns the domain's controlling role id, or "" when the
+// nullable role_id is absent (nil or empty). The template treats "" as the
+// explicit-absence case and renders the `(no controlling role)` marker — never a
+// pointer literal (a *string prints its address under fmt) and never a fabricated
+// id. Centralizing the deref here keeps the template free of pointer handling,
+// the same shape NewTreeView used for the nullable name/purpose.
+func (v DomainView) ControllingRole() string {
+	if v.Domain.RoleID == nil || *v.Domain.RoleID == "" {
+		return ""
+	}
+	return *v.Domain.RoleID
+}
+
 // Resource names a read result type. Its constants are the single source of
 // truth for the resource half of a template key: the read commands pass them,
 // the template names derive from them (<resource>.<format>), and 020 maps its
@@ -176,6 +211,14 @@ const (
 	// RoleDetails plus the requested ?include set). Distinct from ResourceRole
 	// (singular) and ResourceOrgRoles (the whole-org flat list).
 	ResourceSubroles Resource = "subroles"
+	// ResourceDomains is the paginated role-scoped domains list (033):
+	// GET /roles/{id}/domains rendered as a DomainsView (the gathered domains a
+	// role controls). Plural — distinct from ResourceDomain (the single read).
+	ResourceDomains Resource = "domains"
+	// ResourceDomain is the single domain read (033): GET /domains/{id} rendered as
+	// a DomainView (the Domain plus the requested ?include set). Singular —
+	// distinct from ResourceDomains (the list).
+	ResourceDomain Resource = "domain"
 	// ResourcePolicies is the per-role policy list read (034):
 	// GET /roles/{id}/policies rendered as a PoliciesView ([]glassfrog.Policy).
 	// Plural, distinct from ResourcePolicy (the single standalone read).
@@ -194,7 +237,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourcePolicies, ResourcePolicy}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

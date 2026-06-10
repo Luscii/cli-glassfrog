@@ -1,0 +1,4 @@
+{{if not .Domains}}No domains.
+{{else}}{{range $i, $d := .Domains}}{{if $i}}
+{{end}}{{$d.Description}} ({{$d.ID}})
+{{end}}{{end}}
