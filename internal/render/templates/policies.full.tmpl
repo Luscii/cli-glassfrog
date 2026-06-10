@@ -1,0 +1,9 @@
+{{if not .Policies}}No policies.
+{{else}}{{range $i, $p := .Policies}}{{if $i}}
+{{end}}{{$p.Title}} ({{$p.ID}})
+  Role:   {{if eq (trimSpace $p.RoleID) ""}}(org-level — no role){{else}}{{$p.RoleID}}{{end}}
+  Domain: {{if eq (trimSpace $p.DomainID) ""}}(whole-role — no domain){{else}}{{$p.DomainID}}{{end}}
+  Body:
+{{if eq (trimSpace $p.Body) ""}}    (no body set)
+{{else}}{{$p.Body}}
+{{end}}{{end}}{{end}}

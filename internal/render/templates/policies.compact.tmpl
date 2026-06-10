@@ -1,0 +1,3 @@
+{{if not .Policies}}No policies.
+{{else}}{{range .Policies}}{{.ID}}  {{.Title}}  role={{if eq (trimSpace .RoleID) ""}}—{{else}}{{.RoleID}}{{end}}  domain={{if eq (trimSpace .DomainID) ""}}—{{else}}{{.DomainID}}{{end}}
+{{end}}{{end}}
