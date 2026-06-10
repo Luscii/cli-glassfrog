@@ -29,7 +29,7 @@ The first source that yields a **usable** value wins; lower-precedence sources a
 | `--base-url` | command flag (value) | 1 (highest) | A non-empty value short-circuits all other sources. |
 | `GLASSFROG_BASE_URL` | environment variable | 2 | A non-empty value (after trimming) short-circuits the file search. Empty, unset, or whitespace-only is ignored, and the search proceeds. |
 | `.glassfrogrc` `base_url` | file (`key=value`) | 3 | Read from the same file the CLI locates for the token: nearest in the current directory's ancestry wins, then the home-directory file as a final fallback. |
-| built-in default | compile-time constant | 4 (backstop) | The fixed value `https://glassfrog.com/api/v5`. Always valid by construction; guarantees resolution always yields a value. |
+| built-in default | compile-time constant | 4 (backstop) | The fixed value `https://app.glassfrog.com/api/v5`. Always valid by construction; guarantees resolution always yields a value. |
 
 ### `--base-url` flag
 
@@ -56,7 +56,7 @@ Example `.glassfrogrc`:
 ```
 # glassfrog config — base_url overrides the built-in default
 token=gf_live_abc123
-base_url=https://glassfrog.com/api/v5
+base_url=https://app.glassfrog.com/api/v5
 ```
 
 **Search locations**, in precedence order within the configuration-file source:
@@ -66,7 +66,7 @@ base_url=https://glassfrog.com/api/v5
 
 ### Built-in default
 
-A fixed compile-time constant: `https://glassfrog.com/api/v5`. It is always valid by construction and is **not** re-validated. It is the final backstop, returned when no flag, environment variable, or file value is usable.
+A fixed compile-time constant: `https://app.glassfrog.com/api/v5`. It is always valid by construction and is **not** re-validated. It is the final backstop, returned when no flag, environment variable, or file value is usable.
 
 ## The "Usable" Base URL Contract
 
