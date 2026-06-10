@@ -61,7 +61,7 @@ A structural consequence makes this cleaner than 025's single-command branching:
 
 **Decision**: Option 2. `--query`'s value is sent verbatim as the `q` parameter on `listRolePolicies` (no enum check — it's a search string). The positional id is sent into the path unvalidated; a malformed or unknown id surfaces as the API's non-2xx, classified by the shared chain (`APIError(3)` / `PermissionError(4)` for 401/403). The list-only-ness of `--query` is enforced structurally by ADR-1 (the flag does not exist on `policy`).
 
-**Consequences**: No new validator function; the read carries no `validateInclude`/`validateStatus`-style local check (025/013) because it has nothing closed-enum to validate. An empty `--query` value is sent as an empty `q` (treated by the API as no filter) — acceptable; the spec's "no `--query` → every policy" holds because the flag is sent only when `Changed()` (the 026 `--depth` optional-flag discipline). A `400` from the list endpoint on a degenerate query classifies cleanly as `APIError(3)`.
+**Consequences**: No new validator function; the read carries no `validateInclude`/`validateStatus`-style local check (025/013) because it has nothing closed-enum to validate. An empty `--query` value (`--query ""`) is omitted, not sent as `q=`: `q` is sent only when the flag is `Changed()` **and** non-empty (the 026 `--depth` optional-flag discipline), so the spec's "no `--query` → every policy" holds for both the absent and empty-value cases. A `400` from the list endpoint on a degenerate query classifies cleanly as `APIError(3)`.
 
 ### ADR-4: Add `policy` and `policies` human-render templates; structured output is unaffected
 
