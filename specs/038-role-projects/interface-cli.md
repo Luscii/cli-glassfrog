@@ -110,10 +110,10 @@ Errors go to **stderr**; the process exit code is the category from Exit-Code Co
 | Condition | Source error (010) | Outcome (via `classifyClientError`) | Exit | stderr message (cause + next step) |
 |---|---|---|---|---|
 | Projects listed / project read (incl. empty list) | — | `Success` | 0 | — (result on stdout; incompleteness note on stderr when applicable) |
-| No usable token | `*AuthError{NoCredentials}` | `UsageError` | 2 | "not authenticated — run `glassfrog auth login`" |
-| Unreadable / malformed credential file | `*AuthError{CredentialError}` | `RuntimeError` | 1 | names the path — "fix or remove the malformed `.glassfrogrc`" |
+| No usable token | `*AuthError{NoCredentials}` | `UsageError` | 2 | cause "not authenticated"; next step "run `glassfrog auth login` or set GLASSFROG_TOKEN" |
+| Unreadable / malformed credential file | `*AuthError{CredentialError}` | `RuntimeError` | 1 | cause names the credentials file; next step "fix or re-create the credentials file with `glassfrog auth login`" |
 | Unknown/forbidden role id or project id, or other non-2xx (401/403/429/4xx/5xx) | `*ResponseError` (→ `*ProblemError`, 015) | `APIError` 3 / `PermissionError` 4 / `RateLimited` 5 | 3/4/5 | names the HTTP status + extracted detail (015), per-class next step |
-| Could not reach the wire | `*TransportError` | `NetworkUnavailable` | 6 | names the transport failure + host — "check network access and the base URL" |
+| Could not reach the wire | `*TransportError` | `NetworkUnavailable` | 6 | cause names the transport failure; next step "check connectivity; the API may be unreachable" |
 | 2xx body did not match the expected shape | `*DecodeError` | `APIError` 3 | 3 | "the API response did not match the expected shape — may be an API change; report it" |
 | Malformed paging mid-walk (`projects`) | `*MalformedPageError` (016) | `RuntimeError` | 1 | "the API returned malformed pagination — partial set shown" |
 | Unsupported `--status` value (`projects`) | — (`validateStatus`) | `UsageError` | 2 | "unsupported --status value \"…\" — supported: archived, cancelled, completed, current, scheduled, someday, waiting"; no request sent |

@@ -25,7 +25,7 @@ The only genuinely new artifacts are: the **`projects`/`project` commands** and 
 
 ### ADR-1: Expose two sibling commands `projects <role-id>` and `project <proj-id>` (conformance to 034 ADR-1)
 
-**Context**: 034 ADR-1 established the per-role-read surface — two sibling top-level commands, plural `<noun>s <role-id>` for the role-scoped list and singular `<noun> <id>` for the standalone read, each `ExactArgs(1)` — and explicitly set it as the precedent "#33 (Role Domains) and #38 (Role Projects) can follow verbatim — `projects <role-id>`/`project <prj-id>`." 033 already followed it. Role Projects has two reads keyed on **different id kinds**: a `role_` id selects a per-role list, a `proj_` id selects one project. The spec confirmed the surface with the developer.
+**Context**: 034 ADR-1 established the per-role-read surface — two sibling top-level commands, plural `<noun>s <role-id>` for the role-scoped list and singular `<noun> <id>` for the standalone read, each `ExactArgs(1)` — and explicitly set it as the precedent "#33 (Role Domains) and #38 (Role Projects) can follow verbatim — `projects <role-id>`/`project <proj-id>`." 033 already followed it. Role Projects has two reads keyed on **different id kinds**: a `role_` id selects a per-role list, a `proj_` id selects one project. The spec confirmed the surface with the developer.
 
 **Options considered**:
 1. **One command, optional positional** (`projects [id]`). Rejected: the two reads take different id kinds and hit different endpoints; an optional positional cannot carry that distinction, and `me projects` (014) already occupies the self-service reading of "projects" — a top-level `projects <role-id>` keeps the role-addressable surface cleanly separate.
