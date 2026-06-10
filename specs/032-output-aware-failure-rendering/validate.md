@@ -1,7 +1,7 @@
 # Validate: Output-Aware Failure Rendering
 
 **Feature**: 032-output-aware-failure-rendering
-**Round**: 1 of 3
+**Round**: 2 of 3
 **Date**: 2026-06-10
 **Verdict**: Ready
 **Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, interface-cli.md, features/opaque-failures/output-aware-failure-rendering.feature, PROJECT.md
@@ -147,6 +147,23 @@ All 5 conformance dimensions pass with zero findings. All 3 held-out validation 
 
 ---
 
+## Changes Since Previous Run
+
+**Round**: 2 (previous: Round 1 — Ready)
+
+No 032 implementation commits landed after the Round 1 validate (`2c99d43`); the only intervening commit on the branch is sibling spec #77's define-phase artifacts (`759dfb8`), which touch no 032 code. Round 2 re-ran all five conformance dimensions and re-traced all three held-out validation scenarios against the current tree, plus a fresh full `go test ./...` and the 11-scenario feature suite.
+
+### Resolved (0)
+None — Round 1 reported zero findings.
+
+### Remaining (0)
+None.
+
+### New (0)
+None. The implementation still conforms: `reportFailure` routes structured→stdout / human→stderr returning `d.Category` in both branches; `ErrorDetail` field order and tags are intact; the `dispatch.go` usage path and all four `reportIncomplete*Walk` reporters remain untouched; the 018 leaf invariant (no `apiclient` import in `internal/output`) holds; both tasks are checked and only the three `@validation` scenarios carry `@wip`.
+
+---
+
 ## Next Steps
 
-Implementation conforms to the specification. Suggest PR review and merge. The specification loop is closed for 032.
+Implementation conforms to the specification. Suggest PR review and merge (PR #78 is open). The specification loop is closed for 032.
