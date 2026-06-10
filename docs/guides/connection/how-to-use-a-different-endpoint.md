@@ -10,7 +10,7 @@
 
 This guide shows how to send `glassfrog` commands to a non-production GlassFrog endpoint — for a single command, or persistently for a directory or your whole account.
 
-By default the CLI uses the built-in base URL `https://glassfrog.com/api/v5`. You can override it from three sources, which the CLI consults in this precedence: the `--base-url` flag wins over the `GLASSFROG_BASE_URL` environment variable, which wins over the `base_url` key in a `.glassfrogrc` file, which wins over the default. For the full rules, see [Base URL Resolution Reference](../../reference/base-url-resolution.md).
+By default the CLI uses the built-in base URL `https://app.glassfrog.com/api/v5`. You can override it from three sources, which the CLI consults in this precedence: the `--base-url` flag wins over the `GLASSFROG_BASE_URL` environment variable, which wins over the `base_url` key in a `.glassfrogrc` file, which wins over the default. For the full rules, see [Base URL Resolution Reference](../../reference/base-url-resolution.md).
 
 ## Prerequisites
 

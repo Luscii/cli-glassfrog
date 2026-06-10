@@ -29,10 +29,14 @@ const (
 
 	// DefaultBaseURL is the built-in default Glassfrog API base URL (the backstop,
 	// precedence rung 4). The /api/v5 path is from spec/glassfrog-api-v5.yaml's
-	// servers block; the host https://glassfrog.com is inferred from
-	// info.contact.url (risk H-1). It is valid by construction and never
+	// servers block (a host-less relative URL); the host https://app.glassfrog.com
+	// is the live API host, confirmed by the spec's own source
+	// (https://app.glassfrog.com/api/v5/docs/spec.yaml) and the published docs.
+	// The earlier https://glassfrog.com guess (inferred from info.contact.url —
+	// risk H-1) was wrong: that host redirects to the www marketing site and
+	// returns 404 for /api/v5/* paths. It is valid by construction and never
 	// re-validated, so the chain always yields a value.
-	DefaultBaseURL = "https://glassfrog.com/api/v5"
+	DefaultBaseURL = "https://app.glassfrog.com/api/v5"
 
 	// baseURLKey is the .glassfrogrc key carrying the base URL, read through the
 	// generic rcfile walk. It lives here, with the other base-URL connection
