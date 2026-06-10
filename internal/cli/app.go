@@ -28,6 +28,18 @@ func Assemble() *cobra.Command {
 	// children, paginated and walked to completion by default (reusing 025's walk +
 	// --first-page opt-out). Also a sibling of `roles` (ADR-1).
 	MustRegister(root, newSubrolesCommand(productionSeam{}))
+	// Role Domains (033): the `domains <role-id>` command — the domains a role
+	// controls, paginated and walked to completion by default (reusing 025's walk +
+	// --first-page opt-out), searchable with --query. A sibling of `roles`, not a
+	// child (plan ADR-1). productionSeam binds the real transport + clock; it reads
+	// the inherited persistent --base-url/--output.
+	MustRegister(root, newDomainsCommand(productionSeam{}))
+	// Role Domains (033): the `domain <dom-id>` command — one domain read by its
+	// own id, optionally embedding its policies with --include policies. The
+	// singular sibling of the plural `domains` list (plan ADR-1); unpaginated, so
+	// it issues one request and rejects the list's walk/search flags. productionSeam
+	// binds the real transport; it reads the inherited persistent --base-url/--output.
+	MustRegister(root, newDomainCommand(productionSeam{}))
 	// Role Policies (034): the `policies <role-id>` command — the addressable
 	// per-role policy list, paginated and walked to completion by default (reusing
 	// 025's walk + --first-page opt-out), narrowable with --query. A sibling of

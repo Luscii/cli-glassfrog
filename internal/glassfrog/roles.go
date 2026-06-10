@@ -40,14 +40,6 @@ type Accountability struct {
 	Description string `json:"description"`
 }
 
-// Domain is an area of authority a Role controls (the spec's DomainRef on a
-// Role). The projections surface its Description; the id is decoded but not
-// rendered.
-type Domain struct {
-	ID          string `json:"id"`
-	Description string `json:"description"`
-}
-
 // RoleDetail is the GET /roles/{id} body's data: a Role plus the optional
 // related resources the read embeds when ?include= requests them (ADR-2). Each
 // related field stays nil/empty unless its include value was requested, so the

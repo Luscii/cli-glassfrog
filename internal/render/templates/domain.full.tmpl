@@ -1,0 +1,6 @@
+{{.Domain.Description}} ({{.Domain.ID}})
+  Role: {{$r := .ControllingRole}}{{if $r}}{{$r}}{{else}}(no controlling role){{end}}
+{{if index .Requested "policies"}}  Policies:
+{{range .Domain.Policies}}    - {{.Title}}
+{{else}}    (none)
+{{end}}{{end}}
