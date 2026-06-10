@@ -57,12 +57,13 @@ Feature: Self-Service Reads — My Projects
       And it will not retry
 
     # Proposed (architecture-informed): reused 011 error mapping — an undecodable 2xx is a distinct internal-error outcome
-    Scenario: An undecodable response is surfaced as an internal error
+    # Superseded by 031 (Diagnostic Normalization) ADR-2: an undecodable 2xx body is a general API error (exit 3), not an internal error (exit 1)
+    Scenario: An undecodable response is surfaced as a general API error
       Given a complete connection context with a present, valid token
       And the API would return a 200 response whose body does not match the projects shape
       When the operator runs the my-projects command
       Then the command will surface a decode failure
-      And it will exit with the internal-error result rather than a success
+      And it will exit with the general API error result rather than a success
 
     # Proposed (architecture-informed): reused 011 error mapping — a malformed base URL is observable at the CLI surface
     Scenario: A malformed base URL is refused before sending

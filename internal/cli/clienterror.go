@@ -17,7 +17,7 @@ package cli
 //   - *apiclient.TransportError             → NetworkUnavailable
 //   - *apiclient.ProblemError / *apiclient.ResponseError → 401/403 → PermissionError,
 //     429 → RateLimited, every other non-2xx → APIError
-//   - *apiclient.DecodeError                → RuntimeError
+//   - *apiclient.DecodeError                → APIError (031 ADR-2 — was RuntimeError)
 //   - base-URL / rcfile / *output.FormatError → UsageError
 //   - anything else                         → RuntimeError (the fail-safe; never Success)
 func classifyClientError(err error) Outcome {

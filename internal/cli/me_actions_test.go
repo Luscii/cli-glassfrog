@@ -272,13 +272,15 @@ func TestRunMeActions_NonStatus2xxIsAPIError(t *testing.T) {
 	}
 }
 
-func TestRunMeActions_UndecodableBodyIsRuntimeError(t *testing.T) {
+// 031 ADR-2: an undecodable 2xx body now classifies as APIError (exit 3), not
+// RuntimeError (exit 1); the cause/next-step message is unchanged.
+func TestRunMeActions_UndecodableBodyIsAPIError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: `not json at all`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	outcome, stdout, stderr := runMeActionsOver(t, seam, "")
-	if outcome != RuntimeError {
-		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
 	}
 	if strings.TrimSpace(stdout) != "" {
 		t.Errorf("no projection should print on a decode failure, got %q", stdout)
@@ -345,7 +347,7 @@ func TestMeActionsCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 		{"unsupported-status", &cannedTransport{status: 200, body: actionsBodyMulti}, validMeContext(), nil, []string{"--status", "done"}, UsageError, 2},
 		{"api-error", &cannedTransport{status: 500, body: `{}`}, validMeContext(), nil, nil, APIError, 3},
 		{"network-unavailable", &cannedTransport{netErr: errors.New("connection refused")}, validMeContext(), nil, nil, NetworkUnavailable, 6},
-		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, RuntimeError, 1},
+		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, APIError, 3},
 		{"stray-arg", &cannedTransport{status: 200, body: actionsBodyMulti}, validMeContext(), nil, []string{"extra"}, UsageError, 2},
 	}
 	for _, tc := range cases {

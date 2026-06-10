@@ -111,11 +111,15 @@ func Diagnose(err error) Diagnostic {
 
 	var decodeErr *apiclient.DecodeError
 	if errors.As(err, &decodeErr) {
-		// A 2xx body that would not decode: name the shape mismatch (the cause) and
-		// the next step (report it). The underlying parse error is kept (path/cause
-		// only, never the token) for diagnostics.
+		// A 2xx body that would not decode: the call succeeded at the wire but the
+		// API returned an unreadable shape — an API-exchange problem (APIError → exit
+		// 3), not a CLI-internal fault (031 ADR-2, superseding the prior decode →
+		// RuntimeError(1) precedent; render-template failures stay RuntimeError(1)).
+		// The cause/next-step wording is unchanged: name the shape mismatch and the
+		// next step (report it). The underlying parse error is kept (path/cause only,
+		// never the token) for diagnostics.
 		return Diagnostic{
-			Category: RuntimeError,
+			Category: APIError,
 			Cause:    "the API response did not match the expected shape",
 			NextStep: fmt.Sprintf("this may be an API change; report it (%s)", decodeErr.Error()),
 		}
@@ -172,12 +176,22 @@ func categoryForStatus(status int) Outcome {
 // nextStepForStatus returns the per-class next-step hint for a non-2xx status
 // (interface-spec Error Communication / CONSTITUTION II "…and the next step").
 // The hint is status-derived only — it never echoes the token.
+//
+// 031 refines the permission and rate-limit hints (ADR-2 / interface-spec
+// Next-step contract): 401 (an authentication failure) points at the configured
+// token, while 403 (an authorization failure) points at the identity's role
+// membership / permission — the two were previously a single combined hint. A
+// 429 points at the rate-limit window resetting (the Retry-After /
+// X-RateLimit-Reset headers already on the wrapped *ResponseError) rather than a
+// bare "retry later".
 func nextStepForStatus(status int) string {
 	switch status {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return "check the token's access / membership"
+	case http.StatusUnauthorized:
+		return "verify the configured API token"
+	case http.StatusForbidden:
+		return "check that the configured identity has the required role membership / permission"
 	case http.StatusTooManyRequests:
-		return "the API is rate-limiting; retry later"
+		return "wait for the rate-limit window to reset (per the `Retry-After` / `X-RateLimit-Reset` headers) and retry"
 	default:
 		return "the API rejected the read; check that the token has access and retry, or consult the status code"
 	}

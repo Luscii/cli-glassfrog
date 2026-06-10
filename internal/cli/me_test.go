@@ -424,13 +424,16 @@ func TestRunMe_CredentialErrorIsRuntimeError(t *testing.T) {
 	}
 }
 
-func TestRunMe_UndecodableBodyIsRuntimeError(t *testing.T) {
+// 031 ADR-2: an undecodable 2xx body is an API-exchange problem (APIError → exit
+// 3), not a CLI-internal fault (was RuntimeError → exit 1). The cause/next-step
+// wording is unchanged.
+func TestRunMe_UndecodableBodyIsAPIError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: `not json at all`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	outcome, stdout, stderr := runMeOver(t, seam)
-	if outcome != RuntimeError {
-		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
 	}
 	if strings.TrimSpace(stdout) != "" {
 		t.Errorf("no projection should print on a decode failure, got %q", stdout)
@@ -519,22 +522,28 @@ func TestReportClientError_SurfacesDetailAndClassifies(t *testing.T) {
 			wantInMsg:   []string{"404", "Token lacks access to this circle"},
 		},
 		{
+			// 031: the 401 next step is split from the old combined permission hint —
+			// it points at verifying the configured API token (authentication).
 			name:        "401-permission-hint",
 			re:          &apiclient.ResponseError{StatusCode: 401, Body: []byte(`{"detail":"Unauthorized"}`)},
 			wantOutcome: PermissionError,
-			wantInMsg:   []string{"401", "Unauthorized", "check the token's access / membership"},
+			wantInMsg:   []string{"401", "Unauthorized", "verify the configured API token"},
 		},
 		{
+			// 031: the 403 next step points at the identity's role membership /
+			// permission (authorization), distinct from the 401 token hint.
 			name:        "403-permission-hint",
 			re:          &apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)},
 			wantOutcome: PermissionError,
-			wantInMsg:   []string{"403", "check the token's access / membership"},
+			wantInMsg:   []string{"403", "required role membership / permission"},
 		},
 		{
+			// 031: the 429 next step references the reset window (the Retry-After /
+			// X-RateLimit-Reset headers), refining the old bare "retry later".
 			name:        "429-rate-limit-hint",
 			re:          &apiclient.ResponseError{StatusCode: 429, Body: []byte(`{"detail":"Too Many Requests"}`)},
 			wantOutcome: RateLimited,
-			wantInMsg:   []string{"429", "the API is rate-limiting; retry later"},
+			wantInMsg:   []string{"429", "wait for the rate-limit window to reset", "retry"},
 		},
 		{
 			name:        "synthesized-detail-shows-fallback-not-synthesized-text",

@@ -47,7 +47,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And no fabricated next step will be attached
 
     # Source: 031-diagnostic-normalization — Scenario: Rate-limited surfaced after retries are exhausted
-    @wip
     Scenario: A rate-limited response surfaced after retries carries a reset-window next step
       Given a typed API error had HTTP status 429 surfaced after rate-limit retries were exhausted
       When the failure is normalized
@@ -56,7 +55,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And no additional wait or retry will be performed
 
     # Source: 031-diagnostic-normalization — Proposed: 401 and 403 carry distinct next steps (interface-spec next-step contract)
-    @wip
     Scenario: A 401 and a 403 carry distinct next steps
       Given one typed API error had status 401 and another had status 403
       When each failure is normalized
@@ -78,7 +76,6 @@ Feature: Opaque Failures — Diagnostic Normalization
     # I want every failure to carry a category drawn from one fixed vocabulary.
 
     # Source: 031-diagnostic-normalization — Scenario: Undecodable 2xx body normalized to general API error
-    @wip
     Scenario: An undecodable 2xx body is normalized to a general API error
       Given a decode error had occurred on a 2xx response whose body would not decode
       When the failure is normalized
@@ -86,7 +83,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And the cause will name that the API responded but its body could not be read as expected
 
     # Source: 031-diagnostic-normalization — Scenario: Most-specific category wins on an overlapping status
-    @wip
     Scenario: The most-specific category wins on an overlapping status
       Given a typed API error had status 429
       When the failure is normalized
@@ -94,7 +90,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And the category will not be general API error
 
     # Source: 031-diagnostic-normalization — Proposed: a decode error exits with the general API code (plan ADR-2)
-    @wip
     Scenario: A decode error exits with the general API code
       Given a command had received a 2xx response whose body would not decode
       When the command maps the failure to an exit code

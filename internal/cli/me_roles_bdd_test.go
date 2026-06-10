@@ -289,8 +289,10 @@ func (w *meRolesWorld) stderrNamesBaseURL() error {
 }
 
 func (w *meRolesWorld) stderrReportsDecodeFailure() error {
-	if w.outcome != RuntimeError {
-		return fmt.Errorf("outcome = %v, want RuntimeError", w.outcome)
+	// 031 ADR-2: an undecodable 2xx is an API-exchange problem (APIError → exit 3),
+	// not a CLI-internal fault; the stderr cause/next-step wording is unchanged.
+	if w.outcome != APIError {
+		return fmt.Errorf("outcome = %v, want APIError", w.outcome)
 	}
 	if strings.TrimSpace(w.stderr) == "" {
 		return errors.New("a decode failure should be reported on stderr")

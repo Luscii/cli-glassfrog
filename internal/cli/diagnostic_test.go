@@ -36,7 +36,7 @@ func TestDiagnose_Category_Table(t *testing.T) {
 		{"problem-403-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}), PermissionError},
 		{"problem-429-is-rate-limited", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}), RateLimited},
 		{"problem-404-is-api-error", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}), APIError},
-		{"decode-is-runtime", &apiclient.DecodeError{StatusCode: 200}, RuntimeError},
+		{"decode-is-api-error", &apiclient.DecodeError{StatusCode: 200}, APIError}, // 031 ADR-2: was RuntimeError
 		{"base-url-error-is-usage", &apiclient.BaseURLError{Source: "--base-url"}, UsageError},
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
 		{"rcfile-format-error-is-usage", &rcfile.FormatError{}, UsageError},
@@ -100,17 +100,17 @@ func TestRenderDiagnostic_ByteEquivalence(t *testing.T) {
 		{
 			"problem-401",
 			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 401}),
-			"the API returned a non-2xx response: status 401 — check the token's access / membership",
+			"the API returned a non-2xx response: status 401 — verify the configured API token",
 		},
 		{
 			"problem-403",
 			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}),
-			"the API returned a non-2xx response: status 403 — check the token's access / membership",
+			"the API returned a non-2xx response: status 403 — check that the configured identity has the required role membership / permission",
 		},
 		{
 			"problem-429",
 			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}),
-			"the API returned a non-2xx response: status 429 — the API is rate-limiting; retry later",
+			"the API returned a non-2xx response: status 429 — wait for the rate-limit window to reset (per the `Retry-After` / `X-RateLimit-Reset` headers) and retry",
 		},
 		{
 			"problem-404",
@@ -171,7 +171,7 @@ func TestReportClientError_Delegates(t *testing.T) {
 	var buf bytes.Buffer
 	gotOutcome, _ := reportClientError(&buf, err)
 
-	wantLine := "the API returned a non-2xx response: status 403 — check the token's access / membership\n"
+	wantLine := "the API returned a non-2xx response: status 403 — check that the configured identity has the required role membership / permission\n"
 	if buf.String() != wantLine {
 		t.Errorf("reportClientError stderr = %q, want %q", buf.String(), wantLine)
 	}

@@ -193,13 +193,15 @@ func TestRunRoles_ListNon2xxIsAPIError(t *testing.T) {
 	}
 }
 
-func TestRunRoles_ListUndecodableBodyIsRuntimeError(t *testing.T) {
+// 031 ADR-2: an undecodable 2xx body now classifies as APIError (exit 3), not
+// RuntimeError (exit 1); the cause/next-step message is unchanged.
+func TestRunRoles_ListUndecodableBodyIsAPIError(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: `not json at all`}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	outcome, stdout, _ := runRolesOver(t, seam, rolesConfig{})
-	if outcome != RuntimeError {
-		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
 	}
 	if strings.TrimSpace(stdout) != "" {
 		t.Errorf("no projection should print on a decode failure, got %q", stdout)
@@ -794,7 +796,7 @@ func TestRolesCommand_ExitCodesAcrossOutcomes(t *testing.T) {
 		{"list-empty-success", &cannedTransport{status: 200, body: orgRolesPageEmpty}, validMeContext(), nil, nil, Success, 0},
 		{"api-error", &cannedTransport{status: 500, body: `{}`}, validMeContext(), nil, nil, APIError, 3},
 		{"network-unavailable", &cannedTransport{netErr: errors.New("refused")}, validMeContext(), nil, nil, NetworkUnavailable, 6},
-		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, RuntimeError, 1},
+		{"decode-error", &cannedTransport{status: 200, body: `nope`}, validMeContext(), nil, nil, APIError, 3},
 		{"too-many-args", &cannedTransport{status: 200, body: orgRolesPageComplete}, validMeContext(), nil, []string{"role_a", "role_b"}, UsageError, 2},
 	}
 	for _, tc := range cases {
