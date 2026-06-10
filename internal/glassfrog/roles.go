@@ -68,12 +68,14 @@ type RoleDetail struct {
 }
 
 // RoleDocument is the single-object {data: RoleDetail} envelope GET /roles/{id}
-// returns — the single-read counterpart to the paginated Page[T] (016). It is
-// named (not a generic Document[T]) because Role Reads is the first single-object
-// read; a later read that wants the same shape may generalize it.
-type RoleDocument struct {
-	Data RoleDetail `json:"data"`
-}
+// returns — the single-read counterpart to the paginated Page[T] (016). Role
+// Reads (025) introduced it as a named type and its comment invited a later
+// single-object read to generalize it; Role Policies (034) is that read, so it is
+// now a type alias of the generic Document[T] (document.go). The alias keeps 025's
+// decode call site and BDD byte-stable — `var doc RoleDocument` and `doc.Data`
+// (a RoleDetail) read exactly as before — while the single policy read decodes
+// the same generic envelope as Document[Policy].
+type RoleDocument = Document[RoleDetail]
 
 // Assignment maps an actor to a role (the spec's Assignment). ID, ActorID, and
 // RoleID are always present; the focus/election/timestamp fields decode but the
@@ -97,11 +99,24 @@ type Assignment struct {
 
 // Policy is a governance rule on a role's interior (the spec's Policy). Title is
 // the projected field; Body carries the full text (may be HTML) and is decoded
-// for callers that want it. Reused by Role Policies (#34).
+// for callers that want it. Role Reads (025) introduced it minimal (ID/Title/Body)
+// for the embedded ?include=policies view; Role Policies (034) grows it the rest
+// of the way to the full GET /policies/{id} spec shape — RoleID, DomainID,
+// CreatedAt, UpdatedAt — so the standalone read can show which role/domain a
+// policy governs and when it changed. One canonical type, grown not forked (011
+// ADR-1): 025's embedded render reads only ID/Title/Body and is untouched by the
+// new fields. role_id and domain_id are nullable in spec.yaml — modeled as plain
+// strings (empty = null), mirroring the existing nullable Body — so a role-level
+// policy (null domain_id) or an org-level policy (null role_id) decodes to an
+// empty string, never a panic, and the render guards explicit-absence on it.
 type Policy struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Body      string `json:"body"`
+	RoleID    string `json:"role_id"`
+	DomainID  string `json:"domain_id"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // Note is a note on a role (the spec's Note: required title + body, no `text`
