@@ -175,7 +175,16 @@ func Run(root *cobra.Command, args []string) (Outcome, error) {
 
 	switch {
 	case flagFailed:
-		// Unknown or malformed flag: the resolved command did not run.
+		// Unknown or malformed flag: the resolved command did not run. A command
+		// that silenced cobra's own error output (SilenceErrors) printed nothing —
+		// surface the cause here so the operator isn't left with a bare exit code.
+		// This is symmetric with the Args-validator branch below; commands that let
+		// cobra print keep their default output, so this never double-prints. (Role
+		// Policies' two-command split, 034, is the first to reject a list-only flag
+		// purely at this cobra level on a SilenceErrors leaf — see LEARNINGS.)
+		if executed != nil && executed.SilenceErrors {
+			fmt.Fprintf(executed.ErrOrStderr(), "Error: %s\nRun '%s --help' for usage.\n", err, executed.CommandPath())
+		}
 		return UsageError, err
 	case err != nil && executed != nil && !executed.Runnable():
 		// Resolution failed against a non-runnable node (the root rejecting an

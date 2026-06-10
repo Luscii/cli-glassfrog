@@ -114,6 +114,24 @@ func derefString(s *string) string {
 	return *s
 }
 
+// PoliciesView is the data the `policies` templates (034) render: the per-role
+// list of policies governing a role's interior. An empty Policies set renders the
+// explicit `No policies.` line (a role with no policies is a valid empty answer,
+// not an error). Each policy projects its title + id and its scope (RoleID/DomainID)
+// with explicit-absence markers for the nullable scope fields.
+type PoliciesView struct {
+	Policies []glassfrog.Policy
+}
+
+// PolicyView is the data the `policy` templates (034) render: a single policy with
+// its FULL body rendered verbatim — never truncated or reflowed (CONSTITUTION VI)
+// — plus its scope (RoleID/DomainID) and timestamps (CreatedAt/UpdatedAt) with
+// explicit-absence guards for the nullable fields. It is the first template to
+// render a long free-text Body as primary content.
+type PolicyView struct {
+	Policy glassfrog.Policy
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -201,6 +219,14 @@ const (
 	// a DomainView (the Domain plus the requested ?include set). Singular —
 	// distinct from ResourceDomains (the list).
 	ResourceDomain Resource = "domain"
+	// ResourcePolicies is the per-role policy list read (034):
+	// GET /roles/{id}/policies rendered as a PoliciesView ([]glassfrog.Policy).
+	// Plural, distinct from ResourcePolicy (the single standalone read).
+	ResourcePolicies Resource = "policies"
+	// ResourcePolicy is the single standalone policy read (034):
+	// GET /policies/{id} rendered as a PolicyView (one glassfrog.Policy with its
+	// full body). Singular, distinct from ResourcePolicies.
+	ResourcePolicy Resource = "policy"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -211,13 +237,15 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
-// templatesFS bundles the eight built-in template files at compile time, so no
-// runtime file read is needed (CONSTITUTION XII self-containment holds). Each
-// file is named <resource>.<format>.tmpl.
+// templatesFS bundles every built-in template file (one per Resource × Format
+// pair — see builtinResources/builtinFormats) at compile time, so no runtime file
+// read is needed (CONSTITUTION XII self-containment holds). Each file is named
+// <resource>.<format>.tmpl; the registry-exhaustiveness test asserts the parsed
+// count matches len(builtinResources)*len(builtinFormats).
 //
 //go:embed templates/*.tmpl
 var templatesFS embed.FS

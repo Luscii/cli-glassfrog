@@ -34,10 +34,13 @@ type Domain struct {
 }
 
 // DomainDocument is the single-object {data: Domain} envelope GET /domains/{id}
-// returns — the single-read counterpart to the paginated Page[T] (016) and the
-// sibling of RoleDocument (025). The role-scoped list (GET /roles/{id}/domains)
-// decodes the existing generic Page[Domain] instead, so no 033-local list
-// envelope is defined.
-type DomainDocument struct {
-	Data Domain `json:"data"`
-}
+// returns — the single-read counterpart to the paginated Page[T] (016). Role
+// Reads (025) introduced the named RoleDocument and invited later single-object
+// reads to generalize it; Role Policies (034) added the generic Document[T]
+// (document.go) and aliased RoleDocument to it. Role Domains follows the same
+// shape: DomainDocument is a type alias of Document[Domain], so the decode call
+// site (`var doc DomainDocument`, `doc.Data` — a Domain) reads exactly as before
+// while sharing the one generic envelope. The role-scoped list
+// (GET /roles/{id}/domains) decodes the existing generic Page[Domain] instead, so
+// no 033-local list envelope is defined.
+type DomainDocument = Document[Domain]

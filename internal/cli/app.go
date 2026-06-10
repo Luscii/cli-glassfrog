@@ -40,6 +40,18 @@ func Assemble() *cobra.Command {
 	// it issues one request and rejects the list's walk/search flags. productionSeam
 	// binds the real transport; it reads the inherited persistent --base-url/--output.
 	MustRegister(root, newDomainCommand(productionSeam{}))
+	// Role Policies (034): the `policies <role-id>` command — the addressable
+	// per-role policy list, paginated and walked to completion by default (reusing
+	// 025's walk + --first-page opt-out), narrowable with --query. A sibling of
+	// `roles`, not a child (ADR-1). productionSeam binds the real transport + clock;
+	// `policies` reads the inherited persistent --base-url/--output.
+	MustRegister(root, newPoliciesCommand(productionSeam{}))
+	// Role Policies (034): the `policy <pol-id>` command — the standalone single
+	// policy read with its full body, decoded from a {data: Policy} document. A
+	// sibling of `policies`, declaring no list flags so a list-only flag is a cobra
+	// unknown-flag usage error (the structural list-only guard, ADR-1). Shares the
+	// productionSeam; reads the inherited persistent --base-url/--output.
+	MustRegister(root, newPolicyCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
