@@ -123,12 +123,13 @@ Feature: Self-Service Reads — Identity Read
       And it will not turn it into a specific, interpreted API error message
 
     # Proposed (architecture-informed): plan ADR-4 — an undecodable 2xx is a distinct exit-code outcome the spec did not enumerate
-    Scenario: An undecodable response is surfaced as an internal error
+    # Superseded by 031 (Diagnostic Normalization) ADR-2: an undecodable 2xx body is a general API error (exit 3), not an internal error (exit 1)
+    Scenario: An undecodable response is surfaced as a general API error
       Given a complete connection context with a present, valid token
       And the API would return a 200 response whose body does not match the identity shape
       When the operator runs the me command
       Then the command will surface a decode failure
-      And it will exit with the internal-error result rather than a success
+      And it will exit with the general API error result rather than a success
 
     # Proposed (architecture-informed): plan ADR-4 — a malformed base URL is a distinct exit-code outcome observable at the CLI surface
     Scenario: A malformed base URL is refused before sending
