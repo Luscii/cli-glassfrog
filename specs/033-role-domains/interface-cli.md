@@ -124,7 +124,7 @@ Errors go to **stderr**; the process exit code is the category from Exit-Code Co
 | Unreadable / malformed credential file | `*AuthError{CredentialError}` | `RuntimeError` | 1 | names the path — "fix or remove the malformed `.glassfrogrc`" |
 | Unknown/forbidden role or domain id, malformed list request (API `400`), or other non-2xx | `*ResponseError` (→ `*ProblemError`, 015) | `APIError` 3 / `PermissionError` 4 / `RateLimited` 5 | 3/4/5 | names the HTTP status + extracted detail (015), per-class next step |
 | Could not reach the wire | `*TransportError` | `NetworkUnavailable` | 6 | names the transport failure + host — "check network access and the base URL" |
-| 2xx body did not match the expected shape | `*DecodeError` | `RuntimeError` | 1 | "the API response did not match the expected shape — may be an API change; report it" |
+| 2xx body did not match the expected shape | `*DecodeError` | `APIError` | 3 | "the API response did not match the expected shape — may be an API change; report it" |
 | Malformed paging mid-walk (domains) | `*MalformedPageError` (016) | `RuntimeError` | 1 | "the API returned malformed pagination — partial set shown" |
 | Base-URL configuration error | base-URL error from `NewClient` | `UsageError` | 2 | names the malformed base URL + source |
 | Invalid `--output` selector | `*output.FormatError` (020) | `UsageError` | 2 | names the bad format value + the four valid names |
@@ -132,6 +132,8 @@ Errors go to **stderr**; the process exit code is the category from Exit-Code Co
 | `--include` on `domains`, `--query`/`--first-page`/`--per-page` on `domain`, missing/extra positional | — (local / cobra) | `UsageError` | 2 | names the misuse (e.g. "--include applies to the single `domain` read; use `glassfrog domain <id> --include policies`") |
 
 Codes `4`/`5` arrive via 015's split of `APIError`(3) at the shared classifier (already landed); these commands benefit with no edit. The token value never appears in any message.
+
+The `*DecodeError` → `APIError`(3) mapping follows the **031 diagnostic-normalization divergence** recorded in `.score/memory/DECISIONS.md` (an undecodable 2xx body is an API-exchange problem, exit 3 — not a CLI/internal fault, exit 1). 033 owns no classification: it tracks the shared `classifyClientError`/`Diagnose`, so this row reflects that decision rather than a 033-local choice. (Render-template failures and `*MalformedPageError` stay `RuntimeError`(1) — the 031 divergence is scoped to decode errors only.)
 
 ## Consistency Notes
 
