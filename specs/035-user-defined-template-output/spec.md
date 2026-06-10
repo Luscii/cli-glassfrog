@@ -26,8 +26,9 @@ The feature serves the CLI's defining context: its operator is usually an AI age
 ### Rendering through a user template
 
 - When a user template is selected and the invoked read command produces a successful result, the system renders that result's data through the template and prints the rendered text — the same result data the built-in renderers receive, for the command that was invoked.
-- When a user template references a field the result does not carry, the system renders an explicit absence marker for that field rather than a fabricated value — it never substitutes a data value (id, name, status, real field value) the API did not return.
-- The template author is responsible for how their template renders an empty or absent value; the system's only floor is that it must not invent a data value the API did not return.
+- When a user template references a field the result does not carry *without guarding it*, the render fails loudly rather than emitting a fabricated or blank value — rendering an explicit absence marker is the template author's responsibility (via a guard such as `{{if …}}…{{else}}…{{end}}`), exactly as the built-in views do it. The system never auto-substitutes a marker.
+- The system never substitutes a *data value* (id, name, status, real field value) the API did not return — its only floor is anti-fabrication, not automatic absence-marker rendering.
+- Because a user template is rendered by the same mechanism as the built-in views, it may also compose a built-in view by name rather than re-describing it.
 
 ### Errors
 
@@ -59,7 +60,7 @@ The feature serves the CLI's defining context: its operator is usually an AI age
 - The system must not honor a template file path or `stdin` from the environment variable or config-file tiers — template sourcing is flag-only. **Why**: a template is shaped to one resource type, so a single persisted template applied across heterogeneous reads (`me`, `my roles`, `my actions`, `my projects`) would render wrong for most of them; flag-only keeps the template tied to the one invocation it fits and leaves 020's env/config contract untouched.
 - The system must not reimplement or alter the four built-in renderers. **Why**: Structured Serialization (018) and Templated Human Rendering (019) own the `full` / `compact` / `json` / `yaml` renderers; this feature adds a parallel path through the same seam, it does not fork the built-ins.
 - The system must not render command *failures* (transport or API errors) through a user template. **Why**: Output-Aware Failure Rendering (032) owns failure-content rendering, and 019 already establishes that errors keep their cause-plus-next-step format rather than routing through the render seam; the only failures this feature raises are its own fail-fast usage errors.
-- The system must not fabricate, default, or substitute a *data value* the API did not return. **Why**: the Constitution forbids presenting values the API did not return; a user template that references a missing field gets an explicit absence marker, never an invented governance value.
+- The system must not fabricate, default, or substitute a *data value* the API did not return. **Why**: the Constitution forbids presenting values the API did not return; an unguarded reference to a missing field fails the render rather than emitting an invented governance value (absence markers are the template author's choice, written with a guard — never auto-substituted by the system).
 - The system must not let a template execute commands, read other files, or reach the network. **Why**: the template is a presentation surface over already-fetched data; granting it code, filesystem, or network access would turn a rendering input into an arbitrary-execution surface — the sandboxing concern 019 explicitly deferred to this feature.
 - The system must not change which fields the invoked command fetches from the API. **Why**: rendering is downstream of the read — the template shapes presentation, not the request, so a field a template wants but the read did not fetch is the read's concern, not the renderer's.
 - The system must not modify 020's precedence chain, default, or env-var/config resolution. **Why**: 020 owns selection; this feature only widens the meaning of a non-reserved value at the flag, so the resolution machinery and the four reserved tokens stay 020's.
@@ -119,12 +120,12 @@ And makes no API request and runs no command.
 
 ### Edge cases
 
-**Scenario: a template references a field the result does not carry**
+**Scenario: a guarded template renders an absence marker for a missing field**
 Given a successful read whose result omits an embedded collection
-And a template that references that collection
+And a template that guards a reference to that collection
 When the result is rendered
-Then the system renders an explicit absence marker where the field would be
-And substitutes no fabricated data value.
+Then the template's guard renders its explicit absence marker where the field would be
+And the system substitutes no fabricated data value.
 
 **Scenario: stdin selected with nothing piped**
 Given `-o stdin` is supplied
@@ -164,7 +165,7 @@ And no API request is made.
 
 - **Relative paths resolve from the current working directory**: a template-file path on the flag that is not absolute is resolved against the invocation's working directory, the standard CLI convention. (Confirmed during the defining conversation.)
 - **`stdin` is a reserved flag value**: like the four format tokens, `stdin` is reserved at the flag, so a file literally named `stdin` is selected only via a path such as `./stdin`. (Follows directly from the reserved-names-win rule the operator confirmed.)
-- **Template language `[ASSUMED]`**: the *behavior* is fixed — the operator supplies a template, it renders the invoked command's result data, and it has no code/file/network access. The concrete template syntax and the field vocabulary it exposes are interface/plan-level details, pinned downstream exactly as 020 leaves its literal flag/key names to its interface.
+- **Template mechanism**: the user template is rendered by the same mechanism as the built-in human views — Go's `text/template`, the engine 019 already established (an inherited platform fact, not a new choice for this feature). The behavior is fixed: the operator supplies a template, it renders the invoked command's result data, and it has no code/file/network access. The concrete author-facing field vocabulary per resource is the interface's to pin, as 020 leaves its literal flag/key names to its interface.
 
 ---
 

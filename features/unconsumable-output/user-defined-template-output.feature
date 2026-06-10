@@ -45,9 +45,9 @@ Feature: Unconsumable Output — User-Defined Template Output
       And it will make no API request
       And it will exit with the usage exit code 2
 
-    # Source: 035-user-defined-template-output — Scenario: a template references a field the result does not carry
+    # Source: 035-user-defined-template-output — Scenario: a guarded template renders an absence marker for a missing field
     @wip
-    Scenario: A template renders an absence marker for a missing field
+    Scenario: A guarded template renders an absence marker for a missing field
       Given the read had produced a result that omitted an embedded collection
       And a template that guards a reference to that collection
       When the result is rendered

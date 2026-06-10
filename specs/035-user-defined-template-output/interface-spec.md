@@ -65,7 +65,7 @@ A user template renders against the **same decoded value the built-in template f
 | `roles` | `glassfrog.MyRolesResponse` | 012 / 019 |
 | `actions` | `glassfrog.MyActionsResponse` | 013 / 019 |
 | `projects` | `glassfrog.MyProjectsResponse` | 014 / 019 |
-| `org-roles` | the org role-list value (025) | 025 interface-spec.md |
+| `org-roles` | `[]glassfrog.Role` (025) | 025 interface-spec.md |
 | `role` | `render.RoleView` (`Detail` + `Requested`) | 025 |
 | `tree` | `render.TreeView` (`Rows` + `Requested`) | 026 |
 | `subroles` | `render.SubrolesView` (`Children` + `Requested`) | 026 |
