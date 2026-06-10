@@ -75,12 +75,13 @@ Feature: Self-Service Reads — My Roles
       And the command will exit with code 2
 
     # Source: 012-my-roles — Scenario: An unparseable response body fails loudly (architecture-informed: plan ADR-3 / interface decode-error path)
+    # Superseded by 031 (Diagnostic Normalization) ADR-2: an unparseable 2xx body is a general API error (exit 3), not an internal error (exit 1)
     Scenario: An unparseable response body fails loudly
       Given a complete connection context with a stored token
       And the API would return a 200 response whose body cannot be parsed
       When the practitioner runs "glassfrog me roles"
       Then stderr will report that the response could not be parsed
-      And the command will exit with code 1
+      And the command will exit with code 3
 
   Rule: Each role is a concise, parseable projection
     # In order to orient on a practitioner's responsibilities before acting on their behalf,

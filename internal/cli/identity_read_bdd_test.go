@@ -108,7 +108,7 @@ func initializeIdentityReadScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^the authenticated transport's fail-safe will refuse the call$`, w.failSafeRefused)
 	sc.Step(`^no unauthenticated request will be sent$`, w.noRequestReachedAPI)
 	sc.Step(`^the command will surface a decode failure$`, w.surfacedDecodeFailure)
-	sc.Step(`^it will exit with the internal-error result rather than a success$`, w.exitedInternalError)
+	sc.Step(`^it will exit with the general API error result rather than a success$`, w.exitedAPIError)
 	sc.Step(`^the command will surface the base-URL problem as a usage error$`, w.surfacedBaseURLUsageError)
 	sc.Step(`^the message will explain the next step to correct the configured base URL$`, w.messageExplainsBaseURLNextStep)
 	sc.Step(`^the command will surface a credential-file error naming the file$`, w.surfacedCredFileError)
@@ -388,6 +388,15 @@ func (w *meWorld) surfacedDecodeFailure() error {
 func (w *meWorld) exitedInternalError() error {
 	if w.outcome != RuntimeError || w.exitCode != 1 {
 		return fmt.Errorf("outcome=%v exit=%d, want RuntimeError/1 (internal error)\nstderr: %s", w.outcome, w.exitCode, w.stderr)
+	}
+	return nil
+}
+
+// exitedAPIError pins the 031 ADR-2 reclassification: an undecodable 2xx body is
+// an API-exchange problem (APIError → exit 3), not a CLI-internal fault (exit 1).
+func (w *meWorld) exitedAPIError() error {
+	if w.outcome != APIError || w.exitCode != 3 {
+		return fmt.Errorf("outcome=%v exit=%d, want APIError/3 (general API error)\nstderr: %s", w.outcome, w.exitCode, w.stderr)
 	}
 	return nil
 }
