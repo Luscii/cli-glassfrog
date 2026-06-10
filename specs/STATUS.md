@@ -31,5 +31,5 @@
 | 027-install-script | Analyzed | document | 2026-06-09T19:30:00 |
 | 028-pr-administration | Analyzed | risk | 2026-06-09T17:45:00 |
 | 029-main-branch-verification | Analyzed | analyze | 2026-06-09T17:35:00 |
-| 031-diagnostic-normalization | Analyzed | analyze | 2026-06-10T10:11:19 |
+| 031-diagnostic-normalization | Implementing | implement | 2026-06-10T13:30:00 |
 | 034-role-policies | Analyzed | risk | 2026-06-10T12:00:00 |

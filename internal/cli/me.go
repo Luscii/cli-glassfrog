@@ -15,7 +15,6 @@ import (
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/output"
-	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 	"github.com/Luscii/cli-glassfrog/internal/render"
 	"github.com/spf13/cobra"
 )
@@ -230,17 +229,18 @@ func wantsInclude(targets []string, target string) bool {
 }
 
 // reportClientError writes a controlled, token-free, next-step message to stderr
-// and returns the Outcome the shared classifier assigns to err. It first refines
-// a generic non-2xx *ResponseError into a typed *apiclient.ProblemError (once —
-// guarded against double-refinement) so the API's own detail surfaces in the
-// message and the typed error travels up the chain (015 ADR-4). The Outcome
-// always comes from classifyClientError (the single classification chain, reused
-// by 012–017), computed from the SAME refined value the message renders, so the
-// category and the message can never disagree about which error occurred.
+// and returns the Outcome assigned to err. It first refines a generic non-2xx
+// *ResponseError into a typed *apiclient.ProblemError (once — guarded against
+// double-refinement) so the API's own detail surfaces in the message and the
+// typed error travels up the chain (015 ADR-4). It then calls Diagnose ONCE
+// (031) to get the {Category, Cause, NextStep} from the SAME refined value,
+// prints renderDiagnostic(d) to stderr, and returns d.Category — so the category
+// and the message can never disagree about which error occurred.
 func reportClientError(stderr io.Writer, err error) (Outcome, error) {
 	err = refineClientError(err)
-	fmt.Fprintln(stderr, formatClientErrorMessage(err))
-	return classifyClientError(err), err
+	d := Diagnose(err)
+	fmt.Fprintln(stderr, renderDiagnostic(d))
+	return d.Category, err
 }
 
 // refineClientError refines a generic non-2xx *apiclient.ResponseError into a
@@ -259,102 +259,6 @@ func refineClientError(err error) error {
 		return apiclient.ExtractProblem(responseErr)
 	}
 	return err
-}
-
-// formatClientErrorMessage renders the operator-facing, token-free message for a
-// client error: it names the cause AND the next step for each class me owns
-// (interface-cli Error Communication). It discriminates only to choose wording —
-// classifyClientError owns the category — and every branch's text is path/status
-// only, never the X-Auth-Token request header.
-func formatClientErrorMessage(err error) string {
-	var authErr *apiclient.AuthError
-	if errors.As(err, &authErr) {
-		switch authErr.Kind {
-		case apiclient.NoCredentials:
-			return "not authenticated — run `glassfrog auth login` or set GLASSFROG_TOKEN"
-		default: // CredentialError — the cause names the file, never the token
-			return fmt.Sprintf("%s — fix or re-create the credentials file with `glassfrog auth login`", authErr.Error())
-		}
-	}
-	var transportErr *apiclient.TransportError
-	if errors.As(err, &transportErr) {
-		return fmt.Sprintf("%s — check connectivity; the API may be unreachable", transportErr.Error())
-	}
-	// The refined non-2xx (015 ADR-4). reportClientError refines a *ResponseError
-	// into a *ProblemError before calling here, so the message can surface the
-	// API's own detail. This arm precedes the bare *ResponseError arm below
-	// because a *ProblemError wraps (Unwrap → *ResponseError), so errors.As would
-	// otherwise match the generic arm first. The wording keys on DetailSynthesized
-	// (the provenance marker), NOT on Detail emptiness — the fallback always fills
-	// Detail. Every branch names the status + a per-class next step; all text is
-	// response-side (status/detail/title), never the X-Auth-Token.
-	var problemErr *apiclient.ProblemError
-	if errors.As(err, &problemErr) {
-		hint := clientErrorNextStep(problemErr.StatusCode)
-		if problemErr.DetailSynthesized {
-			// The body wasn't a parseable Problem Details object: keep the original
-			// generic "status N" wording (no synthesized text is presented as the
-			// API's own words) plus the per-class next step.
-			return fmt.Sprintf("the API returned a non-2xx response: status %d — %s", problemErr.StatusCode, hint)
-		}
-		// The API's own cause: surface its detail (prefixed with the title when the
-		// title adds context beyond the detail) plus the per-class next step.
-		cause := problemErr.Detail
-		if title := strings.TrimSpace(problemErr.Title); title != "" && title != problemErr.Detail {
-			cause = fmt.Sprintf("%s: %s", title, problemErr.Detail)
-		}
-		return fmt.Sprintf("the API returned a non-2xx response: status %d: %s — %s", problemErr.StatusCode, cause, hint)
-	}
-	var responseErr *apiclient.ResponseError
-	if errors.As(err, &responseErr) {
-		// Defensive fallback for an unrefined *ResponseError (reportClientError
-		// refines before reaching here, so this is rarely hit): name the status and
-		// the per-class next step.
-		return fmt.Sprintf("the API returned a non-2xx response: status %d — %s", responseErr.StatusCode, clientErrorNextStep(responseErr.StatusCode))
-	}
-	var decodeErr *apiclient.DecodeError
-	if errors.As(err, &decodeErr) {
-		// Name the shape mismatch (the cause) AND the next step: a 2xx body that will
-		// not decode usually means the API shape drifted, so the operator's recourse
-		// is to report it. The underlying parse error is kept (path/cause only, never
-		// the token) for diagnostics.
-		return fmt.Sprintf("the API response did not match the expected shape — this may be an API change; report it (%s)", decodeErr.Error())
-	}
-	// Base-URL configuration error from client construction. This mirrors
-	// classifyClientError's base-URL arms (which map all of these to UsageError),
-	// so the category and the next-step hint stay symmetric: a malformed
-	// configured value (*BaseURLError) AND an unreadable/malformed .glassfrogrc
-	// the base-URL resolver surfaced (*rcfile.ReadError / *rcfile.FormatError) all
-	// name the source and the correction step. The rcfile arms sit AFTER the
-	// AuthError check above, so a credential-file rcfile error (wrapped in
-	// *AuthError) keeps its credentials-file hint and only base-URL-path rcfile
-	// errors reach here. Each error's text names path/source only, never the token.
-	var baseURLErr *apiclient.BaseURLError
-	var rcReadErr *rcfile.ReadError
-	var rcFormatErr *rcfile.FormatError
-	if errors.As(err, &baseURLErr) || errors.As(err, &rcReadErr) || errors.As(err, &rcFormatErr) {
-		return fmt.Sprintf("%s — correct --base-url, GLASSFROG_BASE_URL, or the .glassfrogrc base_url", err.Error())
-	}
-	// Any other unexpected error: surface it verbatim (the apiclient contracts keep
-	// these path/cause-only, never the token).
-	return err.Error()
-}
-
-// clientErrorNextStep returns the per-class next-step hint for a non-2xx status
-// (interface-spec Error Communication / CONSTITUTION II "…and the next step").
-// The 401/403 and 429 hints match the PermissionError / RateLimited split
-// classifyClientError applies; every other non-2xx keeps the original generic
-// wording (which names a next step without interpreting the status). The hint is
-// status-derived only — it never echoes the token.
-func clientErrorNextStep(status int) string {
-	switch status {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return "check the token's access / membership"
-	case http.StatusTooManyRequests:
-		return "the API is rate-limiting; retry later"
-	default:
-		return "the API rejected the read; check that the token has access and retry, or consult the status code"
-	}
 }
 
 // newMeCommand builds the `me` leaf: a guard-ready cobra command (no positional

@@ -14,7 +14,6 @@ Feature: Opaque Failures — Diagnostic Normalization
     # I want every failure handed back as one diagnostic carrying a cause, a category, and a next step.
 
     # Source: 031-diagnostic-normalization — Scenario: Transport failure normalized to network-unavailable
-    @wip
     Scenario: Transport failure is normalized to network-unavailable
       Given a command's request had failed with a connection-refused transport error
       When the failure is normalized
@@ -23,7 +22,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And the next step will point the caller to check connectivity and the configured endpoint
 
     # Source: 031-diagnostic-normalization — Scenario: Permission failure carries the API's own detail
-    @wip
     Scenario: A permission failure carries the API's own detail
       Given a typed API error had HTTP status 403 with a detail of "You are not a member of this circle"
       When the failure is normalized
@@ -41,7 +39,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And the next step will point the caller to the command's help
 
     # Source: 031-diagnostic-normalization — Scenario: API error with no readable detail derives its cause from the status
-    @wip
     Scenario: An API error without a readable detail derives its cause from the status
       Given a typed API error had HTTP status 500 with no detail or title
       When the failure is normalized
@@ -109,7 +106,6 @@ Feature: Opaque Failures — Diagnostic Normalization
     # I want transport, decode, API, and usage failures collapsed into a single consistent diagnostic shape.
 
     # Source: 031-diagnostic-normalization — Scenario: A success is never normalized
-    @wip
     Scenario: A successful outcome is never normalized
       Given a successful 2xx outcome had reached the normalizer
       When it is processed
@@ -117,7 +113,6 @@ Feature: Opaque Failures — Diagnostic Normalization
       And the success will pass through untouched
 
     # Source: 031-diagnostic-normalization — Scenario: An unrecognized failure falls back to the internal-error diagnostic
-    @wip
     Scenario: An unrecognized failure falls back to the internal-error diagnostic
       Given a failure the normalizer cannot map to a transport, decode, typed-API, or usage family
       When the failure is normalized
