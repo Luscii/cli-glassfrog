@@ -165,7 +165,7 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 		if res.Stop != nil && len(res.Records) == 0 {
 			return reportClientError(cfg.stderr, res.Stop)
 		}
-		doc, rerr := aggregateRawRoles(machineFmt, res.Records)
+		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
 			// Buffer-then-write: a render failure leaves stdout empty and maps to
 			// RuntimeError(1). The error is token-free (018 contract).
@@ -215,14 +215,15 @@ func reportIncompleteWalk(stderr io.Writer, stop error) (Outcome, error) {
 	return classifyClientError(refined), refined
 }
 
-// aggregateRawRoles concatenates the verbatim per-role bytes gathered across the
+// aggregateRawData concatenates the verbatim per-record bytes gathered across a
 // walk into a single {"data":[…]} document and renders it in the structured
-// format. Each role's bytes are preserved exactly (no struct round-trip → no
-// field dropped, no number coerced — 018 fidelity); only the envelope is
-// synthesized, because an aggregate of N pages has no single page's meta. A nil
-// record set renders {"data":[]}, not {"data":null}, so an empty org is a valid
-// empty list rather than a null.
-func aggregateRawRoles(f output.Format, records []json.RawMessage) ([]byte, error) {
+// format. It is resource-neutral — the org `roles` list (025), `subroles` (026),
+// and `domains` (033) all aggregate their walked pages through it. Each record's
+// bytes are preserved exactly (no struct round-trip → no field dropped, no number
+// coerced — 018 fidelity); only the envelope is synthesized, because an aggregate
+// of N pages has no single page's meta. A nil record set renders {"data":[]}, not
+// {"data":null}, so an empty result is a valid empty list rather than a null.
+func aggregateRawData(f output.Format, records []json.RawMessage) ([]byte, error) {
 	if records == nil {
 		records = []json.RawMessage{}
 	}
@@ -247,7 +248,7 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 		// Pass the provided value through as-is — no client-side clamp (paging's
 		// contract): an out-of-range value (0, negative, > API max) surfaces the
 		// API's rejection rather than being silently ignored.
-		q := cloneRolesQuery(req.Query)
+		q := cloneQuery(req.Query)
 		q.Set("per_page", strconv.Itoa(cfg.perPage))
 		req.Query = q
 	}
@@ -257,7 +258,7 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
 			return reportClientError(cfg.stderr, err)
 		}
-		doc, rerr := aggregateRawRoles(machineFmt, page.Data)
+		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
 			fmt.Fprintln(cfg.stderr, rerr.Error())
 			return RuntimeError, rerr
@@ -321,10 +322,11 @@ func rolesWalkOptions(cfg rolesConfig) []paging.Option {
 	return nil
 }
 
-// cloneRolesQuery returns a shallow-safe copy of a url.Values so the first-page
-// request can set per_page without mutating a caller-shared map. A nil input
-// yields a fresh map ready for Set.
-func cloneRolesQuery(src url.Values) url.Values {
+// cloneQuery returns a shallow-safe copy of a url.Values so a first-page request
+// can set per_page without mutating a caller-shared map. A nil input yields a
+// fresh map ready for Set. Resource-neutral — shared by the `roles` (025),
+// `subroles` (026), and `domains` (033) first-page reads.
+func cloneQuery(src url.Values) url.Values {
 	dst := make(url.Values, len(src)+1)
 	for k, v := range src {
 		cp := make([]string, len(v))
