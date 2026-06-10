@@ -139,9 +139,9 @@ Missing or extra positionals are rejected as a usage error with no API call. Lis
 role_0456…  <Child Name>  has_subroles=<yes|no>
 ```
 
-**`json` / `yaml`** — the raw API payload verbatim.
+**`json` / `yaml`** — `subroles` is a walked list read: it aggregates every page into a single synthesized `{"data":[…]}` document and **drops per-page `meta`**, so the shape stays stable across the walk (and under `--first-page`). Each child's bytes are preserved verbatim inside `data`; only the top-level envelope is synthesized. Completeness is signalled on stderr, not via in-band `meta`. (Contrast `tree`, a single read that emits the raw nested document verbatim.) See [Structured Serialization](structured-serialization.md).
 
-**Empty result** — `subroles` on a leaf role: under `full`/`compact`, stdout is exactly `No subroles.` and the command exits `0`. Structured formats emit the empty payload as the API returned it.
+**Empty result** — `subroles` on a leaf role: under `full`/`compact`, stdout is exactly `No subroles.` and the command exits `0`. Under `json`/`yaml`, stdout is the empty aggregate `{"data":[]}`, not the API's original page envelope.
 
 ## Subroles completeness signalling
 

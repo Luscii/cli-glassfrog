@@ -114,4 +114,4 @@ All diagnostics go to stderr; only the success report (path and version) goes to
 
 ## Related Acquisition Channels
 
-The installer is one of several routes to the same released binary, alongside a Homebrew tap and an npm wrapper. Those channels install the same upstream artifacts by other means and are independent of this script.
+A Homebrew tap and an npm wrapper are **planned** as additional routes to the same released binary, but neither ships today — there is no `brews:` section in the repo's GoReleaser config and no npm package yet. Like the install script itself, they depend on the automated release pipeline that has not yet shipped. When available, they will install the same upstream artifacts by other means, independently of this script.

@@ -7,11 +7,11 @@
 
 # Structured Serialization Reference
 
-Machine-readable serialization of a command's result as JSON or YAML — the raw API payload verbatim on success. A unified error envelope shape is also defined for failures, but the CLI does not emit it yet (see Availability below).
+Machine-readable serialization of a command's result as JSON or YAML — the raw API payload verbatim on success for single reads, or an aggregated `{"data":[…]}` document for walked list reads. A unified error envelope shape is also defined for failures, but the CLI does not emit it yet (see Availability below).
 
 ## Overview
 
-Structured Serialization defines two machine output formats, `json` and `yaml`, and the document shapes a consumer (such as an AI agent) parses from them. On success the output is the raw 2xx API payload encoded verbatim. The capability also defines a single unified error envelope shape (and its encoder) for failures.
+Structured Serialization defines two machine output formats, `json` and `yaml`, and the document shapes a consumer (such as an AI agent) parses from them. On success the output is the raw 2xx API payload encoded verbatim — with one exception for paginated list reads that walk multiple pages (see Success document below). The capability also defines a single unified error envelope shape (and its encoder) for failures.
 
 Structured Serialization owns no command and no flag. Format selection arrives through the `--output` flag (see [Output Format Selection](output-format-selection.md)). This reference describes the formats and the document shapes those formats produce.
 
@@ -30,12 +30,17 @@ The JSON form and the YAML form carry identical data. Both derive from the same 
 
 ## Success document
 
-The success document is the raw API payload, verbatim, encoded in the active format.
+For **single reads** (`glassfrog me`, `glassfrog me roles`, `glassfrog me actions`, `glassfrog me projects`, `glassfrog roles <id>`, `glassfrog tree`), the success document is the raw API payload, verbatim, encoded in the active format.
 
 - **No reshaping** — the document carries the raw payload, not the human projection. Fields the human projection summarizes or drops (for example, hypermedia links) are present in the structured document.
 - **No field loss** — all fields the API returned are present.
 - **No number-precision loss** — values are serialized from bytes, so a JSON number is not coerced to a floating-point approximation. A large integer identifier keeps its exact representation.
 - **Empty result** — an empty or whitespace-only payload renders as a valid empty document, never an empty output channel.
+
+**Exception — walked list reads.** `glassfrog roles` and `glassfrog subroles` walk every page and aggregate the result into a single synthesized `{"data":[…]}` document, so the shape stays stable across a multi-page walk (and under `--first-page`). For these two reads:
+
+- The **top-level envelope is synthesized**, not the API's per-page envelope: each record's bytes are preserved verbatim inside `data` (no field dropped, no number coerced — the per-record fidelity above still holds), but **per-page `meta` (including `meta.pagination`) is dropped** — an aggregate of N pages has no single page's meta. Completeness is signalled out of band on stderr, not via in-band `meta`.
+- **Empty result** renders as `{"data":[]}` (a valid empty aggregate), not the API's original page envelope.
 
 A single render call produces the whole document, written to stdout as the sole content of the channel. Diagnostics remain on stderr.
 
@@ -91,7 +96,7 @@ The error envelope reflects the facts it was handed; it applies no status-specif
 
 | Guarantee | Behavior |
 |---|---|
-| Verbatim success payload | The raw 2xx body is serialized as-is; no field added, dropped, or reshaped. |
+| Verbatim success payload | Single reads: the raw 2xx body is serialized as-is; no field added, dropped, or reshaped. Walked list reads (`roles`, `subroles`): each record's bytes are verbatim inside a synthesized `{"data":[…]}` envelope, with per-page `meta` dropped (see Success document). |
 | Identical JSON ≡ YAML data | Both forms derive from the same JSON bytes; parsing either yields structurally equivalent data. |
 | Number precision preserved | Values serialize from bytes; no number is coerced to a floating-point approximation. |
 | Complete document or nothing | A render call produces one complete, parseable document, never a fragment or bare text. |

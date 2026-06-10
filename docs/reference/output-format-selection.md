@@ -36,8 +36,10 @@ This capability adds one flag and no command. The existing commands, their argum
 |---|---|---|---|
 | `full` (default) | human template | the labelled human projection | [Templated Human Rendering](templated-human-rendering.md) |
 | `compact` | human template | one line per record, ids always present, nested collections as counts | [Templated Human Rendering](templated-human-rendering.md) |
-| `json` | structured encoder | a single JSON document of the raw API payload, verbatim | [Structured Serialization](structured-serialization.md) |
+| `json` | structured encoder | a single JSON document: the raw API payload verbatim for single reads, or a synthesized `{"data":[…]}` aggregate for walked list reads (`roles`, `subroles`) | [Structured Serialization](structured-serialization.md) |
 | `yaml` | structured encoder | the identical data as a single YAML document | [Structured Serialization](structured-serialization.md) |
+
+The walked list reads (`roles`, `subroles`) aggregate every page into a stable `{"data":[…]}` document and drop per-page `meta`; all other reads emit the raw 2xx payload verbatim. See [Structured Serialization](structured-serialization.md).
 
 Output Format Selection selects and routes; it defines no stdout shape of its own. The same successful result feeds whichever renderer is chosen — selection changes the rendering, never which fields the command fetched.
 
@@ -51,6 +53,12 @@ The format applies to every command that produces result data:
 | `glassfrog me roles` | `me roles [-o <fmt>] [--base-url …]` |
 | `glassfrog me actions` | `me actions [--status …] [-o <fmt>] [--base-url …]` |
 | `glassfrog me projects` | `me projects [--status …] [-o <fmt>] [--base-url …]` |
+| `glassfrog roles` | `roles [--parent …] [--person …] [--has-subroles] [--tag …] [--first-page] [--per-page N] [-o <fmt>] [--base-url …]` |
+| `glassfrog roles <id>` | `roles <ROLE_ID> [--include a,b,…] [-o <fmt>] [--base-url …]` |
+| `glassfrog tree` | `tree [ROLE_ID] [--depth N] [--include a,b,…] [-o <fmt>] [--base-url …]` |
+| `glassfrog subroles <id>` | `subroles <ROLE_ID> [--include a,b,…] [--first-page] [--per-page N] [-o <fmt>] [--base-url …]` |
+
+The walked list reads (`roles`, `subroles`) emit a synthesized `{"data":[…]}` aggregate under `json`/`yaml` (see [Structured Serialization](structured-serialization.md)); the single reads emit the raw payload verbatim.
 
 ## Resolution precedence
 
