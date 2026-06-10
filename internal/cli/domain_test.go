@@ -170,7 +170,7 @@ func TestRunDomain_ListFlagsRejectedNoRequest(t *testing.T) {
 		flag string
 	}{
 		{"query", domainConfig{querySet: true}, "--query"},
-		{"first-page", domainConfig{firstPage: true}, "--first-page"},
+		{"first-page", domainConfig{firstPageSet: true}, "--first-page"},
 		{"per-page", domainConfig{perPageSet: true}, "--per-page"},
 	}
 	for _, tc := range cases {
@@ -208,6 +208,33 @@ func TestRunDomain_UnknownIdSurfacesAPIStatus(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "404") {
 		t.Errorf("stderr should name the HTTP status:\n%s", stderr)
+	}
+}
+
+// TestNewDomainCommand_FirstPageFalseStillRejected pins the reviewer's case
+// (PR #73): a list-only flag passed by PRESENCE must be rejected regardless of
+// its value, so `domain <id> --first-page=false` is still a usage error. It
+// drives the real cobra command so the `Changed("first-page")` wiring in
+// newDomainCommand is exercised — the value-based check would have let this slip
+// through, and the field-level unit test above bypasses the constructor.
+func TestNewDomainCommand_FirstPageFalseStillRejected(t *testing.T) {
+	root := NewRootCommand()
+	tr := &cannedTransport{status: 200, body: getDomainBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+	MustRegister(root, newDomainCommand(seam))
+
+	var out, errb bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errb)
+	outcome, _ := Run(root, []string{"domain", "dom_0123", "--first-page=false"})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError (--first-page=false is still an explicitly-provided list-only flag)\nstderr: %s", outcome, errb.String())
+	}
+	if tr.calls != 0 {
+		t.Errorf("an explicit list-only flag must send no request (tripwire), got %d", tr.calls)
+	}
+	if !strings.Contains(errb.String(), "--first-page") {
+		t.Errorf("stderr should name the --first-page misuse:\n%s", errb.String())
 	}
 }
 

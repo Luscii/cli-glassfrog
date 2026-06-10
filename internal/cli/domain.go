@@ -43,9 +43,9 @@ type domainConfig struct {
 	// The list-only walk/search flags are declared on `domain` only to reject
 	// them: the single read is unpaginated and unsearchable, so passing any of
 	// them is a usage error (interface). Presence, not value.
-	querySet   bool
-	firstPage  bool
-	perPageSet bool
+	querySet     bool
+	firstPageSet bool
+	perPageSet   bool
 
 	reqCtx context.Context
 	stdout io.Writer
@@ -159,7 +159,7 @@ func validateDomainFlags(cfg domainConfig) error {
 	if cfg.querySet {
 		offending = append(offending, "--query")
 	}
-	if cfg.firstPage {
+	if cfg.firstPageSet {
 		offending = append(offending, "--first-page")
 	}
 	if cfg.perPageSet {
@@ -219,12 +219,12 @@ func newDomainCommand(seam domainSeam) *cobra.Command {
 				include:    include,
 				// Presence, not value: a list-only flag passed to the single read is a
 				// usage error regardless of its value (Changed).
-				querySet:   cmd.Flags().Changed("query"),
-				firstPage:  firstPage,
-				perPageSet: cmd.Flags().Changed("per-page"),
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				querySet:     cmd.Flags().Changed("query"),
+				firstPageSet: cmd.Flags().Changed("first-page"),
+				perPageSet:   cmd.Flags().Changed("per-page"),
+				reqCtx:       cmd.Context(),
+				stdout:       cmd.OutOrStdout(),
+				stderr:       cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},
