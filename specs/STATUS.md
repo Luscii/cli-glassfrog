@@ -35,3 +35,4 @@
 | 032-output-aware-failure-rendering | Analyzed | analyze | 2026-06-10T20:07:05 |
 | 033-role-domains | Complete | validate | 2026-06-10T13:30:00 |
 | 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
+| 038-role-projects | Tasks ready | tasks | 2026-06-10T21:40:00 |
