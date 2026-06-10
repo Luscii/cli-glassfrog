@@ -8,7 +8,7 @@ import (
 // policyDocumentFixture is a representative GET /policies/{id} body: the
 // single-object {data: Policy} envelope carrying the full policy spec shape —
 // id/title/body plus the grown role_id/domain_id/created_at/updated_at — with an
-// unexpected sibling field present to prove tolerant decoding.
+// unknown extra field inside the policy object to prove tolerant decoding.
 const policyDocumentFixture = `{
   "data": {
     "id": "pol_0123456789abcdef0123456789abcdef",
@@ -23,8 +23,8 @@ const policyDocumentFixture = `{
 }`
 
 // TestPolicyDocumentDecodesFullShape pins the single-read envelope: Document[Policy]
-// exposes Data with every grown field bound, and an unknown sibling field is
-// ignored (tolerant decoding).
+// exposes Data with every grown field bound, and an unknown extra field inside the
+// policy object is ignored (tolerant decoding).
 func TestPolicyDocumentDecodesFullShape(t *testing.T) {
 	var doc Document[Policy]
 	if err := json.Unmarshal([]byte(policyDocumentFixture), &doc); err != nil {
