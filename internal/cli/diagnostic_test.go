@@ -161,22 +161,26 @@ func TestRenderDiagnostic_ByteEquivalence(t *testing.T) {
 	}
 }
 
-// reportClientError delegates to Diagnose: the stderr line it prints is exactly
-// renderDiagnostic(Diagnose(refined)) and the returned Outcome is the
-// Diagnostic's Category, computed from the same refined value.
-func TestReportClientError_Delegates(t *testing.T) {
-	// A bare *ResponseError is refined to a *ProblemError inside reportClientError,
+// reportFailure delegates to Diagnose: on the human path (unchanged by 032) the
+// stderr line it prints is exactly renderDiagnostic(Diagnose(refined)), stdout
+// stays empty, and the returned Outcome is the Diagnostic's Category, computed
+// from the same refined value.
+func TestReportFailure_Delegates(t *testing.T) {
+	// A bare *ResponseError is refined to a *ProblemError inside reportFailure,
 	// so both the message and the category must reflect the refined value.
 	err := &apiclient.ResponseError{StatusCode: 403}
-	var buf bytes.Buffer
-	gotOutcome, _ := reportClientError(&buf, err)
+	var outb, buf bytes.Buffer
+	gotOutcome, _ := reportFailure(&outb, &buf, output.FormatFull, err)
 
 	wantLine := "the API returned a non-2xx response: status 403 — check that the configured identity has the required role membership / permission\n"
 	if buf.String() != wantLine {
-		t.Errorf("reportClientError stderr = %q, want %q", buf.String(), wantLine)
+		t.Errorf("reportFailure stderr = %q, want %q", buf.String(), wantLine)
+	}
+	if outb.Len() != 0 {
+		t.Errorf("the human path must leave stdout empty, got %q", outb.String())
 	}
 	if gotOutcome != PermissionError {
-		t.Errorf("reportClientError outcome = %v, want PermissionError", gotOutcome)
+		t.Errorf("reportFailure outcome = %v, want PermissionError", gotOutcome)
 	}
 }
 

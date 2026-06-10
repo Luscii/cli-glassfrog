@@ -137,7 +137,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 
 	// 4. Build GET /me and the 017 retry executor, then dispatch on the resolved
@@ -228,17 +228,50 @@ func wantsInclude(targets []string, target string) bool {
 	return false
 }
 
-// reportClientError writes a controlled, token-free, next-step message to stderr
-// and returns the Outcome assigned to err. It first refines a generic non-2xx
+// reportFailure is the single command-execution-failure chokepoint, now
+// format-aware (032, ADR-1; was reportClientError). It refines a generic non-2xx
 // *ResponseError into a typed *apiclient.ProblemError (once — guarded against
-// double-refinement) so the API's own detail surfaces in the message and the
-// typed error travels up the chain (015 ADR-4). It then calls Diagnose ONCE
-// (031) to get the {Category, Cause, NextStep} from the SAME refined value,
-// prints renderDiagnostic(d) to stderr, and returns d.Category — so the category
-// and the message can never disagree about which error occurred.
-func reportClientError(stderr io.Writer, err error) (Outcome, error) {
+// double-refinement) so the API's own detail surfaces and the typed error travels
+// up the chain (015 ADR-4), then calls Diagnose ONCE (031) so the category and the
+// rendered facts are computed from the SAME refined value and can never disagree.
+//
+// The resolved format chooses the channel and shape (ADR-3):
+//
+//   - structured (json/yaml): write the 018 unified error envelope to stdout —
+//     the channel an agent parses, so a failure reads the same way as a success.
+//     The whole document is built in memory first (output.RenderError); on a render
+//     error nothing reaches stdout and the outcome is RuntimeError(1) (the
+//     buffer-then-write contract, ADR-4 — the failure-render path is never itself a
+//     silent failure). The render error printed to stderr is token-free (018).
+//   - human (full/compact): write renderDiagnostic(d) to stderr exactly as before,
+//     stdout untouched.
+//
+// It returns d.Category (mapped to the exit code by 004, unchanged across formats)
+// and the refined error. Only the presentation differs by format; the outcome does
+// not. It never emits the X-Auth-Token (Diagnose and the envelope are both
+// token-free).
+// renderErrorFn is the structured failure-render seam (output.RenderError by
+// default). Like renderFn (render.go), it is a package var so a test can override
+// it to exercise the buffer-then-write failure path — a structured render that
+// cannot complete — without contriving an un-encodable envelope (errorEnvelopeFor
+// gates Body on json.Valid, so it never produces one for real failures). The
+// production call is output.RenderError, unchanged.
+var renderErrorFn = output.RenderError
+
+func reportFailure(stdout, stderr io.Writer, format output.OutputFormat, err error) (Outcome, error) {
 	err = refineClientError(err)
 	d := Diagnose(err)
+	if machineFmt, ok := format.MachineFormat(); ok {
+		doc, rerr := renderErrorFn(machineFmt, errorEnvelopeFor(err))
+		if rerr != nil {
+			// Buffer-then-write: a render failure leaves stdout empty and maps to
+			// RuntimeError(1). The error is token-free (018 contract).
+			fmt.Fprintln(stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = stdout.Write(doc)
+		return d.Category, err
+	}
 	fmt.Fprintln(stderr, renderDiagnostic(d))
 	return d.Category, err
 }

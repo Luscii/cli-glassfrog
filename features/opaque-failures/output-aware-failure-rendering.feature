@@ -15,7 +15,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
     # I want failures emitted as one structured error envelope on the channel I already parse.
 
     # Source: 032-output-aware-failure-rendering — Scenario: a permission failure renders as JSON on stdout
-    @wip
     Scenario: A permission failure renders as a JSON envelope on stdout
       Given a command run with --output json had failed with a 403 carrying a cause and a next step
       When the failure is rendered
@@ -24,7 +23,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And stderr will not also carry the human cause-plus-next-step line
 
     # Source: 032-output-aware-failure-rendering — Scenario: a transport failure under json still emits the envelope
-    @wip
     Scenario: A transport failure under json emits the envelope with no status or body
       Given a command run with --output json had failed with a transport error carrying no API body
       When the failure is rendered
@@ -33,7 +31,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And the envelope will omit the status and body fields
 
     # Source: 032-output-aware-failure-rendering — Scenario: an API error body is carried verbatim into the structured render
-    @wip
     Scenario: An API error body is carried verbatim into the envelope
       Given a command run with --output json had failed with a non-2xx response carrying a JSON error body
       When the failure is rendered
@@ -41,7 +38,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And the system will not re-classify or re-parse it
 
     # Source: 032-output-aware-failure-rendering — Scenario: the exit code is unchanged by the format
-    @wip
     Scenario: The exit code is identical across formats
       Given the same 403 permission failure had been rendered once under full and once under json
       When each invocation terminates
@@ -49,7 +45,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And only the rendered presentation will differ between the two
 
     # Source: 032-output-aware-failure-rendering — Scenario: a usage error keeps its plain-text form even under json
-    @wip
     Scenario: A usage error keeps its plain-text form under json
       Given an unknown command had been invoked with --output json
       When the usage error is reported
@@ -57,7 +52,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And the failure-render path will not wrap it, because it arose before a command executed in the resolved format
 
     # Source: 032-output-aware-failure-rendering — Scenario: a structured render that cannot complete writes nothing partial
-    @wip
     Scenario: A structured render that cannot complete writes nothing partial
       Given a structured failure render had been unable to produce a complete document
       When the failure is rendered
@@ -80,7 +74,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       Then the API token and the authentication header will appear in none of them
 
     # Source: 032-output-aware-failure-rendering — Proposed: a mid-walk failure with partial data keeps the incompleteness note on stderr (plan ADR-3)
-    @wip
     Scenario: A mid-walk failure with partial data keeps its incompleteness note on stderr under json
       Given a paginated read with --output json had rendered some pages then failed mid-walk
       When the failure is reported
@@ -89,7 +82,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And the invocation will exit with the mid-walk failure's non-zero code
 
     # Source: 032-output-aware-failure-rendering — Proposed: an API body that is not valid JSON is omitted from the envelope (plan ADR-4)
-    @wip
     Scenario: An API error body that is not valid JSON is omitted from the envelope
       Given a command run with --output json had failed with a response whose error body is not valid JSON
       When the failure is rendered
@@ -102,7 +94,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
     # I want the next step preserved in the JSON/YAML failure render, not dropped when I switch away from the human format.
 
     # Source: 032-output-aware-failure-rendering — Scenario: the next step survives the structured render as a distinct field
-    @wip
     Scenario: The next step survives the structured render as a distinct field
       Given a command run with --output yaml had failed with a 429 whose next step is to wait for the reset window and retry
       When the failure is rendered
@@ -110,7 +101,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
       And the cause will remain in its own element
 
     # Source: 032-output-aware-failure-rendering — Scenario: an internal-error fallback omits the next step in every format
-    @wip
     Scenario: An internal-error fallback omits the next step in every format
       Given a failure whose diagnostic is the internal-error fallback with no next step
       When it is rendered under json and under full
@@ -123,7 +113,6 @@ Feature: Opaque Failures — Output-Aware Failure Rendering
     # I want full/compact failures to stay the familiar cause-plus-next-step line on stderr.
 
     # Source: 032-output-aware-failure-rendering — Scenario: a human format keeps today's stderr line
-    @wip
     Scenario: A human format keeps today's stderr failure line
       Given a command run under the default full format had failed with a transport error
       When the failure is rendered

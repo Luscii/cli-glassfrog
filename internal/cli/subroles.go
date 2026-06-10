@@ -114,7 +114,7 @@ func runSubroles(cfg subrolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -141,7 +141,7 @@ func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputForm
 	if machineFmt, ok := format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, subrolesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportClientError(cfg.stderr, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -161,7 +161,7 @@ func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputForm
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportClientError(cfg.stderr, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 	}
 	view := render.SubrolesView{Children: res.Records, Requested: includeSet(cfg.include)}
 	text, rerr := renderFn(render.ResourceSubroles, humanFormat(format), view)
@@ -194,7 +194,7 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -210,7 +210,7 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 
 	var page glassfrog.Page[glassfrog.RoleDetail]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.SubrolesView{Children: page.Data, Requested: includeSet(cfg.include)}
 	text, rerr := renderFn(render.ResourceSubroles, humanFormat(format), view)

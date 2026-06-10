@@ -87,7 +87,7 @@ func runPoliciesList(cfg policiesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -114,7 +114,7 @@ func runPoliciesListWalk(cfg policiesConfig, exec executor, format output.Output
 	if machineFmt, ok := format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, policiesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportClientError(cfg.stderr, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -134,7 +134,7 @@ func runPoliciesListWalk(cfg policiesConfig, exec executor, format output.Output
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportClientError(cfg.stderr, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 	}
 	view := render.PoliciesView{Policies: res.Records}
 	text, rerr := renderFn(render.ResourcePolicies, humanFormat(format), view)
@@ -167,7 +167,7 @@ func runPoliciesFirstPage(cfg policiesConfig, exec executor, format output.Outpu
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -183,7 +183,7 @@ func runPoliciesFirstPage(cfg policiesConfig, exec executor, format output.Outpu
 
 	var page glassfrog.Page[glassfrog.Policy]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.PoliciesView{Policies: page.Data}
 	text, rerr := renderFn(render.ResourcePolicies, humanFormat(format), view)
@@ -262,7 +262,7 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -275,7 +275,7 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -290,7 +290,7 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 
 	var doc glassfrog.Document[glassfrog.Policy]
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.PolicyView{Policy: doc.Data}
 	text, rerr := renderFn(render.ResourcePolicy, humanFormat(format), view)

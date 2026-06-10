@@ -98,7 +98,7 @@ func runDomains(cfg domainsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -126,7 +126,7 @@ func runDomainsList(cfg domainsConfig, exec executor, format output.OutputFormat
 	if machineFmt, ok := format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, domainsWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportClientError(cfg.stderr, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -146,7 +146,7 @@ func runDomainsList(cfg domainsConfig, exec executor, format output.OutputFormat
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportClientError(cfg.stderr, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 	}
 	view := render.DomainsView{Domains: res.Records}
 	text, rerr := renderFn(render.ResourceDomains, humanFormat(format), view)
@@ -180,7 +180,7 @@ func runDomainsFirstPage(cfg domainsConfig, exec executor, format output.OutputF
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -196,7 +196,7 @@ func runDomainsFirstPage(cfg domainsConfig, exec executor, format output.OutputF
 
 	var page glassfrog.Page[glassfrog.Domain]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.DomainsView{Domains: page.Data}
 	text, rerr := renderFn(render.ResourceDomains, humanFormat(format), view)

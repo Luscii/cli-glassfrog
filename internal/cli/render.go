@@ -76,7 +76,7 @@ func renderResult[T any](
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(reqCtx, req, &raw); err != nil {
-			return reportClientError(stderr, err)
+			return reportFailure(stdout, stderr, format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -91,7 +91,7 @@ func renderResult[T any](
 
 	var v T
 	if _, err := exec.Execute(reqCtx, req, &v); err != nil {
-		return reportClientError(stderr, err)
+		return reportFailure(stdout, stderr, format, err)
 	}
 	text, rerr := renderFn(resource, humanFormat(format), v)
 	if rerr != nil {

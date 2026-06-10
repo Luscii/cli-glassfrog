@@ -67,7 +67,7 @@ func runMeActions(cfg meActionsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 
 	// 4. Send exactly one GET /me/actions and dispatch on the resolved format (020
