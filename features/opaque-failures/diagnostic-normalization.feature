@@ -116,13 +116,14 @@ Feature: Opaque Failures — Diagnostic Normalization
       Then no diagnostic will be produced
       And the success will pass through untouched
 
-    # Source: 031-diagnostic-normalization — Scenario: An unrecognized failure falls through to the safety net
+    # Source: 031-diagnostic-normalization — Scenario: An unrecognized failure falls back to the internal-error diagnostic
     @wip
-    Scenario: An unrecognized failure falls through to the safety net
-      Given a failure the normalizer does not recognize as a transport, decode, typed-API, or usage failure
-      When it reaches the normalizer
-      Then no normalized diagnostic will be produced
-      And the failure will be left to the internal-error safety net with an internal-error exit code
+    Scenario: An unrecognized failure falls back to the internal-error diagnostic
+      Given a failure the normalizer cannot map to a transport, decode, typed-API, or usage family
+      When the failure is normalized
+      Then a diagnostic with the internal-error category will be produced
+      And the cause will be the failure's own message
+      And no stack trace will be written
 
     # Source: 031-diagnostic-normalization — Scenario: One consistent shape across every failure family
     @validation @wip

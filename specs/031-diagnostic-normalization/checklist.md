@@ -19,7 +19,7 @@ All 14 checks pass. Constitution: 14/14. (Done-criteria and cross-reference chec
 Two broad MUST principles were calibrated to binary, feature-specific assertions before evaluation:
 
 - **II. Action Transparency** → for this feature: (a) every normalized failure family yields a non-empty `Cause`; (b) every category with a known recovery yields a `NextStep`, and absence is the explicit `""` signal; (c) the diagnostic carries a `Category` drawn from one fixed vocabulary (the `Outcome` taxonomy), i.e. machine-branchable.
-- **III. Fail Safe, Not Silent** → for this feature: (a) `Diagnose` is total and never maps a failure to `Success`/exit 0; (b) an unrecognized failure is surfaced (falls through to the internal-error safety net), never swallowed.
+- **III. Fail Safe, Not Silent** → for this feature: (a) `Diagnose` is total and never maps a failure to `Success`/exit 0; (b) an unrecognized failure is surfaced as the internal-error fallback diagnostic (exit 1), never swallowed.
 
 ---
 
@@ -40,7 +40,7 @@ Two broad MUST principles were calibrated to binary, feature-specific assertions
 → **plan.md § Cross-cutting Concerns (Totality) + interface-spec.md § Interactions**: `Diagnose` is total; an unrecognized error maps to `RuntimeError` (exit 1), never `Success`. Pass.
 
 **P0** | CONSTITUTION III (MUST NOT swallow errors)
-→ **spec.md § Normalizing (unrecognized arm) + feature: "An unrecognized failure falls through to the safety net"**: an unrecognized failure is surfaced to 004's safety net (internal-error code + trace), never hidden. Pass.
+→ **spec.md § Normalizing (unrecognized arm) + feature: "An unrecognized failure falls back to the internal-error diagnostic"**: an unrecognized failure is normalized to the internal-error fallback diagnostic (exit 1), never hidden or reported as success; trace-writing is reserved for the panic safety net. Pass.
 
 **P0** | CONSTITUTION IV (TDD): user-facing behavior has an executable acceptance scenario
 → **features/opaque-failures/diagnostic-normalization.feature**: 15 `@wip` scenarios exist before implementation, covering every behavioral change. Pass.

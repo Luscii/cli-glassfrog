@@ -36,7 +36,7 @@ T001 lands first (pure consolidation, suite stays green); T002 branches from the
     - `go build` + `go vet` + full `go test ./...` are green (CONSTITUTION VII).
   - **Dependencies**: None
   - **Plan reference**: Phase (Implementation Strategy step 1), ADR-1: Consolidate into a single `Diagnostic` value
-  - **Scenario references**: diagnostic-normalization.feature: "Every failure family produces the same diagnostic shape", "A diagnostic exposes only its observable fields", "No diagnostic output carries the auth token", "A successful outcome is never normalized", "An unrecognized failure falls through to the safety net"
+  - **Scenario references**: diagnostic-normalization.feature: "Every failure family produces the same diagnostic shape", "A diagnostic exposes only its observable fields", "No diagnostic output carries the auth token", "A successful outcome is never normalized", "An unrecognized failure falls back to the internal-error diagnostic"
   - **Interface references**: interface-spec.md: Surface (`Diagnostic`, `Diagnose`, `renderDiagnostic`, `classifyClientError` delegate); Error Communication (byte-equivalence + token-free invariants)
 
 - [ ] **T002** [Shared] Apply the clarified behavior changes (decode→APIError, 401/403 split, 429 reset-window)

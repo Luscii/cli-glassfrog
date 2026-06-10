@@ -10,7 +10,7 @@
 
 Diagnostic Normalization is the root of **Diagnostic Reporting** (problem: *Opaque Failures* — when a call fails, the caller can't tell what went wrong or what to do next). The CLI surfaces failures from several places in distinct, family-specific shapes: **transport errors** and **decode errors** from Request Execution (010), **typed API errors** from API Error Extraction (015), and **usage errors** from Argument Dispatch (002). This capability collapses all of them into **one normalized diagnostic** that always carries the same three things: a **cause** (a human-meaningful explanation of what went wrong), a **category** (which kind of failure it is), and — where one exists — the **next step** the caller can take to resolve it.
 
-It is the failure-legibility half of CONSTITUTION II (every error must explain what went wrong and the next step) and III (failures must be obvious, never silent). It sits at the centre of three siblings without doing their jobs: it is the producer-side **classifier** that Exit-Code Convention (004) — the sole category→code mapper — expects from "the API client," and it produces the diagnostic value that Output-Aware Failure Rendering (32) renders per `--output`. It does not print, choose an output format, emit a process exit code, retry, re-parse raw response bodies, or interpret a `403` as a plan-availability signal. Its single job is to make every failure legible in one consistent, actionable shape.
+It is the failure-legibility half of CONSTITUTION II (every error must explain what went wrong and the next step) and III (failures must be obvious, never silent). It sits at the centre of three siblings without doing their jobs: it is the producer-side **classifier** that Exit-Code Convention (004) — the sole category→code mapper — expects from "the API client," and it produces the diagnostic value that Output-Aware Failure Rendering (032) renders per `--output`. It does not print, choose an output format, emit a process exit code, retry, re-parse raw response bodies, or interpret a `403` as a plan-availability signal. Its single job is to make every failure legible in one consistent, actionable shape.
 
 ---
 
@@ -19,8 +19,8 @@ It is the failure-legibility half of CONSTITUTION II (every error must explain w
 ### Normalizing a failure into one diagnostic
 
 - When handed any recognized CLI failure — a transport error, a decode error, a typed API error, or a usage error — the system produces exactly one normalized diagnostic carrying a cause, a category, and (where one exists) a next step, in the same shape regardless of which family the failure came from.
-- When handed a failure it does not recognize as one of these three families, the system does not normalize it; it leaves the failure to Exit-Code Convention's (004) safety net, which exits with the internal-error code and writes the trace — the system never synthesizes a catch-all internal diagnostic of its own.
-- When handed a successful outcome, the system produces no diagnostic and leaves the success untouched — only failures are normalized.
+- When handed a failure it cannot map to a specific family, the system still produces a diagnostic: it is total, falling back to the **internal-error** category (the catch-all that Exit-Code Convention maps to the internal-error code) with the failure's own message as the cause and no next step. It never returns "no diagnostic" for a failure, and it never reports a failure as a success.
+- When handed a successful outcome, the system produces no diagnostic and leaves the success untouched — only failures are normalized. (A genuine panic never reaches the system; the process-level safety net that writes a stack trace handles those.)
 
 ### Classifying the category
 
@@ -43,15 +43,15 @@ It is the failure-legibility half of CONSTITUTION II (every error must explain w
 
 - When a category has a known, generally-applicable recovery, the system attaches it as the next step:
   - a `401` permission/authorization failure points the caller to verify the configured API token;
-  - a `403` permission/authorization failure points the caller that its identity may lack the required role membership or permission for the resource;
+  - a `403` permission/authorization failure points the caller to check that its identity has the required role membership or permission for the resource;
   - a rate-limited failure points the caller to wait for the rate-limit window to reset (per the rate-limit headers carried on the error) and then retry;
   - a usage error points the caller to the command's help;
   - a network-unavailable failure points the caller to check connectivity and the configured API endpoint.
-- When no reliable next step exists (for example, a general API error whose only signal is the API's own detail), the system omits the next step rather than guessing one, so the caller is never sent down a misleading path.
+- A general API error that is not a `401`/`403`/`429` keeps a single generic next step (check that the token has access and retry, or consult the status code) — preserving the existing behavior. Where genuinely no reliable next step exists (the internal-error fallback), the system omits it rather than guessing one, so the caller is never sent down a misleading path.
 
 ### Reporting the diagnostic — staying in its lane
 
-- The system reports the normalized diagnostic to the calling command; it does not print it, render it in any `--output` format, or decide the process exit code — those belong to Output-Aware Failure Rendering (32) and Exit-Code Convention (004).
+- The system reports the normalized diagnostic to the calling command; it does not print it, render it in any `--output` format, or decide the process exit code — those belong to Output-Aware Failure Rendering (032) and Exit-Code Convention (004).
 - The system does not re-parse a raw response body; it consumes the already-typed API error from API Error Extraction (015) and reads only what that typed error carries.
 - The system does not retry, back off, or wait on any failure; a `429` reaches it only after Rate-Limit Handling (017) has exhausted its retry budget, and the system simply classifies the surfaced `429` as rate-limited.
 - The system does not translate a `403` into plan- or feature-availability guidance ("not available on your plan"); that is the *Unsignalled Plan Limits* problem's concern. It classifies a `403` as permission/authorization and leaves plan-specific interpretation to that capability.
@@ -76,9 +76,9 @@ It is the failure-legibility half of CONSTITUTION II (every error must explain w
 
 ## Non-Behaviors
 
-- The system must not print the diagnostic or render it in any output format. **Why**: rendering per `--output` is Output-Aware Failure Rendering's (32) job; duplicating it here would split one rendering contract across two capabilities and let them drift.
+- The system must not print the diagnostic or render it in any output format. **Why**: rendering per `--output` is Output-Aware Failure Rendering's (032) job; duplicating it here would split one rendering contract across two capabilities and let them drift.
 - The system must not emit or decide the process exit code. **Why**: Exit-Code Convention (004) is the single category→code mapper; this capability supplies the category, and a second emitter would risk two paths disagreeing on the code.
-- The system must not synthesize a catch-all "internal error" diagnostic for failures it doesn't recognize. **Why**: an unrecognized failure is most likely an unanticipated internal crash, which 004's safety net already renders (internal-error code + trace); a competing internal-diagnostic path here could mask that trace and split one safety net across two owners.
+- The system must not print a stack trace or crash dump for a normalized failure. **Why**: the internal-error fallback is a plain diagnostic (cause + internal-error category, exit code 1) — trace-writing is reserved for the process-level panic safety net (`recoverToCode`), which handles genuine panics that never reach the system; emitting traces for ordinary errors would be noise and could leak internals.
 - The system must not retry, back off, or sleep on any failure. **Why**: Rate-Limit Handling (017) owns the `429` retry within bounded caps; reintroducing waits here would double the delay and reopen the unbounded-wait hazard that capability exists to close.
 - The system must not re-parse the raw response body to extract the cause. **Why**: API Error Extraction (015) already produced the typed error; re-parsing would duplicate that work and could disagree with the extraction the rest of the system trusts.
 - The system must not translate a `403` into plan/Premium availability guidance. **Why**: that is the *Unsignalled Plan Limits* problem; conflating it here would attach plan advice to ordinary permission failures and mislead the caller.
@@ -91,8 +91,8 @@ It is the failure-legibility half of CONSTITUTION II (every error must explain w
 - **Request Execution (010)** *(upstream)*: source of transport errors and decode errors. The system reads the typed outcome and sends nothing.
 - **API Error Extraction (015)** *(upstream)*: source of typed API errors (authoritative status, `detail`/`title`/`type`, raw body, headers). The system reads the typed error and never re-parses the body.
 - **Argument Dispatch (002)** *(upstream)*: source of usage errors (unknown command, invalid/missing flag or positional). The system reads the classified usage outcome.
-- **Exit-Code Convention (004)** *(downstream)*: consumes the assigned category to emit a process exit code, and owns the safety-net code for any failure the system does not normalize. The system supplies the category, not the code.
-- **Output-Aware Failure Rendering (32)** *(downstream)*: consumes the normalized diagnostic and renders it per the selected `--output` format. The system produces the value, not the rendering.
+- **Exit-Code Convention (004)** *(downstream)*: consumes the assigned category to emit a process exit code, including mapping the internal-error fallback category to the internal-error code. The system supplies the category, not the code. (The separate process-level panic safety net that writes a trace is for genuine panics, not for failures the system normalizes.)
+- **Output-Aware Failure Rendering (032)** *(downstream)*: consumes the normalized diagnostic and renders it per the selected `--output` format. The system produces the value, not the rendering.
 
 ---
 
@@ -112,7 +112,7 @@ Given a typed API error with HTTP status `403` and a `detail` of "You are not a 
 When the failure is normalized
 Then the category is permission/authorization
 And the cause is the API's `detail` text
-And the next step points the caller that its identity may lack the required membership or permission
+And the next step points the caller to check that its identity has the required membership or permission
 
 **Scenario: Usage error normalized from dispatch**
 Given a usage error reporting the unknown command "rolez"
@@ -155,10 +155,13 @@ Given a typed API error whose status `429` is also, broadly, a non-2xx "API erro
 When the failure is normalized
 Then the category is rate-limited, not general API error
 
-**Scenario: An unrecognized failure falls through to the safety net**
-Given a failure value the system does not recognize as a transport, decode, typed-API, or usage failure
-When it reaches the normalizer
-Then no diagnostic is produced and the failure is left to Exit-Code Convention's safety net (internal-error code + trace)
+**Scenario: An unrecognized failure falls back to the internal-error diagnostic**
+Given a failure value the system cannot map to a transport, decode, typed-API, or usage family
+When the failure is normalized
+Then a diagnostic with the internal-error category is produced
+And the cause is the failure's own message
+And no next step is attached
+And no stack trace is written (trace-writing is reserved for the process-level panic safety net)
 
 ---
 
@@ -200,7 +203,7 @@ None remaining — the three ambiguities from the initial draft (decode-error ca
 
 ### Session 2026-06-10
 
-- **Internal/unexpected coverage**: Diagnostic Normalization covers only the three known failure families (transport/decode, typed-API, usage). A failure it does not recognize falls through to Exit-Code Convention's (004) safety net (internal-error code + trace); this capability does not synthesize a catch-all internal diagnostic of its own.
+- **Internal/unexpected coverage**: `Diagnose` is total. Recognized families (transport, decode, typed-API, usage, plus the auth/base-URL/rcfile/format errors it already handles) get a specific category; any failure it cannot map falls back to the internal-error category (cause = the failure's own message, no next step), which Exit-Code Convention maps to the internal-error code (1). This is a plain diagnostic, not a stack trace — trace-writing is reserved for the process-level panic safety net (`recoverToCode`), which handles genuine panics that never reach `Diagnose`.
 - **Decode-error category**: A `2xx` response whose body cannot be decoded is classified as a **general API error** — the call succeeded at the wire but the API returned an unreadable shape — keeping it distinguishable from a genuine internal failure.
 - **Permission next-step granularity**: `401` and `403` share the permission/authorization category but carry distinct next steps — `401` → verify the configured token; `403` → the identity may lack the required membership/permission.
 - **Rate-limited next-step**: A `429` surfaced after Rate-Limit Handling (017) exhausts its retries carries a next step — wait for the rate-limit window to reset (per the rate-limit headers on the error) and retry.
