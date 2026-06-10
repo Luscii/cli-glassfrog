@@ -153,7 +153,7 @@ type DomainView struct {
 // id. Centralizing the deref here keeps the template free of pointer handling,
 // the same shape NewTreeView used for the nullable name/purpose.
 func (v DomainView) ControllingRole() string {
-	if v.Domain.RoleID == nil {
+	if v.Domain.RoleID == nil || *v.Domain.RoleID == "" {
 		return ""
 	}
 	return *v.Domain.RoleID

@@ -563,6 +563,20 @@ func TestRender_DomainFull_RequestedButEmptyPoliciesShowsMarker(t *testing.T) {
 	}
 }
 
+func TestRender_DomainFull_EmptyRoleIDShowsMarker(t *testing.T) {
+	// A present-but-empty role_id is treated as absent (the documented "nil or
+	// empty" contract of ControllingRole), so it renders the marker, never a bare
+	// empty Role line.
+	d := glassfrog.Domain{ID: "dom_1", Description: "An unbound area", RoleID: roleIDPtr("")}
+	got, err := Render(ResourceDomain, FormatFull, DomainView{Domain: d, Requested: map[string]bool{}})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(got, "Role: (no controlling role)") {
+		t.Errorf("a present-but-empty role_id must render the explicit-absence marker:\n%s", got)
+	}
+}
+
 func TestRender_DomainCompact_OneLineWithRole_Golden(t *testing.T) {
 	d := glassfrog.Domain{ID: "dom_1", Description: "The marketing budget", RoleID: roleIDPtr("role_0123")}
 	want := "dom_1  The marketing budget  role=role_0123\n"
