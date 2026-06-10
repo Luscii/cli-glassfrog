@@ -35,6 +35,9 @@ The same result-producing reads 019/020 cover; their synopsis is unchanged (the 
 |---|---|
 | `glassfrog me` / `me roles` / `me actions` / `me projects` | success result rendered through the user template instead of a built-in format |
 | `glassfrog roles` / `role` / `tree` / `subroles` (025/026) | same — user template renders that command's result value |
+| `glassfrog domains` / `domain` (033), `policies` / `policy` (034) | same — every result-producing read that resolves `-o` via the seam is affected |
+
+This list grows with every new `--output`-capable read: 035 widens the *value interpretation* of 020's inherited persistent `-o` flag, so any present and future read that resolves `-o` is covered, not a fixed set.
 
 Commands that produce no result data (`login`, `help`, `version`) are unaffected by `-o`, exactly as under 020.
 

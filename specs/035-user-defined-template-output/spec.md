@@ -57,7 +57,7 @@ The feature serves the CLI's defining context: its operator is usually an AI age
 
 ## Non-Behaviors
 
-- The system must not honor a template file path or `stdin` from the environment variable or config-file tiers — template sourcing is flag-only. **Why**: a template is shaped to one resource type, so a single persisted template applied across heterogeneous reads (`me`, `my roles`, `my actions`, `my projects`) would render wrong for most of them; flag-only keeps the template tied to the one invocation it fits and leaves 020's env/config contract untouched.
+- The system must not honor a template file path or `stdin` from the environment variable or config-file tiers — template sourcing is flag-only. **Why**: a template is shaped to one resource type, so a single persisted template applied across heterogeneous reads (`me`, `me roles`, `me actions`, `me projects`) would render wrong for most of them; flag-only keeps the template tied to the one invocation it fits and leaves 020's env/config contract untouched.
 - The system must not reimplement or alter the four built-in renderers. **Why**: Structured Serialization (018) and Templated Human Rendering (019) own the `full` / `compact` / `json` / `yaml` renderers; this feature adds a parallel path through the same seam, it does not fork the built-ins.
 - The system must not render command *failures* (transport or API errors) through a user template. **Why**: Output-Aware Failure Rendering (032) owns failure-content rendering, and 019 already establishes that errors keep their cause-plus-next-step format rather than routing through the render seam; the only failures this feature raises are its own fail-fast usage errors.
 - The system must not fabricate, default, or substitute a *data value* the API did not return. **Why**: the Constitution forbids presenting values the API did not return; an unguarded reference to a missing field fails the render rather than emitting an invented governance value (absence markers are the template author's choice, written with a guard — never auto-substituted by the system).
@@ -83,7 +83,7 @@ The feature serves the CLI's defining context: its operator is usually an AI age
 ### Happy path
 
 **Scenario: a template file renders the result**
-Given a successful `my roles` read returning several roles
+Given a successful `me roles` read returning several roles
 And `-o ./roles.tmpl` names a readable, parseable template
 When the result is rendered
 Then the system renders the roles' data through that template

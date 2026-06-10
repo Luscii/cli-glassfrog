@@ -44,7 +44,7 @@ This accord pins three Go contracts, each extending an existing package: the **u
 
 | Symbol | Signature (shape) | Description |
 |---|---|---|
-| seam method | `resolveSelection(flagValue string) (output.Selection, error)` (widened from `resolveFormat → (OutputFormat, error)`) | Production seam binds `output.ResolveSelectionFromOS`; the six read commands and their fakes adopt the wider return. |
+| seam method | `resolveSelection(flagValue string) (output.Selection, error)` (widened from `resolveFormat → (OutputFormat, error)`) | Production seam binds `output.ResolveSelectionFromOS`; every `--output`-capable read command (the `me*` reads plus `roles`/`role`/`tree`/`subroles`, `domains`/`domain`, `policies`/`policy`) and their fakes adopt the wider return. |
 | seam method | `readTemplateSource(ref output.TemplateRef) (string, error)` | Reads the template text: `os.ReadFile(ref.Path)` for a file (relative path resolved against the **current working directory**); the injected bounded-stdin reader for `TemplateStdin`, with an `isTTY`/empty check (reuses the `term.IsTerminal` + `readBoundedStdin` seam established by Credential Storage 006). A missing/unreadable file, or empty/un-piped stdin, returns an error mapped to `UsageError(2)`. |
 | render-dispatch | `renderResult[T]` gains a user-template arm | When the selection is a prepared `*render.UserTemplate`: decode the typed `*T`, then write `tmpl.Render(v)`; buffer-then-write (a `*UserTemplateError` leaves stdout empty). Built-in arms (json/yaml via `output.RenderSuccess`, full/compact via `render.Render`) are unchanged. |
 | `classifyClientError` arm | (extends the existing function) | Adds `*render.UserTemplateError` → `UsageError`, symmetric with the existing `*output.FormatError` and base-URL arms. **No new exit code.** |
@@ -69,8 +69,12 @@ A user template renders against the **same decoded value the built-in template f
 | `role` | `render.RoleView` (`Detail` + `Requested`) | 025 |
 | `tree` | `render.TreeView` (`Rows` + `Requested`) | 026 |
 | `subroles` | `render.SubrolesView` (`Children` + `Requested`) | 026 |
+| `domains` | `render.DomainsView` (the role's gathered domains) | 033 interface-spec.md |
+| `domain` | `render.DomainView` (`Domain` + `Requested`) | 033 |
+| `policies` | `render.PoliciesView` (`[]glassfrog.Policy`) | 034 interface-spec.md |
+| `policy` | `render.PolicyView` (one `glassfrog.Policy`) | 034 |
 
-The author is responsible for absence/empty rendering via the same `{{if .X}}…{{else}}—{{end}}` guards the built-ins use; the engine's floor is anti-fabrication (`missingkey=error` fails loud, never silent fake data — it does not auto-inject markers).
+This table tracks the built-in `render.Resource` set, which grows as new reads land; every key here renders the invoked read's decoded value. The author is responsible for absence/empty rendering via the same `{{if .X}}…{{else}}—{{end}}` guards the built-ins use; the engine's floor is anti-fabrication (`missingkey=error` fails loud, never silent fake data — it does not auto-inject markers).
 
 **Example (shapes, not literal values)**:
 ```
