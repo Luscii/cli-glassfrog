@@ -232,6 +232,120 @@ func policiesWalkOptions(cfg policiesConfig) []paging.Option {
 	return nil
 }
 
+// policyConfig carries everything runPolicyGet needs, gathered by the `policy`
+// command's RunE. It declares no list flags — the single read has none (ADR-1).
+type policyConfig struct {
+	seam       policiesSeam
+	baseURL    string // inherited persistent --base-url (may be empty)
+	outputFlag string // inherited persistent --output (may be empty), resolved before any request
+
+	reqCtx context.Context
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// runPolicyGet reads a single policy by id (GET /policies/{id}). It resolves the
+// output format FIRST (020), assembles the connection and builds the retrying
+// executor, then sends one Execute (no walk). The id is escaped as a single path
+// segment but passed through unvalidated (ADR-3) so an unknown/malformed id
+// surfaces as the API's 404/4xx via the shared classifier — no local regex gate.
+// A structured --output emits the raw {data: Policy} payload verbatim (018); the
+// human path decodes Document[Policy] and renders the `policy` template over a
+// PolicyView carrying the full body. It adds no new Outcome/ExitCode and never
+// reads the token.
+func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
+	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
+	if ferr != nil {
+		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
+	ctx := cfg.seam.assemble(cfg.baseURL)
+	client, err := cfg.seam.newClient(ctx)
+	if err != nil {
+		return reportClientError(cfg.stderr, err)
+	}
+	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
+
+	// Escape the id as a single path segment: passed through unvalidated (ADR-3),
+	// but a raw `/` or `..` must not redirect the request or traverse the path.
+	// PathEscape is a no-op for a valid pol_… id and keeps a malformed/adversarial
+	// id one opaque segment the API reports as a 404.
+	req := apiclient.Request{Method: http.MethodGet, Path: "/policies/" + url.PathEscape(id)}
+
+	if machineFmt, ok := format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportClientError(cfg.stderr, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			// Buffer-then-write: a render failure leaves stdout empty and maps to
+			// RuntimeError(1). The error is token-free (018 contract).
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	var doc glassfrog.Document[glassfrog.Policy]
+	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
+		return reportClientError(cfg.stderr, err)
+	}
+	view := render.PolicyView{Policy: doc.Data}
+	text, rerr := renderFn(render.ResourcePolicy, humanFormat(format), view)
+	if rerr != nil {
+		fmt.Fprintln(cfg.stderr, rerr.Error())
+		return RuntimeError, rerr
+	}
+	fmt.Fprint(cfg.stdout, text)
+	return Success, nil
+}
+
+// newPolicyCommand builds the runnable `policy` leaf (ADR-1): a guard-ready cobra
+// command with a REQUIRED positional policy id (Args: cobra.ExactArgs(1)), a
+// non-empty Short, and SilenceErrors/SilenceUsage so runPolicyGet owns its
+// messages. It declares NO list flags — so passing --query/-q, --first-page, or
+// --per-page is a cobra unknown-flag usage error before any request (this is how
+// the spec's "the search filter applies only to the list" is enforced — no
+// hand-rolled cross-combo guard, ADR-1). It reads the inherited persistent
+// --base-url/--output flags, then delegates to the pure runPolicyGet. The seam is
+// injected so tests drive a fake one; production passes productionSeam{}.
+func newPolicyCommand(seam policiesSeam) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "policy <pol-id>",
+		Short: "Read a single policy by its id, including its full body",
+		Long: "policy reads one policy by its id and prints its title and full body " +
+			"verbatim, with the role/domain it governs and its timestamps. To list the " +
+			"policies on a role use `policies <role-id>`.",
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
+				return err
+			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
+			outcome, oerr := runPolicyGet(policyConfig{
+				seam:       seam,
+				baseURL:    baseURL,
+				outputFlag: outputFlag,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
+			}, args[0])
+			return outcomeToDispatchError(outcome, oerr)
+		},
+	}
+	return cmd
+}
+
 // newPoliciesCommand builds the runnable `policies` leaf (ADR-1): a guard-ready
 // cobra command with a REQUIRED positional role id (Args: cobra.ExactArgs(1)), a
 // non-empty Short, and SilenceErrors/SilenceUsage so runPoliciesList owns its

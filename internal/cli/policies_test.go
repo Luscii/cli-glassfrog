@@ -21,6 +21,10 @@ const policiesPageComplete = `{"data":[
 
 const policiesPageEmpty = `{"data":[],"meta":{"pagination":{"per_page":100,"has_next_page":false,"next_cursor":""}}}`
 
+// policyDocumentBody is a representative GET /policies/{id} body: the single-object
+// {data: Policy} envelope carrying the full body and the grown scope/timestamps.
+const policyDocumentBody = `{"data":{"id":"pol_0123","title":"All PRs require two approvals","body":"<p>Every PR needs <strong>two</strong> approvals.</p>","role_id":"role_0123","domain_id":"dom_1","created_at":"2024-01-02T03:04:05Z","updated_at":"2024-05-06T07:08:09Z"}}`
+
 // policiesPage builds a one-policy page; a non-empty nextCursor marks more pages.
 func policiesPage(id, title, nextCursor string) string {
 	hasNext := "false"
@@ -29,6 +33,22 @@ func policiesPage(id, title, nextCursor string) string {
 	}
 	return `{"data":[{"id":"` + id + `","title":"` + title + `","body":"b","role_id":"role_0123","domain_id":"dom_1","created_at":"2024-01-01T00:00:00Z","updated_at":"2024-01-01T00:00:00Z"}],` +
 		`"meta":{"pagination":{"per_page":1,"has_next_page":` + hasNext + `,"next_cursor":"` + nextCursor + `"}}}`
+}
+
+// runPolicyOver drives the pure runPolicyGet over a fake seam, returning the
+// outcome and captured stdout/stderr, and failing if the token leaks.
+func runPolicyOver(t *testing.T, seam policiesSeam, cfg policyConfig, id string) (Outcome, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	cfg.seam = seam
+	cfg.reqCtx = context.Background()
+	cfg.stdout = &out
+	cfg.stderr = &errb
+	outcome, _ := runPolicyGet(cfg, id)
+	if strings.Contains(out.String()+errb.String(), meSecretToken) {
+		t.Fatalf("the token leaked into output: %q", out.String()+errb.String())
+	}
+	return outcome, out.String(), errb.String()
 }
 
 // runPoliciesOver drives the pure runPoliciesList over a fake seam, returning the
@@ -318,6 +338,112 @@ func TestPoliciesCommand_RequiresExactlyOneArg(t *testing.T) {
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
 	outcome, _ := Run(root, []string{"policies"})
+	if outcome != UsageError {
+		t.Errorf("zero args should be a UsageError, got %v", outcome)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a wrong arg count must send no request, got %d calls", tr.calls)
+	}
+}
+
+// --- single policy read (T004) ---------------------------------------------
+
+func TestRunPolicy_SingleReadPrintsTitleAndFullBody(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: policyDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runPolicyOver(t, seam, policyConfig{}, "pol_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{
+		"All PRs require two approvals (pol_0123)",
+		"<p>Every PR needs <strong>two</strong> approvals.</p>", // full body verbatim
+		"role_0123", "dom_1",
+		"2024-01-02T03:04:05Z", "2024-05-06T07:08:09Z",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the single policy should show %q:\n%s", want, stdout)
+		}
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single read is one call, got %d", tr.calls)
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/policies/pol_0123") {
+		t.Errorf("path = %q, want it to target /policies/pol_0123", got)
+	}
+}
+
+func TestRunPolicy_UnknownIdSurfacesAPIStatus(t *testing.T) {
+	tr := &cannedTransport{status: 404, body: `{"detail":"Policy not found"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runPolicyOver(t, seam, policyConfig{}, "pol_ffff")
+	if outcome != APIError || ExitCode(outcome) != 3 {
+		t.Fatalf("an unknown id should surface APIError/3, got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
+	}
+	if !strings.Contains(stderr, "404") {
+		t.Errorf("stderr should name the HTTP status (404):\n%s", stderr)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("nothing should be printed to stdout on a not-found, got:\n%s", stdout)
+	}
+}
+
+func TestRunPolicy_StructuredJSONEmitsRawPayload(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: policyDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runPolicyOver(t, seam, policyConfig{outputFlag: "json"}, "pol_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{`"data"`, "pol_0123", `"role_id"`, `"updated_at"`} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured json should carry the raw single-policy payload, missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// TestPolicyCommand_ListFlagRejectedNoRequest pins the structural list-only guard
+// (ADR-1): a list-only flag on `policy` is a cobra unknown-flag UsageError before
+// any request — the transport tripwire confirms nothing is sent.
+func TestPolicyCommand_ListFlagRejectedNoRequest(t *testing.T) {
+	for _, flag := range []string{"--query", "--first-page", "--per-page"} {
+		tr := &cannedTransport{status: 200, body: policyDocumentBody}
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+		root := NewRootCommand()
+		MustRegister(root, newPolicyCommand(seam))
+		var out, errb bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		// --query/--per-page take a value; --first-page is a bool. Pass a value for the
+		// value-taking flags so cobra's failure is unknown-flag, not missing-value.
+		args := []string{"policy", "pol_0123", flag}
+		if flag != "--first-page" {
+			args = append(args, "x")
+		}
+		outcome, _ := Run(root, args)
+		if outcome != UsageError {
+			t.Errorf("%s on `policy` should be a UsageError, got %v", flag, outcome)
+		}
+		if tr.calls != 0 {
+			t.Errorf("%s on `policy` must send no request, got %d calls", flag, tr.calls)
+		}
+	}
+}
+
+// TestPolicyCommand_RequiresExactlyOneArg pins ExactArgs(1) on the single read.
+func TestPolicyCommand_RequiresExactlyOneArg(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: policyDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	root := NewRootCommand()
+	MustRegister(root, newPolicyCommand(seam))
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	outcome, _ := Run(root, []string{"policy"})
 	if outcome != UsageError {
 		t.Errorf("zero args should be a UsageError, got %v", outcome)
 	}
