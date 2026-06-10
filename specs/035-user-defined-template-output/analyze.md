@@ -3,8 +3,12 @@
 **Feature**: 035-user-defined-template-output
 **Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/unconsumable-output/user-defined-template-output.feature, tasks.md
 **Checklist context**: loaded — 12/12 constitution checks pass
-**Checks**: 21 (20 pass, 1 fail) — scaled for 2 interface files
+**Checks**: 21 (21 pass, 0 open) — scaled for 2 interface files. One coherence finding (H3) was raised by this run and **resolved within the PR**; see Post-Analysis Update.
 **Generated**: 2026-06-10
+
+---
+
+> **Post-Analysis Update (commit 5bead74).** This analysis originally raised one P2 coherence finding, **H3**: the spec's Behavioral Accord did not mention the built-in-composition capability that plan ADR-2 and the interfaces expose. It was resolved within this PR — spec.md now states a user template "may also compose a built-in view by name." No open findings remain. The finding is retained below (marked resolved) as an audit record rather than deleted.
 
 ---
 
@@ -14,8 +18,10 @@
 |---|---|---|---|
 | Consistency (P0) | 8 | 8 | 0 |
 | Completeness (P1) | 9 | 9 | 0 |
-| Coherence (P2) | 4 | 3 | 1 |
-| **Total** | **21** | **20** | **1** |
+| Coherence (P2) | 4 | 4 | 0 |
+| **Total** | **21** | **21** | **0** |
+
+*H3 (the one coherence finding) was raised by this run and resolved within the PR by commit 5bead74 — counted as resolved above; see the Coherence section and the Post-Analysis Update.*
 
 ---
 
@@ -49,14 +55,15 @@ None — every upstream promise has a downstream realization.
 - **K5** (×2) interface § Surface → feature: every CLI surface (widened values, error conditions) and Go surface (parse/render/error, selection, seam, classifier) has scenario coverage.
 - **K6** (×2) spec § User Scenarios → interface: US1 (file), US2 (stdin), US3 (own view) each have interface coverage in the widened value set and error contract.
 
-## Coherence: 3/4 passed
+## Coherence: 4/4 passed
 
-### Findings
+### Resolved findings
 
-**P2** | H3: spec.md § Behavioral Accord ↔ plan.md § ADR-2 ↔ interface-cli.md § Interactions / interface-spec.md § Surface
-> The plan (ADR-2) and both interface files expose a capability the spec's behavioral accord does not mention: a user template may **compose a built-in template** by name (e.g. `{{template "roles.full.tmpl" .}}`), because it is parsed into a clone of the built-in set. This is a benign, documented side-effect of the clone decision (ADR-2), not a silent contradiction — but it is a capability present downstream and absent upstream. Recommend either adding a one-line note to the spec (templates may reference the built-ins) or explicitly scoping it out, so the spec and the downstream artifacts describe the same surface.
+**P2 — RESOLVED within PR (commit 5bead74)** | H3: spec.md § Behavioral Accord ↔ plan.md § ADR-2 ↔ interface-cli.md § Interactions / interface-spec.md § Surface
+> ~~At analysis time, the plan (ADR-2) and both interface files exposed a capability the spec's behavioral accord did not mention: a user template may **compose a built-in template** by name (e.g. `{{template "roles.full.tmpl" .}}`), because it is parsed into a clone of the built-in set — a benign, documented side-effect present downstream and absent upstream.~~
+> **Resolved by 5bead74:** spec.md's Behavioral Accord now states "Because a user template is rendered by the same mechanism as the built-in views, it may also compose a built-in view by name rather than re-describing it." Spec and downstream artifacts now describe the same surface — no open coherence finding remains.
 
-### Passed (3/4)
+### Passed (H1, H2, H4)
 
 - **H1** Terminology: behavioral terms in spec (`template file`, `stdin`, `reserved names`) and Go-symbol terms in plan/interface/tasks (`UserTemplate`, `TemplateRef`, `Selection`, `UserTemplateError`) are used consistently and map cleanly across the layer boundary — no concept is renamed without an alias.
 - **H2** Detail symmetry: spec (behavioral), plan (architectural), tasks (granular) are proportionate on shared topics; no artifact is 3×+ deeper than its neighbour.
@@ -66,7 +73,7 @@ None — every upstream promise has a downstream realization.
 
 ## Checklist Correlation
 
-- Checklist recorded **no failures**, so there are no failing-check overlaps. One correlation of note: checklist's **calibration of Principle II (Action Transparency)** flagged that a user template can render *success* output that omits the operation/resource trace the built-ins guarantee. This is operator-directed (the agent supplies the template; `json`/`yaml`/`full` remain available), so checklist passed II on capability-retention. It is **not** a matrix analyze finding (no contradiction, gap, or drift between artifacts — the artifacts agree that the output is operator-defined). Surfaced here only so the link between the II calibration and the spec's deliberate silence on user-template traceability is visible to the developer; it pairs naturally with the H3 finding (both are "the spec is quiet about a downstream-visible aspect of user templates").
+- Checklist recorded **no failures**, so there are no failing-check overlaps. One correlation of note: checklist's **calibration of Principle II (Action Transparency)** flagged that a user template can render *success* output that omits the operation/resource trace the built-ins guarantee. This is operator-directed (the agent supplies the template; `json`/`yaml`/`full` remain available), so checklist passed II on capability-retention. It is **not** a matrix analyze finding (no contradiction, gap, or drift between artifacts — the artifacts agree that the output is operator-defined). Surfaced here only so the link between the II calibration and user-template traceability is visible to the developer. It originally paired with the H3 finding, but H3 is now resolved (5bead74 added the built-in-composition mention to the spec); the Principle-II traceability point remains an operator-directed design choice, not a finding.
 
 ## Governance Notes
 
