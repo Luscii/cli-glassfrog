@@ -1,0 +1,1 @@
+{{$p := .Policy}}{{$p.ID}}  {{$p.Title}}  role={{if eq (trimSpace $p.RoleID) ""}}—{{else}}{{$p.RoleID}}{{end}}  domain={{if eq (trimSpace $p.DomainID) ""}}—{{else}}{{$p.DomainID}}{{end}}
