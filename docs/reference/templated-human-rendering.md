@@ -105,9 +105,9 @@ Marketing Lead (role_abc)                     role_abc  Marketing Lead  domains=
 
 ## Empty result
 
-When a read returns zero records, the command emits an explicit empty line — no fabricated row, no blank output. The same line is used in both `full` and `compact`.
+When a read returns zero records, the command emits an explicit empty-result message — a specific line of text (e.g. `No roles.`), never a fabricated row and never blank output. The same message is used in both `full` and `compact`.
 
-| Resource | Empty line |
+| Resource | Empty-result message |
 |---|---|
 | `roles` | `No roles.` |
 | `actions` | `No actions.` |

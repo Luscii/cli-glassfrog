@@ -35,7 +35,7 @@ For **single reads** (`glassfrog me`, `glassfrog me roles`, `glassfrog me action
 - **No reshaping** — the document carries the raw payload, not the human projection. Fields the human projection summarizes or drops (for example, hypermedia links) are present in the structured document.
 - **No field loss** — all fields the API returned are present.
 - **No number-precision loss** — values are serialized from bytes, so a JSON number is not coerced to a floating-point approximation. A large integer identifier keeps its exact representation.
-- **Empty result** — an empty or whitespace-only payload renders as a valid empty document, never an empty output channel.
+- **Empty result** — an empty or whitespace-only 2xx payload (e.g. a `204 No Content`) renders as the literal `null` (with a trailing newline) in both JSON and YAML — a valid document, never an empty output channel.
 
 **Exception — walked list reads.** `glassfrog roles` and `glassfrog subroles` walk every page and aggregate the result into a single synthesized `{"data":[…]}` document, so the shape stays stable across a multi-page walk (and under `--first-page`). For these two reads:
 

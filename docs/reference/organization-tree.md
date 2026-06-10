@@ -64,16 +64,18 @@ More than one positional is rejected as a usage error with no API call. Each tre
       Purpose: …
 ```
 
-When `--include` is set, each node also renders one guarded section per requested resource, indented under that node (omitted when not requested; explicit-absence marker when requested but empty):
+When `--include` is set, each node also renders one guarded section per requested resource, indented under that node (omitted when not requested). Each section is a header line followed by one `    - <entry>` line per item, or a single standalone indented `    (none)` line when empty (no leading `-`):
 
 ```
   Accountabilities:
-    - <accountability description> | (none)
+    - <accountability description>
   Domains:
-    - <domain description> | (none)
+    (none)
   Members:
-    - <actor name> (per_… | agt_…) | (none)
+    - <actor name> (per_… | agt_…)
 ```
+
+(The example shows a populated `Accountabilities`, an empty `Domains` rendered as `(none)`, and a populated `Members` — each section takes one form or the other.)
 
 **Depth-boundary signal** — a node whose API `has_subroles` is `true` but whose children are not in the result (because `--depth` capped beneath it, or the API withheld them) is rendered with an explicit marker so it is not mistaken for a true leaf:
 

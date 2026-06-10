@@ -79,7 +79,7 @@ A `--output` flag on the invocation overrides both `GLASSFROG_OUTPUT` and the co
 - **`yaml`** — stdout is a single valid YAML document carrying the same data as the JSON form, with no field added or dropped.
 - **`compact`** — each record appears on a single line surfacing its id.
 - **`full`** (default) — the labelled projection with the actor's id, name, and kind; the organization's id and name; and the access level.
-- **Empty result** — a structured format renders a valid document representing the empty result; a human format shows the explicit empty line (for example, `no projects`). The output channel is never left empty.
+- **Empty result** — a structured format renders a valid document (for a single read with an empty body, the literal `null`; for a walked list read, `{"data":[]}`); a human format shows the explicit empty-result message (for example, `No actions.` or `no projects`). The output channel is never left empty.
 
 ## Troubleshooting
 

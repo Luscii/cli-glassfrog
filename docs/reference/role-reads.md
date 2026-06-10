@@ -51,9 +51,16 @@ Output is rendered in the resolved format (see [Output formats](#output-formats)
 <Role Name> (role_0123…)
   Purpose: <purpose | (no purpose set)>
   Domains:
-    - <domain description> | (none)
+    - <domain description>
   Accountabilities:
-    - <accountability description> | (none)
+    - <accountability description>
+```
+
+Each section header always renders. When a section has entries, they are listed one per `    - <description>` line. When a section is empty, the header is followed by a single standalone indented `    (none)` line (no leading `-`):
+
+```
+  Domains:
+    (none)
 ```
 
 **`compact`** — one line per role: id first, then double-space-separated `key=value` fragments:
@@ -99,16 +106,29 @@ This flag is rejected with a usage error when no `ROLE_ID` is given.
 
 ### Single-read output
 
-**`full`** — the role block, followed by one guarded section per requested `--include` resource. A section is omitted entirely when not requested, and rendered with an explicit-absence marker when requested but empty:
+**`full`** — the role block, followed by one guarded section per requested `--include` resource. A section is omitted entirely when not requested. When requested, each is a header line followed by one `    - <entry>` line per item, or a single standalone indented `    (none)` line when empty (no leading `-`). `Parent role` is the exception: it renders inline on the header line.
 
 ```
-Assignments:   - <actor name> (per_… | agt_…) | (none)
-Subroles:      - <subrole name> (role_…) | (none)
-Parent role:   <parent name> (role_…) | (none — anchor role)
-Policies:      - <policy title> | (none)
-Notes:         - <note title> | (none)
-Skills:        - <skill name> (summary; full content via skills read) | (none)
+  Assignments:
+    - <actor name> (per_… | agt_…)
+    (none)
+  Subroles:
+    - <subrole name> (role_…)
+    (none)
+  Parent role: <parent name> (role_…)
+  Parent role: (none — anchor role)
+  Policies:
+    - <policy title>
+    (none)
+  Notes:
+    - <note title>
+    (none)
+  Skills:
+    - <skill name> (summary; full content via skills read)
+    (none)
 ```
+
+(Each block shows the populated form and, below it, the empty form — only one renders per section.)
 
 **`json` / `yaml`** — the API's `{data: RoleDetail}` body verbatim: no field dropped, no number coerced.
 
