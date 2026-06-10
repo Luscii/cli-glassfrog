@@ -31,14 +31,14 @@ Today the gap is documented and deliberate: under `json`/`yaml` a command failur
 
 ### Carrying through the structured failure facts
 
-- When the failure originated from a typed API error, the structured render includes the failure facts that error carries — its kind, its originating HTTP status, and the raw API error body verbatim when one is present — placed into 018's envelope; fields that do not apply to a given failure are absent.
+- When the failure originated from a typed API error, the structured render includes the failure facts that error carries — its kind, its originating HTTP status, and the raw API error body verbatim when one is present and is valid structured data — placed into 018's envelope; fields that do not apply to a given failure are absent. A body that is not valid structured data (not parseable JSON) is omitted from the envelope rather than included, so a malformed upstream body never suppresses the rest of the diagnostic.
 - When the failure carries no API payload (a transport failure, a decode failure, or a local fail-safe refusal), the structured render still emits the same envelope shape carrying the facts available — its message and kind — rather than degrading to unstructured text or an empty channel.
 - When any failure is rendered, the secret token and the authentication header never appear in the rendered output, under any format.
 
 ### Pairing with the exit code, never deciding it
 
 - When the system renders a failure, the process still terminates with the exit code the category maps to under Exit-Code Convention (004); the rendering and the code are complementary outputs of the one failure and never disagree about which failure occurred.
-- When a structured render itself fails to produce a complete document (for example, a raw error body that is not valid JSON), the system writes nothing partial to stdout and the invocation maps to the internal-error code — a half-document is never emitted, on the failure path no less than the success path.
+- When a structured render itself cannot produce a complete document, the system writes nothing partial to stdout and the invocation maps to the internal-error code — a half-document is never emitted, on the failure path no less than the success path. (A raw API error body that is not valid JSON does not trigger this: it is omitted from the envelope, so the rest of the document still renders — see "Carrying through the structured failure facts".)
 
 ---
 
@@ -116,7 +116,7 @@ And the envelope carries the message and kind, with the raw-body field absent
 And the channel is never left empty or filled with bare text.
 
 **Scenario: an API error body is carried verbatim into the structured render**
-Given a command run with `--output json` fails with a non-2xx response carrying an error body
+Given a command run with `--output json` fails with a non-2xx response carrying a JSON error body
 When the failure is rendered
 Then the raw error body is included verbatim within the envelope
 And the system does not re-classify or re-parse it.
