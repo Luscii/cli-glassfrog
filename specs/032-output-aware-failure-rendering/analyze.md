@@ -3,14 +3,14 @@
 **Feature**: 032-output-aware-failure-rendering
 **Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/opaque-failures/output-aware-failure-rendering.feature, tasks.md
 **Checklist context**: checklist.md present (15/15 pass, 0 fail) — correlated, not re-evaluated
-**Findings**: 21 checks (21 pass, 0 fail) | 0 P0, 0 P1, 0 P2 | 1 coherence note
+**Findings**: 19 checks (19 pass, 0 fail) | 0 P0, 0 P1, 0 P2 | 1 coherence note
 **Generated**: 2026-06-10
 
 ---
 
 ## Summary
 
-All 21 cross-artifact checks pass. Consistency: 8/8. Completeness: 9/9. Coherence: 4/4. (Interface checks scaled ×2 for two interface files: interface-cli.md, interface-spec.md.) No contradictions, no gaps, no drift. One non-blocking coherence observation recorded under H3.
+All 19 cross-artifact checks pass. Consistency: 8/8. Completeness: 7/7. Coherence: 4/4. (Interface-related checks scaled ×2 for two interface files — interface-cli.md, interface-spec.md — and carry an `a`/`b` suffix to keep each evaluation uniquely referenceable.) No contradictions, no gaps, no drift. One non-blocking coherence observation recorded under H3.
 
 ---
 
@@ -19,20 +19,20 @@ All 21 cross-artifact checks pass. Consistency: 8/8. Completeness: 9/9. Coherenc
 - **C1** spec § Integration Boundaries ↔ plan § System Architecture — the plan's components (`Diagnose`, `OutputFormat`/`MachineFormat`, `ErrorEnvelope`/`RenderError`, the `reportFailure` chokepoint) align with the spec's named boundaries (031, 020, 018, 019, 015, 004). **Pass.**
 - **C2** spec § Behavioral Accord ↔ plan § System Architecture — the `reportFailure` routing (structured→stdout, human→stderr, next-step preserved, exit-code pairing) serves every accord behavior; none is contradicted. **Pass.**
 - **C3** spec § Non-Behaviors ↔ plan § Architecture — the plan architects nothing the spec excludes: it delegates classification to 031, format selection to 020, the exit code to 004, and keeps usage/invalid-selector rendering out. **Pass.**
-- **C4** plan § ADRs ↔ interface-cli.md § Surface — the CLI accord reflects ADR-1/2/3/4 (the envelope on stdout, the `next_step` field, the channel split, body-when-valid). **Pass.**
-- **C4** plan § ADRs ↔ interface-spec.md § Surface — the package accord reflects ADR-1/2 (`reportFailure` signature, `ErrorDetail.NextStep`, `errorEnvelopeFor`, `kind`). **Pass.**
+- **C4a** plan § ADRs ↔ interface-cli.md § Surface — the CLI accord reflects ADR-1/2/3/4 (the envelope on stdout, the `next_step` field, the channel split, body-when-valid). **Pass.**
+- **C4b** plan § ADRs ↔ interface-spec.md § Surface — the package accord reflects ADR-1/2 (`reportFailure` signature, `ErrorDetail.NextStep`, `errorEnvelopeFor`, `kind`). **Pass.**
 - **C5** plan § System Architecture ↔ tasks § Scope — T001 (mapping) and T002 (chokepoint + threading) build exactly the plan's two phases; no task builds anything the plan does not name. **Pass.**
-- **C6** interface-cli.md § Surface ↔ feature Given/When/Then — every scenario step references a surface the CLI accord defines (envelope fields, channels, exit codes); no step uses an undefined field or channel. **Pass.**
-- **C6** interface-spec.md § Surface ↔ feature — the package symbols (`reportFailure`, `errorEnvelopeFor`, `kind`) are behavioral targets the scenarios exercise indirectly; no Gherkin step contradicts the package contract. **Pass.**
+- **C6a** interface-cli.md § Surface ↔ feature Given/When/Then — every scenario step references a surface the CLI accord defines (envelope fields, channels, exit codes); no step uses an undefined field or channel. **Pass.**
+- **C6b** interface-spec.md § Surface ↔ feature — the package symbols (`reportFailure`, `errorEnvelopeFor`, `kind`) are behavioral targets the scenarios exercise indirectly; no Gherkin step contradicts the package contract. **Pass.**
 
-## Completeness (P1 — gap): 9/9 passed
+## Completeness (P1 — gap): 7/7 passed
 
 - **K1** spec § Driving Scenarios → feature — all 9 spec driving scenarios (3 happy, 2 error, 4 edge) have Gherkin equivalents, each with a `# Source:` comment; the 3 validation scenarios are present with `@validation @wip`. **Pass.**
 - **K2** spec § Integration Boundaries → interface files — 032's external surface is the CLI failure output, covered by interface-cli.md (+ interface-spec.md for the package contract). The other boundaries are internal capability seams (031/020/018/004), not external systems each needing a file. **Pass.**
 - **K3** plan § Implementation Strategy → tasks — Phase 1 → T001, Phase 2 → T002; both phases decomposed. **Pass.**
 - **K4** plan § components → tasks § Scope — every plan component (`next_step` field, `kind`, `errorEnvelopeFor`, `reportFailure`, call-site threading) has an implementing task. **Pass.**
-- **K5** interface-cli.md § Surface → feature — the envelope/channel/exit-code surfaces have scenario coverage (permission-on-stdout, transport-no-body, human-stderr, exit-code-parity, body-omitted-when-invalid). **Pass.**
-- **K5** interface-spec.md § Surface → feature/tasks — the package symbols are realized through behavioral scenarios plus T001/T002 acceptance criteria (table-driven `kind`, `errorEnvelopeFor` unit tests). **Pass.**
+- **K5a** interface-cli.md § Surface → feature — the envelope/channel/exit-code surfaces have scenario coverage (permission-on-stdout, transport-no-body, human-stderr, exit-code-parity, body-omitted-when-invalid). **Pass.**
+- **K5b** interface-spec.md § Surface → feature/tasks — the package symbols are realized through behavioral scenarios plus T001/T002 acceptance criteria (table-driven `kind`, `errorEnvelopeFor` unit tests). **Pass.**
 - **K6** spec § User Scenarios → interface — all 3 user scenarios (parse failure like success; next step preserved; human stays stderr) have interface coverage in interface-cli's channel split, `next_step` field, and human-stderr contract. **Pass.**
 
 ## Coherence (P2 — drift): 4/4 passed
