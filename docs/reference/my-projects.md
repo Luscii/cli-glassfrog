@@ -57,9 +57,9 @@ proj_0123456789abcdef0123456789abcdef  [current]   Rebuild onboarding flow
   role: role_0123456789abcdef0123456789abcdef   sub-projects: yes   actions: yes   tags: q2
 proj_00000000000000000000000000000001  [scheduled] Audit vendor list
   role: —   sub-projects: no   actions: no
-
-… more results available — showing the first page (pagination lands with a later capability)
 ```
+
+stdout carries only the rendered list — no trailing signal line. When more results exist than the first response carried, an incompleteness `note:` is written separately to stderr (see Incompleteness Signal below).
 
 **Empty result.** When the practitioner owns no matching projects, the projection prints an explicit empty-result line rather than nothing:
 
@@ -67,9 +67,15 @@ proj_00000000000000000000000000000001  [scheduled] Audit vendor list
 no projects
 ```
 
-## Pagination Signal
+## Incompleteness Signal
 
-When the response reports a further page (`meta.pagination.has_next_page` is true), the projection appends a "more results available" signal indicating the list is the first page only. The multi-page walk is a later capability; this command fetches one page.
+`GET /me/projects` is paginated, and this command fetches only the first response. When the API reports more projects than the response carried (`meta.pagination.has_next_page`), the command prints the projects it received to stdout and writes a single explicit line to **stderr**, still exiting `0`:
+
+```
+note: more projects exist than shown; pagination is not yet supported, so this list may be incomplete
+```
+
+stdout stays the clean rendered list (safe to pipe); the note never interleaves into it. The multi-page walk is a later capability. A partial list is never silently presented as complete.
 
 ## Exit Codes
 

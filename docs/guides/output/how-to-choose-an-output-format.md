@@ -83,7 +83,7 @@ A `--output` flag on the invocation overrides both `GLASSFROG_OUTPUT` and the co
 
 ## Troubleshooting
 
-- **`unsupported --output value "xml" — supported: full, compact, json, yaml`** — the value you passed is not one of the four tokens. The command makes no API request and exits with code `2`. Use `full`, `compact`, `json`, or `yaml`.
+- **`unsupported output value "xml" from --output — supported: full, compact, json, yaml`** — the value you passed is not one of the four tokens. The command makes no API request and exits with code `2`. Use `full`, `compact`, `json`, or `yaml`.
 - **`unsupported output value "xml" from GLASSFROG_OUTPUT — supported: full, compact, json, yaml`** — an invalid value in `GLASSFROG_OUTPUT` or `.glassfrogrc output` is reported by source and value, with exit code `2`. Resolution does not fall through to a lower-precedence source. Fix or unset that source.
 - **A config read error naming the file** — a `.glassfrogrc` that cannot be read or parsed while resolving `output` fails with exit code `2`. Fix the file.
 - **Render error on stderr, nothing on stdout (exit `1`)** — the read succeeded but rendering failed. No partial output is written to stdout.

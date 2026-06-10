@@ -81,11 +81,12 @@ glassfrog me projects --status current
   note: more roles exist than shown; pagination is not yet supported, so this list may be incomplete
   ```
 
-  For `me actions` and `me projects` the projection appends a "more results
-  available" signal of the form:
+  `me actions` and `me projects` signal the same way — a single `note:` line
+  on **stderr**, with stdout left as the clean rendered list:
 
   ```
-  … more results available — showing the first page (pagination lands with a later capability)
+  note: more actions exist than shown; pagination is not yet supported, so this list may be incomplete
+  note: more projects exist than shown; pagination is not yet supported, so this list may be incomplete
   ```
 
 Diagnostics and the incompleteness note always go to **stderr**, never

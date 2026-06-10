@@ -84,7 +84,7 @@ No format routes to a renderer other than its own.
 | Condition | stdout | stderr | Exit code |
 |---|---|---|---|
 | Valid format, read + render succeed | the rendered document | — | `0` |
-| `--output <bad>` (e.g. `--output xml`) | nothing (no request made) | `unsupported --output value "xml" — supported: full, compact, json, yaml` | `2` |
+| `--output <bad>` (e.g. `--output xml`) | nothing (no request made) | `unsupported output value "xml" from --output — supported: full, compact, json, yaml` | `2` |
 | `GLASSFROG_OUTPUT` or `.glassfrogrc output` holds an invalid value (flag absent) | nothing | usage error naming the source and value, e.g. `unsupported output value "xml" from GLASSFROG_OUTPUT — supported: full, compact, json, yaml` | `2` |
 | `.glassfrogrc` unreadable / unparseable while resolving `output` | nothing | the config read/format error naming the file | `2` |
 | Read succeeds, render fails | nothing (no partial output) | the render error message (token-free) | `1` |

@@ -7,14 +7,16 @@
 
 # Templated Human Rendering Reference
 
-The two built-in human output templates, `full` and `compact`, and what each renders for every read command.
+The two built-in human output templates, `full` and `compact` — the shared rendering seam for result-producing reads. This reference documents the four `glassfrog me` reads in detail.
 
 ## Overview
 
-Templated Human Rendering defines two human-readable output formats for the four read commands — `glassfrog me`, `glassfrog me roles`, `glassfrog me actions`, and `glassfrog me projects`:
+Templated Human Rendering defines two human-readable output formats. They are the shared rendering seam every result-producing read uses; this reference documents the four `glassfrog me` reads that spec 019 introduced — `glassfrog me`, `glassfrog me roles`, `glassfrog me actions`, and `glassfrog me projects`:
 
 - **`full`** — the standing, labelled, multi-line projection. This is the default output.
 - **`compact`** — one line per record, with ids always present and nested collections rendered as counts.
+
+The org-wide governance reads (`glassfrog roles`, `glassfrog roles <id>`, `glassfrog tree`, `glassfrog subroles`) render through the same `full` / `compact` templates; their per-resource shapes are documented in [Role Reads](role-reads.md) and [Organization Tree](organization-tree.md).
 
 This capability adds no command and no flag. The commands and their existing flags (`--include` on `me`; `--status` on `me actions` / `me projects`) are unchanged; only the rendering of a successful result is produced through these templates. Selecting `compact` from the command line is done with the `--output` flag (see [Output Format Selection](output-format-selection.md)).
 
