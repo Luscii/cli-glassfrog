@@ -18,12 +18,20 @@ type ErrorEnvelope struct {
 	Error ErrorDetail `json:"error"`
 }
 
-// ErrorDetail carries the failure facts. Status and Body are omitempty so a
-// bodiless failure shares the exact top-level shape of an API error — the fields
-// that do not apply are absent, never null-keyed or renamed.
+// ErrorDetail carries the failure facts. NextStep, Status, and Body are omitempty
+// so a failure that lacks any of them shares the exact top-level shape of one that
+// carries them — the fields that do not apply are absent, never null-keyed or
+// renamed. Field declaration order is message → next_step → kind → status → body so
+// the rendered document reads in that order.
 type ErrorDetail struct {
 	// Message is a human-readable, token-free description (always present).
 	Message string `json:"message"`
+	// NextStep is the recovery action, surfaced as its own parseable key distinct
+	// from message (032). omitempty so a failure with no next step (the internal-error
+	// fallback, a bare general-API error) renders no key rather than a null one. It is
+	// declared here (018's home) but populated in internal/cli (032's errorEnvelopeFor),
+	// keeping this package transport-free and classification-free.
+	NextStep string `json:"next_step,omitempty"`
 	// Kind is the lowercased taxonomy term (always present): usage / runtime /
 	// network / api (plus the 015-widened permission / rate-limit).
 	Kind string `json:"kind"`
