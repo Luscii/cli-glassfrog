@@ -15,7 +15,7 @@
 | H-1 | A partial domains list (mid-walk failure or `--first-page` opt-out) is presented as the complete set | spec § Completeness of the list; CONSTITUTION VI | High | Low | RC-1 | Yellow |
 | H-2 | The API token leaks into stdout or an error line | plan § Cross-cutting | High | Low | RC-2 | Yellow |
 | H-3 | An unknown `--include` value is silently ignored by `getDomain` → a domain returned without the requested policies embed (silent-wrong-results) | spec § Behavioral Accord (include); plan ADR-4; CONSTITUTION I/VIII | Medium | Low | RC-3 | Green |
-| H-4 | A null `role_id` renders as an empty/ambiguous controlling-role line → misread as real data or as a missing field | interface § Surface (`domain` render); spec Domain (`role_id` nullable); CONSTITUTION VIII; checklist observation | Low | Low | RC-4 | Green |
+| H-4 | A null `role_id` renders as an empty/ambiguous controlling-role line → misread as real data or as a missing field | interface § Surface (`domain` render); spec Domain (`role_id` nullable); CONSTITUTION VIII; checklist observation; PR #70 review | Low | Low | RC-4 | Green |
 | H-5 | A malformed/empty `--query` silently returns an empty list → "No domains." misread as "no matches" when the search was malformed | spec § List search; interface § Interactions; CONSTITUTION VIII | Low | Low | RC-5 | Green |
 | H-6 | The domains multi-page walk contributes to org-wide `429` throttling | plan § System Architecture (RetryExecutor); CONSTITUTION X | Medium | Low | RC-6 | Green |
 | H-7 | Domains surfaced beyond the caller's membership (over-exposure) | spec § Integration Boundaries; PROJECT.md Constraints; CONSTITUTION I | Medium | Low | RC-7 | Green |
@@ -46,8 +46,8 @@ Both commands sit on the live request path where `X-Auth-Token` is most exposed.
 
 ### H-4 — Null `role_id` render ambiguity
 The spec's `Domain.role_id` is nullable; the plan models it `*string` (T001). The `domain` single-read `full` render shows `Role: role_0456…`, but the contract does not yet pin how a **null** controlling role renders — risking an empty `Role:` line read as real data, or as a field the API failed to provide. No fabrication mechanism exists (a null renders absent, not invented — CONSTITUTION VIII holds), so the harm is low. **Severity Low**; **Probability Low**.
-- **RC-4** *(control recommended, not yet pinned)*: Render a null `role_id` with an explicit-absence marker (the guarded-section / `{{if}}` pattern already used for the policies section and across 025/026), never a bare empty `Role:` line. **Recommendation**: add this to T003 acceptance and interface-cli § Surface so the absence treatment is contractual — this closes the lone checklist observation. Until then, the residual rests on the Low×Low rating, not on a landed control.
-- **Residual: Green** (Low×Low) — acceptable; pinning RC-4 makes the absence explicit and tested.
+- **RC-4** *(pinned in the contract, PR #70 round 1)*: A null `role_id` renders the explicit-absence marker `(no controlling role)` in the inline-pipe form (the repo's `<value | (no X set)>` convention used across 025/026), never a bare empty `Role:` line — now specified in interface-cli.md § Surface for both the `full` and `compact` `domain` renders. T003 implements this guard; the checklist observation is closed.
+- **Residual: Green** (Low×Low) — acceptable; RC-4 is now contractual, so the absence is explicit.
 
 ### H-5 — Search false-empty on a malformed query
 The API ignores an empty/whitespace `q` and returns no rows (rather than an error) for a malformed query. An operator who searches and sees `No domains.` cannot tell "no matches" from "malformed query." **Severity Low** (a re-runnable empty result, not corruption); **Probability Low**.
@@ -83,7 +83,7 @@ The CLI deliberately sends no `If-None-Match`, so repeated reads re-fetch and co
 
 ## Residual Risk Summary
 
-10 hazards, 10 controls, **0 Red**. Two Yellows: H-1 (list truncation) and H-2 (token leak) are the inherent read-surface pair, each fully controlled (dual completeness signals + non-zero exit; no-token-path discipline + output test). The eight Greens are controlled by the plan's existing decisions and the landed read stack. **One control, RC-4 (null `role_id` explicit-absence render), is recommended but not yet pinned in the contract** — it corresponds to the lone checklist observation; the hazard is Green on its own Low×Low rating, and pinning RC-4 in T003 acceptance + interface § Surface would make the absence treatment contractual. No hazard is unacceptable; nothing blocks implementation.
+10 hazards, 10 controls, **0 Red**. Two Yellows: H-1 (list truncation) and H-2 (token leak) are the inherent read-surface pair, each fully controlled (dual completeness signals + non-zero exit; no-token-path discipline + output test). The eight Greens are controlled by the plan's existing decisions and the landed read stack. **RC-4 (null `role_id` explicit-absence render) is now pinned in the contract** (PR #70 review) — interface-cli.md § Surface specifies the `(no controlling role)` marker for both `domain` renders, closing the lone checklist observation. No hazard is unacceptable; nothing blocks implementation.
 
 ## Traceability Index
 
@@ -102,7 +102,7 @@ The CLI deliberately sends no `If-None-Match`, so repeated reads re-fetch and co
 | RC-1 | interface-cli § Interactions (list completeness); validation scenario (incompleteness never silent) |
 | RC-2 | plan § Cross-cutting (replay thunk, token-never-in-output test); tasks T002/T003 |
 | RC-3 | plan ADR-4; interface § Surface (`{policies}` validation); scenario (unsupported include rejected) |
-| RC-4 | interface § Surface (`domain` render) — recommended T003 acceptance addition (null-`role_id` explicit-absence marker) |
+| RC-4 | interface § Surface (`domain` full + compact render) — pinned `(no controlling role)` absence marker (PR #70); T003 implements it |
 | RC-5 | plan ADR-3 (non-blank-only `q`); interface § Interactions; spec § List search (malformed → empty) |
 | RC-6 | plan § System Architecture (017 RetryExecutor); CONSTITUTION X |
 | RC-7 | spec § Integration Boundaries; PROJECT.md membership enforcement; CONSTITUTION I contract test |

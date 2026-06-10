@@ -10,7 +10,7 @@
 
 ## Summary
 
-All 14 checks pass. Constitution: 14/14. (Done-criteria + cross-reference: skipped — no `done-*` accords; see Governance Notes.) One non-blocking observation (nullable `role_id` render) is recorded for analyze.
+All 14 checks pass. Constitution: 14/14. (Done-criteria + cross-reference: skipped — no `done-*` accords; see Governance Notes.) One non-blocking observation (nullable `role_id` render) was raised and is now **resolved** (PR #70 review — see Governance Notes).
 
 ---
 
@@ -27,7 +27,7 @@ All 14 checks pass. Constitution: 14/14. (Done-criteria + cross-reference: skipp
 - **C-V.1 — Composition over Monolith (P0)**: `domains` and `domain` are two new sibling command files; the design composes the landed read stack and adds only `Assemble()` wiring lines; the shared `Domain` is grown **additively** and `Policy` is reused — no unrelated command is edited (plan ADR-1/ADR-2, tasks T002/T003).
 - **C-VI.1 — Size-Aware, no silent truncation (P0)**: The `domains` list walks to completion by default, signals on the `--first-page` opt-out, and renders a flagged partial on mid-walk failure (CONSTITUTION VI, plan ADR-3, scenarios). The `q` search composes with the walk (every page carries `q`), so a filtered list is also walked whole. The `domain` single read returns one unpaginated document.
 - **C-VII.1 — Working Software (P0)**: Every task pairs implementation with RED-first tests and asserts `go build`/`go vet` clean; no code-only or test-only increments.
-- **C-VIII.1 — No Fabricated Data (P0)**: The `domain` render guards its `Policies:` section (omit-when-unrequested, explicit-absence marker when requested-but-empty — 019 pattern), never inventing a value; an empty `domains` list renders `No domains.` rather than a synthesized entry. (See the nullable-`role_id` observation in Governance Notes — a render-completeness note, not a fabrication mechanism.)
+- **C-VIII.1 — No Fabricated Data (P0)**: The `domain` render guards its `Policies:` section (omit-when-unrequested, explicit-absence marker when requested-but-empty — 019 pattern), never inventing a value; an empty `domains` list renders `No domains.` rather than a synthesized entry; a null `role_id` renders the `(no controlling role)` explicit-absence marker (pinned in interface-cli.md § Surface, PR #70). (See Governance Notes.)
 - **C-IX.1 — Writes Require Explicit Intent (P0)**: Both commands are `GET` reads; the spec Non-Behavior forbids any write/mutation of a domain. No read path issues a POST/PATCH/DELETE.
 - **C-X.1 — Respect API Limits, 429 backoff (P0)**: 429 backoff is reused via the landed `RetryExecutor` (017) on the `domains` walk and the single `Execute` (plan Cross-cutting + tasks T002/T003). The `If-Match`/`ETag` clause is N/A — Role Domains performs no updates (see Governance Notes).
 - **C-XI.1 — Governance via Proposals (P0)**: Trivially satisfied — Role Domains exposes no governance-mutating path; it is a read-only surface (spec Non-Behavior; plan ADR-1).
@@ -46,6 +46,6 @@ Skipped — cross-reference checks derive from `done-*` accords, none of which a
 ## Governance Notes
 
 - **`accords/governance/` is empty/absent**: no `done-specify.md`, `done-plan.md`, `done-interface.md`, `done-scenarios.md`, or `done-tasks.md`. Done-criteria and cross-reference checks were skipped. Consider creating these accords to enable artifact-level quality checks beyond the constitution. *(Project-wide infrastructure gap, not specific to 033 — every spec's checklist runs constitution-only, as noted in 026's checklist.)*
-- **Nullable `role_id` render (observation, non-blocking)**: the spec's `Domain.role_id` is nullable, and the plan models it `*string` (T001), but the `domain` single-read `full` render in interface-cli.md shows `Role: role_0456…` without specifying how a **null** controlling role renders. No fabrication risk (a null field would render absent, not invented — C-VIII still passes), but the contract doesn't pin the explicit-absence treatment. Flagged for analyze / a T003 acceptance detail (render a marker rather than an empty `Role:` line), consistent with the guarded-section pattern used elsewhere.
+- **Nullable `role_id` render (observation — RESOLVED, PR #70)**: the spec's `Domain.role_id` is nullable, and the plan models it `*string` (T001); the original `domain` render examples showed a concrete `Role: role_0456…` without specifying how a **null** controlling role renders. No fabrication risk (a null field renders absent, not invented — C-VIII always passed), but the contract didn't pin the explicit-absence treatment. **Resolved in PR #70 review**: interface-cli.md § Surface now specifies the `(no controlling role)` marker (the repo's `<value | (no X set)>` convention) for both the `full` and `compact` `domain` renders, and T003 acceptance pins it. Mirrors risk H-4 / RC-4.
 - **CONSTITUTION X (`If-Match`/`ETag`)**: produced no applicable update-side check — Role Domains is read-only. The 429-backoff half of X is checked (C-X.1).
 - **CONSTITUTION XI (Proposals)**: produced only a trivial-satisfaction check — no governance mutation surface exists here.

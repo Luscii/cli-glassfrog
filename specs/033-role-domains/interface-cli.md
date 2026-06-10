@@ -76,12 +76,13 @@ dom_0123…  <domain description>
 *Domain single, `full`* — the domain's description, id, and controlling role; when `--include policies` is requested, a guarded `Policies:` section (omitted when not requested; explicit-absence marker when requested-but-empty — 019 `{{if}}` + `missingkey=error`):
 ```
 <domain description> (dom_0123…)
-  Role: role_0456…
+  Role: <role_id | (no controlling role)>
   Policies:
     - <policy title> | (none)
 ```
+The `Domain.role_id` field is **nullable** (spec); when it is null the render shows the explicit-absence marker `(no controlling role)` in the inline-pipe form (the repo's `<value | (no X set)>` convention, e.g. `(no purpose set)`), never a fabricated or empty id (CONSTITUTION VIII).
 
-*Domain single, `compact`* — one line: `dom_0123…  <domain description>  role=role_0456…` (the policies embed is a `full`-only elaboration; `compact` stays one line).
+*Domain single, `compact`* — one line: `dom_0123…  <domain description>  role=<role_id | (no controlling role)>` (a null `role_id` renders the same `(no controlling role)` marker; the policies embed is a `full`-only elaboration; `compact` stays one line).
 
 **Empty result**:
 - `domains` on a role that controls no domains, or a `--query` that matches none: under `full`/`compact`, stdout is exactly `No domains.` and the command exits `0` — an empty list is a valid answer, not an error. (Structured formats emit the empty `{data:[]}` payload.)

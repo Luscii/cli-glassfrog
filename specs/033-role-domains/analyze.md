@@ -2,7 +2,7 @@
 
 **Feature**: 033-role-domains
 **Artifacts analyzed**: spec.md, plan.md, interface-cli.md, features/governance-reads/role-domains.feature, tasks.md
-**Checklist context**: checklist.md present (0 findings; 1 observation) — correlated below
+**Checklist context**: checklist.md present (0 findings; 1 observation — resolved in PR #70) — correlated below
 **Findings**: 16 checks (16 pass, 0 fail) — 0 P0, 0 P1, 0 P2
 **Generated**: 2026-06-10
 
@@ -49,7 +49,7 @@ All consistency checks pass — no contradiction between artifacts:
 
 ## Checklist Correlation
 
-- checklist.md reports **0 P0/P1 findings** (14/14 constitution checks pass) and one **non-blocking observation**: the nullable `Domain.role_id` render is not explicitly pinned in interface-cli.md § Surface. Analyze's horizontal checks do **not** flag this as a cross-artifact contradiction or gap — the field is consistently present in spec (`role_id`), plan (T001 `RoleID *string`), and interface (rendered as `Role:`), so C-checks and H3 scope alignment pass. The observation is a within-interface render-completeness nuance (vertical), correctly surfaced by checklist rather than analyze. No horizontal finding results; the two skills agree on a clean artifact set.
+- checklist.md reports **0 P0/P1 findings** (14/14 constitution checks pass) and one **non-blocking observation** (now resolved in PR #70): the nullable `Domain.role_id` render was not explicitly pinned in interface-cli.md § Surface. Analyze's horizontal checks did **not** flag this as a cross-artifact contradiction or gap — the field is consistently present in spec (`role_id`), plan (T001 `RoleID *string`), and interface (rendered as `Role:`), so C-checks and H3 scope alignment pass. The observation was a within-interface render-completeness nuance (vertical), correctly surfaced by checklist rather than analyze; PR #70 pinned the `(no controlling role)` marker for both `domain` renders. No horizontal finding resulted; the two skills agree on a clean artifact set.
 
 ## Governance Notes
 
