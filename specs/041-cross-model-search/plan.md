@@ -86,7 +86,7 @@ The defining shape is that this is a **discovery read whose result is heterogene
 
 **Permission scoping**: the API returns only results the caller's membership permits (PROJECT single-org-+-person constraint); types the org cannot access (e.g. skills/actors behind `ai_integration`) simply yield no hits, not an error. The CLI does not second-guess this — it renders what the API returns.
 
-**Configuration**: `--base-url` (011) and `--output`/`-o` (020) are inherited persistent root flags. `--types` and the `--first-page` opt-out (+ optionally `--per-page`) are local to the `search` command. Page size defaults to the API max (016).
+**Configuration**: `--base-url` (011) and `--output`/`-o` (020) are inherited persistent root flags. `--types` and the `--first-page` opt-out (+ optionally `--per-page`) are local to the `search` command. Page size defaults to 100 (the `/search` maximum), overriding `paging.All`’s generic default.
 
 **Testing**: The pure `run`/`validate` functions are unit-tested offline behind the injected `Executor` seam (a fake returning canned multi-page result sets — including a heterogeneous-type page, an empty result, a mid-walk error, and a null-excerpt row); a transport tripwire asserts no request on a missing query, a `>1` positional, or an unknown `--types` value; a fixture asserts the outbound `query` param equals the input byte-for-byte and that decode order equals render order (relevance preserved). Command behavior is a godog suite against a feature file. Render output is golden/unit-tested with the registry exhaustiveness guard (PR #10 `len`+comma-ok shape), including a mixed-type list and a null-excerpt absence row.
 
