@@ -1,8 +1,8 @@
 # Glassfrog CLI — Roadmap
 
-This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection), the self-service reads shipped end-to-end, and the client-hardening that was in flight — pagination and rate-limit handling — has now landed too. With that hardening done, the live work-front is what makes the tool usable, shippable, and legible: agent-parseable output, the standalone executable, the CI/release pipeline, the broadening read surface, and failure legibility. Next holds a maintainability refactor of the settings layer; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
+This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection), the self-service reads shipped end-to-end, and the client-hardening that was in flight — pagination and rate-limit handling — has now landed too. With that hardening done, the live work-front is what makes the tool usable, shippable, and legible: agent-parseable output, the standalone executable, the CI/release pipeline, the broadening read surface, and failure legibility. Next broadens the read surface — search/relevance and actor-governance reads — and folds in a maintainability refactor of the settings layer; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
 
-The three top-level areas — *Project Foundation*, *Client Foundation*, and *Endpoint Commands* — are organizational parents; their seventeen child problems are what's sequenced below.
+The three top-level areas — *Project Foundation*, *Client Foundation*, and *Endpoint Commands* — are organizational parents; their child problems are what's sequenced below.
 
 ## Now
 
@@ -22,9 +22,11 @@ The landed foundation and client-hardening, plus the live work-front: output, di
 
 ## Next
 
-A maintainability refactor of the settings layer, now that its call sites have landed.
+Broadening the read surface — search/relevance and actor-governance reads — plus a maintainability refactor of the settings layer now that its call sites have landed.
 
 - **Duplicated Setting Resolution** *(Client Foundation)* — collapse the per-setting flag→env→.glassfrogrc→default chain into one composable resolver before more settings copy the seam; relates to *Undefined Connection Settings* and *Unconsumable Output*, whose landed call sites it would retrofit.
+- **Undiscoverable Governance** *(Endpoint Commands)* — cross-model search by topic/relevance over the record (roles, policies, role-fillers); extends the read surface beyond direct lookups and supports working a tension (relates to *Tension Capture*).
+- **Actors Disconnected from Governance** *(Endpoint Commands)* — read the actor↔governance link in both directions: who fills a role (whom to contact) and an actor's governance footprint (roles, accountabilities, domains, purposes); its two angles sequence with it. Continues the read-surface broadening; relates to *Tension Capture*.
 
 ## Later
 
