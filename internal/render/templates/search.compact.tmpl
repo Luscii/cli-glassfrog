@@ -1,0 +1,3 @@
+{{if not .Rows}}No results.
+{{else}}{{range .Rows}}[{{.Type}}]  {{.ID}}  {{.Title}}  rank={{.Rank}}
+{{end}}{{end}}

@@ -200,6 +200,53 @@ func (v DomainView) ControllingRole() string {
 	return *v.Domain.RoleID
 }
 
+// SearchView is the data the `search` templates (041) render: the relevance-
+// ordered heterogeneous cross-model result set, flattened into display Rows. It is
+// the first render key over a deliberately mixed-type list — every row carries a
+// `type` badge so the operator can tell a role hit from a policy hit and drill in
+// via type + id. Row order IS the API's relevance order (the walker appends pages
+// in sequence); the renderer never re-sorts, de-dups, or filters (041 plan ADR-2).
+// An empty Rows set renders the explicit `No results.` line — zero matches is a
+// valid empty answer, not an error.
+type SearchView struct {
+	Rows []SearchRow
+}
+
+// SearchRow is one search hit projected for rendering: the nullable Excerpt/RoleID
+// *string fields of a glassfrog.SearchResult are dereferenced to plain strings
+// (nil → ""), so the template renders strings and never prints a pointer or <nil>
+// — the same shape NewTreeView used for the nullable name/purpose. The template
+// then guards on trim-emptiness (the repo's `eq (trimSpace .X) ""` convention): a
+// null/blank Excerpt renders as the `—` absence marker, and the `Role:` line is
+// emitted only when RoleID is non-blank (it applies to a subset of types). Absent
+// fields are never fabricated (041 plan ADR-2; CONSTITUTION VIII).
+type SearchRow struct {
+	Type    string
+	ID      string
+	Title   string
+	Rank    float64
+	Excerpt string
+	RoleID  string
+}
+
+// NewSearchView flattens a relevance-ordered SearchResult slice into a SearchView
+// by dereferencing the nullable excerpt/role_id (nil → ""), preserving the input
+// order exactly (no re-sort/de-dup/filter — 041 plan ADR-2).
+func NewSearchView(results []glassfrog.SearchResult) SearchView {
+	rows := make([]SearchRow, 0, len(results))
+	for _, r := range results {
+		rows = append(rows, SearchRow{
+			Type:    r.Type,
+			ID:      r.ID,
+			Title:   r.Title,
+			Rank:    r.Rank,
+			Excerpt: derefString(r.Excerpt),
+			RoleID:  derefString(r.RoleID),
+		})
+	}
+	return SearchView{Rows: rows}
+}
+
 // Resource names a read result type. Its constants are the single source of
 // truth for the resource half of a template key: the read commands pass them,
 // the template names derive from them (<resource>.<format>), and 020 maps its
@@ -255,6 +302,12 @@ const (
 	// full detail). Singular, distinct from ResourceProjects (the list key reused
 	// from 014).
 	ResourceProject Resource = "project"
+	// ResourceSearch is the cross-model search read (041): GET /search rendered as
+	// a SearchView (the relevance-ordered heterogeneous result list, each row a
+	// `type`-badged hit). The first render key over a deliberately mixed-type list
+	// — distinct from every per-resource key, and NOT split per type (which would
+	// break the ranked order — 041 plan ADR-2).
+	ResourceSearch Resource = "search"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -265,7 +318,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
