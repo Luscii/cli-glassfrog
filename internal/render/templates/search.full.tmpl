@@ -1,0 +1,6 @@
+{{if not .Rows}}No results.
+{{else}}{{range $i, $r := .Rows}}{{if $i}}
+{{end}}[{{$r.Type}}] {{$r.Title}} ({{$r.ID}})  rank {{$r.Rank}}
+  Excerpt: {{if eq (trimSpace $r.Excerpt) ""}}—{{else}}{{$r.Excerpt}}{{end}}
+{{if ne (trimSpace $r.RoleID) ""}}  Role: {{$r.RoleID}}
+{{end}}{{end}}{{end}}
