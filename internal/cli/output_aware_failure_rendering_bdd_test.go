@@ -53,7 +53,12 @@ type renderCapture struct {
 // failureRenderWorld is the per-scenario state. err is the crafted command-execution
 // failure; renders accumulates one capture per format the scenario renders under.
 type failureRenderWorld struct {
-	err     error
+	err error
+	// format is the scenario's resolved output format — the one the shared "When the
+	// failure is rendered" step renders under. It defaults to JSON (set in the Before
+	// reset) and is overridden by the yaml/full Givens, so the When exercises the
+	// format the scenario actually describes rather than a hardcoded one.
+	format  output.OutputFormat
 	renders map[output.OutputFormat]renderCapture
 
 	// usage-error scenario (dispatch path)
@@ -69,7 +74,10 @@ type failureRenderWorld struct {
 func initializeOutputAwareFailureRenderingScenario(sc *godog.ScenarioContext) {
 	w := &failureRenderWorld{}
 	sc.Before(func(ctx context.Context, _ *godog.Scenario) (context.Context, error) {
-		*w = failureRenderWorld{renders: map[output.OutputFormat]renderCapture{}}
+		// Default the resolved format to JSON: the single-render scenarios that mention
+		// --output json drive the structured branch without each Given setting it. The
+		// yaml/full Givens override w.format explicitly.
+		*w = failureRenderWorld{format: output.FormatJSON, renders: map[output.OutputFormat]renderCapture{}}
 		renderErrorFn = output.RenderError // restore the production seam between scenarios
 		return ctx, nil
 	})
@@ -188,6 +196,7 @@ func (w *failureRenderWorld) givenNon2xxWithNonJSONBody() error {
 }
 
 func (w *failureRenderWorld) given429UnderYAML() error {
+	w.format = output.FormatYAML
 	w.err = &apiclient.ResponseError{StatusCode: 429, Body: []byte(`{"detail":"Too Many Requests"}`)}
 	return nil
 }
@@ -198,6 +207,7 @@ func (w *failureRenderWorld) givenInternalFallback() error {
 }
 
 func (w *failureRenderWorld) givenTransportUnderFull() error {
+	w.format = output.FormatFull
 	w.err = &apiclient.TransportError{}
 	return nil
 }
@@ -208,11 +218,10 @@ func (w *failureRenderWorld) renderTheFailure() error {
 	if w.err == nil {
 		return errors.New("no crafted failure was set up")
 	}
-	// The single-render scenarios resolve to a structured format except the
-	// human-line scenario, which is full. Pick from the Given: a transport-under-full
-	// scenario set full; everything else json/yaml is set by its Given via the format
-	// implied in the step. Default to json; the yaml scenario overrides below.
-	w.renderOnce(output.FormatJSON)
+	// Render under the format the scenario resolved (set by its Given), so the When
+	// exercises exactly the format the scenario describes — the structured scenarios
+	// render json/yaml, the human-line scenario renders full.
+	w.renderOnce(w.format)
 	return nil
 }
 
@@ -491,7 +500,7 @@ func (w *failureRenderWorld) envelopeOmitsBodyOnly() error {
 }
 
 func (w *failureRenderWorld) yamlNextStepDistinct() error {
-	cap := w.renderOnce(output.FormatYAML)
+	cap := w.renders[output.FormatYAML] // produced by the When (renderTheFailure under yaml)
 	var doc struct {
 		Error map[string]any `json:"error"`
 	}
@@ -545,7 +554,7 @@ func (w *failureRenderWorld) structuredOmitsNextStepKey() error {
 }
 
 func (w *failureRenderWorld) humanLineOnStderr() error {
-	cap := w.renderOnce(output.FormatFull)
+	cap := w.renders[output.FormatFull] // produced by the When (renderTheFailure under full)
 	if cap.stderr == "" {
 		return errors.New("the cause-plus-next-step line should be written to stderr")
 	}
