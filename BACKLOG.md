@@ -363,7 +363,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Angle-1 anchor of the Who-to-Contact-for-a-Role problem (`GET /roles/{role_id}/assignments`) — reads which actors fill a role so the operator knows whom to reach out to about a tension. Highest-value of the actor-reads wave; buildable now (deps shipped: 007, 010). Peer to Cross-Model Search (#41) at the Should tier.
+- **Rationale**: Angle-1 anchor of the Who to Contact for a Role problem (`GET /roles/{role_id}/assignments`) — reads which actors fill a role so the operator knows whom to reach out to about a tension. Highest-value of the actor-reads wave; buildable now (deps shipped: 007, 010). Peer to Cross-Model Search (#41) at the Should tier.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
 
@@ -379,7 +379,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Angle-2 anchor of An-Actor's-Governance-Footprint (`GET /actors/{id}` with `?include=roles`) — read one actor (person or agent) and the roles they fill. Completes the Should-tier core of the actor reads.
+- **Rationale**: Angle-2 anchor of An Actor's Governance Footprint (`GET /actors/{id}` with `?include=roles`) — read one actor (person or agent) and the roles they fill. Completes the Should-tier core of the actor reads.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
 
