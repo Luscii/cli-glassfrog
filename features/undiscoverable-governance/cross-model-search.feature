@@ -6,7 +6,7 @@ Feature: Undiscoverable Governance — Cross-Model Search
   Search adds `glassfrog search <query>` — one relevance-ranked full-text query
   across every resource type (roles, notes, projects, actions, skills, actors,
   policies, domains). Results render uniformly in the API's relevance order, and
-  each result's type and id is the bridge the operator drills into via the
+  each result's type and id are the bridge the operator drills into via the
   matching read command. The list walks every page to completion by default, or
   is plainly flagged incomplete. It renders through the shared output seam or
   fails with a named error and the right exit code.
