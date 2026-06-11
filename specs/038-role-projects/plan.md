@@ -92,7 +92,7 @@ Single phase — one cohesive read pair with no internal dependencies, every sea
 2. **Commands** — `projects <role-id>` (list: `paging.All[Project]` + `--query`/`-q`, `--status` via `validateStatus`, `--tag`, `--first-page`/`--per-page`, the 025 completeness logic) and `project <proj-id>` (single: `Document[Project]`), guard-registered and wired in `main`; route through the walked-list render pattern (`aggregateRawData` for structured / `renderFn` projection for human; the single read via `output.RenderSuccess` / `renderFn`) and `classifyClientError`.
 3. **BDD** — the `role-projects.feature` suite covering the spec's driving scenarios + the two structural tripwires (list-only flag on `project`; unsupported `--status`).
 
-Phase 1 is independent; 2 depends on 1; 3 depends on 2. No schema phase (ADR-2: model reused as-is).
+Phase 1 (render) and the `projects` list command are independent and can run in parallel (the list reuses the landed `projects` render key, so it needs nothing from Phase 1); only the `project` single command depends on Phase 1's new `project` render key; Phase 3 (BDD) depends on both commands. No schema phase (ADR-2: model reused as-is). (Matches the tasks.md dependency graph: T001 ∥ T002; T003 needs T001+T002; T004 needs T002+T003.)
 
 ---
 
