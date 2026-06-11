@@ -76,26 +76,33 @@ type projectsConfig struct {
 }
 
 // runProjectsList is the pure orchestration the `projects` leaf delegates to:
-// validate the one closed-enum input (--status) fail-fast (an unsupported value is
-// a usage error with NO request issued), resolve the output format (020), then
-// assemble the connection and build the retrying executor, then walk
+// resolve the output format (020) FIRST, then validate the one closed-enum input
+// (--status) fail-fast (an unsupported value is a usage error with NO request
+// issued) — both pure checks run before any assembly, in the same output-first
+// order as the sibling reads (me_projects.go, policies.go) so error precedence is
+// consistent. Then assemble the connection, build the retrying executor, and walk
 // GET /roles/{id}/projects to completion. --query and --tag are free text passed
 // through (plan ADR-3); the role id is a free identifier passed through to a clean
 // 404. It adds no new Outcome/ExitCode and never reads the token.
 func runProjectsList(cfg projectsConfig) (Outcome, error) {
-	// 1. Validate --status BEFORE any assembly or request (fail-fast usage error,
-	//    no wasted call — pinned by a tripwire transport in the tests). Reuses the
-	//    shared validateStatus + status set (013/014); no second validator.
-	if err := validateStatus(cfg.status); err != nil {
-		fmt.Fprintln(cfg.stderr, err.Error())
-		return UsageError, err
-	}
-
-	// 2. Resolve the output format (020): a present-but-invalid selector fails fast
-	//    as a usage error before any assembly or request.
+	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
+	//    fails fast as a usage error before any assembly or request. Resolving
+	//    --output ahead of --status keeps error precedence consistent with the
+	//    sibling reads (me_projects.go, policies.go) — an invalid --output is
+	//    reported even when --status is also invalid.
 	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
 	if ferr != nil {
 		return reportFormatResolutionError(cfg.stderr, ferr)
+	}
+
+	// 2. Validate --status BEFORE any assembly or request (fail-fast usage error,
+	//    no wasted call — pinned by a tripwire transport in the tests). Reuses the
+	//    shared validateStatus + status set (013/014); no second validator. Both
+	//    checks are pure and pre-assembly, so the no-request-on-rejection tripwire
+	//    holds regardless of their relative order.
+	if err := validateStatus(cfg.status); err != nil {
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
 	}
 
 	// 3. Resolve the connection and build the client + retrying executor. A

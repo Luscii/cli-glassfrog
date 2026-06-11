@@ -38,7 +38,7 @@ All 4 tasks in tasks.md are checked (`- [x]`) — full validation. Optional test
 | Project id does not exist | ✓ Covered | `runProjectGet` → `reportFailure` → shared `classifyClientError` (404 → APIError/3) |
 | No usable credential | ✓ Covered | `newClient`/send path surfaces `*AuthError{NoCredentials}` → `reportFailure` → UsageError/2 |
 | Role owns no projects | ✓ Covered | empty walk renders the `projects` template's `no projects` line, exit 0 |
-| Unsupported status rejected before any request | ✓ Covered | `runProjectsList` step 1 `validateStatus` → UsageError/2, no request |
+| Unsupported status rejected before any request | ✓ Covered | `runProjectsList` validates `--status` (after the pure `--output` resolve, before assembly) → UsageError/2, no request |
 | Filter flag on the single read is rejected | ✓ Covered | `newProjectCommand` declares no list flags → cobra unknown-flag UsageError |
 | Paginated list with first-page opt-out | ✓ Covered | `runProjectsFirstPage` (single page + `moreRoleProjectsNote`, exit 0) |
 | (Mid-walk failure flagged incomplete) | ✓ Covered | `runProjectsListWalk` renders partial set + `reportIncompleteProjectsWalk` → non-zero |
@@ -102,7 +102,7 @@ The 10 behavioral scenarios referenced by checked task T004 have had `@wip` remo
 | Scenario | Status | Trace |
 |---|---|---|
 | The two commands never collide on id kind | ✓ Satisfied | command path is fixed by command name, not id kind: `projects <id>` → `/roles/{id}/projects`, `project <id>` → `/projects/{id}`; the id is `url.PathEscape`-d and passed through unvalidated (ADR-3), so a wrong-kind id surfaces the API's `404`/`400` — never silently reads the other resource |
-| An unsupported status costs no request | ✓ Satisfied | `runProjectsList` calls `validateStatus(cfg.status)` as step 1, before `resolveFormat`/`assemble`/`newClient`; returns `UsageError` with no executor built. Transport tripwire (`tr.calls == 0`) confirmed in `TestRunProjects_UnsupportedStatusIsUsageErrorNoRequest` and `TestProjectsCommand_UnsupportedStatusNoRequest` |
+| An unsupported status costs no request | ✓ Satisfied | `runProjectsList` calls `validateStatus(cfg.status)` after the pure `resolveFormat`, both before `assemble`/`newClient`; returns `UsageError` with no executor built. Transport tripwire (`tr.calls == 0`) confirmed in `TestRunProjects_UnsupportedStatusIsUsageErrorNoRequest` and `TestProjectsCommand_UnsupportedStatusNoRequest` |
 | Output is structured, not pre-rendered | ✓ Satisfied | no private format flag (verified by inspection); the dispatch routes all four formats from one read — structured via `aggregateRawData`/`output.RenderSuccess`, human via `renderFn` over `ProjectsView`/`ProjectView` |
 
 ---

@@ -85,7 +85,7 @@ Each nullable field (`description`, `role_id`, `parent_project_id`, `link`, `not
 
 ## Interactions
 
-**Dispatch**: each command has its own `RunE` (no `len(args)` branching). Before any network call, in order: (1) cobra `Args`/flag parsing (a list-only flag on `project` fails here as an unknown flag); (2) `--status` validation on `projects` (the one closed-enum input — `validateStatus`); (3) `--output` resolution (020). Any failure here is a fail-fast usage error and **no request is sent** (a transport tripwire asserts this, per 011/013/014/025).
+**Dispatch**: each command has its own `RunE` (no `len(args)` branching). Before any network call, in order: (1) cobra `Args`/flag parsing (a list-only flag on `project` fails here as an unknown flag); (2) `--output` resolution (020); (3) `--status` validation on `projects` (the one closed-enum input — `validateStatus`). Output resolution precedes status validation to keep error precedence consistent with the sibling reads (`me projects`, `policies`) — both are pure, pre-assembly checks, so either order keeps the no-request guarantee, but resolving `--output` first means an invalid `--output` is reported even when `--status` is also invalid. Any failure here is a fail-fast usage error and **no request is sent** (a transport tripwire asserts this, per 011/013/014/025).
 
 **List completeness** (`projects`; reuses 025 ADR-3 verbatim):
 - **Default** — the command walks every page via `paging.All[Project]` (016) and renders the complete set.
