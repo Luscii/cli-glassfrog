@@ -52,6 +52,13 @@ func Assemble() *cobra.Command {
 	// unknown-flag usage error (the structural list-only guard, ADR-1). Shares the
 	// productionSeam; reads the inherited persistent --base-url/--output.
 	MustRegister(root, newPolicyCommand(productionSeam{}))
+	// Role Projects (038): the `projects <role-id>` command — the addressable
+	// per-role project list, paginated and walked to completion by default (reusing
+	// 025's walk + --first-page opt-out), narrowable with --query/--status/--tag. A
+	// sibling of `roles`, not a child (ADR-1). productionSeam binds the real
+	// transport + clock; `projects` reads the inherited persistent --base-url/--output.
+	// Distinct from `me projects` (014): role-addressable, not token-scoped.
+	MustRegister(root, newProjectsCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
