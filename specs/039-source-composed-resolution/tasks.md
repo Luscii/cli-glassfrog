@@ -84,7 +84,7 @@ The `internal/resolve` package is purely additive — no existing file is edited
     - With `isTTY` false and non-empty piped content, yields the trimmed content with `Kind: KindStdin`
     - With `isTTY` true, never invokes `read` and yields nothing
     - Empty/whitespace-only piped content yields nothing
-    - A failing `read` returns the error verbatim; under `Resolve` it surfaces in the same uniform shape as a config-file failure
+    - A failing `read` returns the error verbatim; under `Resolve` it aborts resolution the same way a config-file failure does (uniform handling, not a uniform type)
     - The read is bounded by `maxStdinBytes`
   - **Dependencies**: T001
   - **Plan reference**: Phase 2 — I/O sources + OS binding, ADR-4

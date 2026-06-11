@@ -117,4 +117,4 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       Given a resolver whose highest-precedence source reads piped stdin through an injected reader
       And reading the piped stdin had failed
       When the setting is resolved
-      Then it will surface a resolution error in the same shape used for a config-file failure
+      Then it will surface the read error directly, aborting resolution the same way a config-file failure does

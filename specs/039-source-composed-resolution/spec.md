@@ -124,7 +124,7 @@ And it does not silently skip to a lower-precedence source
 Given a resolver whose highest-precedence source reads STDIN
 And reading the piped STDIN fails
 When the setting is resolved
-Then the system surfaces a resolution error in the same shape used for a config-file failure
+Then the system surfaces the read error directly, aborting resolution the same way a config-file failure does
 
 ### Edge cases
 
