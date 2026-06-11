@@ -58,3 +58,8 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Proposal Write-Flow — the multi-step governance write path: create → propose → respond → accepted
     + affects: Practitioner
     + related-to: Unsignalled Plan Limits
+  * Undiscoverable Governance — when working a tension, the operator can't find which roles, policies, or role-fillers are relevant without already knowing where to look; nothing lets them search the record by topic or relevance
+    + affects: Practitioner
+    + affects: AI agent
+    + related-to: Tension Capture
+    + candidate: Search — cross-model full-text search (`GET /search` → `search`, spec/glassfrog-api-v5.yaml:4156) across roles, projects, actions, notes, skills, actors, policies, and domains, ranked by relevance, with a required `query` (websearch syntax) and an optional `types` filter; paginated

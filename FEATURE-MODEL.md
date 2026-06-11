@@ -131,3 +131,40 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): circles an
   + depends-on: Role Reads
   + depends-on: Request Authentication
   + depends-on: Request Execution
+
+## Composable Setting Resolver
+> Problem: Duplicated Setting Resolution — each configurable setting (token, base URL, output format) re-implements the same flag→env→.glassfrogrc→default precedence chain, so adding a setting copies the OS seam, the chain skeleton, the Source enum, and the validation-error shape, and the copies can drift (affects: Maintainer)
+
+- Source-Composed Resolution — `resolveSetting([...sources])` walks an ordered source list (array order is precedence), returns the first source that yields a value, skips empty sources, and backstops with an optional trailing default (absence stays valid where there is no default, e.g. token); sources are `fromFlags` / `fromEnv` / `fromFile` / `fromStdin` constructors that each also accept a list and walk it until one yields (e.g. `fromFlags(["--output","-o"])`); the file source is partially applied from the shared `.glassfrogrc` reader, and every source returns one shared result shape carrying the value, its provenance, and a uniform validation error
+- Resolution Call-Site Retrofit — migrate the three existing resolution sites (token, base URL, output format) onto the resolver, behavior-preserving with existing tests staying green
+  + depends-on: Source-Composed Resolution
+
+## Tension Management
+> Problem: Tension Capture — record a tension as the entry point to a proposal (affects: Practitioner)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): a tension is captured against a sensing role (the path role is the sensing role, stored as `impacted_role_id` for historical reasons; the requester is the sensing person). Reads and edits operate by tension id (`ten_`). `status` is auto-computed except explicit `archived` via PATCH; delete is a soft-delete where 404-after-204 is success. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Tension Capture — capture a tension sensed by a role as the seed of a proposal: `POST /roles/{role_id}/tensions` → `createTension` (`spec/glassfrog-api-v5.yaml:2551`; body via `TensionInput` — body/label/status/meeting_type)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Tension Reads — list a role's tensions and read one by id: `GET /roles/{role_id}/tensions` → `listRoleTensions` (`spec/glassfrog-api-v5.yaml:2496`; paginated, `?status=unprocessed|processed|archived`) and `GET /tensions/{id}` → `getTension` (`spec/glassfrog-api-v5.yaml:2654`)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Subroles Tension Roll-up — list tensions across a role's direct subroles, one level (not transitive): `GET /roles/{role_id}/subroles/tensions` → `listSubrolesTensions` (`spec/glassfrog-api-v5.yaml:2599`; paginated, `?status=`; anchor must have subroles, leaf roles 404)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Tension Update — edit a tension's body, label, status, or meeting_type, including explicit archive: `PATCH /tensions/{id}` → `updateTension` (`spec/glassfrog-api-v5.yaml:2684`)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Tension Discard — soft-delete a tension, setting `discarded_at`: `DELETE /tensions/{id}` → `deleteTension` (`spec/glassfrog-api-v5.yaml:2730`; not cascaded to proposals; treat 404-after-204 as success)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+
+## Search
+> Problem: Undiscoverable Governance — when working a tension, the operator can't find which roles, policies, or role-fillers are relevant without already knowing where to look; nothing lets them search the record by topic or relevance (affects: Practitioner, AI agent)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): a single cross-model full-text endpoint returns a uniform result shape (`SearchResult` — type, id, title, excerpt, rank, optional role_id) ranked by relevance, so results render uniformly and each result's id bridges into the matching read command. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Cross-Model Search — a `search` command running a relevance-ranked full-text query across resource types (roles, notes, projects, actions, skills, actors, policies, domains): `GET /search` → `search` (`spec/glassfrog-api-v5.yaml:4156`); required `query` (websearch syntax), optional `types` scoping, paginated; each `SearchResult` carries the id the operator drills into via the matching read command
+  + depends-on: Request Authentication
+  + depends-on: Request Execution

@@ -1,29 +1,30 @@
 # Glassfrog CLI — Roadmap
 
-This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection) and the self-service reads have shipped end-to-end, with client-hardening (pagination, rate limits) still in flight. With those wrapping up, Now broadens beyond the live work-front to take on the things that make the tool usable and shippable: agent-legible output, packaging it as a self-contained executable, and the CI/release pipeline that guards every change. Next shapes failure legibility and the full read surface; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
+This roadmap sequences the problems in `ISSUE-TREE.md`. Its spine is VISION success criterion #2 — *an AI agent reads a practitioner's roles, then submits a proposal end-to-end* — front-loaded by the prerequisite that the CLI must exist at all. The foundation has landed (the CLI runs, authenticates, resolves its connection), the self-service reads ship end-to-end, and the client-hardening that was in flight — pagination and rate-limit handling — has now landed too. With that hardening done, the live work-front is what makes the tool usable, shippable, and legible: agent-parseable output, the standalone executable, the CI/release pipeline, the broadening read surface, and failure legibility. Next holds a maintainability refactor of the settings layer; Later holds the governance write path and a review-quality enhancement. Sequence is order, not schedule.
 
-The three top-level areas — *Project Foundation*, *Client Foundation*, and *Endpoint Commands* — are organizational parents; their sixteen child problems are what's sequenced below.
+The three top-level areas — *Project Foundation*, *Client Foundation*, and *Endpoint Commands* — are organizational parents; their seventeen child problems are what's sequenced below.
 
 ## Now
 
-The shipped reads and in-flight client-hardening, plus the output, distribution, and pipeline work that makes the tool usable and shippable.
+The landed foundation and client-hardening, plus the live work-front: output, distribution, pipeline, the broadening read surface, and failure legibility.
 
 1. **No Runnable CLI** *(Project Foundation)* — nothing can be built or run until the CLI exists as a runnable skeleton with a command framework; hard prerequisite for every other problem. (addressed)
 2. **Unauthenticated Access** *(Client Foundation)* — every command depends on a proven org + person identity; without it nothing reaches the API. (addressed)
 3. **Undefined Connection Settings** *(Client Foundation)* — the CLI must know which token, organization, and base URL to use before any call; credential discovery/storage and connection resolution have both landed. (addressed)
-4. **Self-Service Reads** *(Endpoint Commands)* — the smallest real vertical slice (`/me`, my roles, my actions, my projects); all four have now shipped end-to-end. (addressed)
-5. **Silent Truncation** *(Client Foundation)* — pagination becomes load-bearing once reads return large sets or the org tree (CONSTITUTION VI); now in the Score pipeline. (in score)
-6. **Getting Throttled** *(Client Foundation)* — rate-limit handling matters as read volume grows (CONSTITUTION X); now in the Score pipeline. (in score)
-7. **Unconsumable Output** *(Client Foundation)* — make output agent-parseable and human-readable (VISION principle 3); the in-flight self-service reads produce output this shapes, so it lands alongside them.
-8. **Runtime-Dependent Distribution** *(Project Foundation)* — ship the CLI as a standalone, dependency-free executable (CONSTITUTION XII); the release story, and a solution is already modeled.
-9. **No Automated Pipeline** *(Project Foundation)* — a CI quality gate (lint + tests) plus release drafting that guards every change before it reaches main; clusters with *Runtime-Dependent Distribution* (drafting the version ↔ building and publishing the binary).
+4. **Self-Service Reads** *(Endpoint Commands)* — the smallest real vertical slice (`/me`, my roles, my actions, my projects); all four have shipped end-to-end. (addressed)
+5. **Silent Truncation** *(Client Foundation)* — pagination is load-bearing once reads return large sets or the org tree (CONSTITUTION VI); the pagination spec has landed. (addressed)
+6. **Getting Throttled** *(Client Foundation)* — rate-limit handling matters as read volume grows (CONSTITUTION X); the rate-limit spec has landed. (addressed)
+7. **Runtime-Dependent Distribution** *(Project Foundation)* — ship the CLI as a standalone, dependency-free executable (CONSTITUTION XII); the self-contained build has landed. (addressed)
+8. **Unconsumable Output** *(Client Foundation)* — make output agent-parseable and human-readable (VISION principle 3); structured serialization and format selection have landed, with templated and failure-aware rendering following. (in score)
+9. **No Automated Pipeline** *(Project Foundation)* — a CI quality gate (lint + tests) plus release drafting that guards every change before it reaches main; clusters with *Runtime-Dependent Distribution* (drafting the version ↔ building and publishing the binary). (in score)
+10. **Governance Reads** *(Endpoint Commands)* — the full read surface (roles, circles, accountabilities, domains, policies, projects); role, domain, and policy reads have landed, with the organization tree following. (in score)
+11. **Opaque Failures** *(Client Foundation)* — fail legibly with a cause and a next step (CONSTITUTION II + III); error extraction and diagnostic normalization have landed, with output-aware failure rendering following. (in score)
 
 ## Next
 
-Shape failure legibility and broaden the read surface.
+A maintainability refactor of the settings layer, now that its call sites have landed.
 
-- **Opaque Failures** *(Client Foundation)* — fail legibly with a cause and a next step (CONSTITUTION II + III).
-- **Governance Reads** *(Endpoint Commands)* — the full read surface (roles, circles, accountabilities, domains, policies, projects); extends the proven self-service slice.
+- **Duplicated Setting Resolution** *(Client Foundation)* — collapse the per-setting flag→env→.glassfrogrc→default chain into one composable resolver before more settings copy the seam; relates to *Undefined Connection Settings* and *Unconsumable Output*, whose landed call sites it would retrofit.
 
 ## Later
 

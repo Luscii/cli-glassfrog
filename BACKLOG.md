@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-08T16:45:00 | Framework: MoSCoW | Items: 38
+> Generated: 2026-06-11T08:13:53 | Framework: MoSCoW | Items: 46
 
 ### 1. Command Registration
 
@@ -184,7 +184,7 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The core CI quality gate (lint + tests on pull request) — the heart of the pipeline solution, with no dependencies. As a Must-Have it ranks above the Should-Have pipeline and distribution channels.
-- **Status**: pending
+- **Status**: specified:024-pr-validation
 
 ### 25. Role Reads
 
@@ -192,7 +192,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The org-wide role surface (`GET /roles` + `GET /roles/{id}` with `?include`) and the dependency root of Governance Reads — the per-role reads consume the role ids it yields. Buildable now (deps shipped: 007, 010). As the highest-value Next-tier read, it leads the new Must-Have work.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:025-role-reads
 
 ### 26. Organization Tree
 
@@ -200,7 +200,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The circle hierarchy read (`GET /tree`, `GET /roles/{id}/tree`, `GET /roles/{id}/subroles`) — core to reading governance structure. Buildable now (deps shipped: 007, 010); independent of Role Reads via the no-arg whole-org `getOrgTree`.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:026-organization-tree
 
 ### 27. Install Script
 
@@ -208,21 +208,21 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The primary Linux/macOS/CI acquisition path (detect, download, checksum, install); consumes published release artifacts, so it follows the release pipeline. Should rather than Must — one of several channels.
 - **Dependencies**: → requires: Automated Release Pipeline
-- **Status**: pending
+- **Status**: specified:027-install-script
 
 ### 28. PR Administration
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Auto-applies administrative labels to PRs; no dependencies, but its labels feed Release Drafting's semver bump, so it precedes Release Drafting.
-- **Status**: pending
+- **Status**: specified:028-pr-administration
 
 ### 29. Main-Branch Verification
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Re-runs the test suite on merge to main as a post-merge safety net; PR Validation already gates pre-merge, so this is important but not the primary gate.
-- **Status**: pending
+- **Status**: specified:029-main-branch-verification
 
 ### 30. Release Drafting
 
@@ -238,7 +238,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Collapses transport, typed-API, and usage failures into one consistent, actionable diagnostic (cause + category + next step) — the root of Diagnostic Reporting and the failure-legibility half of CONSTITUTION II + III. Buildable now (deps shipped: 015, 010).
 - **Dependencies**: → requires: API Error Extraction; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:031-diagnostic-normalization
 
 ### 32. Output-Aware Failure Rendering
 
@@ -246,7 +246,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Renders the diagnostic in the selected `--output` (human cause+next-step on stderr; structured envelope for json/yaml), so failures are as legible as successes. Follows Diagnostic Normalization and is gated on Output Format Selection (#20).
 - **Dependencies**: → requires: Diagnostic Normalization; → requires: Output Format Selection
-- **Status**: pending
+- **Status**: specified:032-output-aware-failure-rendering
 
 ### 33. Role Domains
 
@@ -254,7 +254,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Per-role domain reads (`GET /roles/{id}/domains` + `GET /domains/{id}`); a first-class governance element. Gated on Role Reads for the required role id.
 - **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:033-role-domains
 
 ### 34. Role Policies
 
@@ -262,7 +262,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Per-role policy reads (`GET /roles/{id}/policies` + `GET /policies/{id}`); a first-class governance element. Gated on Role Reads for the required role id.
 - **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:034-role-policies
 
 ### 35. User-Defined Template Output
 
@@ -270,7 +270,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Caller-supplied template files via the same template seam; developer-flagged as future / lower-priority, so it sits among the Could-Haves below the Must/Should new work.
 - **Dependencies**: → requires: Templated Human Rendering
-- **Status**: pending
+- **Status**: specified:035-user-defined-template-output
 
 ### 36. Homebrew Tap
 
@@ -294,4 +294,67 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Per-role project reads (`GET /roles/{role_id}/projects` + `GET /projects/{id}`); the most operational (least governance-structural) of the governance reads, so it sits at the Could-Have tier. Gated on Role Reads for the required role id.
 - **Dependencies**: → requires: Role Reads; → requires: Request Authentication; → requires: Request Execution
+- **Status**: specified:038-role-projects
+
+### 39. Source-Composed Resolution
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The composable resolver mechanism for the Next-tier Duplicated Setting Resolution problem (Maintainer-facing maintainability); dependency root of its solution with no declared FEATURE-MODEL edges, so it leads the refactor.
+- **Status**: pending
+
+### 40. Resolution Call-Site Retrofit
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Migrates the three landed resolution sites (token, base URL, output) onto the resolver, behavior-preserving; builds after the resolver exists.
+- **Dependencies**: → requires: Source-Composed Resolution
+- **Status**: pending
+
+### 41. Cross-Model Search
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The `search` command (`GET /search`) for the Undiscoverable Governance problem — relevance-ranked cross-model discovery, high value for the agent operator. Buildable now (deps shipped: 007, 010); self-contained, no inter-feature edges.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 42. Tension Capture
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Captures a tension (`POST /roles/{role_id}/tensions`) — the anchor of the Later write path and where the write half of VISION success #2 begins; highest-value tension capability. Buildable now (deps shipped: 007, 010).
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 43. Tension Reads
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Lists a role's tensions and reads one by id (`GET /roles/{role_id}/tensions` + `GET /tensions/{id}`); the read surface for tensions, following the capture anchor.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 44. Tension Update
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Edits a tension's body/label/status/meeting_type (`PATCH /tensions/{id}`); a Later-tier write op, independent of the other tension capabilities.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 45. Tension Discard
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Soft-deletes a tension (`DELETE /tensions/{id}`, 404-after-204 as success); a Later-tier write op, independent of the other tension capabilities.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 46. Subroles Tension Roll-up
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: One-level roll-up of tensions across a role's direct subroles (`GET /roles/{role_id}/subroles/tensions`); the most peripheral tension read, so it sits last.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending
