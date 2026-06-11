@@ -52,6 +52,7 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 ### In Scope
 - **Reading the governance structure**: roles, circles, accountabilities, domains, policies, projects across the organization tree.
 - **Personal / self-service reads**: `me`, my roles, my actions, my projects — the "what's mine" surface.
+- **Actor governance reads**: resolving which actor fills a role (whom to contact about it) and an actor's governance footprint — the roles, accountabilities, domains, and purposes they hold. Reading actors through the governance lens, not actor administration.
 - **Governance proposals (the write path)**: creating a proposal from a tension, viewing proposals and their `changes`/response summary, advancing a draft into circulation (`propose`), withdrawing, and recording a response (`no_objection` / `bring_to_meeting`).
 - **Capturing tensions** as the entry point to a proposal.
 
