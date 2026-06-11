@@ -18,9 +18,9 @@
 | Interface contract conformance | ✓ Pass | 0 |
 | Non-behavior absence | ✓ Pass | 0 |
 | @wip lifecycle completion | ✓ Pass | 0 |
-| **Validation scenarios** | ✓ Satisfied | 0 |
+| **Validation scenarios** (held-out — tracked separately, not a 6th dimension) | ✓ Satisfied | 0 |
 
-**Total**: 5 dimensions checked, 5 passed, 0 findings; 5 of 5 validation scenarios satisfied.
+**Total**: 5 conformance dimensions checked, all 5 pass with 0 findings. Validation scenarios are tracked separately (not a dimension): 5 of 5 satisfied.
 
 ---
 
