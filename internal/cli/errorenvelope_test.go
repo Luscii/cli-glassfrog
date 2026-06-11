@@ -9,11 +9,14 @@ import (
 )
 
 // kind is the 1:1 map from a code-free Outcome to 018's envelope token (032
-// ADR-4). The table pins every operational category's token; the exhaustiveness
-// guard pins that the table covers every Outcome the failure path can carry, so a
-// future category added to the enum without a token here diverges the produced set
-// and fails loud rather than silently falling to the "runtime" default (PR #10
-// LEARNINGS — the zero-valued / silent-default trap).
+// ADR-4). The table pins every operational category's token; the guard below pins
+// that the table and the allOutcomes list agree on the full set. Both lists are
+// manually maintained and must be kept in sync with the Outcome enum: the guard
+// catches a dropped or uncovered token (a row removed, or the two lists diverging),
+// but it does NOT by itself detect a brand-new Outcome constant absent from both
+// lists — kind()'s default keeps that case total instead. The sibling
+// exitcode_test guard has the same manual-list shape (PR #10 LEARNINGS — the
+// zero-valued / silent-default trap, mitigated here, not eliminated).
 func TestKind_Table(t *testing.T) {
 	cases := []struct {
 		name string
@@ -39,10 +42,13 @@ func TestKind_Table(t *testing.T) {
 		covered[tc.in] = true
 	}
 
-	// Exhaustiveness guard: the table must exercise every Outcome the enum defines.
-	// If a future edit adds a category but no row, this list and the covered set
-	// diverge and the test fails loud (the comma-ok half names the missing category
-	// explicitly rather than passing silently on the "runtime" default).
+	// Coverage guard (kept in sync with the Outcome enum by hand): the table must
+	// exercise every Outcome named in allOutcomes. A row dropped from the table, or
+	// the table and allOutcomes diverging, fails loud (the len check plus the comma-ok
+	// half names the missing category). NOTE: allOutcomes is itself manually
+	// maintained, so adding a new Outcome constant to the enum without also adding it
+	// here will NOT fail this test — that new value would fall to kind()'s "runtime"
+	// default. Keep this list current with dispatch.go's Outcome constants.
 	allOutcomes := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited}
 	if len(covered) != len(allOutcomes) {
 		t.Errorf("kind table covers %d distinct outcomes, want %d (a category lost or gained coverage)", len(covered), len(allOutcomes))
@@ -55,9 +61,9 @@ func TestKind_Table(t *testing.T) {
 }
 
 // The defensive default: an unmapped/future category renders the internal-error
-// token "runtime", never an empty kind (032 ADR-4 — the safe fallback that the
-// exhaustiveness guard above forces a real category off of). Outcome(99) stands in
-// for an unmapped value.
+// token "runtime", never an empty kind (032 ADR-4 — the safe fallback for any
+// Outcome not yet given an explicit token, including a new enum constant the table
+// above has not been updated to cover). Outcome(99) stands in for an unmapped value.
 func TestKind_DefaultArmIsRuntime(t *testing.T) {
 	if got := kind(Outcome(99)); got != "runtime" {
 		t.Errorf("kind(unmapped) = %q, want %q (safe fallback)", got, "runtime")
@@ -68,6 +74,10 @@ func TestKind_DefaultArmIsRuntime(t *testing.T) {
 // envelope is rendered to JSON so the assertions cover both the field values and
 // the omitempty key-presence contract (a missing field is absent, never null-keyed).
 func TestErrorEnvelopeFor(t *testing.T) {
+	// envFor mirrors how reportFailure calls the mapper: it computes the diagnostic
+	// once and hands that same value in alongside err (for the *ResponseError
+	// status/body extraction).
+	envFor := func(err error) output.ErrorEnvelope { return errorEnvelopeFor(Diagnose(err), err) }
 	jsonOf := func(t *testing.T, env output.ErrorEnvelope) string {
 		t.Helper()
 		doc, err := output.RenderError(output.JSON, env)
@@ -78,7 +88,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 	}
 
 	t.Run("next_step present when the diagnostic carries one", func(t *testing.T) {
-		env := errorEnvelopeFor(&apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)})
+		env := envFor(&apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)})
 		if env.Error.NextStep == "" {
 			t.Error("NextStep should be populated for a 403 (it carries a permission next step)")
 		}
@@ -89,7 +99,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 	})
 
 	t.Run("next_step omitted (not null) for the internal-error fallback", func(t *testing.T) {
-		env := errorEnvelopeFor(errSomethingUnexpected())
+		env := envFor(errSomethingUnexpected())
 		if env.Error.NextStep != "" {
 			t.Errorf("NextStep = %q, want empty for the internal-error fallback", env.Error.NextStep)
 		}
@@ -104,7 +114,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 
 	t.Run("status and body present for a typed API error with a JSON body", func(t *testing.T) {
 		body := `{"type":"about:blank","title":"Forbidden","detail":"nope"}`
-		env := errorEnvelopeFor(&apiclient.ResponseError{StatusCode: 403, Body: []byte(body)})
+		env := envFor(&apiclient.ResponseError{StatusCode: 403, Body: []byte(body)})
 		if env.Error.Status != 403 {
 			t.Errorf("Status = %d, want 403", env.Error.Status)
 		}
@@ -119,7 +129,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 	})
 
 	t.Run("body omitted when the API body is not valid JSON, message/kind/status remain", func(t *testing.T) {
-		env := errorEnvelopeFor(&apiclient.ResponseError{StatusCode: 500, Body: []byte(`<html>boom</html>`)})
+		env := envFor(&apiclient.ResponseError{StatusCode: 500, Body: []byte(`<html>boom</html>`)})
 		if len(env.Error.Body) != 0 {
 			t.Errorf("Body should be omitted for a non-JSON API body, got %q", env.Error.Body)
 		}
@@ -133,7 +143,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 	})
 
 	t.Run("status and body absent for a transport failure", func(t *testing.T) {
-		env := errorEnvelopeFor(&apiclient.TransportError{})
+		env := envFor(&apiclient.TransportError{})
 		if env.Error.Status != 0 || len(env.Error.Body) != 0 {
 			t.Errorf("a transport failure carries no status/body, got %+v", env.Error)
 		}
@@ -150,7 +160,7 @@ func TestErrorEnvelopeFor(t *testing.T) {
 		body := `{"detail":"nope"}`
 		// Refine to the typed *ProblemError, exactly as reportFailure does before mapping.
 		refined := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403, Body: []byte(body)})
-		env := errorEnvelopeFor(refined)
+		env := envFor(refined)
 		if env.Error.Status != 403 {
 			t.Errorf("Status = %d, want 403 after refinement", env.Error.Status)
 		}
@@ -180,7 +190,7 @@ func TestErrorEnvelopeFor_TokenFree(t *testing.T) {
 	}
 	for _, fam := range families {
 		for _, f := range []output.Format{output.JSON, output.YAML} {
-			env := errorEnvelopeFor(fam.err)
+			env := errorEnvelopeFor(Diagnose(fam.err), fam.err)
 			doc, err := output.RenderError(f, env)
 			if err != nil {
 				t.Fatalf("[%s/%v] RenderError: %v", fam.name, f, err)

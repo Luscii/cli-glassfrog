@@ -232,8 +232,9 @@ func wantsInclude(targets []string, target string) bool {
 // format-aware (032, ADR-1; was reportClientError). It refines a generic non-2xx
 // *ResponseError into a typed *apiclient.ProblemError (once — guarded against
 // double-refinement) so the API's own detail surfaces and the typed error travels
-// up the chain (015 ADR-4), then calls Diagnose ONCE (031) so the category and the
-// rendered facts are computed from the SAME refined value and can never disagree.
+// up the chain (015 ADR-4), then calls Diagnose ONCE (031) and hands that single
+// Diagnostic to both the exit-code category and errorEnvelopeFor, so the category
+// and the rendered facts are computed from the SAME value and can never disagree.
 //
 // The resolved format chooses the channel and shape (ADR-3):
 //
@@ -262,7 +263,7 @@ func reportFailure(stdout, stderr io.Writer, format output.OutputFormat, err err
 	err = refineClientError(err)
 	d := Diagnose(err)
 	if machineFmt, ok := format.MachineFormat(); ok {
-		doc, rerr := renderErrorFn(machineFmt, errorEnvelopeFor(err))
+		doc, rerr := renderErrorFn(machineFmt, errorEnvelopeFor(d, err))
 		if rerr != nil {
 			// Buffer-then-write: a render failure leaves stdout empty and maps to
 			// RuntimeError(1). The error is token-free (018 contract).
