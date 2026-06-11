@@ -14,7 +14,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
     # I want to compose a resolver by listing reusable source constructors.
 
     # Source: 039-source-composed-resolution — Scenario: Highest-precedence source wins
-    @wip
     Scenario: The highest-precedence source wins
       Given a resolver composed of a flag source, an environment source, a file source, and a trailing default
       And the flag had been supplied with a value
@@ -23,7 +22,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       And it will report the provenance as the flag
 
     # Source: 039-source-composed-resolution — Scenario: Resolution falls through empty sources
-    @wip
     Scenario: Resolution falls through empty sources to the environment
       Given a resolver composed of a flag source, an environment source, a file source, and a trailing default
       And the flag had not been supplied
@@ -34,7 +32,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       And it will report the provenance as the environment variable
 
     # Source: 039-source-composed-resolution — Scenario: Trailing default backstops an otherwise-empty chain
-    @wip
     Scenario: The trailing default backstops an empty chain
       Given a resolver composed of a flag source, an environment source, a file source, and a trailing default
       And no flag, environment variable, or ".glassfrogrc" key had supplied a value
@@ -43,7 +40,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       And it will report the provenance as the default
 
     # Source: 039-source-composed-resolution — Scenario: No source and no default yields a valid empty result
-    @wip
     Scenario: An empty chain with no default yields a valid empty result
       Given a resolver composed of an environment source and a file source with no trailing default
       And neither the variable nor any ".glassfrogrc" had carried the key
@@ -52,7 +48,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       And it will report no error
 
     # Source: 039-source-composed-resolution — Scenario: A list-valued source yields from its first matching input
-    @wip
     Scenario: A list-valued flag source yields from its first present alias
       Given a flag source composed over the aliases "--output" and "-o"
       And "--output" had not been supplied but "-o" had been supplied with a value
@@ -61,7 +56,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
       And it will report the provenance origin as "-o"
 
     # Source: 039-source-composed-resolution — Proposed: more than one Stdin source is a composition error (interface ADR-5 panic)
-    @wip
     Scenario: Composing more than one stdin source fails as a wiring error
       Given a resolver composed with two stdin sources
       When the setting is resolved
@@ -82,7 +76,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
     # I want to receive the provenance of the winning value alongside the value itself.
 
     # Source: 039-source-composed-resolution — Scenario: Malformed config file fails loud rather than falling through
-    @wip
     Scenario: A malformed config file fails loud naming the file
       Given a resolver whose file source reads ".glassfrogrc"
       And no higher-precedence source had yielded
@@ -112,7 +105,6 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
     # I want the resolver's OS access to sit behind an injectable seam.
 
     # Source: 039-source-composed-resolution — Scenario: STDIN read failure is surfaced uniformly
-    @wip
     Scenario: A stdin read failure is surfaced uniformly
       Given a resolver whose highest-precedence source reads piped stdin through an injected reader
       And reading the piped stdin had failed
