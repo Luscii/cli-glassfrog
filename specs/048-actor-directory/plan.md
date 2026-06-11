@@ -89,7 +89,7 @@ The defining shape is that this is the **first read keyed purely on flags, with 
 
 **Configuration**: none new. Reuses `--base-url`/`--output`/`-o` (root persistent) and the `--first-page`/`--per-page` list flags (016/025). Page size uses the `paging.All` default (no endpoint-specific maximum to override, unlike 041's `/search` cap of 100).
 
-**Testing**: pure-unit coverage is mostly inherited (the `Actor` decode and `Page[T]` generic are already tested). New tests: golden tests for the two `actors` templates (incl. an empty directory and a mixed human/agent page); a `internal/cli` godog suite over a new `features/actor-reads/actor-directory.feature` driven by a fake transport returning canned pages, with **transport tripwires** asserting (a) no request when a positional is passed (cobra `NoArgs` `UsageError`), (b) no request when `--kind` is unsupported, and (c) the `kind`/`role_id`/`q` filters are present on every page request of a multi-page walk.
+**Testing**: pure-unit coverage is mostly inherited (the `Actor` decode and `Page[T]` generic are already tested). New tests: golden tests for the two `actors` templates (incl. an empty directory and a mixed human/agent page); a `internal/cli` godog suite over a new `features/actors-disconnected-from-governance/actor-directory.feature` driven by a fake transport returning canned pages, with **transport tripwires** asserting (a) no request when a positional is passed (cobra `NoArgs` `UsageError`), (b) no request when `--kind` is unsupported, and (c) the `kind`/`role_id`/`q` filters are present on every page request of a multi-page walk.
 
 ---
 
