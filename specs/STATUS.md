@@ -37,4 +37,4 @@
 | 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
 | 035-user-defined-template-output | Analyzed | analyze | 2026-06-10T16:45:00 |
 | 038-role-projects | Tasks ready | tasks | 2026-06-10T21:40:00 |
-| 039-source-composed-resolution | Tasks ready | tasks | 2026-06-11T12:40:00 |
+| 039-source-composed-resolution | Analyzed | analyze | 2026-06-11T13:00:00 |
