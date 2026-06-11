@@ -21,6 +21,27 @@ const projectsPageComplete = `{"data":[
 
 const projectsPageEmpty = `{"data":[],"meta":{"pagination":{"per_page":100,"has_next_page":false,"next_cursor":""}}}`
 
+// projectDocumentBody is a representative GET /projects/{id} body: the
+// single-object {data: Project} envelope carrying the full detail (status,
+// description, owning role, parent, timestamps, link, note).
+const projectDocumentBody = `{"data":{"id":"proj_0123","status":"current","description":"Ship the new onboarding flow","role_id":"role_0123","parent_project_id":"proj_root","tags":["q3"],"has_sub_projects":true,"has_actions":true,"created_at":"2024-01-02T03:04:05Z","updated_at":"2024-05-06T07:08:09Z","link":"https://example.com/p/123","note":"Blocked on design review"}}`
+
+// runProjectOver drives the pure runProjectGet over a fake seam, returning the
+// outcome and captured stdout/stderr, and failing if the token leaks.
+func runProjectOver(t *testing.T, seam projectsSeam, cfg projectConfig, id string) (Outcome, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	cfg.seam = seam
+	cfg.reqCtx = context.Background()
+	cfg.stdout = &out
+	cfg.stderr = &errb
+	outcome, _ := runProjectGet(cfg, id)
+	if strings.Contains(out.String()+errb.String(), meSecretToken) {
+		t.Fatalf("the token leaked into output: %q", out.String()+errb.String())
+	}
+	return outcome, out.String(), errb.String()
+}
+
 // projectsPage builds a one-project page; a non-empty nextCursor marks more pages.
 func projectsPage(id, description, nextCursor string) string {
 	hasNext := "false"
@@ -409,6 +430,118 @@ func TestProjectsCommand_RequiresExactlyOneArg(t *testing.T) {
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
 	outcome, _ := Run(root, []string{"projects"})
+	if outcome != UsageError {
+		t.Errorf("zero args should be a UsageError, got %v", outcome)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a wrong arg count must send no request, got %d calls", tr.calls)
+	}
+}
+
+// --- single project read (T003) --------------------------------------------
+
+func TestRunProject_SingleReadPrintsDetail(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: projectDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runProjectOver(t, seam, projectConfig{}, "proj_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{
+		"proj_0123  [current]",
+		"Ship the new onboarding flow", // description
+		"role_0123",                    // owning role
+		"proj_root",                    // parent
+		"Blocked on design review",     // note, verbatim
+		"2024-01-02T03:04:05Z",         // created
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the single project should show %q:\n%s", want, stdout)
+		}
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single read is one call, got %d", tr.calls)
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/projects/proj_0123") {
+		t.Errorf("path = %q, want it to target /projects/proj_0123", got)
+	}
+}
+
+func TestRunProject_UnknownIdSurfacesAPIStatus(t *testing.T) {
+	tr := &cannedTransport{status: 404, body: `{"detail":"Project not found"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runProjectOver(t, seam, projectConfig{}, "proj_ffff")
+	if outcome != APIError || ExitCode(outcome) != 3 {
+		t.Fatalf("an unknown id should surface APIError/3, got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
+	}
+	if !strings.Contains(stderr, "404") {
+		t.Errorf("stderr should name the HTTP status (404):\n%s", stderr)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("nothing should be printed to stdout on a not-found, got:\n%s", stdout)
+	}
+}
+
+func TestRunProject_StructuredJSONEmitsRawPayload(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: projectDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runProjectOver(t, seam, projectConfig{outputFlag: "json"}, "proj_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{`"data"`, "proj_0123", `"role_id"`, `"updated_at"`} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured json should carry the raw single-project payload, missing %q:\n%s", want, stdout)
+		}
+	}
+	// The single read emits the raw {data: Project} body, not the human projection.
+	if strings.Contains(stdout, "Sub-projects:") {
+		t.Errorf("structured json must not render the human projection:\n%s", stdout)
+	}
+}
+
+// TestProjectCommand_ListFlagRejectedNoRequest pins the structural list-only guard
+// (ADR-1): a list-only flag on `project` is a cobra unknown-flag UsageError before
+// any request — the transport tripwire confirms nothing is sent.
+func TestProjectCommand_ListFlagRejectedNoRequest(t *testing.T) {
+	for _, flag := range []string{"--query", "--status", "--tag", "--first-page", "--per-page"} {
+		tr := &cannedTransport{status: 200, body: projectDocumentBody}
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+		root := NewRootCommand()
+		MustRegister(root, newProjectCommand(seam))
+		var out, errb bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		// The value-taking flags need a value so cobra's failure is unknown-flag, not
+		// missing-value; --first-page is a bool.
+		args := []string{"project", "proj_0123", flag}
+		if flag != "--first-page" {
+			args = append(args, "x")
+		}
+		outcome, _ := Run(root, args)
+		if outcome != UsageError {
+			t.Errorf("%s on `project` should be a UsageError, got %v", flag, outcome)
+		}
+		if tr.calls != 0 {
+			t.Errorf("%s on `project` must send no request, got %d calls", flag, tr.calls)
+		}
+	}
+}
+
+// TestProjectCommand_RequiresExactlyOneArg pins ExactArgs(1) on the single read.
+func TestProjectCommand_RequiresExactlyOneArg(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: projectDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	root := NewRootCommand()
+	MustRegister(root, newProjectCommand(seam))
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	outcome, _ := Run(root, []string{"project"})
 	if outcome != UsageError {
 		t.Errorf("zero args should be a UsageError, got %v", outcome)
 	}

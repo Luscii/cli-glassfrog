@@ -59,6 +59,12 @@ func Assemble() *cobra.Command {
 	// transport + clock; `projects` reads the inherited persistent --base-url/--output.
 	// Distinct from `me projects` (014): role-addressable, not token-scoped.
 	MustRegister(root, newProjectsCommand(productionSeam{}))
+	// Role Projects (038): the `project <proj-id>` command — the standalone single
+	// project read with its full detail, decoded from a {data: Project} document. A
+	// sibling of `projects`, declaring no list flags so a list-only flag is a cobra
+	// unknown-flag usage error (the structural list-only guard, ADR-1). Shares the
+	// productionSeam; reads the inherited persistent --base-url/--output.
+	MustRegister(root, newProjectCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
