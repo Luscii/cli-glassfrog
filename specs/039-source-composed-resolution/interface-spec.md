@@ -15,7 +15,7 @@ The artifact is a Go package, `internal/resolve`. Its consumers are other Go pac
 
 ### Package
 
-`internal/resolve` — imports only `internal/rcfile` (file source) and the standard library; imports no domain package (`auth` / `apiclient` / `output`).
+`internal/resolve` — imports `internal/rcfile` (file source), `golang.org/x/term` (the `StdinFromOS` TTY check — already in `go.mod`, used by `authlogin_seam.go`), and the standard library; imports no domain package (`auth` / `apiclient` / `output`). The Phase-1 core (types, `Resolve`, value-only sources) is standard-library-only; only the Phase-2 `StdinFromOS` binding pulls `golang.org/x/term`.
 
 ### Types
 
@@ -87,8 +87,8 @@ func FromFile(startDir, homeDir, key string) Source
 
 // FromStdin yields trimmed piped input when isTTY is false and the content is
 // non-empty after trimming. On a terminal (isTTY true) it never reads and does
-// not yield. The read is bounded (maxStdinBytes); a read failure errs.
-// Provenance.Origin is empty.
+// not yield. The read is bounded (maxStdinBytes): input that exceeds the bound
+// errs (no silent truncation), and a read failure errs. Provenance.Origin is empty.
 func FromStdin(read func() (string, error), isTTY bool) Source
 
 // Default always yields value, with Provenance{Kind: KindDefault}. Place it last.
@@ -160,6 +160,7 @@ res, err := resolve.Resolve(
 | No source yields, no `Default` | `Resolution{Provenance:{Kind:KindNone}}`, **nil error** — a valid empty outcome, not a failure |
 | `FromFile` hits an unreadable/unparseable `.glassfrogrc` | `Resolve` returns the **verbatim** `rcfile` typed error (`*rcfile.ReadError` / `*rcfile.FormatError`, naming the path); the walk aborts, no fall-through to a lower source |
 | `FromStdin` read fails | `Resolve` returns the read error; the walk aborts |
+| `FromStdin` input exceeds `maxStdinBytes` | `FromStdin` errs (no silent truncation); `Resolve` returns the error and the walk aborts — satisfies Constitution VI (never silently truncate) |
 | More than one `Stdin` source passed to `Resolve` | **panic** (`resolve.Resolve: at most one Stdin source per resolution`) — a wiring bug, consistent with the nil-seam fail-fast convention (PR #20) |
 | A value is present but invalid for the setting | **not** an error here — `Resolve` returns it as the winner; the caller validates and reports |
 

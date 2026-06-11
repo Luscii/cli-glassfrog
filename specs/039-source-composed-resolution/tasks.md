@@ -86,6 +86,7 @@ The `internal/resolve` package is purely additive — no existing file is edited
     - Empty/whitespace-only piped content yields nothing
     - A failing `read` returns the error verbatim; under `Resolve` it aborts resolution the same way a config-file failure does (uniform handling, not a uniform type)
     - The read is bounded by `maxStdinBytes`
+    - Piped input that exceeds `maxStdinBytes` returns an error (no silent truncation) — never a truncated value (Constitution VI)
   - **Dependencies**: T001
   - **Plan reference**: Phase 2 — I/O sources + OS binding, ADR-4
   - **Scenario references**: source-composed-resolution.feature: "A stdin read failure is surfaced uniformly"
