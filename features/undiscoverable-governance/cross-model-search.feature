@@ -18,7 +18,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
     # I want to run one relevance-ranked query across every governance resource type and get a uniform ranked list.
 
     # Source: 041-cross-model-search — Scenario: Search across all resource types
-    @wip
     Scenario: A query searches across all resource types
       Given a complete connection context with a stored token
       And several resources of different types match "onboarding"
@@ -28,7 +27,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: A multi-word websearch query is forwarded verbatim
-    @wip
     Scenario: A multi-word websearch query is forwarded verbatim
       Given a complete connection context with a stored token
       When an agent runs "glassfrog search "strategy review -archived""
@@ -36,7 +34,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: No usable token
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog search onboarding"
@@ -45,7 +42,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 2
 
     # Source: 041-cross-model-search — Scenario: A query the API rejects as malformed
-    @wip
     Scenario: A query the API rejects as malformed fails with the API status
       Given a complete connection context with a stored token
       And the API cannot process the submitted query
@@ -54,7 +50,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with a non-zero API-error code
 
     # Source: 041-cross-model-search — Scenario: A search that matches nothing
-    @wip
     Scenario: A search matching nothing is a clean success
       Given a complete connection context with a stored token
       And no resource matches "zxqv"
@@ -63,7 +58,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: A missing query is a usage error
-    @wip
     Scenario: A missing query is a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog search" with no query argument
@@ -93,7 +87,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
     # I want to scope the query to specific resource types.
 
     # Source: 041-cross-model-search — Scenario: Scope a search to specific types
-    @wip
     Scenario: A search is scoped to specific types
       Given a complete connection context with a stored token
       And the organization has roles and projects matching "budget"
@@ -103,7 +96,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: An unsupported `--types` value is rejected without an API call
-    @wip
     Scenario: An unsupported type is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog search budget --types nonsense"
@@ -125,7 +117,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
     # I want each result to carry the type and id I need to drill into the matching read command.
 
     # Source: 041-cross-model-search — Scenario: Each result carries the bridge into a read command
-    @wip
     Scenario: Each result carries the bridge into a read command
       Given a complete connection context with a stored token
       And a query that matches at least one role
@@ -147,7 +138,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
     # I want the result set to be complete by default or plainly flagged incomplete.
 
     # Source: 041-cross-model-search — Scenario: Results span more than one page (default walk to completion)
-    @wip
     Scenario: A multi-page result walks to completion by default
       Given a complete connection context with a stored token
       And the query "onboarding" matches results spanning more than one page
@@ -156,7 +146,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: First-page opt-out stops at one page and signals more exist
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the query "onboarding" matches results spanning more than one page
@@ -174,7 +163,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the partial set cannot be read as the complete set
 
     # Source: 041-cross-model-search — Proposed: plan ADR-4 mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the result walk fails after retrieving the first page
@@ -184,7 +172,6 @@ Feature: Undiscoverable Governance — Cross-Model Search
       And the command will exit with a non-zero code
 
     # Source: 041-cross-model-search — Proposed: plan Risk query/types carried on every page of the walk
-    @wip
     Scenario: The query and type scope are carried on every page of the walk
       Given a complete connection context with a stored token
       And the query "onboarding" scoped to "--types role" spans more than one page
