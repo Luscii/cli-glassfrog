@@ -43,7 +43,8 @@ type domainsSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // domainsConfig carries everything runDomains needs, gathered by the command's
@@ -79,11 +80,12 @@ type domainsConfig struct {
 // --first-page opt-out verbatim — plan ADR-3), carrying the optional `q` search
 // term on every page. It adds no new Outcome/ExitCode and never reads the token.
 func runDomains(cfg domainsConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate the flags BEFORE any assembly or request (fail-fast usage error,
@@ -98,11 +100,11 @@ func runDomains(cfg domainsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runDomainsList(cfg, exec, format)
+	return runDomainsList(cfg, exec, rt)
 }
 
 // runDomainsList walks GET /roles/{id}/domains. The output format changes ONLY
@@ -113,20 +115,20 @@ func runDomains(cfg domainsConfig) (Outcome, error) {
 // carrying the optional `q` search term on every page request. The id is escaped
 // as one path segment (passed through unvalidated per ADR-4, but a raw `/`/`..`
 // must not redirect/traverse).
-func runDomainsList(cfg domainsConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runDomainsList(cfg domainsConfig, exec executor, rt renderTarget) (Outcome, error) {
 	path := "/roles/" + url.PathEscape(cfg.id) + "/domains"
 	req := apiclient.Request{Method: http.MethodGet, Path: path, Query: domainsQuery(cfg)}
 
 	if cfg.firstPage {
-		return runDomainsFirstPage(cfg, exec, format, req)
+		return runDomainsFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each domain's raw bytes, then emit
 	// the aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, domainsWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -140,21 +142,18 @@ func runDomainsList(cfg domainsConfig, exec executor, format output.OutputFormat
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the domains projection (a block per
-	// domain; an empty set renders `No domains.`).
+	// Human / user template: walk to completion, render the domains projection (a
+	// block per domain; an empty set renders `No domains.`).
 	res := paging.All[glassfrog.Domain](cfg.reqCtx, exec, req, domainsWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
 	view := render.DomainsView{Domains: res.Records}
-	text, rerr := renderFn(render.ResourceDomains, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceDomains, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteDomainsWalk(cfg.stderr, res.Stop)
 	}
@@ -168,7 +167,7 @@ func runDomainsList(cfg domainsConfig, exec executor, format output.OutputFormat
 // walk does; the human path renders the projection. --per-page (if set) sizes the
 // single request; the walker is not involved. The `q` search term (when present)
 // already rides req.Query.
-func runDomainsFirstPage(cfg domainsConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runDomainsFirstPage(cfg domainsConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -177,10 +176,10 @@ func runDomainsFirstPage(cfg domainsConfig, exec executor, format output.OutputF
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -196,15 +195,12 @@ func runDomainsFirstPage(cfg domainsConfig, exec executor, format output.OutputF
 
 	var page glassfrog.Page[glassfrog.Domain]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.DomainsView{Domains: page.Data}
-	text, rerr := renderFn(render.ResourceDomains, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceDomains, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreDomainsNote)
 	}

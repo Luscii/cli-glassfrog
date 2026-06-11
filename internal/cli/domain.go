@@ -26,7 +26,8 @@ import (
 type domainSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // domainConfig carries everything runDomain needs, gathered by the command's
@@ -68,11 +69,12 @@ var supportedDomainIncludes = map[string]bool{
 // DomainDocument (no walk, no If-None-Match — the single read is unpaginated and
 // uncached). It adds no new Outcome/ExitCode and never reads the token.
 func runDomain(cfg domainConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Reject the list-only walk/search flags BEFORE any request (the single
@@ -95,10 +97,10 @@ func runDomain(cfg domainConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 
-	return runDomainGet(cfg, client, format, cfg.id)
+	return runDomainGet(cfg, client, rt, cfg.id)
 }
 
 // runDomainGet reads a single domain by id (GET /domains/{id}). It sends one
@@ -112,17 +114,17 @@ func runDomain(cfg domainConfig) (Outcome, error) {
 // explicit-absence marker when requested-but-empty (ADR-2). The id is escaped as
 // one path segment (the runRoleGet safeguard: a raw `/`/`..` must not
 // redirect/traverse).
-func runDomainGet(cfg domainConfig, exec executor, format output.OutputFormat, id string) (Outcome, error) {
+func runDomainGet(cfg domainConfig, exec executor, rt renderTarget, id string) (Outcome, error) {
 	var q url.Values
 	if len(cfg.include) > 0 {
 		q = url.Values{"include": {strings.Join(cfg.include, ",")}}
 	}
 	req := apiclient.Request{Method: http.MethodGet, Path: "/domains/" + url.PathEscape(id), Query: q}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -137,16 +139,10 @@ func runDomainGet(cfg domainConfig, exec executor, format output.OutputFormat, i
 
 	var doc glassfrog.DomainDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.DomainView{Domain: doc.Data, Requested: includeSet(cfg.include)}
-	text, rerr := renderFn(render.ResourceDomain, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceDomain, rt.format, view)
 }
 
 // validateDomainFlags rejects the list-only flags fail-fast, before any request

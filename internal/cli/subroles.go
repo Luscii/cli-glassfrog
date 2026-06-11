@@ -42,7 +42,8 @@ type subrolesSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // subrolesConfig carries everything runSubroles needs, gathered by the command's
@@ -89,10 +90,12 @@ var supportedSubrolesIncludes = map[string]bool{
 // 025's walk + --first-page opt-out verbatim — ADR-3). It adds no new
 // Outcome/ExitCode and never reads the token.
 func runSubroles(cfg subrolesConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020).
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate the flags BEFORE any assembly or request (fail-fast usage error,
@@ -114,11 +117,11 @@ func runSubroles(cfg subrolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runSubrolesList(cfg, exec, format)
+	return runSubrolesList(cfg, exec, rt)
 }
 
 // runSubrolesList walks GET /roles/{id}/subroles. The output format changes ONLY
@@ -128,20 +131,20 @@ func runSubroles(cfg subrolesConfig) (Outcome, error) {
 // page. This is the 025 roles-list shape with RoleDetail items and the subroles
 // path. The id is escaped as one path segment (passed through unvalidated per
 // ADR-4, but a raw `/`/`..` must not redirect/traverse).
-func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runSubrolesList(cfg subrolesConfig, exec executor, rt renderTarget) (Outcome, error) {
 	path := "/roles/" + url.PathEscape(cfg.id) + "/subroles"
 	req := apiclient.Request{Method: http.MethodGet, Path: path, Query: subrolesQuery(cfg)}
 
 	if cfg.firstPage {
-		return runSubrolesFirstPage(cfg, exec, format, req)
+		return runSubrolesFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each child's raw bytes, then emit
 	// the aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, subrolesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -155,21 +158,18 @@ func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputForm
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the subroles projection (a child role
-	// block per child; an empty set renders `No subroles.`).
+	// Human / user template: walk to completion, render the subroles projection (a
+	// child role block per child; an empty set renders `No subroles.`).
 	res := paging.All[glassfrog.RoleDetail](cfg.reqCtx, exec, req, subrolesWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
 	view := render.SubrolesView{Children: res.Records, Requested: includeSet(cfg.include)}
-	text, rerr := renderFn(render.ResourceSubroles, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceSubroles, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteSubrolesWalk(cfg.stderr, res.Stop)
 	}
@@ -182,7 +182,7 @@ func runSubrolesList(cfg subrolesConfig, exec executor, format output.OutputForm
 // boundary). The structured path emits the same {data:[…]} envelope the default
 // walk does; the human path renders the projection. --per-page (if set) sizes the
 // single request; the walker is not involved.
-func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runSubrolesFirstPage(cfg subrolesConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -191,10 +191,10 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -210,15 +210,12 @@ func runSubrolesFirstPage(cfg subrolesConfig, exec executor, format output.Outpu
 
 	var page glassfrog.Page[glassfrog.RoleDetail]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.SubrolesView{Children: page.Data, Requested: includeSet(cfg.include)}
-	text, rerr := renderFn(render.ResourceSubroles, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceSubroles, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreSubrolesNote)
 	}

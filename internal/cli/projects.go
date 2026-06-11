@@ -47,7 +47,8 @@ type projectsSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // projectsConfig carries everything runProjectsList needs, gathered by the
@@ -85,14 +86,14 @@ type projectsConfig struct {
 // through (plan ADR-3); the role id is a free identifier passed through to a clean
 // 404. It adds no new Outcome/ExitCode and never reads the token.
 func runProjectsList(cfg projectsConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request. Resolving
-	//    --output ahead of --status keeps error precedence consistent with the
-	//    sibling reads (me_projects.go, policies.go) — an invalid --output is
-	//    reported even when --status is also invalid.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	//    Resolving --output ahead of --status keeps error precedence consistent with
+	//    the sibling reads (me_projects.go, policies.go).
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate --status BEFORE any assembly or request (fail-fast usage error,
@@ -110,11 +111,11 @@ func runProjectsList(cfg projectsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runProjectsListWalk(cfg, exec, format)
+	return runProjectsListWalk(cfg, exec, rt)
 }
 
 // runProjectsListWalk walks GET /roles/{id}/projects. The output format changes
@@ -124,20 +125,20 @@ func runProjectsList(cfg projectsConfig) (Outcome, error) {
 // is the 025/034 roles/policies walked-list shape with Project items. The id is
 // escaped as one path segment (passed through unvalidated per ADR-3, but a raw
 // `/`/`..` must not redirect/traverse).
-func runProjectsListWalk(cfg projectsConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runProjectsListWalk(cfg projectsConfig, exec executor, rt renderTarget) (Outcome, error) {
 	path := "/roles/" + url.PathEscape(cfg.id) + "/projects"
 	req := apiclient.Request{Method: http.MethodGet, Path: path, Query: projectsQuery(cfg)}
 
 	if cfg.firstPage {
-		return runProjectsFirstPage(cfg, exec, format, req)
+		return runProjectsFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each project's raw bytes, then emit
 	// the aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, projectsWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -151,21 +152,18 @@ func runProjectsListWalk(cfg projectsConfig, exec executor, format output.Output
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the projects projection (the landed 014
-	// `projects` key; an empty set renders `no projects`).
+	// Human / user template: walk to completion, render the projects projection (the
+	// landed 014 `projects` key; an empty set renders `no projects`).
 	res := paging.All[glassfrog.Project](cfg.reqCtx, exec, req, projectsWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
 	view := render.ProjectsView{Data: res.Records}
-	text, rerr := renderFn(render.ResourceProjects, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProjects, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteProjectsWalk(cfg.stderr, res.Stop)
 	}
@@ -178,7 +176,7 @@ func runProjectsListWalk(cfg projectsConfig, exec executor, format output.Output
 // boundary). The structured path emits the same {data:[…]} envelope the default
 // walk does; the human path renders the projection. --per-page (if set) sizes the
 // single request; the walker is not involved.
-func runProjectsFirstPage(cfg projectsConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runProjectsFirstPage(cfg projectsConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -187,10 +185,10 @@ func runProjectsFirstPage(cfg projectsConfig, exec executor, format output.Outpu
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -206,15 +204,12 @@ func runProjectsFirstPage(cfg projectsConfig, exec executor, format output.Outpu
 
 	var page glassfrog.Page[glassfrog.Project]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.ProjectsView{Data: page.Data}
-	text, rerr := renderFn(render.ResourceProjects, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProjects, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreRoleProjectsNote)
 	}
@@ -362,15 +357,15 @@ type projectConfig struct {
 // ProjectView carrying the full detail (mirroring runPolicyGet). It adds no new
 // Outcome/ExitCode and never reads the token.
 func runProjectGet(cfg projectConfig, id string) (Outcome, error) {
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -380,10 +375,10 @@ func runProjectGet(cfg projectConfig, id string) (Outcome, error) {
 	// id one opaque segment the API reports as a 404.
 	req := apiclient.Request{Method: http.MethodGet, Path: "/projects/" + url.PathEscape(id)}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -398,16 +393,10 @@ func runProjectGet(cfg projectConfig, id string) (Outcome, error) {
 
 	var doc glassfrog.Document[glassfrog.Project]
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.ProjectView{Project: doc.Data}
-	text, rerr := renderFn(render.ResourceProject, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProject, rt.format, view)
 }
 
 // newProjectCommand builds the runnable `project` leaf (ADR-1): a guard-ready cobra

@@ -64,9 +64,16 @@ func humanFormat(f output.OutputFormat) render.Format {
 // nothing reaches stdout and it maps to RuntimeError(1) (018/019 contract). On
 // success it returns Success after writing the document and any note. note may be
 // nil (a read with no incompleteness signal, e.g. me).
+//   - user template (035): when tmpl != nil the selection named a caller template
+//     (format is then DefaultFormat — a human format — so the structured branch is
+//     never taken). Decode the typed *T and render it through writeHuman, which runs
+//     tmpl.Render(v) buffer-then-write; an execution failure leaves stdout empty and
+//     maps to UsageError(2) (035 ADR-3). The optional incompleteness note behaves as
+//     on the built-in human path.
 func renderResult[T any](
 	stdout, stderr io.Writer,
 	format output.OutputFormat,
+	tmpl *render.UserTemplate,
 	resource render.Resource,
 	exec executor,
 	reqCtx context.Context,
@@ -89,18 +96,17 @@ func renderResult[T any](
 		return Success, nil
 	}
 
+	// Human (built-in full/compact) or a user template (035): decode the typed *T,
+	// then render through the active human renderer (buffer-then-write). writeHuman
+	// maps a built-in-template defect to RuntimeError(1) and a user-template execution
+	// failure to UsageError(2).
 	var v T
 	if _, err := exec.Execute(reqCtx, req, &v); err != nil {
 		return reportFailure(stdout, stderr, format, err)
 	}
-	text, rerr := renderFn(resource, humanFormat(format), v)
-	if rerr != nil {
-		// Buffer-then-write: a built-in-template defect leaves stdout empty and maps
-		// to RuntimeError(1) (019 ADR-4).
-		fmt.Fprintln(stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(stdout, stderr, tmpl, resource, format, v); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(stdout, text)
 	if note != nil {
 		if msg := note(v); msg != "" {
 			fmt.Fprintln(stderr, msg)

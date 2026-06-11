@@ -35,7 +35,7 @@
 | 032-output-aware-failure-rendering | Complete | validate | 2026-06-10T22:38:52 |
 | 033-role-domains | Complete | validate | 2026-06-10T13:30:00 |
 | 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
-| 035-user-defined-template-output | Analyzed | analyze | 2026-06-10T16:45:00 |
+| 035-user-defined-template-output | Implemented | implement | 2026-06-11T12:00:00 |
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Analyzed | analyze | 2026-06-11T13:00:00 |
 | 041-cross-model-search | Analyzed | risk | 2026-06-11T08:32:26 |

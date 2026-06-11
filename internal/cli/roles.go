@@ -45,7 +45,8 @@ type rolesSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // rolesConfig carries everything runRoles needs, gathered by the command's RunE.
@@ -83,11 +84,13 @@ type rolesConfig struct {
 // role read. It returns the code-free Outcome the command maps onto dispatch's
 // error channel; it adds no new Outcome/ExitCode and never reads the token.
 func runRoles(cfg rolesConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035, ADR-1/ADR-4): a
+	//    present-but-invalid selector — or, for a user template, a missing/unparseable
+	//    source or empty stdin — fails fast as a usage error before any assembly or
+	//    request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	hasID := len(cfg.args) == 1
@@ -123,14 +126,14 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
 	if hasID {
-		return runRoleGet(cfg, exec, format, cfg.args[0])
+		return runRoleGet(cfg, exec, rt, cfg.args[0])
 	}
-	return runRolesList(cfg, exec, format)
+	return runRolesList(cfg, exec, rt)
 }
 
 // runRolesList performs the org-wide list read. The output format changes ONLY
@@ -149,21 +152,22 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 // only the {data:[…]} envelope is synthesized, because an aggregate of N pages
 // has no single page's meta — completeness travels on stderr, in-band meta is
 // not needed.
-func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runRolesList(cfg rolesConfig, exec executor, rt renderTarget) (Outcome, error) {
 	req := apiclient.Request{Method: http.MethodGet, Path: "/roles", Query: rolesListQuery(cfg)}
 
 	// The --first-page opt-out: a single page in EVERY format, signalling if more
 	// exist (exit 0). The operator chose the boundary, so it is not an error.
 	if cfg.firstPage {
-		return runRolesFirstPage(cfg, exec, format, req)
+		return runRolesFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each role's raw bytes, then emit
-	// the aggregated {data:[…]} document.
-	if machineFmt, ok := format.MachineFormat(); ok {
+	// the aggregated {data:[…]} document. A user template selects DefaultFormat (a
+	// human format), so it never lands here.
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -179,20 +183,18 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the org-roles projection.
+	// Human / user template: walk to completion, render the org-roles projection
+	// through the built-in template or the caller's template (writeHuman).
 	res := paging.All[glassfrog.Role](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show, so report it
 		// like any read error — nothing on stdout.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
-	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), res.Records)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceOrgRoles, rt.format, res.Records); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteWalk(cfg.stderr, res.Stop)
 	}
@@ -243,7 +245,7 @@ func aggregateRawData(f output.Format, records []json.RawMessage) ([]byte, error
 // shape does not change with --first-page); the human path renders the
 // projection. --per-page (if set) sizes the single request; the walker is not
 // involved.
-func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runRolesFirstPage(cfg rolesConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the provided value through as-is — no client-side clamp (paging's
 		// contract): an out-of-range value (0, negative, > API max) surfaces the
@@ -253,10 +255,10 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -272,14 +274,11 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 
 	var page glassfrog.Page[glassfrog.Role]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
-	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), page.Data)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceOrgRoles, rt.format, page.Data); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreRolesNote)
 	}
@@ -345,7 +344,7 @@ func cloneQuery(src url.Values) url.Values {
 // template over a RoleView that also carries the requested-include set, so each
 // section is omitted when unrequested and shows an explicit-absence marker when
 // requested-but-empty (ADR-2).
-func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id string) (Outcome, error) {
+func runRoleGet(cfg rolesConfig, exec executor, rt renderTarget, id string) (Outcome, error) {
 	var q url.Values
 	if len(cfg.include) > 0 {
 		q = url.Values{"include": {strings.Join(cfg.include, ",")}}
@@ -358,10 +357,10 @@ func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id s
 	// endpoint injection.
 	req := apiclient.Request{Method: http.MethodGet, Path: "/roles/" + url.PathEscape(id), Query: q}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -374,16 +373,10 @@ func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id s
 
 	var doc glassfrog.RoleDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.RoleView{Detail: doc.Data, Requested: includeSet(cfg.include)}
-	text, rerr := renderFn(render.ResourceRole, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceRole, rt.format, view)
 }
 
 // supportedRoleIncludes is the closed enum of --include values getRole accepts
