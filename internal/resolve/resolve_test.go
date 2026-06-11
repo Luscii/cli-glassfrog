@@ -133,6 +133,26 @@ func TestResolvePanicsOnMultipleStdin(t *testing.T) {
 	_, _ = Resolve(FromStdin(read, false), FromStdin(read, false))
 }
 
+func TestResolvePanicsOnZeroValueSource(t *testing.T) {
+	// A caller that bypasses the constructors can only produce a zero-value
+	// Source (nil eval). The guard must fail fast with a clear message before the
+	// walk dereferences eval, and before any other source is evaluated.
+	tripwire := FromEnv(func(string) string {
+		t.Fatal("a source was evaluated before the zero-value guard panicked")
+		return ""
+	}, "X")
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected a panic on a zero-value Source")
+		}
+		if msg, _ := r.(string); !strings.Contains(msg, "zero-value Source") {
+			t.Errorf("panic message %q does not name the zero-value misuse", r)
+		}
+	}()
+	_, _ = Resolve(Source{}, tripwire)
+}
+
 // errSource is a test-only Source whose eval returns err — exercises the
 // abort-and-surface path without a real I/O failure.
 func errSource(err error) Source {

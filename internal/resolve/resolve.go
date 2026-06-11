@@ -16,10 +16,17 @@ package resolve
 // value (which, for the token setting, is a secret) for the caller to validate
 // and never formats Value into a message (ADR-3, secret hygiene).
 func Resolve(sources ...Source) (Resolution, error) {
-	// Inspect kinds before walking so the Stdin guard fires before any eval —
+	// Inspect sources before walking so both wiring guards fire before any eval —
 	// never draining the stream for a would-be first reader.
 	stdinSources := 0
 	for _, s := range sources {
+		// A zero-value Source has a nil eval — it can only arise from a caller
+		// bypassing the constructors (the fields are unexported). Fail fast with a
+		// clear message rather than a cryptic nil-pointer panic in the walk below,
+		// consistent with the nil-seam fail-fast convention.
+		if s.eval == nil {
+			panic("resolve.Resolve: zero-value Source — construct sources via FromFlags/FromEnv/FromFile/FromStdin/Default")
+		}
 		if s.kind == KindStdin {
 			stdinSources++
 		}
