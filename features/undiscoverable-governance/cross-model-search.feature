@@ -31,7 +31,7 @@ Feature: Undiscoverable Governance — Cross-Model Search
     @wip
     Scenario: A multi-word websearch query is forwarded verbatim
       Given a complete connection context with a stored token
-      When an agent runs "glassfrog search \"strategy review\" -archived"
+      When an agent runs "glassfrog search \"strategy review -archived\""
       Then the request will carry "query" as the whole string unmodified
       And the command will exit with code 0
 
@@ -59,7 +59,7 @@ Feature: Undiscoverable Governance — Cross-Model Search
       Given a complete connection context with a stored token
       And no resource matches "zxqv"
       When an agent runs "glassfrog search zxqv"
-      Then "no results" will be printed to stdout
+      Then "No results." will be printed to stdout
       And the command will exit with code 0
 
     # Source: 041-cross-model-search — Scenario: A missing query is a usage error

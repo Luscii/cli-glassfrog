@@ -120,7 +120,7 @@ And a role result also carries its `role_id`, so the operator can drill into the
 
 **Scenario: A multi-word websearch query is forwarded verbatim**
 Given a valid token
-When the user runs the search command with the query `"strategy review" -archived`
+When the user runs the search command with a single quoted multi-word query carrying an operator (e.g. `"strategy review -archived"`)
 Then the system forwards the whole query string unmodified as the `query` parameter
 And the command exits successfully
 
