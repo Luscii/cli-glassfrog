@@ -68,7 +68,7 @@ The API answers from one endpoint with one uniform result shape: each `SearchRes
 
 **In order to** trust that I have seen everything that matched,
 **as an** AI agent with a bounded context,
-**I want to** the result set to be complete by default or plainly flagged incomplete.
+**I want to** have the result set be complete by default or plainly flagged incomplete.
 
 ---
 
