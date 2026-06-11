@@ -103,15 +103,18 @@ func ResolveSelection(flagValue, envValue, fileValue, filePath string, fileFound
 
 // classifyFlagSelection classifies a non-empty --output flag value (035 ADR-1):
 // reserved tokens win (format tokens, then the stdin marker), and anything else is a
-// template file path. The file Path keeps the raw flag value (not lowercased — it is
-// a filesystem path), while the reserved comparison is case-insensitive and
-// whitespace-trimmed (matching ParseFormat).
+// template file path. The file Path is whitespace-trimmed — surrounding whitespace
+// is insignificant, consistent with the flag-rung presence check (ResolveSelection
+// uses strings.TrimSpace to decide non-emptiness) and the reserved-token comparison,
+// so `-o " ./t.tmpl "` resolves to the same file as `-o ./t.tmpl`. It is NOT
+// lowercased — case is significant for a filesystem path.
 func classifyFlagSelection(flagValue string) Selection {
 	if format, err := ParseFormat(flagValue); err == nil {
 		return Selection{Format: format}
 	}
-	if strings.ToLower(strings.TrimSpace(flagValue)) == reservedStdin {
+	trimmed := strings.TrimSpace(flagValue)
+	if strings.ToLower(trimmed) == reservedStdin {
 		return Selection{Template: &TemplateRef{Kind: TemplateStdin}}
 	}
-	return Selection{Template: &TemplateRef{Kind: TemplateFile, Path: flagValue}}
+	return Selection{Template: &TemplateRef{Kind: TemplateFile, Path: trimmed}}
 }

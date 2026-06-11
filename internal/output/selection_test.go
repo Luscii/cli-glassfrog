@@ -55,7 +55,22 @@ func TestResolveSelection_FlagFile(t *testing.T) {
 	}
 	ref, ok := sel.AsTemplate()
 	if !ok || ref.Kind != TemplateFile || ref.Path != "./roles.tmpl" {
-		t.Errorf("a non-reserved value should be a TemplateFile with the raw path, got %+v (ok=%v)", sel, ok)
+		t.Errorf("a non-reserved value should be a TemplateFile with the path, got %+v (ok=%v)", sel, ok)
+	}
+}
+
+// TestResolveSelection_FlagFileTrimsWhitespace confirms surrounding whitespace on a
+// file-path flag value is trimmed, so `-o " ./x "` resolves to the same file as
+// `-o ./x` — consistent with the flag-rung presence check and the reserved-token
+// comparison (both trim).
+func TestResolveSelection_FlagFileTrimsWhitespace(t *testing.T) {
+	sel, err := ResolveSelection("  ./roles.tmpl  ", "", "", "", false, nil)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	ref, ok := sel.AsTemplate()
+	if !ok || ref.Kind != TemplateFile || ref.Path != "./roles.tmpl" {
+		t.Errorf("a whitespace-padded path should trim to %q, got %+v (ok=%v)", "./roles.tmpl", sel, ok)
 	}
 }
 
