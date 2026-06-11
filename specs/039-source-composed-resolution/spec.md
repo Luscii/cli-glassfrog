@@ -45,8 +45,8 @@ The resolver is the dependency root of the *Duplicated Setting Resolution* solut
 
 ### Resolution errors
 
-- When a source cannot complete its read — an unreadable or malformed `.glassfrogrc`, or a failed STDIN read — the system surfaces that as a resolution error that names the offending origin, and does not silently skip past it to a lower source.
-- When the system surfaces a resolution error, it presents it in one uniform error shape across all sources, so callers handle resolution failure the same way regardless of which source failed.
+- When a source cannot complete its read — an unreadable or malformed `.glassfrogrc`, or a failed STDIN read — the system aborts resolution and returns that source's error (verbatim), and does not silently skip past it to a lower source.
+- When the system surfaces a resolution error, it surfaces it uniformly as a non-nil `error` return from `Resolve` (callers may `errors.As` typed errors such as `*rcfile.ReadError`/`*rcfile.FormatError`).
 
 ---
 
