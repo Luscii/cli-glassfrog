@@ -83,7 +83,9 @@ type Source struct {
 	kind SourceKind
 	// eval reports the source's outcome: yielded reports whether the source
 	// supplied a value, value/origin describe it when it did, and a non-nil error
-	// aborts the walk. It is run at most once, only when the walk reaches it.
+	// aborts the walk. Within a single Resolve call it is run at most once, only
+	// when the walk reaches it (reusing the same Source across Resolve calls
+	// re-runs it).
 	eval func() (value string, origin string, yielded bool, err error)
 }
 

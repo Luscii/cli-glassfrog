@@ -155,7 +155,7 @@ func initializeResolveScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^it will report no error$`, w.thenNoError)
 	sc.Step(`^it will return the value from "([^"]*)"$`, w.thenReturnsAliasValue)
 	sc.Step(`^it will report the provenance origin as "([^"]*)"$`, w.thenProvenanceOrigin)
-	sc.Step(`^it will fail loudly as a composition error$`, w.thenComposistionPanic)
+	sc.Step(`^it will fail loudly as a composition error$`, w.thenCompositionPanic)
 	sc.Step(`^it will not drain the stream for the first reader$`, w.thenStreamNotDrained)
 	sc.Step(`^it will surface a resolution error naming that file path$`, w.thenResolutionErrorNamingFile)
 	sc.Step(`^it will not fall through to a lower-precedence source$`, w.thenNoFallThrough)
@@ -367,7 +367,7 @@ func (w *resolveWorld) thenProvenanceOrigin(origin string) error {
 	return nil
 }
 
-func (w *resolveWorld) thenComposistionPanic() error {
+func (w *resolveWorld) thenCompositionPanic() error {
 	if !w.panicked {
 		return errors.New("expected a composition-error panic, but Resolve returned normally")
 	}
