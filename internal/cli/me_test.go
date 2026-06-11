@@ -501,13 +501,14 @@ func TestRunMe_BaseURLRcfileErrorIsUsageErrorWithNextStep(t *testing.T) {
 
 // --- API Error Extraction (015): refined-error message + classification ---
 
-// reportClientError refines a generic non-2xx *ResponseError into a typed
+// reportFailure refines a generic non-2xx *ResponseError into a typed
 // *ProblemError (once), so the message surfaces the API's own detail and the
-// returned error that travels up the chain IS the typed value (ADR-4). Pins:
-// the API detail appears (DetailSynthesized==false); a synthesized fallback
-// shows the "status N" wording, NOT the synthesized text; the per-class
-// next-step hints render; the returned error is a *ProblemError.
-func TestReportClientError_SurfacesDetailAndClassifies(t *testing.T) {
+// returned error that travels up the chain IS the typed value (ADR-4). Pins (on
+// the human path, unchanged by 032): the API detail appears
+// (DetailSynthesized==false); a synthesized fallback shows the "status N"
+// wording, NOT the synthesized text; the per-class next-step hints render on
+// stderr; stdout stays empty; the returned error is a *ProblemError.
+func TestReportFailure_SurfacesDetailAndClassifies(t *testing.T) {
 	cases := []struct {
 		name        string
 		re          *apiclient.ResponseError
@@ -557,8 +558,13 @@ func TestReportClientError_SurfacesDetailAndClassifies(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var errb bytes.Buffer
-			outcome, retErr := reportClientError(&errb, tc.re)
+			var outb, errb bytes.Buffer
+			// The human path (full) is unchanged by 032: the cause-plus-next-step
+			// line lands on stderr and stdout stays empty.
+			outcome, retErr := reportFailure(&outb, &errb, output.FormatFull, tc.re)
+			if outb.Len() != 0 {
+				t.Errorf("the human path must leave stdout empty, got %q", outb.String())
+			}
 			if outcome != tc.wantOutcome {
 				t.Errorf("outcome = %v, want %v", outcome, tc.wantOutcome)
 			}
@@ -585,12 +591,12 @@ func TestReportClientError_SurfacesDetailAndClassifies(t *testing.T) {
 	}
 }
 
-// reportClientError must refine ONCE: feeding it an already-refined
+// reportFailure must refine ONCE: feeding it an already-refined
 // *ProblemError must not double-wrap, and the outcome/message stay stable.
-func TestReportClientError_RefinesOnce(t *testing.T) {
+func TestReportFailure_RefinesOnce(t *testing.T) {
 	pe := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403, Body: []byte(`{"detail":"Forbidden"}`)})
-	var errb bytes.Buffer
-	outcome, retErr := reportClientError(&errb, pe)
+	var outb, errb bytes.Buffer
+	outcome, retErr := reportFailure(&outb, &errb, output.FormatFull, pe)
 	if outcome != PermissionError {
 		t.Errorf("outcome = %v, want PermissionError", outcome)
 	}

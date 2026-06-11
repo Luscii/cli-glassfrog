@@ -51,7 +51,7 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 
 	// Send exactly one GET /me/roles and dispatch on the resolved format (020

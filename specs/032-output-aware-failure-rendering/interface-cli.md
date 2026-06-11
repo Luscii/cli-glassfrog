@@ -19,7 +19,7 @@ This accord pins the **operator-facing failure surface**: which channel a comman
 
 ### Structured failure document (`json` / `yaml`)
 
-When a command-execution failure occurs and the resolved format is `json` or `yaml`, stdout carries **one** 018 unified error envelope (and nothing else). The envelope is `{ "error": { … } }` with these fields (declaration order; absent fields omitted, never null-keyed):
+When a command-execution failure occurs and the resolved format is `json` or `yaml`, stdout carries **one** 018 unified error envelope (and nothing else). The envelope is `{ "error": { … } }` with these fields (listed below in field-declaration order — which the JSON render preserves; the YAML render emits keys alphabetically, so YAML consumers should rely on the keys, not their order. Absent fields are omitted, never null-keyed):
 
 | Field | Type | Presence | Source |
 |---|---|---|---|
@@ -43,13 +43,13 @@ When a command-execution failure occurs and the resolved format is `json` or `ya
 }
 ```
 
-**Example** (`--output yaml`, a transport failure — no API payload):
+**Example** (`--output yaml`, a transport failure — no API payload; YAML keys are emitted alphabetically):
 
 ```yaml
 error:
+  kind: network
   message: 'could not reach the API: connection refused'
   next_step: check connectivity; the API may be unreachable
-  kind: network
 ```
 
 ### Human failure line (`full` / `compact`)
