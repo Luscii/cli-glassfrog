@@ -39,3 +39,4 @@
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Analyzed | analyze | 2026-06-11T13:00:00 |
 | 041-cross-model-search | Analyzed | risk | 2026-06-11T08:32:26 |
+| 042-tension-capture | Analyzed | risk | 2026-06-11T22:02:36 |
