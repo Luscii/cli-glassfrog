@@ -339,7 +339,10 @@ func TestOSRootsReturnsWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OSRoots error: %v", err)
 	}
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd error: %v", err)
+	}
 	if startDir != wd {
 		t.Errorf("startDir = %q, want the working directory %q", startDir, wd)
 	}
