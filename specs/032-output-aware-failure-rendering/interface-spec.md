@@ -17,7 +17,7 @@ This accord pins two Go contracts: the **additive `next_step` field** 032 adds t
 
 | Symbol | Signature (shape) | Description |
 |---|---|---|
-| `ErrorDetail.NextStep` | `string` with tag `json:"next_step,omitempty"` | NEW field on 018's existing `ErrorDetail`. Carries the diagnostic's recovery action as its own parseable key, distinct from `message`. `omitempty` so a failure with no next step (internal-error fallback, bare general-API) renders no key. Field **declaration order**: `Message`, `NextStep`, `Kind`, `Status`, `Body` — so the JSON/YAML document reads message → next_step → kind → status → body. |
+| `ErrorDetail.NextStep` | `string` with tag `json:"next_step,omitempty"` | NEW field on 018's existing `ErrorDetail`. Carries the diagnostic's recovery action as its own parseable key, distinct from `message`. `omitempty` so a failure with no next step (internal-error fallback, bare general-API) renders no key. Field **declaration order**: `Message`, `NextStep`, `Kind`, `Status`, `Body` — so the JSON document reads message → next_step → kind → status → body. (The YAML render does not guarantee key order — `JSONToYAML` round-trips through a map and emits keys alphabetically; rely on the keys, not their YAML order.) |
 
 Everything else in `internal/output` is unchanged: `ErrorEnvelope{Error ErrorDetail}`, `ErrorDetail{Message, Kind, Status, Body}`, and `RenderError(f Format, env ErrorEnvelope) ([]byte, error)` keep their shapes. The new field is *declared* here (018's home) but *populated* in `internal/cli` (below), so `internal/output` imports no transport and performs no classification (018 invariant).
 

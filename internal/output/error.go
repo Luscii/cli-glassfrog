@@ -21,8 +21,11 @@ type ErrorEnvelope struct {
 // ErrorDetail carries the failure facts. NextStep, Status, and Body are omitempty
 // so a failure that lacks any of them shares the exact top-level shape of one that
 // carries them — the fields that do not apply are absent, never null-keyed or
-// renamed. Field declaration order is message → next_step → kind → status → body so
-// the rendered document reads in that order.
+// renamed. The struct field declaration order is message → next_step → kind →
+// status → body: the JSON render preserves it (encoding/json emits struct fields in
+// declaration order), but the YAML render does NOT guarantee key order — JSONToYAML
+// round-trips through a map, so RenderError emits YAML keys alphabetically. Don't
+// rely on YAML key order; rely on the keys themselves.
 type ErrorDetail struct {
 	// Message is a human-readable, token-free description (always present).
 	Message string `json:"message"`
