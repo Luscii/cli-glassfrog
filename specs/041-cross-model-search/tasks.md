@@ -33,7 +33,7 @@ Phase 2: The `search` command + acceptance (2 tasks, depends on Phase 1 · T001)
 
 ## Phase 1: `internal/glassfrog` schema [Shared]
 
-- [ ] **T001** [Shared] Add the flat `SearchResult` type decoded via `Page[SearchResult]` — RED-first decode tests; new `internal/glassfrog/search.go` + `search_test.go`
+- [x] **T001** [Shared] Add the flat `SearchResult` type decoded via `Page[SearchResult]` — RED-first decode tests; new `internal/glassfrog/search.go` + `search_test.go` — 5 decode tests (snake-case binding, nullable excerpt/role_id, float rank, empty page, unknown-field tolerance); reused generic `Page[T]`, no 041-local envelope
   - **Scope**: In `internal/glassfrog`, add a `SearchResult` struct decoding a `data` row of the `GET /search` body: `Type string` (the `role`/`note`/`project`/`action`/`skill`/`actor`/`policy`/`domain` enum — decoded as a plain string, not a constrained Go type), `ID string`, `Title string`, `Excerpt *string` (nullable), `Rank float64`, `RoleID *string` (nullable). The list decodes the **existing** generic `Page[SearchResult]` (016) — do **not** define a new envelope. It is its **own** flat type — not a reuse/growth of `Role`/`RoleDetail` (a `SearchResult` carries `rank`/`excerpt` no resource has — plan ADR-2). Decoding tolerates unknown/extra fields; no transport, no cobra, no exit codes; the token is never a field.
   - **Acceptance criteria**:
     - A `GET /search` page fixture decodes into `Page[SearchResult]` with `Data` populated (mixed `type` values across rows) and `Meta.Pagination` read (`has_next_page`, `next_cursor`)
