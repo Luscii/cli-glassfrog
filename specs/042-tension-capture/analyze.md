@@ -3,7 +3,7 @@
 **Feature**: 042-tension-capture
 **Artifacts analyzed**: spec.md, plan.md, interface-cli.md, interface-spec.md, features/tension-capture/tension-capture.feature, tasks.md
 **Checklist context**: loaded — 16/16 pass, 0 failures
-**Checks**: 16 (15 pass, 1 fail)
+**Checks**: 16 (16 pass, 0 open) — one coherence finding (H4) was flagged at the round-1 run and resolved during review of this spec; see the Coherence section for the retained audit trail.
 **Generated**: 2026-06-11
 
 ---
@@ -14,10 +14,12 @@
 |---|---|---|---|
 | Consistency (P0) | 6 | 6 | 0 |
 | Completeness (P1) | 6 | 6 | 0 |
-| Coherence (P2) | 4 | 3 | 1 |
-| **Total** | **16** | **15** | **1** |
+| Coherence (P2) | 4 | 4 | 0 |
+| **Total** | **16** | **16** | **0** |
 
 Full artifact set present (two interface files, one feature file), so all 16 base checks ran; interface-targeted checks (C4, C6, K2, K5, K6) were evaluated against both `interface-cli.md` and `interface-spec.md`.
+
+> The round-1 run found **one** coherence finding (H4, a plan↔tasks phase-label drift). It was resolved during review of this spec, so the tallies above reflect the current 16/16 state; the original finding is retained (struck through) in the Coherence section below for the audit trail.
 
 ---
 
@@ -43,26 +45,30 @@ Full artifact set present (two interface files, one feature file), so all 16 bas
 - **K5** interface Surface → feature — the `tension create` surface and its error modes have scenario coverage (happy, label/meeting-type, empty body, bad meeting-type, auth, 404, 429).
 - **K6** spec § User Scenarios → interface — all four user scenarios map to the `create` command surface.
 
-## Coherence: 3/4 passed
+## Coherence: 4/4 passed
 
-### Findings
+### Resolved finding
 
-**P2** | H4: plan.md § Implementation Strategy ↔ tasks.md § Dependency Graph / Phase headings
-> plan.md's Implementation Strategy defines **two** phases (Phase 1 — Write-body transport seam; Phase 2 — The tension create command); the BDD/acceptance work lives in plan's **Cross-cutting Concerns › Testing**, not as a named phase. tasks.md introduces a **"Phase 3: Executable acceptance"** (T005) that has no corresponding named phase in plan's phase structure. Not wrong — T005 is sound and its plan-reference correctly cites "Phase 2 + Cross-cutting (testing)" — but the phase *labels* drift between the two artifacts. A Builder comparing them sees three task phases against two plan phases. (Resolution is the developer's: either treat acceptance as a sub-step of Phase 2, or add a third "Acceptance" phase to plan's Implementation Strategy. Cosmetic; does not block implementation.)
->
-> **Resolved (post-review, PR #89, re-raised by Copilot):** tasks.md was realigned to the plan's two-phase structure — Phase 2 is now "The tension create command," and T005 is its closing **acceptance step** (heading "Phase 2 — acceptance step"). No "Phase 3" remains, so the plan↔tasks phase labels now match.
+**P2 (resolved)** | H4: plan.md § Implementation Strategy ↔ tasks.md § Dependency Graph / Phase headings
 
-### Passed (3/4)
+The round-1 run flagged a phase-label drift. It has since been fixed, so this no longer describes the current artifacts — the original finding is struck through below and retained for the audit trail:
+
+> ~~plan.md's Implementation Strategy defines **two** phases (Phase 1 — Write-body transport seam; Phase 2 — The tension create command); the BDD/acceptance work lives in plan's **Cross-cutting Concerns › Testing**, not as a named phase. tasks.md introduces a "Phase 3: Executable acceptance" (T005) that has no corresponding named phase in plan's phase structure. Not wrong — T005 is sound and its plan-reference correctly cites "Phase 2 + Cross-cutting (testing)" — but the phase *labels* drift between the two artifacts.~~
+
+**Resolution:** tasks.md was realigned to the plan's two-phase structure during review of this spec — Phase 2 is now "The tension create command," and T005 is its closing **acceptance step** (heading "Phase 2 — acceptance step"). No "Phase 3" remains, so the plan↔tasks phase labels now match. Coherence is 4/4.
+
+### Passed (4/4, incl. H4 after resolution)
 
 - **H1** Terminology — "tension", "sensing role", "sensed_by / sensing person", "capture", `ten_` id, "meeting-type" are used consistently across all artifacts.
 - **H2** Detail symmetry — spec↔plan and plan↔tasks are proportionate; no artifact is 3×+ deeper than its pair on a shared topic.
 - **H3** Scope alignment (spec + interface + tasks) — all three describe the same capability (capture only); nothing added or dropped silently.
+- **H4** Phase coverage (plan ↔ tasks) — passes after resolution: tasks.md mirrors plan's two-phase structure (T005 is Phase 2's acceptance step); no orphan phase label. (See the Resolved finding above for history.)
 
 ---
 
 ## Checklist Correlation
 
-Checklist correlation: no overlapping findings between checklist and analyze results. Checklist reported 16/16 pass with no failures; analyze's single P2 (H4, a plan↔tasks phase-label drift) targets a relationship checklist does not evaluate (checklist is vertical). No shared root cause.
+Checklist correlation: no overlapping findings between checklist and analyze results. Checklist reported 16/16 pass with no failures; analyze's one round-1 P2 (H4, a plan↔tasks phase-label drift — since resolved) targeted a relationship checklist does not evaluate (checklist is vertical). No shared root cause.
 
 ---
 
