@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-11T08:13:53 | Framework: MoSCoW | Items: 46
+> Generated: 2026-06-11T18:32:52 | Framework: MoSCoW | Items: 51
 
 ### 1. Command Registration
 
@@ -301,7 +301,7 @@
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The composable resolver mechanism for the Next-tier Duplicated Setting Resolution problem (Maintainer-facing maintainability); dependency root of its solution with no declared FEATURE-MODEL edges, so it leads the refactor.
-- **Status**: pending
+- **Status**: specified:039-source-composed-resolution
 
 ### 40. Resolution Call-Site Retrofit
 
@@ -317,7 +317,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The `search` command (`GET /search`) for the Undiscoverable Governance problem — relevance-ranked cross-model discovery, high value for the agent operator. Buildable now (deps shipped: 007, 010); self-contained, no inter-feature edges.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:041-cross-model-search
 
 ### 42. Tension Capture
 
@@ -356,5 +356,45 @@
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: One-level roll-up of tensions across a role's direct subroles (`GET /roles/{role_id}/subroles/tensions`); the most peripheral tension read, so it sits last.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 47. Role Fillers
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Angle-1 anchor of the Who-to-Contact-for-a-Role problem (`GET /roles/{role_id}/assignments`) — reads which actors fill a role so the operator knows whom to reach out to about a tension. Highest-value of the actor-reads wave; buildable now (deps shipped: 007, 010). Peer to Cross-Model Search (#41) at the Should tier.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 48. Actor Directory
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The discovery entry of Actor Reads (`GET /actors` / `listPeople`) — find an actor by name or role before drilling into their footprint. Self-contained, buildable now (deps shipped: 007, 010); ranks just below Role Fillers as the find-then-read primitive.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 49. Actor Read
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Angle-2 anchor of An-Actor's-Governance-Footprint (`GET /actors/{id}` with `?include=roles`) — read one actor (person or agent) and the roles they fill. Completes the Should-tier core of the actor reads.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 50. Actor Assignments
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Lists the roles an actor fills as assignments (`GET /actors/{actor_id}/assignments`) — the inverse of Role Fillers, completing the footprint, but overlapping Actor Read's `?include=roles`, so it sits at the Could tier like the more operational governance reads (#38).
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 51. Subrole Filler Roll-up
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: One-level roll-up of actors filling a role's direct subroles (`GET /roles/{id}/subroles/actors` / `subroles/people`) — an escalation aid for reaching the surrounding circle; requires an expanded role (leaf roles 404). The most peripheral of the wave, mirroring Subroles Tension Roll-up (#46).
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
 - **Status**: pending

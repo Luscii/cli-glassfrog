@@ -63,3 +63,10 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: AI agent
     + related-to: Tension Capture
     + candidate: Search — cross-model full-text search (`GET /search` → `search`, spec/glassfrog-api-v5.yaml:4156) across roles, projects, actions, notes, skills, actors, policies, and domains, ranked by relevance, with a required `query` (websearch syntax) and an optional `types` filter; paginated
+  * Actors Disconnected from Governance — when working a tension, the operator can't bridge people and the governance record in either direction: from a role to the actor to contact about it, or from an actor to the governance they hold
+    + affects: Practitioner
+    + affects: AI agent
+    + related-to: Tension Capture
+    + related-to: Undiscoverable Governance
+    * Who to Contact for a Role — given a role relevant to a tension, the operator can't tell which actor fills it, so they don't know whom to reach out to
+    * An Actor's Governance Footprint — given an actor, the operator can't see what they do: the roles they fill and the accountabilities, domains, and purposes those carry
