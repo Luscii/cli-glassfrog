@@ -31,7 +31,7 @@ glassfrog search <QUERY> [--types a,b,…] [--first-page] [--per-page N] [--base
 |---|---|---|---|
 | `--types` | string (comma-separated) | *(omitted = all types)* | Scope the search to one or more resource types (`types` query, `style:form explode:false`). Valid values: `role`, `note`, `project`, `action`, `skill`, `actor`, `policy`, `domain`. Validated locally before any request; an unsupported value is a fail-fast usage error naming the bad value + the supported set (plan ADR-3). Sent **only when set** — omitting it requests all types (the API default), it is not spelled out as the full list. |
 | `--first-page` | bool | false | Opt out of the full walk: fetch only the first page and signal if more exist (see Interactions). |
-| `--per-page` | int | *(016 default: API max)* | Page size for the walk (016's `WithPageSize`); the API owns the valid range (`1`–`100`). |
+| `--per-page` | int | *(default: 100)* | Page size for the walk (016's `WithPageSize`); the API owns the valid range (`1`–`100`). |
 
 **Inherited (persistent root) flags**, read by cobra inheritance, not redeclared:
 
