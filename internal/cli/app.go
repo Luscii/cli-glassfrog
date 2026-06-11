@@ -65,6 +65,15 @@ func Assemble() *cobra.Command {
 	// unknown-flag usage error (the structural list-only guard, ADR-1). Shares the
 	// productionSeam; reads the inherited persistent --base-url/--output.
 	MustRegister(root, newProjectCommand(productionSeam{}))
+	// Cross-Model Search (041): the `search <query>` command — one relevance-ranked
+	// full-text query across all eight resource types (GET /search), walked to
+	// completion by default (reusing 025/026's walk + --first-page opt-out,
+	// parameterized on SearchResult). An org-wide, cross-type sibling — child of no
+	// resource group (ADR-1). The required positional query is forwarded verbatim;
+	// --types scopes it (reject-unknown over the closed 8-value set). productionSeam
+	// binds the real transport + clock; it reads the inherited persistent
+	// --base-url/--output.
+	MustRegister(root, newSearchCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

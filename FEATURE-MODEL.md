@@ -168,3 +168,30 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): a single c
 - Cross-Model Search — a `search` command running a relevance-ranked full-text query across resource types (roles, notes, projects, actions, skills, actors, policies, domains): `GET /search` → `search` (`spec/glassfrog-api-v5.yaml:4156`); required `query` (websearch syntax), optional `types` scoping, paginated; each `SearchResult` carries the id the operator drills into via the matching read command
   + depends-on: Request Authentication
   + depends-on: Request Execution
+
+## Actor Reads
+> Problem: An Actor's Governance Footprint — given an actor, the operator can't see what they do: the roles they fill and the accountabilities, domains, and purposes those carry (affects: Practitioner, AI agent)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): `/people` and `/agents` are convenience aliases over a unified `/actors` endpoint (`?kind=human|agent`); `/actors` carries no feature gate, so agents are reachable through it (via `?kind=agent` or an `agt_` id), while the dedicated `/agents` alias is `ai_integration`-gated and stays deferred. Reads only — the actor-admin writes (`createActor`/`updateActor`/`deleteActor`, `createRoleAssignment`/`updateAssignment`/`deleteAssignment`) are out of scope. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Actor Directory — list and find actors to identify whom you mean before drilling in: `GET /actors` → `listActors` (`spec/glassfrog-api-v5.yaml:771`; paginated, `?kind=human|agent`, `?role_id`, `?q`), with `/people` → `listPeople` (`spec/glassfrog-api-v5.yaml:1146`) as the human-filtered alias
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Actor Read — read one actor by id (person or agent) with their roles embedded — the entry to an actor's governance footprint: `GET /actors/{id}` → `getActor` (`spec/glassfrog-api-v5.yaml:857`; accepts `per_`/`agt_`, `?include=roles,assignments`)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Actor Assignments — list the roles an actor fills as assignments (the inverse of Role Fillers, completing the footprint): `GET /actors/{actor_id}/assignments` → `listActorAssignments` (`spec/glassfrog-api-v5.yaml:1744`; default `include=role`, paginated)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+
+## Role Fillers
+> Problem: Who to Contact for a Role — given a role relevant to a tension, the operator can't tell which actor fills it, so they don't know whom to reach out to (affects: Practitioner, AI agent)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): role assignments map actors to roles, so the read side answers "who fills this role" directly and one level down across the role's subroles. The subrole roll-up requires an expanded role (`has_subroles: true`) — leaf roles 404. Reads only — the assignment writes (`createRoleAssignment`/`updateAssignment`/`deleteAssignment`) are out of scope. Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Role Fillers — read which actors fill a given role, so the operator knows whom to contact about a tension: `GET /roles/{role_id}/assignments` → `listRoleAssignments` (`spec/glassfrog-api-v5.yaml:1644`; default `include=actor` embeds the full actor objects, paginated)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Subrole Filler Roll-up — read the actors filling a role's direct subroles (one level), to reach the surrounding circle when the role itself is vacant or shared: `GET /roles/{id}/subroles/actors` → `listSubrolesActors` (`spec/glassfrog-api-v5.yaml:321`; `?kind=human|agent`, paginated, requires `has_subroles`, leaf roles 404), with `/roles/{id}/subroles/people` → `listSubrolesPeople` (`spec/glassfrog-api-v5.yaml:379`) as the human-filtered alias
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
