@@ -11,7 +11,9 @@ import (
 // from a pipe rather than a file literally named "stdin". The four ParseFormat
 // tokens (full/compact/json/yaml) PLUS this one are the reserved set; any other
 // non-empty flag value is a template file path. Centralized here as the single
-// source of truth shared with interface-cli's widened usage string.
+// source of truth for this package's flag-rung resolution; the CLI's `-o` help
+// prose (internal/cli/root.go) names the token independently, the same way it
+// hand-writes the four format tokens.
 const reservedStdin = "stdin"
 
 // TemplateKind discriminates a user-template source (035): a file path on disk, or

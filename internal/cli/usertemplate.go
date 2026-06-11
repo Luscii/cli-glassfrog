@@ -153,12 +153,16 @@ func readTemplateSourceFrom(ref output.TemplateRef, readFile func(string) ([]byt
 			return "", errors.New("-o stdin: no template was piped to standard input (the pipe was empty)")
 		}
 		return text, nil
-	default:
+	case output.TemplateFile:
 		b, err := readFile(ref.Path)
 		if err != nil {
 			return "", fmt.Errorf("could not read template file %q: %w", ref.Path, err)
 		}
 		return string(b), nil
+	default:
+		// Fail loud on an unknown/invalid TemplateKind rather than silently reading
+		// it as a file — a future kind must be handled explicitly here.
+		return "", fmt.Errorf("unknown template source kind %d", ref.Kind)
 	}
 }
 
