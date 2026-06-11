@@ -38,7 +38,7 @@ const moreRoleProjectsNote = "note: more projects exist than shown; re-run witho
 // projectsSeam supplies everything the project reads need from the outside, so the
 // run* functions are pure over injected values and every branch runs offline. It
 // is the same shape as policiesSeam/rolesSeam (assemble + newClient + sleep +
-// resolveFormat), so productionSeam satisfies it unchanged and the existing test
+// resolveSelection + readTemplateSource), so productionSeam satisfies it unchanged and the existing test
 // fakes drive it. The reads build the RetryExecutor-wrapped *Client once from these
 // and hand it to both a direct Execute (the single project read) and paging.All
 // (the list walk). It never reads ctx.Cred.Token — the token rides 007's

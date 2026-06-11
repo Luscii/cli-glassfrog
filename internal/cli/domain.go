@@ -18,7 +18,7 @@ import (
 
 // domainSeam supplies everything the single `domain` read needs from the outside,
 // so runDomain is pure over injected values and every branch runs offline. It is
-// the single-read shape (assemble + newClient + resolveFormat) — no walker and no
+// the single-read shape (assemble + newClient + resolveSelection + readTemplateSource) — no walker and no
 // sleep, because the single read issues exactly one Execute (unpaginated; 016/017
 // are not on this path). productionSeam satisfies it unchanged (it carries the
 // extra list methods harmlessly), and the existing test fakes drive it. It never

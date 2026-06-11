@@ -35,7 +35,7 @@ const moreDomainsNote = "note: more domains exist than shown; re-run without --f
 
 // domainsSeam supplies everything the `domains` read needs from the outside, so
 // runDomains is pure over injected values and every branch runs offline. Same
-// shape as subrolesSeam/rolesSeam (assemble + newClient + sleep + resolveFormat),
+// shape as subrolesSeam/rolesSeam (assemble + newClient + sleep + resolveSelection + readTemplateSource),
 // so productionSeam satisfies it unchanged and the existing test fakes drive it.
 // It never reads ctx.Cred.Token — the token rides 007's AuthTransport in the
 // client.

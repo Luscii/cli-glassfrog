@@ -59,14 +59,16 @@ var supportedSearchTypes = map[string]bool{
 // searchSeam supplies everything the `search` read needs from the outside, so
 // runSearch is pure over injected values and every branch runs offline. Same shape
 // as rolesSeam/subrolesSeam/domainsSeam (assemble + newClient + sleep +
-// resolveFormat), so productionSeam satisfies it unchanged and the existing test
-// fakes drive it. It never reads ctx.Cred.Token — the token rides 007's
-// AuthTransport in the client.
+// resolveSelection + readTemplateSource — 035 widened resolveFormat into the
+// discriminated selection), so productionSeam satisfies it unchanged and the
+// existing test fakes drive it. It never reads ctx.Cred.Token — the token rides
+// 007's AuthTransport in the client.
 type searchSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // searchConfig carries everything runSearch needs, gathered by the command's
@@ -96,11 +98,13 @@ type searchConfig struct {
 // verbatim, parameterized on SearchResult — ADR-4). It adds no new Outcome/ExitCode
 // and never reads the token.
 func runSearch(cfg searchConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector fails
-	//    fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035, ADR-1/ADR-4): a
+	//    present-but-invalid selector — or, for a user template, a missing/unparseable
+	//    source or empty stdin — fails fast as a usage error before any assembly or
+	//    request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate --types against the closed 8-value set BEFORE any request (a bad
@@ -117,11 +121,11 @@ func runSearch(cfg searchConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runSearchList(cfg, exec, format)
+	return runSearchList(cfg, exec, rt)
 }
 
 // runSearchList walks GET /search. The output format changes ONLY how the gathered
@@ -131,19 +135,19 @@ func runSearch(cfg searchConfig) (Outcome, error) {
 // set) ride EVERY page of the walk — paging.All clones and preserves the base
 // request's query across pages. Result order is the API's relevance order,
 // preserved exactly (no client re-sort/de-dup/filter — ADR-2).
-func runSearchList(cfg searchConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runSearchList(cfg searchConfig, exec executor, rt renderTarget) (Outcome, error) {
 	req := apiclient.Request{Method: http.MethodGet, Path: "/search", Query: searchQuery(cfg)}
 
 	if cfg.firstPage {
-		return runSearchFirstPage(cfg, exec, format, req)
+		return runSearchFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each row's raw bytes, then emit the
 	// aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, searchWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -157,20 +161,18 @@ func runSearchList(cfg searchConfig, exec executor, format output.OutputFormat) 
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the search projection (a `type`-badged block
-	// per hit in relevance order; an empty set renders `No results.`).
+	// Human / user template: walk to completion, render the search projection (a
+	// `type`-badged block per hit in relevance order; an empty set renders
+	// `No results.`).
 	res := paging.All[glassfrog.SearchResult](cfg.reqCtx, exec, req, searchWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
-	text, rerr := renderFn(render.ResourceSearch, humanFormat(format), render.NewSearchView(res.Records))
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceSearch, rt.format, render.NewSearchView(res.Records)); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteSearchWalk(cfg.stderr, res.Stop)
 	}
@@ -184,15 +186,15 @@ func runSearchList(cfg searchConfig, exec executor, format output.OutputFormat) 
 // projection. The single request carries per_page at the resolved size (default
 // 100, the /search max; --per-page overrides) so the first page is a full page; the
 // walker is not involved.
-func runSearchFirstPage(cfg searchConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runSearchFirstPage(cfg searchConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	q := cloneQuery(req.Query)
 	q.Set("per_page", strconv.Itoa(searchPageSizeFor(cfg)))
 	req.Query = q
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -208,14 +210,11 @@ func runSearchFirstPage(cfg searchConfig, exec executor, format output.OutputFor
 
 	var page glassfrog.Page[glassfrog.SearchResult]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
-	text, rerr := renderFn(render.ResourceSearch, humanFormat(format), render.NewSearchView(page.Data))
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceSearch, rt.format, render.NewSearchView(page.Data)); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreSearchNote)
 	}

@@ -21,7 +21,7 @@ import (
 // treeSeam supplies everything the `tree` read needs from the outside, so runTree
 // is pure over injected values and every branch runs offline. It is the same
 // shape Identity Read's meSeam and Role Reads' rolesSeam expose (assemble +
-// newClient + sleep + resolveFormat), so productionSeam satisfies it unchanged
+// newClient + sleep + resolveSelection + readTemplateSource), so productionSeam satisfies it unchanged
 // and the existing test fakes drive it. The tree reads are unpaginated — one
 // Execute, no walk — but they still build the retrying executor (017) so a 429 is
 // retried like every other read. It never reads ctx.Cred.Token — the token rides

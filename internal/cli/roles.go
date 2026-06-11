@@ -36,7 +36,7 @@ const moreRolesNote = "note: more roles exist than shown; re-run without --first
 // rolesSeam supplies everything the `roles` reads need from the outside, so
 // runRoles is pure over injected values and every branch runs offline. It is the
 // same shape Identity Read's meSeam exposes (assemble + newClient + sleep +
-// resolveFormat), so productionSeam satisfies it unchanged and the existing test
+// resolveSelection + readTemplateSource), so productionSeam satisfies it unchanged and the existing test
 // fakes drive it; `roles` builds the retrying executor once from these and hands
 // it to both a direct Execute (single read) and paging.All (the list walk). It
 // never reads ctx.Cred.Token — the token rides 007's AuthTransport inside the

@@ -35,7 +35,7 @@ const moreSubrolesNote = "note: more subroles exist than shown; re-run without -
 
 // subrolesSeam supplies everything the `subroles` read needs from the outside, so
 // runSubroles is pure over injected values and every branch runs offline. Same
-// shape as rolesSeam/meSeam (assemble + newClient + sleep + resolveFormat), so
+// shape as rolesSeam/meSeam (assemble + newClient + sleep + resolveSelection + readTemplateSource), so
 // productionSeam satisfies it unchanged and the existing test fakes drive it. It
 // never reads ctx.Cred.Token — the token rides 007's AuthTransport in the client.
 type subrolesSeam interface {

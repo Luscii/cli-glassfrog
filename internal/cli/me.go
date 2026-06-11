@@ -149,7 +149,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 // an invalid selector (*output.FormatError) and an unreadable/malformed .glassfrogrc
 // surfaced while reading the output key (*rcfile.{Read,Format}Error) — both classify
 // as UsageError(2) (correctable input). Any other resolution error (e.g. a
-// working-directory failure from productionSeam.resolveFormat's os.Getwd) matches no
+// working-directory failure from productionSeam.resolveSelection's os.Getwd) matches no
 // usage-class arm and falls to classifyClientError's RuntimeError(1) fail-safe — the
 // correct treatment for an unexpected internal failure, not a usage error. The
 // message is the error's own text (a FormatError names the source + value with the
