@@ -17,7 +17,6 @@ Feature: Governance Reads — Role Projects
     # I want to list the projects owned by any role by its id with one command.
 
     # Source: 038-role-projects — Scenario: List the projects on a role
-    @wip
     Scenario: A role's projects are listed
       Given a complete connection context with a stored token
       And the role "role_0123" owns several projects
@@ -27,7 +26,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with code 0
 
     # Source: 038-role-projects — Scenario: Role owns no projects
-    @wip
     Scenario: A role with no projects is a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" owns no projects
@@ -36,7 +34,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with code 0
 
     # Source: 038-role-projects — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog projects role_0123"
@@ -58,7 +55,6 @@ Feature: Governance Reads — Role Projects
     # I want to fetch a single project by its id.
 
     # Source: 038-role-projects — Scenario: Read a single project with full detail
-    @wip
     Scenario: A single project is read with full detail
       Given a complete connection context with a stored token
       And a project "proj_0123" exists
@@ -67,7 +63,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with code 0
 
     # Source: 038-role-projects — Scenario: Project id does not exist
-    @wip
     Scenario: An unknown project id fails with the API status
       Given a complete connection context with a stored token
       And no project "proj_ffff" exists
@@ -76,7 +71,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with a non-zero API-error code
 
     # Source: 038-role-projects — Scenario: Filter flag on the single read is rejected
-    @wip
     Scenario: A list filter is rejected on the single read
       Given a complete connection context with a stored token
       When a practitioner runs "glassfrog project proj_0123 --status current"
@@ -98,7 +92,6 @@ Feature: Governance Reads — Role Projects
     # I want to narrow the role's project list by status, free-text, or tag.
 
     # Source: 038-role-projects — Scenario: Narrow a role's projects by status
-    @wip
     Scenario: The project list is narrowed by a supported status
       Given a complete connection context with a stored token
       And the role "role_0123" owns projects in several statuses
@@ -108,7 +101,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with code 0
 
     # Source: 038-role-projects — Scenario: Unsupported status value is rejected before any request
-    @wip
     Scenario: An unsupported status is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog projects role_0123 --status active"
@@ -130,7 +122,6 @@ Feature: Governance Reads — Role Projects
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 038-role-projects — Scenario: Paginated list with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" has projects spanning more than one page
@@ -140,7 +131,6 @@ Feature: Governance Reads — Role Projects
       And the command will exit with code 0
 
     # Source: 038-role-projects — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the project list walk fails after retrieving the first page
