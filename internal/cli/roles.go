@@ -123,7 +123,7 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -163,7 +163,7 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 	if machineFmt, ok := format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, rolesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportClientError(cfg.stderr, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -185,7 +185,7 @@ func runRolesList(cfg rolesConfig, exec executor, format output.OutputFormat) (O
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show, so report it
 		// like any read error — nothing on stdout.
-		return reportClientError(cfg.stderr, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
 	}
 	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), res.Records)
 	if rerr != nil {
@@ -256,7 +256,7 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -272,7 +272,7 @@ func runRolesFirstPage(cfg rolesConfig, exec executor, format output.OutputForma
 
 	var page glassfrog.Page[glassfrog.Role]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	text, rerr := renderFn(render.ResourceOrgRoles, humanFormat(format), page.Data)
 	if rerr != nil {
@@ -361,7 +361,7 @@ func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id s
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -374,7 +374,7 @@ func runRoleGet(cfg rolesConfig, exec executor, format output.OutputFormat, id s
 
 	var doc glassfrog.RoleDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.RoleView{Detail: doc.Data, Requested: includeSet(cfg.include)}
 	text, rerr := renderFn(render.ResourceRole, humanFormat(format), view)

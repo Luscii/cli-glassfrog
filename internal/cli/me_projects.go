@@ -76,7 +76,7 @@ func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 
 	// 4. Send exactly one GET /me/projects and dispatch on the resolved format (020

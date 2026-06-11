@@ -105,7 +105,7 @@ func runTree(cfg treeConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -156,7 +156,7 @@ func runTreeRead(cfg treeConfig, exec executor, format output.OutputFormat, req 
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -171,7 +171,7 @@ func runTreeRead(cfg treeConfig, exec executor, format output.OutputFormat, req 
 
 	var doc glassfrog.TreeDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.NewTreeView(doc.Data, includeSet(cfg.include))
 	text, rerr := renderFn(render.ResourceTree, humanFormat(format), view)
