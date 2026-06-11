@@ -143,14 +143,14 @@ func readTemplateSourceFrom(ref output.TemplateRef, readFile func(string) ([]byt
 	switch ref.Kind {
 	case output.TemplateStdin:
 		if isTTY {
-			return "", fmt.Errorf(`-o stdin requires a template piped on standard input, but standard input is a terminal — pipe a template, e.g. ` + "`cat t.tmpl | glassfrog … -o stdin`")
+			return "", errors.New("-o stdin requires a template piped on standard input, but standard input is a terminal — pipe a template, e.g. `cat t.tmpl | glassfrog … -o stdin`")
 		}
 		text, err := readBoundedStdin(stdin)
 		if err != nil {
 			return "", fmt.Errorf("could not read the template from stdin: %w", err)
 		}
 		if strings.TrimSpace(text) == "" {
-			return "", fmt.Errorf("-o stdin: no template was piped to standard input (the pipe was empty)")
+			return "", errors.New("-o stdin: no template was piped to standard input (the pipe was empty)")
 		}
 		return text, nil
 	default:

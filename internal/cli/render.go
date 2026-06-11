@@ -57,19 +57,20 @@ func humanFormat(f output.OutputFormat) render.Format {
 //     presentation, and machine consumers read completeness from the document itself.
 //   - human (full/compact): decode the typed *T and write render.Render(resource,
 //     humanFmt, v) (019), then append the optional incompleteness note to stderr.
-//
-// A client/transport/API error from the send is reported via the shared
-// reportClientError (unchanged category and cause-plus-next-step message; 032 owns
-// format-aware failures). A render error from either renderer is buffer-then-write:
-// nothing reaches stdout and it maps to RuntimeError(1) (018/019 contract). On
-// success it returns Success after writing the document and any note. note may be
-// nil (a read with no incompleteness signal, e.g. me).
 //   - user template (035): when tmpl != nil the selection named a caller template
 //     (format is then DefaultFormat — a human format — so the structured branch is
 //     never taken). Decode the typed *T and render it through writeHuman, which runs
 //     tmpl.Render(v) buffer-then-write; an execution failure leaves stdout empty and
 //     maps to UsageError(2) (035 ADR-3). The optional incompleteness note behaves as
 //     on the built-in human path.
+//
+// A client/transport/API error from the send is reported via the shared
+// reportClientError (unchanged category and cause-plus-next-step message; 032 owns
+// format-aware failures). A built-in render error is buffer-then-write: nothing
+// reaches stdout and it maps to RuntimeError(1) (018/019 contract); a user-template
+// execution error is buffer-then-write to UsageError(2) (035). On success it returns
+// Success after writing the document and any note. note may be nil (a read with no
+// incompleteness signal, e.g. me).
 func renderResult[T any](
 	stdout, stderr io.Writer,
 	format output.OutputFormat,
