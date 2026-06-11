@@ -128,7 +128,9 @@ func TestResolvePanicsOnMultipleStdin(t *testing.T) {
 			t.Error("a stdin source was evaluated before the guard panicked")
 		}
 	}()
-	Resolve(FromStdin(read, false), FromStdin(read, false))
+	// The guard panics before returning, so the result is never produced; the
+	// blank assignment satisfies errcheck without implying a checkable outcome.
+	_, _ = Resolve(FromStdin(read, false), FromStdin(read, false))
 }
 
 // errSource is a test-only Source whose eval returns err — exercises the
