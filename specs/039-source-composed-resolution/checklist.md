@@ -71,7 +71,7 @@ Not run — cross-reference checks derive from done-* accords, which are absent.
 
 - **Principles with no applicable checks for this feature** (an internal mechanism, not a command):
   - **I (Spec Fidelity)** — 039 adds no command and makes no API call; nothing to diff against `spec.yaml`.
-  - **VI (Size-Aware)** — no API result sets or pagination in a resolver. *(Observation for analyze: the interface notes a bounded stdin read (`maxStdinBytes`) but neither spec nor interface specifies behaviour when piped input exceeds the cap — a consistency gap better suited to analyze than a constitution check.)*
+  - **VI (Size-Aware)** — no API result sets or pagination in a resolver. *(Observation for analyze: the interface notes a bounded stdin read (`maxStdinBytes`) but neither spec nor interface specifies behaviour when piped input exceeds the cap — a consistency gap better suited to analyze than a constitution check.)* **Resolved by 04c92d9 (PR #82 triage): spec/interface/tasks now specify "exceeds `maxStdinBytes` → error, no silent truncation".**
   - **X (Respect API Limits)** — no API calls, no updates, no `If-Match`/`ETag`.
   - **XI (Governance via Proposals)** — no governance-structure mutation.
 - **Missing done-* accords**: `accords/governance/` contains no `done-specify.md`, `done-plan.md`, `done-interface.md`, `done-scenarios.md`, or `done-tasks.md`. Consider creating them to enable done-criteria and cross-reference checks. This gap affects every spec in the repo, not just 039.
