@@ -95,7 +95,7 @@ func runDomain(cfg domainConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 
 	return runDomainGet(cfg, client, format, cfg.id)
@@ -122,7 +122,7 @@ func runDomainGet(cfg domainConfig, exec executor, format output.OutputFormat, i
 	if machineFmt, ok := format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportClientError(cfg.stderr, err)
+			return reportFailure(cfg.stdout, cfg.stderr, format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -137,7 +137,7 @@ func runDomainGet(cfg domainConfig, exec executor, format output.OutputFormat, i
 
 	var doc glassfrog.DomainDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportClientError(cfg.stderr, err)
+		return reportFailure(cfg.stdout, cfg.stderr, format, err)
 	}
 	view := render.DomainView{Domain: doc.Data, Requested: includeSet(cfg.include)}
 	text, rerr := renderFn(render.ResourceDomain, humanFormat(format), view)
