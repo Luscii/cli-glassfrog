@@ -64,7 +64,7 @@ The API answers from one endpoint with one uniform result shape: each `SearchRes
 
 **In order to** go from a search hit to the full record,
 **as an** AI agent navigating governance,
-**I want to** each result to carry the type and id I need to drill into the matching read command.
+**I want to** have each result carry the type and id I need to drill into the matching read command.
 
 **In order to** trust that I have seen everything that matched,
 **as an** AI agent with a bounded context,
