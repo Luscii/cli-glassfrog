@@ -8,7 +8,7 @@
 
 ## Dependency Graph
 
-Phase 1: Core walk + value-only sources (3 tasks, no dependencies) [Shared/US1]
+Phase 1: Core walk + value-only sources (3 tasks; T001 → {T002, T003}) [Shared/US1]
 Phase 2: I/O sources + OS binding (3 tasks, depends on Phase 1) [US2/US3]
 
 6 tasks total | within-phase parallelism only | Builder: pipeline
