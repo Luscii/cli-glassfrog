@@ -1,0 +1,11 @@
+{{$p := .Project}}{{$p.ID}}  [{{$p.Status}}]
+  Description:   {{if eq (trimSpace $p.Description) ""}}—{{else}}{{$p.Description}}{{end}}
+  Role:          {{if eq (trimSpace $p.RoleID) ""}}(individual initiative — no role){{else}}{{$p.RoleID}}{{end}}
+  Parent:        {{if eq (trimSpace $p.ParentProjectID) ""}}(top-level — no parent){{else}}{{$p.ParentProjectID}}{{end}}
+  Sub-projects:  {{if $p.HasSubProjects}}yes{{else}}no{{end}}
+  Actions:       {{if $p.HasActions}}yes{{else}}no{{end}}
+  Tags:          {{if $p.Tags}}{{join $p.Tags ", "}}{{else}}(none){{end}}
+  Created:       {{if eq (trimSpace $p.CreatedAt) ""}}(unknown){{else}}{{$p.CreatedAt}}{{end}}
+  Updated:       {{if eq (trimSpace $p.UpdatedAt) ""}}(unknown){{else}}{{$p.UpdatedAt}}{{end}}
+  Link:          {{if eq (trimSpace $p.Link) ""}}(none){{else}}{{$p.Link}}{{end}}
+  Note:          {{if eq (trimSpace $p.Note) ""}}(none){{else}}{{$p.Note}}{{end}}
