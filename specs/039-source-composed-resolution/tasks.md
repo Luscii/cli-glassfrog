@@ -93,7 +93,7 @@ The `internal/resolve` package is purely additive — no existing file is edited
   - **Interface references**: interface-spec.md: Functions (FromStdin)
 
 - [ ] **T006** [US3] Implement the thin OS-binding helpers
-  - **Scope**: `OSRoots() (startDir, homeDir string, err error)` (real `os.Getwd` — error if undeterminable; `os.UserHomeDir` — `""` on failure, drop the home fallback), `EnvFromOS(names...)` = `FromEnv(os.Getenv, names...)`, `StdinFromOS()` = `FromStdin` bound to a bounded `os.Stdin` reader + `term.IsTerminal(os.Stdin.Fd())`. Only this file imports `os`/`term`.
+  - **Scope**: `OSRoots() (startDir, homeDir string, err error)` (real `os.Getwd` — error if undeterminable; `os.UserHomeDir` — `""` on failure, drop the home fallback), `EnvFromOS(names...)` = `FromEnv(os.Getenv, names...)`, `StdinFromOS()` = `FromStdin` bound to a bounded `os.Stdin` reader + `term.IsTerminal(int(os.Stdin.Fd()))`. Only this file imports `os`/`term`.
   - **Acceptance criteria**:
     - `OSRoots` returns the working directory, returns an error when it cannot be determined, and yields `homeDir == ""` (not an error) when the home directory cannot be determined
     - `EnvFromOS` and `StdinFromOS` produce sources behaviorally identical to their pure constructors over real OS access

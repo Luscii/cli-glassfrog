@@ -33,7 +33,7 @@ The resolver is the dependency root of the *Duplicated Setting Resolution* solut
 
 - When a flag source is evaluated, it yields the flag's value whenever the flag was supplied on the command line — even when that value is empty — and is empty (not yielding) only when the flag was not supplied at all. Presence is determined the way the codebase's flag handling already determines it (supplied vs. not), not by inspecting the value.
 - When an environment source is evaluated, it yields the variable's value if the variable is set to a value that is non-empty after trimming surrounding whitespace, and is empty otherwise — a whitespace-only value counts as empty, matching the `TrimSpace` behaviour the existing token/base-URL/output resolvers already enforce.
-- When a file source is evaluated, it reads the requested key through the shared `.glassfrogrc` nearest-wins walk-up (the same reader the existing settings use) and yields the value from the nearest file that carries that key; a tokenless or keyless nearer file does not shadow a value lower down.
+- When a file source is evaluated, it reads the requested key through the shared `.glassfrogrc` nearest-wins walk-up (the same reader the existing settings use) and yields the value from the nearest file that carries that key; a tokenless or keyless nearer file does not shadow a value lower down. A whitespace-only value is treated as absent — the shared reader trims via `TrimSpace` — so it neither wins nor blocks fall-through.
 - When a STDIN source is evaluated, it yields piped input when input is present (non-interactive) and non-empty after trimming surrounding whitespace, and is empty when STDIN is a terminal, carries no data, or is whitespace-only.
 - When piped STDIN exceeds the read bound, the system surfaces a resolution error rather than silently truncating the input to the bound — never a partial value (the never-silently-truncate discipline).
 - When a single resolver composition includes more than one STDIN source, the system treats that as a programming error and surfaces it loudly rather than silently draining the single stream for the first reader. At most one STDIN source may participate in one resolution.
@@ -151,8 +151,8 @@ And the provenance identifies `-o` as the specific input that yielded
 
 **Scenario: The resolver names no concrete setting**
 Given the resolver and its source constructors
-When a reviewer reads their contract
-Then nothing references the token, base URL, or output format by name — the mechanism is setting-agnostic and would serve a fourth setting unchanged.
+When a reviewer inspects the exported API surface (types, constructors, constants)
+Then that surface carries no setting-specific identifier or constant for the token, base URL, or output format — the mechanism is setting-agnostic and would serve a fourth setting unchanged. (Explanatory prose elsewhere in the spec may name those settings for context; the constraint is on the exported surface, not on mention.)
 
 **Scenario: Provenance is rich enough to reproduce existing error labels**
 Given a resolved value

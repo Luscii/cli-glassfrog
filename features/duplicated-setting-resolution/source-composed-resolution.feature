@@ -71,9 +71,9 @@ Feature: Duplicated Setting Resolution — Source-Composed Resolution
     # Source: 039-source-composed-resolution — Scenario: The resolver names no concrete setting
     @validation @wip
     Scenario: The resolver is setting-agnostic
-      Given the resolver and its source constructors
-      When a reviewer reads their contract
-      Then nothing will reference the token, base URL, or output format by name
+      Given the resolver's exported API of types, constructors, and constants
+      When a reviewer inspects the API surface
+      Then it will carry no setting-specific identifier or constant for the token, base URL, or output format
       And the same mechanism will serve a fourth setting unchanged
 
   Rule: Receive the provenance of the winning value

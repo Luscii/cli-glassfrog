@@ -110,7 +110,7 @@ func OSRoots() (startDir, homeDir string, err error)
 func EnvFromOS(names ...string) Source
 
 // StdinFromOS is FromStdin bound to a bounded os.Stdin reader and
-// term.IsTerminal(os.Stdin.Fd()).
+// term.IsTerminal(int(os.Stdin.Fd())).
 func StdinFromOS() Source
 ```
 
