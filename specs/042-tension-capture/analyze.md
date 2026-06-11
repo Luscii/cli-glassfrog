@@ -49,6 +49,8 @@ Full artifact set present (two interface files, one feature file), so all 16 bas
 
 **P2** | H4: plan.md § Implementation Strategy ↔ tasks.md § Dependency Graph / Phase headings
 > plan.md's Implementation Strategy defines **two** phases (Phase 1 — Write-body transport seam; Phase 2 — The tension create command); the BDD/acceptance work lives in plan's **Cross-cutting Concerns › Testing**, not as a named phase. tasks.md introduces a **"Phase 3: Executable acceptance"** (T005) that has no corresponding named phase in plan's phase structure. Not wrong — T005 is sound and its plan-reference correctly cites "Phase 2 + Cross-cutting (testing)" — but the phase *labels* drift between the two artifacts. A Builder comparing them sees three task phases against two plan phases. (Resolution is the developer's: either treat acceptance as a sub-step of Phase 2, or add a third "Acceptance" phase to plan's Implementation Strategy. Cosmetic; does not block implementation.)
+>
+> **Resolved (post-review, PR #89, re-raised by Copilot):** tasks.md was realigned to the plan's two-phase structure — Phase 2 is now "The tension create command," and T005 is its closing **acceptance step** (heading "Phase 2 — acceptance step"). No "Phase 3" remains, so the plan↔tasks phase labels now match.
 
 ### Passed (3/4)
 
