@@ -132,6 +132,29 @@ type PolicyView struct {
 	Policy glassfrog.Policy
 }
 
+// ProjectsView is the data the role-scoped `projects` list templates (038)
+// render: the projects owned by a role, walked to completion. It reuses the
+// landed `projects` render key (014) unchanged — the templates range over .Data,
+// so this view exposes the same Data field MyProjectsResponse does (014's
+// /me/projects envelope), letting the role-addressable list share the projection
+// without a second template. An empty Data set renders the explicit `no projects`
+// line (a role that owns no projects, or a filter that matched none, is a valid
+// empty answer, not an error).
+type ProjectsView struct {
+	Data []glassfrog.Project
+}
+
+// ProjectView is the data the singular `project` templates (038) render: a single
+// project with its full detail — status, description, owning role (or the
+// individual-initiative marker for a null role_id), parent (or the top-level
+// marker), the has_sub_projects/has_actions presence signals, tags, timestamps,
+// link, and note — with explicit-absence guards for every nullable field. It
+// mirrors PolicyView{Policy}. The free-text description/note are rendered verbatim
+// — never truncated or reflowed (CONSTITUTION VI).
+type ProjectView struct {
+	Project glassfrog.Project
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -227,6 +250,11 @@ const (
 	// GET /policies/{id} rendered as a PolicyView (one glassfrog.Policy with its
 	// full body). Singular, distinct from ResourcePolicies.
 	ResourcePolicy Resource = "policy"
+	// ResourceProject is the single standalone project read (038):
+	// GET /projects/{id} rendered as a ProjectView (one glassfrog.Project with its
+	// full detail). Singular, distinct from ResourceProjects (the list key reused
+	// from 014).
+	ResourceProject Resource = "project"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -237,7 +265,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

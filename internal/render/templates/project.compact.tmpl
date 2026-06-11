@@ -1,0 +1,1 @@
+{{$p := .Project}}{{$p.ID}}  [{{$p.Status}}]  {{if eq (trimSpace $p.Description) ""}}—{{else}}{{$p.Description}}{{end}}
