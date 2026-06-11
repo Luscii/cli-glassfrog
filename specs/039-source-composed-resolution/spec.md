@@ -62,7 +62,7 @@ The resolver is the dependency root of the *Duplicated Setting Resolution* solut
 
 **In order to** test resolution deterministically without touching the real environment, filesystem, or terminal,
 **as a** Maintainer,
-**I want to** the resolver's OS access to sit behind an injectable seam.
+**I want to** have the resolver's OS access sit behind an injectable seam.
 
 ---
 
