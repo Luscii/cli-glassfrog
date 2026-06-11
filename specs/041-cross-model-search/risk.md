@@ -68,7 +68,7 @@ The walker must carry `query` (and `types`) on every page request, not just the 
 
 ### H-8 — Walk-by-default contributes to throttling
 Unlike a bounded list read, a broad relevance query has a long low-relevance tail; walking it to completion by default issues one request per page and raises `429` exposure for the whole org. **Severity Medium** (throttling affects every caller in the org); **Probability Medium** (a broad query genuinely can span many pages — this is the cost the walk-by-default clarify decision knowingly accepted).
-- **RC-8**: Each page goes through 017's landed `RetryExecutor` (honors `Retry-After`/`X-RateLimit-*`, GET-only safe retry); 015 classifies a capped-out `429` to rate-limit(5); page size defaults to the API max to minimize request count; the operator narrows with `--types` or caps with `--first-page` (plan ADR-4 / Cross-cutting; CONSTITUTION X).
+- **RC-8**: Each page goes through 017's landed `RetryExecutor` (honors `Retry-After`/`X-RateLimit-*`, GET-only safe retry); 015 classifies a capped-out `429` to rate-limit(5); page size defaults to 100 (the `/search` `per_page` maximum) to minimize request count; the operator narrows with `--types` or caps with `--first-page` (plan ADR-4 / Cross-cutting; CONSTITUTION X).
 - **Residual: Yellow** (Medium×Medium) — **acceptable with documented justification**: walk-by-default was the deliberate clarify resolution (cross-command symmetry + strongest reading of VI), and the operator has two first-class brakes (`--types`, `--first-page`) plus 017's backoff. Revisitable if real-world usage shows broad-query throttling.
 
 ### H-9 — Over-exposure beyond membership
