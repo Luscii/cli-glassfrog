@@ -40,10 +40,12 @@ const moreTensionsNote = "note: more tensions exist than shown; re-run without -
 // tensionSeam (identical to projectsSeam; paging is a paging.All call in the body,
 // not a seam method).
 type tensionsConfig struct {
-	seam       tensionSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
-	id         string // the required positional role id (ExactArgs(1))
+	seam           tensionSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	id             string // the required positional role id (ExactArgs(1))
 
 	status string // --status filter, validated against the tension status set before any request
 
@@ -69,7 +71,7 @@ func runTensionList(cfg tensionsConfig) (Outcome, error) {
 	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
 	//    selector — or, for a user template, a missing/unparseable source or empty
 	//    stdin — fails fast as a usage error before any assembly or request.
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -86,7 +88,7 @@ func runTensionList(cfg tensionsConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client + retrying executor. A
 	//    base-URL error surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -270,13 +272,15 @@ func newTensionListCommand(seam tensionSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runTensionList(tensionsConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				id:         args[0],
-				status:     status,
-				firstPage:  firstPage,
-				perPage:    perPage,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				id:             args[0],
+				status:         status,
+				firstPage:      firstPage,
+				perPage:        perPage,
 				// Presence, not value: a provided 0/negative --per-page must reach the
 				// API rather than be silently ignored (paging's no-clamp contract).
 				perPageSet: cmd.Flags().Changed("per-page"),
@@ -296,9 +300,11 @@ func newTensionListCommand(seam tensionSeam) *cobra.Command {
 // tensionGetConfig carries everything runTensionGet needs, gathered by the `get`
 // command's RunE. It declares no list flags — the single read has none (ADR-1).
 type tensionGetConfig struct {
-	seam       tensionSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
+	seam           tensionSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 
 	reqCtx context.Context
 	stdout io.Writer
@@ -315,12 +321,12 @@ type tensionGetConfig struct {
 // template (042) over a TensionView (mirroring runProjectGet/runTensionCreate). It
 // adds no new Outcome/ExitCode and never reads the token.
 func runTensionGet(cfg tensionGetConfig, id string) (Outcome, error) {
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
 
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -388,12 +394,14 @@ func newTensionGetCommand(seam tensionSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runTensionGet(tensionGetConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			}, args[0])
 			return outcomeToDispatchError(outcome, oerr)
 		},

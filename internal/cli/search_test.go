@@ -336,7 +336,7 @@ func TestRunSearch_UndecodableBodyIsAPIError(t *testing.T) {
 func TestRunSearch_InvalidOutputFormatIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: searchPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	outcome, _, stderr := runSearchOver(t, seam, searchConfig{outputFlag: "verbose"})
+	outcome, _, stderr := runSearchOver(t, seam, searchConfig{outputFlag: "verbose", outputPresent: true})
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}

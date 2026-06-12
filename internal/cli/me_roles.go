@@ -24,12 +24,14 @@ const incompleteRolesNote = "note: more roles exist than shown; pagination is no
 // transport with no real network or ~/.glassfrogrc. It reuses the meSeam (the
 // assemble + newClient pair Identity Read defined); My Roles needs nothing more.
 type meRolesConfig struct {
-	seam       meSeam
-	baseURL    string // the inherited persistent --base-url flag value (may be empty)
-	outputFlag string // the inherited persistent --output flag value (may be empty), resolved before any request
-	reqCtx     context.Context
-	stdout     io.Writer
-	stderr     io.Writer
+	seam           meSeam
+	baseURL        string // the inherited persistent --base-url flag value (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // the inherited persistent --output flag value (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	reqCtx         context.Context
+	stdout         io.Writer
+	stderr         io.Writer
 }
 
 // runMeRoles is the pure orchestration the `me roles` leaf delegates to: assemble
@@ -43,14 +45,14 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 	// present-but-invalid selector — or, for a user template, a missing/unparseable
 	// source or empty stdin — fails fast as a usage error before any assembly or
 	// request.
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
 
 	// Resolve the connection and build the client once. A base-URL error surfaces
 	// here (no doomed send); classify + report it via 011's shared helper.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -111,12 +113,14 @@ func newMeRolesCommand(seam meSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runMeRoles(meRolesConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

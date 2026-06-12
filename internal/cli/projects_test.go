@@ -338,7 +338,7 @@ func TestRunProjects_BadOutputIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: projectsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runProjectsOver(t, seam, projectsConfig{id: "role_0123", outputFlag: "xml"})
+	outcome, _, stderr := runProjectsOver(t, seam, projectsConfig{id: "role_0123", outputFlag: "xml", outputPresent: true})
 	if outcome != UsageError || ExitCode(outcome) != 2 {
 		t.Fatalf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
@@ -353,7 +353,7 @@ func TestRunProjects_StructuredJSONEmitsAggregatedRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: projectsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runProjectsOver(t, seam, projectsConfig{id: "role_0123", outputFlag: "json"})
+	outcome, stdout, _ := runProjectsOver(t, seam, projectsConfig{id: "role_0123", outputFlag: "json", outputPresent: true})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -488,7 +488,7 @@ func TestRunProject_StructuredJSONEmitsRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: projectDocumentBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runProjectOver(t, seam, projectConfig{outputFlag: "json"}, "proj_0123")
+	outcome, stdout, _ := runProjectOver(t, seam, projectConfig{outputFlag: "json", outputPresent: true}, "proj_0123")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
