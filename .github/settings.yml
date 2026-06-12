@@ -1,13 +1,15 @@
-# PR Administration — label catalog (spec 028, ADR-4).
+# PR Administration — label catalog (spec 028, ADR-4; extended by 030, ADR-4).
 #
 # Consumed by the Probot "Settings" GitHub App. The `labels:` block below is the
-# SINGLE SOURCE OF TRUTH for the seven managed PR labels — their names, colors,
-# and descriptions. The names are the cross-feature contract Release Drafting
-# (030) reads off merged PRs to compute the semver bump and group release notes;
-# renaming one is a coordinated 028↔030 change, not a local edit.
+# SINGLE SOURCE OF TRUTH for the eight managed PR labels — their names, colors,
+# and descriptions. Seven are the category/semver labels Release Drafting (030)
+# reads off merged PRs to compute the semver bump and group release notes; the
+# eighth (`no-release-note`) is the 030 exclusion label that drops a PR from both
+# the notes and the bump. Renaming one is a coordinated 028↔030 change, not a
+# local edit.
 #
 # This file is labels-only on purpose (no `repository:` / `branches:` blocks):
-# the app then manages ONLY these seven labels and leaves every other label —
+# the app then manages ONLY these eight labels and leaves every other label —
 # human triage labels — untouched (no prune). A managed label that is hand-
 # deleted or renamed is restored on the next reconcile (push to the default
 # branch).
@@ -41,3 +43,13 @@ labels:
   - name: internal
     color: "CFD3D7"
     description: "Internal change (chore/refactor/test)"
+  # no-release-note (030 ADR-4): the eighth managed label. The labeler
+  # auto-applies it to PRs touching nothing noteworthy (spec/feature-only
+  # churn); Release Drafting lists it under exclude-labels so the PR leaves
+  # both the notes and the version bump. NOTE: it is sync-managed — the labeler
+  # reconciles it on every PR event and REMOVES it from any PR that does touch
+  # a noteworthy file, so a maintainer hand-applying it to a noteworthy PR will
+  # not have it persist. Durable use is the automatic spec/feature-only case.
+  - name: no-release-note
+    color: "EDEDED"
+    description: "Auto-excluded from release notes (changes confined to specs/ and .feature files)"

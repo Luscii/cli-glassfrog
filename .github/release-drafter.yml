@@ -1,0 +1,52 @@
+# Release Drafting — release-drafter config (spec 030, ADR-2/ADR-3/ADR-4).
+#
+# Read by the pinned release-drafter action (see
+# .github/workflows/release-drafting.yml) on every merge to main. It maintains a
+# single draft GitHub Release: the next semantic version (resolved highest-wins
+# from the PR labels PR Administration applied, defaulting to patch) and the
+# merged-PR titles grouped into the seven release-note categories.
+#
+# The label STRINGS (breaking/features/fixes/docs/infrastructure/dependencies/
+# internal + no-release-note) are the cross-feature contract 028 produces and
+# this file consumes — they must match .github/settings.yml and
+# .github/labeler.yml exactly. The internal/build label-contract guard (030
+# ADR-6) fails CI if they drift. Section titles below are display text and are
+# tunable without changing the contract.
+
+tag-template: "v$RESOLVED_VERSION"
+name-template: "v$RESOLVED_VERSION"
+version-template: "$MAJOR.$MINOR.$PATCH"
+
+version-resolver:           # ADR-2: highest-wins; patch when no semver label.
+  major:
+    labels: [breaking]
+  minor:
+    labels: [features]
+  patch:
+    labels: [fixes]
+  default: patch
+
+categories:                 # ADR-3: the seven 028 labels, exact strings.
+  - title: "⚠ Breaking Changes"
+    labels: [breaking]
+  - title: "Features"
+    labels: [features]
+  - title: "Fixes"
+    labels: [fixes]
+  - title: "Documentation"
+    labels: [docs]
+  - title: "Infrastructure"
+    labels: [infrastructure]
+  - title: "Dependencies"
+    labels: [dependencies]
+  - title: "Internal"
+    labels: [internal]
+
+exclude-labels:             # ADR-4: auto-applied to spec/feature-only PRs (see labeler.yml).
+  - no-release-note
+
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+template: |
+  ## What's changed
+
+  $CHANGES
