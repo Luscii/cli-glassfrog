@@ -74,6 +74,14 @@ func Assemble() *cobra.Command {
 	// binds the real transport + clock; it reads the inherited persistent
 	// --base-url/--output.
 	MustRegister(root, newSearchCommand(productionSeam{}))
+	// Tension Capture (042): the `tension` group + `create` leaf — the CLI's first
+	// write. `tension create <role-id>` POSTs a captured tension (the seed of a
+	// governance proposal) and prints the created tension with its ten_ id. A
+	// non-runnable group parenting one leaf (the auth/auth login shape, ADR-2),
+	// built with its child before registration so the guard's ">=1 child" rule
+	// holds. productionSeam binds the real transport + clock; the leaf reads the
+	// inherited persistent --base-url/--output.
+	MustRegister(root, newTensionCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
