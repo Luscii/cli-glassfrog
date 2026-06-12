@@ -75,7 +75,7 @@ The `base` branch is cut from a main that contains 021/022/023 (the complete `.g
     - A missing/unauthorized/expired `HOMEBREW_TAP_TOKEN` fails the `tap` job non-zero (loud red run), and the published release is unaffected.
     - Re-running for an already-published stable release re-pushes the formula idempotently (reproducible build → identical formula).
     - The `internal/build` workflow guard asserts the `tap` job's contract (`needs: [publish]`, the pre-release `if`-gate, the token env, brew-publisher-only) and **fails loudly** if any is missing or drifts — including a case that fails as loudly on a *removed* assertion as an added one (change-detector rigor, per the sibling guards).
-    - Implementation and its guard test ship in the same PR (CONSTITUTION I / VII).
+    - Implementation and its guard test ship in the same PR (CONSTITUTION VII).
   - **Dependencies**: T001 (tap repo + secret), T003 (`brews` config). Clean `brew audit` on the pushed formula additionally needs T002.
   - **Plan reference**: Phase 3: Add the `tap` job; ADR-3, ADR-4; Cross-cutting Concerns (stable-only gate, config-drift guard)
   - **Scenario references**: homebrew-tap.feature: "Fresh install on macOS"; "Fresh install on Linux"; "Upgrade moves to the latest stable"; "Upgrading when already current is a no-op"; "A pre-release does not move the tap"; "A pre-release leaves the tap repository untouched"; "Checksum mismatch refuses the install"; "A missing release asset fails the install clearly"; "A mismatched checksum never lets a binary reach PATH"; "The installed binary matches the release the formula points at"
