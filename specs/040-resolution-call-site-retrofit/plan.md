@@ -12,25 +12,26 @@ Resolution Call-Site Retrofit changes no package boundary and adds no package. I
 
 - **Token** — `internal/auth/resolve.go`: `resolve.Resolve(FromEnv, FromFile)` (no flag rung, no default; `KindNone` → the existing `SourceNone` "nothing found" outcome).
 - **Base URL** — `internal/apiclient/baseurl.go`: `resolve.Resolve(FromFlags, FromEnv, FromFile, Default)`.
-- **Output format** — `internal/output/format.go`: `resolve.Resolve(FromFlags, FromEnv, FromFile, Default)`.
+- **Output selection** — `internal/output/selection.go`: `resolve.Resolve(FromFlags, FromEnv, FromFile, Default)` inside `ResolveSelection`/`ResolveSelectionFromOS` (035 widened 020's `ResolveFormat` into the discriminated `Selection`).
 
-In each, the generic `resolve.Resolution{Value, Provenance{Kind, Origin}}` is mapped back onto the site's existing code-free output (`auth.Resolution{Token,Source,Path}`, `apiclient.BaseURL{Value,Source,Path}`, `output.OutputFormat`) and its typed errors (`*BaseURLError`, `*FormatError`, rcfile's typed errors). The setting-specific value validators (`isUsableURL`, `ParseFormat`) move to run on the *resolved winner* (ADR-3), since `resolve` is setting-agnostic.
+In each, the generic `resolve.Resolution{Value, Provenance{Kind, Origin}}` is mapped back onto the site's existing code-free output (`auth.Resolution{Token,Source,Path}`, `apiclient.BaseURL{Value,Source,Path}`, `output.Selection` — the 035 format-or-template type) and its typed errors (`*BaseURLError`, `*FormatError`, rcfile's typed errors). The setting-specific *interpretation* of the winner stays at the call site (ADR-3), since `resolve` is setting-agnostic: `isUsableURL` for base URL, and for output the 035 classification — a flag-rung winner becomes a built-in format or a `*TemplateRef` (template path / `"stdin"`), an env/file winner is `ParseFormat`'d (a non-token there is a `*FormatError`; templates are flag-only).
 
 This slice carries one deliberate behavioural change: the base-URL and output-format flag rungs adopt `resolve.FromFlags`' **presence** semantics (cobra `Changed()`) in place of today's value-emptiness proxy (ADR-2). That presence bit does not exist at the resolvers today, so it is threaded from the command layer down — the slice's largest mechanical surface.
 
 ```
-RunE (12 read commands)                          internal/apiclient            internal/resolve
+RunE (every read command — 13 today)             internal/apiclient            internal/resolve
   flag := GetString(FlagBaseURL)
   present := Changed(FlagBaseURL) ──▶ AssembleFromOS(flag, present) ─▶ ResolveBaseURL(Flag{present,flag}, dirs)
                                                                           └▶ resolve.Resolve(FromFlags,FromEnv,FromFile,Default)
                                        map Provenance → BaseURL/BaseURLError      ◀── Resolution{Value,Provenance}
   flag := GetString(FlagOutput)
-  present := Changed(FlagOutput) ───▶ seam.resolveFormat(flag, present) ─▶ output.ResolveFormat(Flag{...}, dirs)
+  present := Changed(FlagOutput) ───▶ seam.resolveSelection(flag, present) ─▶ output.ResolveSelectionFromOS(...)
+                                       (classify winner → Selection: format | template — 035)
 
   (token: auth.Resolve() — no flag, signature unchanged)
 ```
 
-**Boundaries this plan crosses** (drive the interface step): (1) a **code-API boundary** — the base-URL/output resolver signatures and the `internal/cli` `meSeam.resolveFormat` contract gain a flag-presence input; (2) a **CLI behaviour boundary** — an explicitly-supplied empty/whitespace `--base-url`/`--output` now fails loud. No new endpoint, no new command, no new file.
+**Boundaries this plan crosses** (drive the interface step): (1) a **code-API boundary** — the base-URL resolver and the `internal/cli` `resolveSelection` seam (the 035 widening of 020's `resolveFormat`) gain a flag-presence input; (2) a **CLI behaviour boundary** — an explicitly-supplied empty/whitespace `--base-url`/`--output` now fails loud. No new endpoint, no new command, no new file.
 
 ---
 
@@ -50,15 +51,15 @@ RunE (12 read commands)                          internal/apiclient            i
 
 ### ADR-2: Flag presence via cobra `Changed()` replaces value-emptiness at the base-URL and output-format flag rungs
 
-**Context**: Today `ResolveBaseURL`/`ResolveFormat` receive only `flagValue string` and treat `strings.TrimSpace(flagValue) != ""` as "the flag was supplied" — so `--base-url ""` or `--output "  "` is silently treated as absent and falls through. `resolve.FromFlags` is presence-based (cobra `Changed()`; an explicit `--flag=` counts). LEARNINGS records the `Changed()`-not-value rule as re-violated in PRs #61/#73. The developer chose to fix the inconsistency in this retrofit (spec decision B).
+**Context**: Today `ResolveBaseURL`/`ResolveSelection` receive only `flagValue string` and treat `strings.TrimSpace(flagValue) != ""` as "the flag was supplied" — so `--base-url ""` or `--output "  "` is silently treated as absent and falls through. `resolve.FromFlags` is presence-based (cobra `Changed()`; an explicit `--flag=` counts). LEARNINGS records the `Changed()`-not-value rule as re-violated in PRs #61/#73. The developer chose to fix the inconsistency in this retrofit (spec decision B).
 
 **Options considered**:
 1. **Preserve value-emptiness** — construct `resolve.Flag{Present: strings.TrimSpace(flagValue) != ""}`. Zero observable change, but bakes the value-as-presence quirk into the new wiring and contradicts `resolve`'s documented flag semantics.
 2. **Presence-based** — thread the real `cmd.Flags().Changed(name)` bit and construct `resolve.Flag{Name, Present, Value}`. An explicitly-supplied empty/whitespace flag now yields and is validated (failing loud); an unsupplied flag falls through.
 
-**Decision**: Option 2. The presence bit is threaded from each `RunE` (`cmd.Flags().Changed(apiclient.FlagBaseURL)` / `Changed(output.FlagOutput)`) through `AssembleFromOS` and the `meSeam.resolveFormat` contract into the resolvers' `FromFlags`. `Changed()` reports correctly on these inherited persistent root flags (verified: the same `cmd.Flags()` flagset already serves `GetString` for them).
+**Decision**: Option 2. The presence bit is threaded from each `RunE` (`cmd.Flags().Changed(apiclient.FlagBaseURL)` / `Changed(output.FlagOutput)`) through `AssembleFromOS` and the `resolveSelection` seam into the resolvers' `FromFlags`. `Changed()` reports correctly on these inherited persistent root flags (verified: the same `cmd.Flags()` flagset already serves `GetString` for them).
 
-**Consequences**: One observable behaviour change — an explicit empty/whitespace `--base-url`/`--output` fails loud instead of falling through (covered by edge-case scenarios in the spec). The presence threading is the slice's broadest mechanical change: `AssembleFromOS`/`ResolveBaseURLFromOS`/`ResolveBaseURL` and `ResolveFormatFromOS`/`ResolveFormat` gain a presence input, the `meSeam.resolveFormat` signature changes across its 10 declarations + production impl, and the 12 read-command `RunE`s pass `Changed()`. The token path is unaffected (no `--token` flag).
+**Consequences**: One observable behaviour change — an explicit empty/whitespace `--base-url`/`--output` fails loud instead of falling through (covered by edge-case scenarios in the spec). For `--output` the empty value flows through 035's flag-rung classification (a degenerate empty template selection that fails loud), not a token `*FormatError`. The presence threading is the slice's broadest mechanical change: `AssembleFromOS`/`ResolveBaseURLFromOS`/`ResolveBaseURL` and `ResolveSelectionFromOS`/`ResolveSelection` gain a presence input, the `resolveSelection` seam signature changes across all its declarations (11 today) + production impl, and every read-command `RunE` (13 today) passes `Changed()`. The token path is unaffected (no `--token` flag).
 
 ### ADR-3: Validation runs on the resolved winner at the call site; the default is never validated
 
@@ -68,7 +69,7 @@ RunE (12 read commands)                          internal/apiclient            i
 1. **Validate inside a wrapper before mapping** — fine, but must replicate the per-rung "skip the default" carve-out and the no-fall-through guarantee carefully.
 2. **Validate the single returned winner, keyed off `Provenance.Kind`** — `resolve.Resolve` already short-circuits at the first yield, so the returned value *is* the winner; validate it unless `Kind == KindDefault` (valid by construction).
 
-**Decision**: Option 2. After `resolve.Resolve` returns (nil error), the call site runs `isUsableURL(res.Value)` / `ParseFormat(res.Value)` when `res.Provenance.Kind != KindDefault`; on failure it returns `&BaseURLError{Source: res.Provenance.Origin}` / `&FormatError{Source: res.Provenance.Origin, Value: res.Value}`. `resolve.Provenance.Origin` supplies exactly the existing label forms — `--base-url`/`GLASSFROG_BASE_URL`/file-path and `--output`/`GLASSFROG_OUTPUT`/file-path — because the call site passes those names into `FromFlags`/`FromEnv` and `FromFile` sets Origin to the resolved path (039's tests pinned these labels for this purpose).
+**Decision**: Option 2. After `resolve.Resolve` returns (nil error), the call site interprets `res.Value` when `res.Provenance.Kind != KindDefault`. Base URL runs `isUsableURL`, returning `&BaseURLError{Source: res.Provenance.Origin}` on failure. Output runs 035's classification: a **flag** winner (`KindFlag`) → `classifyFlagSelection` (built-in token → format; `"stdin"` → stdin template; else → template file path — never an error for a non-token); an **env/file** winner → `ParseFormat`, returning `&FormatError{Source: res.Provenance.Origin, Value: res.Value}` for a non-token (templates are flag-only). `resolve.Provenance.Origin` supplies exactly the existing label forms — `--base-url`/`GLASSFROG_BASE_URL`/file-path and `--output`/`GLASSFROG_OUTPUT`/file-path — because the call site passes those names into `FromFlags`/`FromEnv` and `FromFile` sets Origin to the resolved path (039's tests pinned these labels for this purpose).
 
 **Consequences**: No fall-through past a malformed winner (the walk already stopped; the caller rejects rather than re-walking). The default is returned unvalidated, matching "valid by construction, never re-validated." A resolution error from `resolve` (rcfile typed `*ReadError`/`*FormatError`, surfaced verbatim with no fall-through) is returned before any value validation, preserving the two distinct error classes (§170, 039 cross-cutting).
 
@@ -80,7 +81,7 @@ RunE (12 read commands)                          internal/apiclient            i
 1. **Route through `resolve`'s own `FromOS` binding helpers** — fewer seam vars, but moves the OS-binding ownership out of each domain package and would make the secret-bearing token path depend on `resolve`'s binding surface.
 2. **Keep each site's existing seam; pass it into the injected constructors** — `resolve.FromEnv(getenv, name)`, `resolve.FromFile(startDir, homeDir, key)` with `startDir`/`homeDir` derived by the site's existing `getwd`/`userHomeDir`, exactly as today.
 
-**Decision**: Option 2. The `…FromOS` entrypoints (`auth.Resolve`, `ResolveBaseURLFromOS`, `ResolveFormatFromOS`) keep deriving the real dirs/env through their own seam vars and pass them into `resolve`'s constructors; `resolve.FromFile` delegates to the same `rcfile.Resolve` the sites call today. `resolve`'s `FromOS` helpers are not used by these three sites.
+**Decision**: Option 2. The `…FromOS` entrypoints (`auth.Resolve`, `ResolveBaseURLFromOS`, `ResolveSelectionFromOS`) keep deriving the real dirs/env through their own seam vars and pass them into `resolve`'s constructors; `resolve.FromFile` delegates to the same `rcfile.Resolve` the sites call today. `resolve`'s `FromOS` helpers are not used by these three sites.
 
 **Consequences**: The existing hermetic test pattern (set the package `getenv` var, point at a temp-dir rcfile) carries forward with minimal churn; no test reads the real home. The token path gains no dependency on `resolve`'s binding helpers, keeping the secret concern self-contained. The exact testable-seam shape per site (e.g. whether `output`'s pre-fetched-source pure core is retained or folded) is interface-level.
 
@@ -106,7 +107,7 @@ Three independent retrofits sharing one mechanism. Each ships as its own reviewa
 
 **Phase 2 — Base-URL retrofit + presence threading (`internal/apiclient`, `internal/cli`)**: Rewrite `ResolveBaseURL` to compose `resolve` with a `FromFlags(Flag{Name:"--base-url", Present, Value})` rung; relocate `isUsableURL` to the winner (ADR-3); map provenance → `BaseURL`/`BaseURLError`. Thread presence: `ResolveBaseURL`/`ResolveBaseURLFromOS`/`AssembleFromOS` gain the presence input; each read command's `RunE` passes `cmd.Flags().Changed(apiclient.FlagBaseURL)`.
 
-**Phase 3 — Output-format retrofit + presence threading (`internal/output`, `internal/cli`)**: Rewrite `ResolveFormat`/`ResolveFormatFromOS` to compose `resolve` with a presence-based `FromFlags` rung (single `--output` flag; cobra merges `-o`, so one Flag, Origin `--output` — matching today's label); relocate `ParseFormat` to the winner; map provenance → `OutputFormat`/`FormatError`. Update the `meSeam.resolveFormat` contract (10 declarations + production impl) and the `RunE`s to pass `Changed(output.FlagOutput)`.
+**Phase 3 — Output-selection retrofit + presence threading (`internal/output`, `internal/cli`)**: Rewrite `ResolveSelection`/`ResolveSelectionFromOS` (035's widening of 020 — `internal/output/selection.go`) so the precedence walk composes `resolve` with a presence-based `FromFlags` rung (single `--output` flag; cobra merges `-o`, so one Flag, Origin `--output` — matching today's label). Preserve 035's flag-rung classification on the winner (`classifyFlagSelection`: token → format, `"stdin"` → stdin template, else → template file path) and the env/file `ParseFormat` (`*FormatError` for a non-token there); map provenance → `output.Selection`. Update the `resolveSelection` seam contract (all declarations — 11 today — + production impl) and every read-command `RunE` to pass `Changed(output.FlagOutput)`; the `readTemplateSource` seam is untouched.
 
 ---
 
@@ -115,7 +116,7 @@ Three independent retrofits sharing one mechanism. Each ships as its own reviewa
 - **Behavioural drift in validation relocation** (medium likelihood, high impact — inherited from 039): moving `isUsableURL`/`ParseFormat` to the winner could regress the no-fall-through-on-malformed guarantee or accidentally validate the default. Mitigation: carry each existing resolver suite forward green and add the explicit no-fall-through-on-malformed-winner + default-unvalidated regression tests before refactoring.
 - **Provenance-label mismatch breaks error text** (low likelihood, medium impact): if a passed-in `FromFlags`/`FromEnv` name or `FromFile`'s path doesn't reproduce the exact `*BaseURLError`/`*FormatError` `Source` label, error messages change. Mitigation: 039's tests already pinned the three label forms; assert the mapped labels against the pre-retrofit strings.
 - **`Changed()` semantics on inherited persistent flags** (low likelihood, medium impact): if `cmd.Flags().Changed(name)` reported differently from `GetString(name)` for inherited persistent root flags, presence would be wrong. Mitigation: verified the same flagset serves both; a `RunE`-level test asserts presence for supplied / unsupplied / `--flag=` cases.
-- **Incomplete presence threading** (medium likelihood, medium impact): 12 `RunE` sites + the 10-declaration seam contract are a broad mechanical surface; a missed site silently keeps value-emptiness behaviour. Mitigation: change the resolver/seam signatures first so the compiler flags every un-threaded call site (no default-value overload that would let an old call compile).
+- **Incomplete presence threading** (medium likelihood, medium impact): every read-command `RunE` (13 today) + all the `resolveSelection` seam declarations (11 today) are a broad mechanical surface; a missed site silently keeps value-emptiness behaviour. Mitigation: change the resolver/seam signatures first so the compiler flags every un-threaded call site (no default-value overload that would let an old call compile).
 
 ---
 

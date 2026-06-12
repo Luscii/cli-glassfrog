@@ -10,7 +10,7 @@
 
 Resolution Call-Site Retrofit migrates the CLI's three hand-rolled setting-precedence chains onto the single composable resolver delivered by Source-Composed Resolution (039). Today three call sites each re-implement the same flag→env→`.glassfrogrc`→default skeleton: the auth token (005, `internal/auth`), the base URL (008, `internal/apiclient`), and the output format (020, `internal/output`). Each copy carries its own walk, its own whitespace-trim rule, and its own precedence ordering, and the copies can drift. This slice replaces each chain's *innards* with a composition of `resolve` sources, deletes the duplicated skeleton, and maps the generic `resolve.Resolution` back onto each site's existing public output type — so the resolver becomes the one place precedence is implemented.
 
-This is the consuming half of the *Duplicated Setting Resolution* solution: 039 built the resolver and changed no call site; 040 moves the call sites onto it. The retrofit is **behaviour-preserving at every public surface** — output types (`auth.Resolution`, `apiclient.BaseURL`, `output.OutputFormat`), provenance enums, and typed errors (`*BaseURLError`, `*FormatError`, rcfile's typed errors) stay exactly as they are, so downstream consumers (007 Request Authentication, `assemble.go`, the cli read commands) are untouched. It carries **one deliberate behaviour change**: the base-URL and output-format flag rungs switch from value-emptiness to presence (cobra `Changed()`) as the test for "the flag was supplied", aligning them with the resolver's flag semantics and fixing a long-standing inconsistency (PRs #61/#73). Setting-specific knowledge — flag/env names, file keys, defaults, and value validators — stays at each call site; `resolve` remains setting-agnostic.
+This is the consuming half of the *Duplicated Setting Resolution* solution: 039 built the resolver and changed no call site; 040 moves the call sites onto it. The retrofit is **behaviour-preserving at every public surface** — output types (`auth.Resolution`, `apiclient.BaseURL`, and `output.Selection` — the 035 discriminated format-or-template type that widened 020's `OutputFormat`), provenance enums, and typed errors (`*BaseURLError`, `*FormatError`, rcfile's typed errors) stay exactly as they are, so downstream consumers (007 Request Authentication, `assemble.go`, the cli read commands) are untouched. In particular the output retrofit migrates the precedence walk inside `ResolveSelection`/`resolveSelection` and preserves User-Defined Template Output (035): a non-token `--output` value stays a template path. It carries **one deliberate behaviour change**: the base-URL and output-format flag rungs switch from value-emptiness to presence (cobra `Changed()`) as the test for "the flag was supplied", aligning them with the resolver's flag semantics and fixing a long-standing inconsistency (PRs #61/#73). Setting-specific knowledge — flag/env names, file keys, defaults, and value validators — stays at each call site; `resolve` remains setting-agnostic.
 
 ---
 
@@ -32,13 +32,13 @@ This is the consuming half of the *Duplicated Setting Resolution* solution: 039 
 - When no flag, environment, or file value yields, the system returns the built-in default (`SourceDefault`), which is valid by construction and never re-validated — so resolution always yields a base URL.
 - When the system returns a resolved base URL, it maps the resolver's provenance back onto `apiclient.BaseURL` (flag/env/file/default → the existing `BaseURLSource` members, with `Path` for the file rung).
 
-### Output format resolution (020)
+### Output selection resolution (020, widened by 035)
 
-- When the output format is resolved, the system walks the `--output` (and `-o`) flag, then `GLASSFROG_OUTPUT`, then the nearest `.glassfrogrc` `output` key, then the built-in default (`full`), returning the first that yields — the existing precedence, now a `resolve` composition.
-- When the `--output`/`-o` flag was supplied on the command line, the system treats it as the winning source by its **presence**, even when its value is empty or whitespace, and parses that value; when the flag was not supplied, the system falls through to the environment.
+- When the output selection is resolved, the system walks the `--output` (and `-o`) flag, then `GLASSFROG_OUTPUT`, then the nearest `.glassfrogrc` `output` key, then the built-in default (`full`), returning the first that yields — the existing precedence, now a `resolve` composition. The result is an `output.Selection` (035): a built-in format **or** a user-template source.
+- When the `--output`/`-o` flag was supplied on the command line, the system treats it as the winning source by its **presence**, even when its value is empty or whitespace, and classifies that value (035): a built-in token (`full`/`compact`/`json`/`yaml`) selects that format, `stdin` selects a piped template, and any other non-empty value is a template file path. When the flag was not supplied, the system falls through to the environment.
 - When the environment variable or a file value is whitespace-only, the system treats it as absent and falls through.
-- When the winning source supplies a value that is not one of `full | compact | json | yaml`, the system fails loud with a `*FormatError` naming that source and the offending value, and does not fall through.
-- When no source yields, the system returns the built-in default `full`, so resolution always yields a format.
+- When the **env or file** rung supplies a value that is not one of `full | compact | json | yaml`, the system fails loud with a `*FormatError` naming that source and the offending value, and does not fall through (the env/file rungs accept only the four tokens — a template source is reachable only from the flag, 035).
+- When no source yields, the system returns the built-in default `full`, so resolution always yields a selection.
 
 ### Shared-mechanism adoption (Maintainer-facing)
 
@@ -65,10 +65,11 @@ This is the consuming half of the *Duplicated Setting Resolution* solution: 039 
 
 ## Non-Behaviors
 
-- The system must not change any public output type, provenance enum, or typed error shape (`auth.Resolution`/`Source`, `apiclient.BaseURL`/`BaseURLSource`/`*BaseURLError`, `output.OutputFormat`/`*FormatError`). **Why**: consumers (007, `assemble.go`, the cli render path) depend on these surfaces; the retrofit is an internal mechanism swap, and changing a surface would turn a refactor into a breaking change.
+- The system must not change any public output type, provenance enum, or typed error shape (`auth.Resolution`/`Source`, `apiclient.BaseURL`/`BaseURLSource`/`*BaseURLError`, `output.Selection`/`OutputFormat`/`TemplateRef`/`*FormatError`). **Why**: consumers (007, `assemble.go`, the cli render path) depend on these surfaces; the retrofit is an internal mechanism swap, and changing a surface would turn a refactor into a breaking change.
+- The system must not regress User-Defined Template Output (035): a non-token `--output` flag value must remain a template file path, `"stdin"` a piped template, and the `resolveSelection`/`readTemplateSource` seam must keep working. **Why**: 035 widened 020's selection to include user templates; an output retrofit that re-narrowed `--output` to the four built-in tokens would silently break a shipped feature.
 - The system must not move setting-specific constants — flag names, env var names, `.glassfrogrc` keys, default values — into `internal/resolve`. **Why**: `resolve` owns no setting (039 ADR-1); centralising these would re-couple the generic walk to the domain and reintroduce the cycle 039 avoided.
 - The system must not add value validation (URL well-formedness, format-token membership) to `internal/resolve`. **Why**: `resolve` resolves *which* source won and *where* the value came from, not whether it is well-formed (039 ADR-3); validation stays at the call site that owns the value's meaning.
-- The system must not introduce a STDIN source at any of the three call sites. **Why**: none of token, base URL, or output format reads piped input; wiring an unused reader would add a consumable-stream hazard for no behaviour.
+- The system must not introduce a `resolve` STDIN *source* into any of the three precedence walks. **Why**: none of the three settings resolves its *value* from piped input — the precedence walk is flag/env/file/default only. (035's `"stdin"` template is a flag-rung *value* whose content is read later by `readTemplateSource`, outside the precedence walk — not a `resolve.FromStdin` source.)
 - The system must not give the token resolver a flag rung or a trailing default, nor change its env→file precedence. **Why**: 005's contract is that a missing token is a normal `SourceNone` outcome and there is no `--token` flag; adding either would change observable token behaviour.
 - The system must not re-validate or normalize the built-in default base URL or default format. **Why**: both are valid by construction (008/020) and backstop the chain; re-validating them adds a failure mode that cannot occur.
 - The system must not alter the `.glassfrogrc` format, the nearest-wins walk, or rcfile's typed read/format errors. **Why**: the one shared file walk (DECISIONS §74) is reused verbatim through `resolve.FromFile`; a second parser or a changed error shape would fork the file contract.
@@ -155,13 +156,13 @@ Then the system returns `auth.Resolution` with `Source` = none and no error.
 
 **Scenario: No precedence skeleton remains at a call site**
 Given the retrofit is complete
-When a reader inspects `internal/auth/resolve.go`, `internal/apiclient/baseurl.go`, and `internal/output/format.go`
+When a reader inspects `internal/auth/resolve.go`, `internal/apiclient/baseurl.go`, and `internal/output/selection.go`
 Then precedence is expressed as a `resolve` source composition
 And none of the three re-implements the env-trim / file-walk / source-ordering skeleton by hand.
 
 **Scenario: Public surfaces are byte-for-byte stable for consumers**
 Given the retrofit is complete
-When a consumer reads `auth.Resolution`, `apiclient.BaseURL`, `output.OutputFormat`, and the typed errors
+When a consumer reads `auth.Resolution`, `apiclient.BaseURL`, `output.Selection`, and the typed errors
 Then their fields, provenance members, and error message shapes are unchanged from before the retrofit.
 
 **Scenario: The flag-semantics change is the only observable behaviour difference**

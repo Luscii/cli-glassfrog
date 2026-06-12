@@ -10,7 +10,7 @@
 
 Phase 1: Token retrofit (1 task, depends on 039 only) [US1/US3]
 Phase 2: Base-URL retrofit + presence threading (1 task, depends on 039 only — parallel with Phases 1 and 3) [US1/US2/US3]
-Phase 3: Output-format retrofit + presence threading (1 task, depends on 039 only — parallel with Phases 1 and 2) [US1/US2/US3]
+Phase 3: Output-selection retrofit + presence threading (1 task, depends on 039 only — parallel with Phases 1 and 2) [US1/US2/US3]
 
 3 tasks total | all three phases parallelizable | Builder: pipeline
 
@@ -47,7 +47,7 @@ Each task carries its existing resolver test suite forward green (the behaviour-
 ## Phase 2: Base-URL retrofit + presence threading [US1/US2/US3]
 
 - [ ] **T002** [Shared] Migrate the base-URL resolver onto `internal/resolve` with presence-based flag semantics, threading `Changed()` through assembly and every read command
-  - **Scope**: In `internal/apiclient/baseurl.go`, rewrite `ResolveBaseURL` to compose `resolve.Resolve(FromFlags(Flag{Name:"--"+FlagBaseURL, Present: flagPresent, Value: flagValue}), FromEnv(getenv, EnvVarBaseURL), FromFile(startDir, homeDir, baseURLKey), Default(DefaultBaseURL))`; relocate `isUsableURL` to validate the winner when `Kind != KindDefault` (ADR-3), returning `&BaseURLError{Source: res.Provenance.Origin}`; map `KindFlag/KindEnv/KindFile/KindDefault` → the existing `BaseURLSource` members (Path = `Origin` for file). Change signatures (no default-value overload): `ResolveBaseURL(flagValue string, flagPresent bool, startDir, homeDir string)`, `ResolveBaseURLFromOS(flagValue string, flagPresent bool)`, `AssembleFromOS(flagValue string, flagPresent bool)`. Thread the presence bit: each of the 12 read-command `RunE`s passes `cmd.Flags().Changed(apiclient.FlagBaseURL)` alongside its `GetString` value.
+  - **Scope**: In `internal/apiclient/baseurl.go`, rewrite `ResolveBaseURL` to compose `resolve.Resolve(FromFlags(Flag{Name:"--"+FlagBaseURL, Present: flagPresent, Value: flagValue}), FromEnv(getenv, EnvVarBaseURL), FromFile(startDir, homeDir, baseURLKey), Default(DefaultBaseURL))`; relocate `isUsableURL` to validate the winner when `Kind != KindDefault` (ADR-3), returning `&BaseURLError{Source: res.Provenance.Origin}`; map `KindFlag/KindEnv/KindFile/KindDefault` → the existing `BaseURLSource` members (Path = `Origin` for file). Change signatures (no default-value overload): `ResolveBaseURL(flagValue string, flagPresent bool, startDir, homeDir string)`, `ResolveBaseURLFromOS(flagValue string, flagPresent bool)`, `AssembleFromOS(flagValue string, flagPresent bool)`. Thread the presence bit: every read-command `RunE` (13 today) passes `cmd.Flags().Changed(apiclient.FlagBaseURL)` alongside its `GetString` value.
   - **Acceptance criteria**:
     - Precedence unchanged: supplied `--base-url` (valid) wins and is used verbatim; unset flag → env → file → default
     - Presence change: `--base-url ""` / `--base-url "  "` (supplied) wins its rung by presence and fails loud with `*BaseURLError{Source:"--base-url"}`, no fall-through to env
@@ -61,21 +61,22 @@ Each task carries its existing resolver test suite forward green (the behaviour-
   - **Scenario references**: resolution-call-site-retrofit.feature: "A supplied base-URL flag wins its rung", "A malformed base-URL flag fails loud without consulting lower sources", "An explicitly empty base-URL flag is honoured by presence and fails loud", "The base URL falls through an unsupplied flag and unset environment to the file", "An empty base-URL flag fails loud regardless of its position on the command path"
   - **Interface references**: interface-spec.md: Base-URL resolver, RunE plumbing, Validation at the winner; interface-cli.md: the presence change, Error Communication
 
-## Phase 3: Output-format retrofit + presence threading [US1/US2/US3]
+## Phase 3: Output-selection retrofit + presence threading [US1/US2/US3]
 
-- [ ] **T003** [Shared] Migrate the output-format resolver onto `internal/resolve` with presence-based flag semantics, threading `Changed()` through the `resolveFormat` seam and every read command
-  - **Scope**: In `internal/output/format.go`, fold the 6-arg pre-fetched-source `ResolveFormat` core into `ResolveFormatFromOS(flagValue string, flagPresent bool, startDir, homeDir string)` composing `resolve.Resolve(FromFlags(Flag{Name:"--"+FlagOutput, Present: flagPresent, Value: flagValue}), FromEnv(getenv, EnvVarOutput), FromFile(startDir, homeDir, outputKey), Default(FormatFull.String()))`; relocate `ParseFormat` to the winner when `Kind != KindDefault`, returning `&FormatError{Source: res.Provenance.Origin, Value: res.Value}`; default → `DefaultFormat`. Update the `meSeam.resolveFormat` contract to `resolveFormat(flagValue string, flagPresent bool)` across its 10 declarations + the `productionSeam` impl; each read-command `RunE` passes `cmd.Flags().Changed(output.FlagOutput)`. Single `--output` Flag (cobra merges `-o`, so `Origin` is `--output`, matching today's label). Rework `internal/output`'s package tests onto the temp-dir + `getenv`-seam harness (ADR-4).
+- [ ] **T003** [Shared] Migrate the output-selection resolver onto `internal/resolve` with presence-based flag semantics, threading `Changed()` through the `resolveSelection` seam and every read command — preserving 035's template branch
+  - **Scope**: In `internal/output/selection.go`, rewrite `ResolveSelection`/`ResolveSelectionFromOS` (035's widening of 020) so the precedence walk composes `resolve.Resolve(FromFlags(Flag{Name:"--"+FlagOutput, Present: flagPresent, Value: flagValue}), FromEnv(getenv, EnvVarOutput), FromFile(startDir, homeDir, outputKey), Default(FormatFull.String()))`, returning `output.Selection`. Interpret the winner when `Kind != KindDefault`: a **flag** winner via `classifyFlagSelection` (token → format, `"stdin"` → stdin template, else → template file path — a non-token flag value is NOT an error); an **env/file** winner via `ParseFormat`, returning `&FormatError{Source: res.Provenance.Origin, Value: res.Value}` for a non-token (templates are flag-only); default → `Selection{DefaultFormat}`. Update the `resolveSelection` seam contract to `resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)` across all declarations (11 today) + the `productionSeam` impl; the `readTemplateSource` seam is untouched. Each read-command `RunE` passes `cmd.Flags().Changed(output.FlagOutput)`. Single `--output` Flag (cobra merges `-o`, so `Origin` is `--output`, matching today's label). Rework `internal/output`'s package tests onto the temp-dir + `getenv`-seam harness (ADR-4).
   - **Acceptance criteria**:
-    - Precedence unchanged: supplied `--output` (valid) wins; unset flag → `GLASSFROG_OUTPUT` → file → default `full`
-    - Presence change: `--output ""` / `-o "  "` (supplied) wins by presence and fails loud with `*FormatError{Source:"--output", Value}`, no fall-through
+    - Precedence unchanged: supplied `--output` (token) wins; unset flag → `GLASSFROG_OUTPUT` → file → default `full`
+    - **035 template branch preserved**: a non-token `--output` value resolves to a `TemplateRef{TemplateFile, Path}`, `"stdin"` to `TemplateRef{TemplateStdin}` — NOT a `*FormatError`; the env/file rungs still accept only the four tokens
+    - Presence change: `--output ""` / `-o "  "` (supplied) wins by presence and fails loud (a degenerate empty template selection via 035's classification → `UsageError`), no fall-through
     - Whitespace-only `GLASSFROG_OUTPUT` / file value (flag absent) still falls through to the default `full` (unchanged)
-    - Present-but-invalid token at any rung fails loud naming that source via `Provenance.Origin`; an unreadable/unparseable `.glassfrogrc` returns rcfile's typed error before any parse, no fall-through to the default
-    - Case-insensitive parse over the four tokens preserved; `OutputFormat` / `*FormatError` shapes and message text unchanged; the existing `internal/output` + `internal/cli` suites pass green
-    - The `meSeam.resolveFormat` signature change forces every seam declaration and `RunE` to compile; a `RunE`-level test asserts presence for supplied / unsupplied / `--flag=`
+    - A non-token at the **env/file** rung fails loud with `*FormatError` naming that source via `Provenance.Origin`; an unreadable/unparseable `.glassfrogrc` returns rcfile's typed error before any parse, no fall-through to the default
+    - Case-insensitive token parse preserved; `output.Selection` / `OutputFormat` / `TemplateRef` / `*FormatError` shapes and message text unchanged; the `readTemplateSource` seam untouched; the existing `internal/output` + `internal/cli` suites pass green
+    - The `resolveSelection` seam signature change forces every seam declaration and `RunE` to compile; a `RunE`-level test asserts presence for supplied / unsupplied / `--flag=`
   - **Dependencies**: None (039 landed); coordinate `RunE`-file edits with T002
-  - **Plan reference**: Phase 3 — Output-format retrofit + presence threading, ADR-1, ADR-2, ADR-3, ADR-4
+  - **Plan reference**: Phase 3 — Output-selection retrofit + presence threading, ADR-1, ADR-2, ADR-3, ADR-4
   - **Scenario references**: resolution-call-site-retrofit.feature: "The output format falls through the composed chain to the built-in default", "An unparseable config file on the output walk fails loud without using the default", "A whitespace-only output environment value is treated as absent and falls through"
-  - **Interface references**: interface-spec.md: Output-format resolver, seam contract, RunE plumbing; interface-cli.md: the presence change, Error Communication
+  - **Interface references**: interface-spec.md: Output-selection resolver, seam contract, RunE plumbing; interface-cli.md: the presence change, `--output` value space, Error Communication
 
 ---
 

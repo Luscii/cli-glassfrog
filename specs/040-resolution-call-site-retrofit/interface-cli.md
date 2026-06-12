@@ -22,6 +22,8 @@ No surface additions. The affected flags, unchanged in every other respect:
 
 The token (`GLASSFROG_TOKEN` / `.glassfrogrc token`) has **no flag** and is unaffected by this accord.
 
+**`--output` value space (035, unchanged by this slice):** at the **flag rung**, `--output` accepts a built-in token (`full`/`compact`/`json`/`yaml`, any casing), the reserved word `stdin` (a template piped on standard input), **or any other non-empty value as a template file path** (User-Defined Template Output, 035). A non-token flag value is therefore *not* an error — it selects a user template. The env/file rungs accept only the four built-in tokens (a non-token there is a `*FormatError`); templates are reachable only from the command line. This slice preserves that value space exactly — it changes only *presence* detection at the flag rung, never what a supplied value means.
+
 ---
 
 ## Interactions
@@ -35,8 +37,9 @@ The token (`GLASSFROG_TOKEN` / `.glassfrogrc token`) has **no flag** and is unaf
 | `--base-url https://x/api` | flag wins, used | flag wins, used (unchanged) |
 | `--base-url ""` or `--base-url "   "` | treated as absent → **falls through** to env/file/default | flag is **supplied** → wins its rung → validated → **fails loud** (not a usable URL) |
 | (no `--base-url`) | falls through | falls through (unchanged) |
-| `--output json` | flag wins, used | flag wins, used (unchanged) |
-| `--output ""` / `-o "  "` | treated as absent → **falls through** | flag is **supplied** → wins → parsed → **fails loud** (not a valid format token) |
+| `--output json` (token) | flag wins, used | flag wins, used (unchanged) |
+| `--output ./t.tmpl` (non-token) | flag wins → template file (035) | flag wins → template file (035) — unchanged |
+| `--output ""` / `-o "  "` | treated as absent → **falls through** | flag is **supplied** → wins → classified by 035 as a degenerate (empty) template selection → **fails loud** through the selection/template path |
 | (no `--output`) | falls through | falls through (unchanged) |
 
 **Environment and file rungs are unchanged**: a whitespace-only `GLASSFROG_BASE_URL` / `GLASSFROG_OUTPUT`, or a whitespace-only `.glassfrogrc` value, is still treated as absent and falls through. The presence change applies to the **flag rung only** — the rung where the operator's explicit act of typing the flag is the signal.
@@ -52,18 +55,21 @@ The new failures reuse the existing typed errors and exit code — **no new exit
 | Condition | stdout | stderr | Exit code |
 |---|---|---|---|
 | `--base-url ""` / `--base-url "  "` (supplied, empty/whitespace) | nothing (no request) | `base URL from --base-url is not a valid absolute http(s) URL` (the existing `*BaseURLError` text) | `2` (UsageError) |
-| `--output ""` / `-o "  "` (supplied, empty/whitespace) | nothing (no request) | the existing `*FormatError` text naming `--output` and the value, e.g. `unsupported output value "" from --output — supported: full, compact, json, yaml` | `2` (UsageError) |
+| `--output ""` / `-o "  "` (supplied, empty/whitespace) | nothing (no request) | a 035 template-selection failure — an empty value classifies as a degenerate template source that fails loud (the existing user-template error → `UsageError`, 035); **not** a `*FormatError` over the four tokens | `2` (UsageError) |
+| `--output ./t.tmpl` (supplied, non-token) | the template-rendered output | — | `0` (a valid template selection, 035 — unchanged) |
 | Whitespace-only env/file value (flag absent) | — | — falls through to the next rung (unchanged) | unchanged |
-| Every other path (valid value, malformed non-empty value, unreadable `.glassfrogrc`, …) | unchanged | unchanged | unchanged |
+| Non-token at the env/file rung | nothing | the existing `*FormatError` naming the source (env/file only — templates are flag-only) | `2` (UsageError) |
+| Every other path (valid value, unreadable `.glassfrogrc`, …) | unchanged | unchanged | unchanged |
 
-The errors map to `UsageError(2)` through the same `classifyClientError` arms (`*BaseURLError` / `*output.FormatError` → `UsageError`) that already exist (011/015/020) — the empty-flag case simply reaches them one rung earlier than an absent flag would.
+The errors map to `UsageError(2)` through the existing `classifyClientError` arms (`*BaseURLError` → `UsageError`; `*output.FormatError` and the 035 user-template error → `UsageError`) — no new arm, no new exit code. The only change is *when* an explicitly-supplied empty flag reaches them: for `--base-url` via `*BaseURLError`, for `--output` via the 035 template-selection error rather than a token `*FormatError`.
 
 ---
 
 ## Consistency Notes
 
-- **Refines 008 (`--base-url`) and 020 (`interface-cli.md`, `--output`)**: same flags, same precedence, same exit code; only the empty/whitespace-supplied-flag outcome changes (absent-via-fall-through → present-and-rejected). The valid-value and present-but-malformed paths are byte-identical.
-- **Pairs with `interface-spec.md`**: the presence bit (`cmd.Flags().Changed(...)`) is threaded from each `RunE` through `AssembleFromOS` / the `resolveFormat` seam into the resolvers' `FromFlags` rung — the code contract for this behaviour.
+- **Refines 008 (`--base-url`) and 020/035 (`--output`)**: same flags, same precedence, same exit code, same value space (including 035's template paths / `"stdin"`); only the empty/whitespace-supplied-flag outcome changes (absent-via-fall-through → present-and-rejected). The valid-value, template-selection, and present-but-malformed paths are byte-identical.
+- **Preserves 035 (User-Defined Template Output)**: a non-token `--output` value remains a template file path and `"stdin"` a piped template; this slice changes only presence detection, never the token-vs-template classification.
+- **Pairs with `interface-spec.md`**: the presence bit (`cmd.Flags().Changed(...)`) is threaded from each `RunE` through `AssembleFromOS` / the `resolveSelection` seam into the resolvers' `FromFlags` rung — the code contract for this behaviour.
 - **Conforms to 004 / `classifyClientError`**: reuses the frozen `UsageError(2)` convention and the single classification chain; adds no arm and renumbers nothing.
 - **Token is out of scope**: no `--token` flag exists, so the presence change touches only `--base-url` and `--output`.
 - **No `accords/` directory** exists, so there are no cross-spec CLI accord patterns to align against.
