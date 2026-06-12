@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/output"
@@ -64,6 +65,21 @@ func TestReportTemplateError_IsUsage(t *testing.T) {
 	}
 	if err == nil || errb.Len() == 0 {
 		t.Error("reportTemplateError should write the error to stderr and return it")
+	}
+}
+
+// TestReadTemplateSourceFrom_StdinOverflowNamesTemplate pins that the `-o stdin`
+// path's overflow error names "template", not "token" (the bounded reader is shared
+// with the auth token path but parameterized per-caller).
+func TestReadTemplateSourceFrom_StdinOverflowNamesTemplate(t *testing.T) {
+	big := strings.NewReader(strings.Repeat("x", maxPipedTemplateBytes+1))
+	ref := output.TemplateRef{Kind: output.TemplateStdin}
+	_, err := readTemplateSourceFrom(ref, nil, false, big)
+	if err == nil {
+		t.Fatal("an over-cap piped template should error")
+	}
+	if !strings.Contains(err.Error(), "template") || strings.Contains(err.Error(), "token") {
+		t.Errorf("the overflow error should name the template, not a token, got %q", err.Error())
 	}
 }
 

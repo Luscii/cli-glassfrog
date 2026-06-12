@@ -77,15 +77,24 @@ func (productionSeam) gatherInputs(args []string) (tokenInputs, error) {
 	})
 }
 
-// readBoundedStdin reads r up to maxPipedTokenBytes and errors if the input
-// exceeds the cap, rather than reading an unbounded amount into memory.
+// readBoundedStdin reads a piped token from r up to maxPipedTokenBytes, naming
+// "token" in the overflow message. It is the token-specific wrapper over
+// readBoundedStdinN (other callers — e.g. the -o stdin template path — pass their
+// own cap and noun so the error reads correctly for their input).
 func readBoundedStdin(r io.Reader) (string, error) {
-	data, err := io.ReadAll(io.LimitReader(r, maxPipedTokenBytes+1))
+	return readBoundedStdinN(r, maxPipedTokenBytes, "token")
+}
+
+// readBoundedStdinN reads r up to limit bytes and errors (naming noun, e.g. "token"
+// or "template") if the input exceeds the cap, rather than reading an unbounded
+// amount into memory.
+func readBoundedStdinN(r io.Reader, limit int, noun string) (string, error) {
+	data, err := io.ReadAll(io.LimitReader(r, int64(limit)+1))
 	if err != nil {
 		return "", err
 	}
-	if len(data) > maxPipedTokenBytes {
-		return "", fmt.Errorf("piped token exceeds the %d-byte limit", maxPipedTokenBytes)
+	if len(data) > limit {
+		return "", fmt.Errorf("piped %s exceeds the %d-byte limit", noun, limit)
 	}
 	return string(data), nil
 }

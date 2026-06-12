@@ -132,20 +132,27 @@ func writeHuman(stdout, stderr io.Writer, tmpl *render.UserTemplate, resource re
 	return Success, nil
 }
 
+// maxPipedTemplateBytes caps how much piped stdin the `-o stdin` path reads. A
+// template is larger than a token (006's 64 KiB token cap), but still bounded so the
+// command never slurps an arbitrarily large pipe into memory. The cap and the
+// overflow message ("piped template exceeds …") are template-specific so a large
+// template never surfaces the token-worded error.
+const maxPipedTemplateBytes = 1 << 20 // 1 MiB
+
 // readTemplateSourceFrom is the pure source-read both seams share (035 ADR-4): a
 // TemplateFile via readFile (production binds os.ReadFile, resolving a relative path
 // against the cwd), a TemplateStdin via the injected bounded reader guarded by isTTY
-// and an empty check (reusing the 006 readBoundedStdin shape). Every failure is a
-// usage-class error naming the source. Factoring the logic here keeps the production
-// seam a thin binder and lets the test seam exercise the same logic over injected
-// sources (no real network, no real ~/.glassfrogrc).
+// and an empty check (reusing the 006 readBoundedStdinN shape with a template cap and
+// noun). Every failure is a usage-class error naming the source. Factoring the logic
+// here keeps the production seam a thin binder and lets the test seam exercise the
+// same logic over injected sources (no real network, no real ~/.glassfrogrc).
 func readTemplateSourceFrom(ref output.TemplateRef, readFile func(string) ([]byte, error), isTTY bool, stdin io.Reader) (string, error) {
 	switch ref.Kind {
 	case output.TemplateStdin:
 		if isTTY {
 			return "", errors.New("-o stdin requires a template piped on standard input, but standard input is a terminal — pipe a template, e.g. `cat t.tmpl | glassfrog … -o stdin`")
 		}
-		text, err := readBoundedStdin(stdin)
+		text, err := readBoundedStdinN(stdin, maxPipedTemplateBytes, "template")
 		if err != nil {
 			return "", fmt.Errorf("could not read the template from stdin: %w", err)
 		}
