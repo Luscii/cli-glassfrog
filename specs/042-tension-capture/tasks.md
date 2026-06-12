@@ -31,7 +31,7 @@ Phase 2: The tension create command (4 tasks: T002 model — no deps, parallel w
 
 ## Phase 1: Write-body transport seam [Shared]
 
-- [ ] **T001** [Shared] [P] Add the write-body `Content-Type` capability to `apiclient.Request` + `Execute` — header-present/absent tests; `internal/apiclient` (`client.go` field + `execute.go` set) + tests
+- [x] **T001** [Shared] [P] Add the write-body `Content-Type` capability to `apiclient.Request` + `Execute` — header-present/absent tests; `internal/apiclient` (`client.go` field + `execute.go` set) + tests — 2 focused tests (header present/absent), no scenarios at this layer
   - **Scope**: In `internal/apiclient`, add an **additive** field `ContentType string` to `Request` (beside `Method`/`Path`/`Query`/`Body`). In `(*Client).Execute`, after `http.NewRequestWithContext` and **before** `c.httpClient.Do`, set the header only when non-empty: `if req.ContentType != "" { httpReq.Header.Set("Content-Type", req.ContentType) }`. No other behavior changes — the response path, error taxonomy (`*TransportError`/`*ResponseError`/`*DecodeError`/`*AuthError`), and the single-`Do` / always-close-body discipline are untouched. `RetryExecutor` (017) forwards `Request` unchanged, so the field rides through with no edit there. Chose the narrow field over a general `Header http.Header` bag (plan ADR-1) — generalize when a second header (`If-Match`, deferred) has a real consumer.
   - **Acceptance criteria**:
     - A `Request` with `ContentType: "application/json"` produces an outbound request whose `Content-Type` header is `application/json`
