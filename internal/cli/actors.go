@@ -46,14 +46,17 @@ var supportedActorKinds = map[string]bool{
 
 // actorsSeam supplies everything the `actors` read needs from the outside, so
 // runActorsList is pure over injected values and every branch runs offline. Same
-// shape as searchSeam/projectsSeam (assemble + newClient + sleep + resolveFormat),
-// so productionSeam satisfies it unchanged and the existing test fakes drive it. It
-// never reads ctx.Cred.Token — the token rides 007's AuthTransport in the client.
+// shape as searchSeam/projectsSeam (assemble + newClient + sleep + resolveSelection
+// + readTemplateSource — 035 widened resolveFormat into the discriminated
+// selection), so productionSeam satisfies it unchanged and the existing test fakes
+// drive it. It never reads ctx.Cred.Token — the token rides 007's AuthTransport in
+// the client.
 type actorsSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // actorsConfig carries everything runActorsList needs, gathered by the command's
@@ -93,13 +96,15 @@ type actorsConfig struct {
 // --query are free values passed through (plan ADR-3). It adds no new
 // Outcome/ExitCode and never reads the token.
 func runActorsList(cfg actorsConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector fails
-	//    fast as a usage error before any assembly or request. Resolving --output
-	//    ahead of --kind keeps error precedence consistent with the sibling reads —
-	//    an invalid --output is reported even when --kind is also invalid.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	//    Resolving --output ahead of --kind keeps error precedence consistent with the
+	//    sibling reads — an invalid --output is reported even when --kind is also
+	//    invalid.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate --kind against the closed 2-value set BEFORE any request (a bad
@@ -118,11 +123,11 @@ func runActorsList(cfg actorsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runActorsListWalk(cfg, exec, format)
+	return runActorsListWalk(cfg, exec, rt)
 }
 
 // runActorsListWalk walks GET /actors. The output format changes ONLY how the
@@ -132,19 +137,21 @@ func runActorsList(cfg actorsConfig) (Outcome, error) {
 // 038/041 roles/projects/search walked-list shape with Actor items. The filters
 // (kind/role_id/q) ride EVERY page of the walk — paging.All clones and preserves
 // the base request's query across pages (plan Risk).
-func runActorsListWalk(cfg actorsConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runActorsListWalk(cfg actorsConfig, exec executor, rt renderTarget) (Outcome, error) {
 	req := apiclient.Request{Method: http.MethodGet, Path: "/actors", Query: actorsQuery(cfg)}
 
 	if cfg.firstPage {
-		return runActorsFirstPage(cfg, exec, format, req)
+		return runActorsFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each actor's raw bytes, then emit the
-	// aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	// aggregated {data:[…]} document (reusing the resource-neutral aggregator). A user
+	// template resolves to a non-structured format (rt.tmpl != nil → Full), so this
+	// branch is never taken under -o stdin/file (035).
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, actorsWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -158,21 +165,17 @@ func runActorsListWalk(cfg actorsConfig, exec executor, format output.OutputForm
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the actors projection (the new 048 `actors`
-	// key; an empty set renders `no actors`).
+	// Human / user template: walk to completion, render the actors projection (the new
+	// 048 `actors` key, or a selected user template; an empty set renders `no actors`).
 	res := paging.All[glassfrog.Actor](cfg.reqCtx, exec, req, actorsWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
-	view := render.ActorsView{Data: res.Records}
-	text, rerr := renderFn(render.ResourceActors, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceActors, rt.format, render.ActorsView{Data: res.Records}); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompleteActorsWalk(cfg.stderr, res.Stop)
 	}
@@ -185,7 +188,7 @@ func runActorsListWalk(cfg actorsConfig, exec executor, format output.OutputForm
 // the same {data:[…]} envelope the default walk does; the human path renders the
 // projection. --per-page (if set) sizes the single request; the walker is not
 // involved.
-func runActorsFirstPage(cfg actorsConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runActorsFirstPage(cfg actorsConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -194,10 +197,10 @@ func runActorsFirstPage(cfg actorsConfig, exec executor, format output.OutputFor
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -213,15 +216,11 @@ func runActorsFirstPage(cfg actorsConfig, exec executor, format output.OutputFor
 
 	var page glassfrog.Page[glassfrog.Actor]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
-	view := render.ActorsView{Data: page.Data}
-	text, rerr := renderFn(render.ResourceActors, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceActors, rt.format, render.ActorsView{Data: page.Data}); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, moreActorsNote)
 	}
