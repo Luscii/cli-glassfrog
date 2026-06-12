@@ -114,7 +114,7 @@ categories:                 # ADR-3: the seven 028 labels, exact strings.
   - title: "Internal"
     labels: [internal]
 
-exclude-labels:             # ADR-4: spec/feature-only + maintainer-flagged PRs.
+exclude-labels:             # ADR-4: auto-applied to spec/feature-only PRs (see labeler.yml).
   - no-release-note
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
@@ -163,7 +163,7 @@ Added to `.github/settings.yml` `labels:` block (eighth entry; color `[ASSUMED]`
 ```yaml
   - name: no-release-note
     color: "EDEDED"
-    description: "Excluded from release notes (spec/feature-only or maintainer-flagged)"
+    description: "Auto-excluded from release notes (changes confined to specs/ and .feature files)"
 ```
 
 ### Structural contract — `internal/build` label-contract config guard (ADR-6)

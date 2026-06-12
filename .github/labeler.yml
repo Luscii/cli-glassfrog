@@ -1,4 +1,5 @@
-# PR Administration — signal→label mapping (spec 028, ADR-2/ADR-3).
+# PR Administration — signal→label mapping (spec 028, ADR-2/ADR-3; extended by
+# 030, ADR-4).
 #
 # Consumed by `srvaroa/labeler` (see .github/workflows/pr-administration.yml).
 # One entry per managed label. For EACH label the action evaluates its matchers
@@ -14,6 +15,9 @@
 # as the semver bump signal 030 resolves (major/minor/patch); a PR may match
 # several labels at once (030 decides which semver label wins), and a PR
 # matching no signal receives no managed label.
+#
+# Eight managed labels: the seven category/semver labels plus the
+# `no-release-note` exclusion label (030 ADR-4), all defined below.
 version: 1
 labels:
   - label: breaking
@@ -50,3 +54,30 @@ labels:
   - label: internal
     title: "^(chore|refactor|perf|test|style)(\\([^)]+\\))?:"
     branch: "^(chore|refactor|cleanup)/"
+  # no-release-note (030 ADR-4): applied iff NO changed file is noteworthy
+  # (negate inverts the block). Noteworthy = code / real docs / infra / deps /
+  # vendored API spec. A PR confined to specs/*.md and *.feature matches none
+  # of THESE patterns, so it gets this label and release-drafter excludes it.
+  # (Such a PR may still match the `docs` label above via its .*\.md$ rule —
+  # harmless: exclude-labels drops the PR regardless of any category label it
+  # also carries.) Patterns are [ASSUMED]/tunable; the contract is "no
+  # noteworthy file → excluded".
+  # NOTE: the real-docs patterns HERE are docs/ + README.md ONLY — NOT a broad
+  # .*\.md$, which would (wrongly) treat Score spec markdown under specs/ as
+  # noteworthy for exclusion purposes.
+  - label: no-release-note
+    negate: true
+    files:
+      - ".*\\.go$"
+      - "go\\.mod$"
+      - "go\\.sum$"
+      - "docs/.*"
+      - "README\\.md$"
+      - "\\.github/.*"
+      - "\\.goreleaser\\.ya?ml$"
+      - "\\.golangci\\.ya?ml$"
+      - "scripts/.*"
+      - "Makefile"
+      - "Dockerfile.*"
+      - "\\.pre-commit-config\\.yaml"
+      - "spec/.*"
