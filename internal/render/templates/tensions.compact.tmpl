@@ -1,0 +1,3 @@
+{{if not .Data}}no tensions
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{if eq (trimSpace .Label) ""}}{{if eq (trimSpace .Body) ""}}—{{else}}{{.Body}}{{end}}{{else}}{{.Label}}{{end}}
+{{end}}{{end}}
