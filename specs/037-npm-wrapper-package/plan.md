@@ -51,7 +51,7 @@ npm installs only the platform package whose `os`/`cpu` match the host; its `pac
 
 **Decision**: Option 1. Four platform packages (`glassfrog-<os>-<cpu>`) each declare `os`/`cpu` and bundle their binary; the umbrella lists them as `optionalDependencies` and exposes the `glassfrog` command. The postinstall fallback (ADR-3) covers the no-optional-dep case.
 
-**Consequences**: Offline installs work from the bundled package; network is only the fallback. Five packages publish per release (ordering matters — ADR-7). The npm `os`/`cpu` vocabulary differs from GoReleaser's (`amd64`→`x64`) — the generator owns that mapping (ADR-2). The exact package names/scope are interface-level (deferred).
+**Consequences**: Offline installs work from the bundled package; network is only the fallback. Five packages publish per release (ordering matters — ADR-7). The npm `os`/`cpu` vocabulary differs from GoReleaser's (`amd64`→`x64`) — the generator owns that mapping (ADR-2). The package scope/names are pinned in interface-spec (`@luscii-healthtech/glassfrog` plus the four platform packages); only the package.json metadata remains interface-level.
 
 ### ADR-2: Generate the package layout in CI from a single in-repo source — do not commit per-platform package directories
 
@@ -64,7 +64,7 @@ npm installs only the platform package whose `os`/`cpu` match the host; its `pac
 
 **Decision**: Option 2. In-repo, the npm channel owns: `bin/glassfrog` (launcher), `postinstall.js` (fallback), an umbrella `package.json` template, and a generator (e.g. `npm/build.mjs`) that — given the release version and the verified `dist/` binaries — emits the umbrella and the four platform packages (each with its `os`/`cpu`, pinned `optionalDependencies`, bin mapping, and bundled binary) into a gitignored build dir. The generator owns the GoReleaser→npm arch mapping.
 
-**Consequences**: The repo holds exactly one copy of each concern; no per-platform `package.json` files committed. The generated output dir is added to `.gitignore` (alongside `/dist/`). The generator and emitted shapes are unit-tested (ADR-3 testing). Exact metadata fields (description, homepage, repository, keywords) and package names are interface-level.
+**Consequences**: The repo holds exactly one copy of each concern; no per-platform `package.json` files committed. The generated output dir is added to `.gitignore` (alongside `/dist/`). The generator and emitted shapes are unit-tested (ADR-3 testing). Exact metadata fields (description, homepage, repository, keywords) remain interface-level; the package names/scope are pinned in interface-spec (`@luscii-healthtech/…`).
 
 ### ADR-3: Conform to 027's deterministic-URL + sha256-verification acquisition pattern, with a download-base-URL seam for hermetic tests
 
@@ -133,7 +133,7 @@ npm installs only the platform package whose `os`/`cpu` match the host; its `pac
 
 **Error handling**: Install-time failures (unsupported platform, checksum mismatch, download/extract failure, missing `tar`) → a clear stderr message + non-zero exit, with nothing runnable placed (027's verified-or-nothing atomicity). Runtime: the launcher propagates the child's exit code and signal verbatim; an unresolvable binary → the same refusal + non-zero. No failure mode leaves a half-working command.
 
-**Configuration**: The download base URL is overridable (default `https://github.com`) for hermetic tests. The version comes from the tag. Package name/scope and metadata are `[ASSUMED]`, pinned at interface. Nothing else is configurable — the channel is install-and-run.
+**Configuration**: The download base URL is overridable (default `https://github.com`) for hermetic tests. The version comes from the tag. The package name/scope is pinned at interface (`@luscii-healthtech/glassfrog`); only the package.json metadata remains an interface detail. Nothing else is configurable — the channel is install-and-run.
 
 **Testing strategy**: The launcher and `postinstall.js` are plain CommonJS with `node --test` unit tests run in a CI job: launcher argv/exit/signal passthrough against a fake binary; postinstall platform detection, URL construction (pinned to 022's template fixture), sha256 verify + refuse-on-mismatch, unsupported-platform refusal, and `--ignore-scripts`/missing-binary launcher backstop — all driven against a local fixture server via the base-URL seam (no network), mirroring 027's hermetic exec-test. The generator is tested by asserting the emitted package.json shapes (os/cpu values, `=X.Y.Z`-pinned optional deps, bin mapping). A JS lint/format gate (the shellcheck analog 027 used) is an optional interface-level call. The npm channel is JS-isolated under its own directory; the Go suite is untouched.
 
@@ -169,4 +169,4 @@ The phase split is real: Phase 1 is pure package logic (unit-testable, no secret
 - **Executable scenarios (→ `/score:scenarios`)**: the spec's driving scenarios become `.feature` files.
 - **Task decomposition (→ `/score:tasks`)**: the two phases become PR-sized units.
 - **One-time npm account/org setup**: the npmjs.com trusted-publisher registration (org membership, 2FA policy) is a maintainer ops task, surfaced as R2, not designed here.
-- **Behavioral gaps**: none — the spec is sharp; the only `[ASSUMED]` items are interface-level naming.
+- **Behavioral gaps**: none — the spec is sharp; naming/scope and the publish path are pinned in this PR's interface-spec and ADR-7, leaving only the package.json metadata as an interface detail.
