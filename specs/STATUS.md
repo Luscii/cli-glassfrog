@@ -44,4 +44,5 @@
 | 041-cross-model-search | Complete | validate | 2026-06-11T21:55:52 |
 | 042-tension-capture | Complete | validate | 2026-06-12T00:30:00 |
 | 043-tension-reads | Complete | validate | 2026-06-12T12:30:00 |
+| 044-tension-update | Specified | specify | 2026-06-12T20:59:00 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |

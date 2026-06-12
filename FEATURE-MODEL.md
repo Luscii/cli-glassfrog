@@ -195,3 +195,14 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): role assig
 - Subrole Filler Roll-up — read the actors filling a role's direct subroles (one level), to reach the surrounding circle when the role itself is vacant or shared: `GET /roles/{id}/subroles/actors` → `listSubrolesActors` (`spec/glassfrog-api-v5.yaml:321`; `?kind=human|agent`, paginated, requires `has_subroles`, leaf roles 404), with `/roles/{id}/subroles/people` → `listSubrolesPeople` (`spec/glassfrog-api-v5.yaml:379`) as the human-filtered alias
   + depends-on: Request Authentication
   + depends-on: Request Execution
+
+## Optimistic Concurrency
+> Problem: Clobbered Changes — concurrent governance edits overwrite each other when writes skip version checks (affects: Practitioner)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`) "Optimistic Concurrency (ETags)" section: GET responses for mutable resources carry an `ETag` header (a hash of current state); sending it back on a PUT/PATCH via `If-Match` makes the server accept the write only if the resource is unchanged, otherwise rejecting it (`412 Precondition Failed`). When `If-Match` is omitted the update proceeds unconditionally (last-write-wins) — which is the gap this solution closes. A Client-Foundation mechanism the write commands (Tension Update, Tension Discard, Proposal Write-Flow) opt into; retrofitting each write call-site is per-command work, not a capability here.
+
+- Version Capture on Read — surface the resource version (`ETag`) from a read so a later edit can be guarded against intervening changes
+- Guarded Writes — send the captured version via `If-Match` on an edit so the server refuses the write if the resource changed since it was read, rather than silently overwriting
+  + depends-on: Version Capture on Read
+- Stale-Write Surfacing — when a guarded write is refused (`412 Precondition Failed`), report the clobber distinctly so the operator knows the resource changed under them and can re-read before retrying
+  + depends-on: Guarded Writes
