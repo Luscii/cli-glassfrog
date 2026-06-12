@@ -185,9 +185,13 @@ func (s *fakeMeSeam) resolveSelection(flagValue string, flagPresent bool) (outpu
 	rcPath := filepath.Join(dir, rcfile.FileName)
 	switch {
 	case s.fileErr != nil:
-		_ = os.Mkdir(rcPath, 0o755)
+		if err := os.Mkdir(rcPath, 0o755); err != nil {
+			return output.Selection{Format: output.DefaultFormat}, err
+		}
 	case s.fileFound:
-		_ = os.WriteFile(rcPath, []byte("output="+s.fileOutput+"\n"), 0o600)
+		if err := os.WriteFile(rcPath, []byte("output="+s.fileOutput+"\n"), 0o600); err != nil {
+			return output.Selection{Format: output.DefaultFormat}, err
+		}
 	}
 
 	return output.ResolveSelectionFromOS(flagValue, flagPresent, dir, dir)
