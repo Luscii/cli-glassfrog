@@ -155,6 +155,17 @@ type ProjectView struct {
 	Project glassfrog.Project
 }
 
+// TensionView is the data the `tension` templates (042) render: a single created
+// tension with its free-text Body rendered verbatim as primary content — never
+// truncated or reflowed (CONSTITUTION VI), the Policy.Body / Project.note
+// precedent — plus its status badge and the nullable Label/RoleID/SensedByID/
+// MeetingType/ParentRoleID with explicit-absence guards, and the timestamps. It
+// mirrors PolicyView{Policy} / ProjectView{Project}. The load-bearing output is the
+// ten_ id (a later proposal references it as tension_id).
+type TensionView struct {
+	Tension glassfrog.Tension
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -302,6 +313,11 @@ const (
 	// full detail). Singular, distinct from ResourceProjects (the list key reused
 	// from 014).
 	ResourceProject Resource = "project"
+	// ResourceTension is the single created-tension projection (042): the
+	// createTension 201 {data: Tension} rendered as a TensionView (one
+	// glassfrog.Tension with its verbatim body). Singular — the first render key on
+	// the write path; no list/plural sibling (capture stays write-only).
+	ResourceTension Resource = "tension"
 	// ResourceSearch is the cross-model search read (041): GET /search rendered as
 	// a SearchView (the relevance-ordered heterogeneous result list, each row a
 	// `type`-badged hit). The first render key over a deliberately mixed-type list
@@ -318,7 +334,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceTension, ResourceSearch}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
