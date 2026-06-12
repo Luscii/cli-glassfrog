@@ -21,7 +21,7 @@ import (
 // treeSeam supplies everything the `tree` read needs from the outside, so runTree
 // is pure over injected values and every branch runs offline. It is the same
 // shape Identity Read's meSeam and Role Reads' rolesSeam expose (assemble +
-// newClient + sleep + resolveFormat), so productionSeam satisfies it unchanged
+// newClient + sleep + resolveSelection + readTemplateSource), so productionSeam satisfies it unchanged
 // and the existing test fakes drive it. The tree reads are unpaginated — one
 // Execute, no walk — but they still build the retrying executor (017) so a 429 is
 // retried like every other read. It never reads ctx.Cred.Token — the token rides
@@ -30,7 +30,8 @@ type treeSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // treeConfig carries everything runTree needs, gathered by the command's RunE.
@@ -75,11 +76,13 @@ var supportedTreeIncludes = map[string]bool{
 // exactly ONE request (the tree is unpaginated — no walk), then renders. It adds
 // no new Outcome/ExitCode and never reads the token.
 func runTree(cfg treeConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035, ADR-1/ADR-4): a
+	//    present-but-invalid selector — or, for a user template, a missing/unparseable
+	//    source or empty stdin — fails fast as a usage error before any assembly or
+	//    request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate the flag combinations BEFORE any assembly or request (fail-fast
@@ -105,11 +108,11 @@ func runTree(cfg treeConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runTreeRead(cfg, exec, format, treeRequest(cfg))
+	return runTreeRead(cfg, exec, rt, treeRequest(cfg))
 }
 
 // treeRequest builds the single GET request: GET /tree for the whole org (no
@@ -152,11 +155,11 @@ func treeQuery(cfg treeConfig) url.Values {
 // shows an explicit-absence marker when requested-but-empty (ADR-2). There is no
 // walk and no incompleteness note — the response IS the complete (depth-bounded)
 // tree.
-func runTreeRead(cfg treeConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
-	if machineFmt, ok := format.MachineFormat(); ok {
+func runTreeRead(cfg treeConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -171,16 +174,10 @@ func runTreeRead(cfg treeConfig, exec executor, format output.OutputFormat, req 
 
 	var doc glassfrog.TreeDocument
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.NewTreeView(doc.Data, includeSet(cfg.include))
-	text, rerr := renderFn(render.ResourceTree, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTree, rt.format, view)
 }
 
 // validateTreeFlags rejects the tree's flag misuses fail-fast, before any request

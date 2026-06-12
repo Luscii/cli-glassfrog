@@ -39,11 +39,13 @@ type meRolesConfig struct {
 // helpers. It emits no exit code, never retries, and never reads the token — the
 // projection renders response-side fields only.
 func runMeRoles(cfg meRolesConfig) (Outcome, error) {
-	// Resolve the output format FIRST (020, ADR-4): a present-but-invalid selector
-	// fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// Resolve the render target FIRST (020 widened by 035, ADR-1/ADR-4): a
+	// present-but-invalid selector — or, for a user template, a missing/unparseable
+	// source or empty stdin — fails fast as a usage error before any assembly or
+	// request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// Resolve the connection and build the client once. A base-URL error surfaces
@@ -51,7 +53,7 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 
 	// Send exactly one GET /me/roles and dispatch on the resolved format (020
@@ -63,7 +65,7 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 	// the structured document carries the pagination metadata in-band.
 	req := apiclient.Request{Method: http.MethodGet, Path: "/me/roles"}
 	return renderResult[glassfrog.MyRolesResponse](
-		cfg.stdout, cfg.stderr, format, render.ResourceRoles, client, cfg.reqCtx, req,
+		cfg.stdout, cfg.stderr, rt.format, rt.tmpl, render.ResourceRoles, client, cfg.reqCtx, req,
 		func(resp glassfrog.MyRolesResponse) string {
 			if incomplete(resp) {
 				return incompleteRolesNote

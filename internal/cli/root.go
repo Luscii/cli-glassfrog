@@ -52,7 +52,7 @@ func NewRootCommand() *cobra.Command {
 	// with the spec.
 	root.PersistentFlags().StringP(
 		output.FlagOutput, "o", "",
-		"Output format — full | compact | json | yaml (overrides GLASSFROG_OUTPUT, the .glassfrogrc output, and the built-in default)",
+		`Output format — full | compact | json | yaml, a template file path, or "stdin" to read a template from a pipe (overrides GLASSFROG_OUTPUT, the .glassfrogrc output, and the built-in default)`,
 	)
 	return root
 }

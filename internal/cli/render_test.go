@@ -53,7 +53,7 @@ func TestRenderResult_StructuredRoutesToOutputEncoder(t *testing.T) {
 			exec := &fakeExecutor{body: meBodyAlice}
 			var out, errb bytes.Buffer
 			outcome, err := renderResult[glassfrog.MeResponse](
-				&out, &errb, tc.format, render.ResourceMe, exec, context.Background(),
+				&out, &errb, tc.format, nil, render.ResourceMe, exec, context.Background(),
 				apiclient.Request{}, nil,
 			)
 			if outcome != Success || err != nil {
@@ -85,7 +85,7 @@ func TestRenderResult_HumanRoutesToRenderTemplates(t *testing.T) {
 			exec := &fakeExecutor{body: meBodyAlice}
 			var out, errb bytes.Buffer
 			outcome, err := renderResult[glassfrog.MeResponse](
-				&out, &errb, format, render.ResourceMe, exec, context.Background(),
+				&out, &errb, format, nil, render.ResourceMe, exec, context.Background(),
 				apiclient.Request{}, nil,
 			)
 			if outcome != Success || err != nil {
@@ -120,7 +120,7 @@ func TestRenderResult_HumanRenderFailureExitsOneNoPartialStdout(t *testing.T) {
 	exec := &fakeExecutor{body: meBodyAlice}
 	var out, errb bytes.Buffer
 	outcome, err := renderResult[glassfrog.MeResponse](
-		&out, &errb, output.FormatFull, render.ResourceMe, exec, context.Background(),
+		&out, &errb, output.FormatFull, nil, render.ResourceMe, exec, context.Background(),
 		apiclient.Request{}, nil,
 	)
 	if outcome != RuntimeError {

@@ -19,7 +19,6 @@ Feature: Unconsumable Output — User-Defined Template Output
     # I want to pass -o <templateFile> and receive the result rendered through my own template.
 
     # Source: 035-user-defined-template-output — Scenario: a template file renders the result
-    @wip
     Scenario: A template file renders the result
       Given the read "glassfrog me roles" had produced several roles
       And the invocation passed "-o ./roles.tmpl" naming a readable, parseable template
@@ -28,7 +27,6 @@ Feature: Unconsumable Output — User-Defined Template Output
       And stdout will carry the template's output
 
     # Source: 035-user-defined-template-output — Scenario: a missing template file fails fast
-    @wip
     Scenario: A missing template file fails fast
       Given the invocation passed "-o ./nope.tmpl" naming a file that does not exist
       When the command is run
@@ -37,7 +35,6 @@ Feature: Unconsumable Output — User-Defined Template Output
       And it will exit with the usage exit code 2
 
     # Source: 035-user-defined-template-output — Scenario: a malformed template fails fast before the read
-    @wip
     Scenario: A malformed template fails before any request
       Given the invocation passed "-o ./broken.tmpl" naming a file whose template cannot be parsed
       When the command is run
@@ -46,7 +43,6 @@ Feature: Unconsumable Output — User-Defined Template Output
       And it will exit with the usage exit code 2
 
     # Source: 035-user-defined-template-output — Scenario: a guarded template renders an absence marker for a missing field
-    @wip
     Scenario: A guarded template renders an absence marker for a missing field
       Given the read had produced a result that omitted an embedded collection
       And a template that guards a reference to that collection
@@ -55,7 +51,6 @@ Feature: Unconsumable Output — User-Defined Template Output
       And no fabricated data value will stand in for data the API did not return
 
     # Proposed (architecture-informed): plan ADR-3 + interface-cli error table — a post-parse execution failure is buffer-then-write and maps to UsageError(2)
-    @wip
     Scenario: An execution failure writes nothing to stdout
       Given the read had produced a successful result
       And a template that references an absent field without guarding it
@@ -86,7 +81,6 @@ Feature: Unconsumable Output — User-Defined Template Output
     # I want to pipe a template into the command and select it with -o stdin.
 
     # Source: 035-user-defined-template-output — Scenario: a template is read from piped stdin
-    @wip
     Scenario: A template piped on stdin renders the result
       Given a template had been piped to the command on standard input
       And the invocation passed "-o stdin" to a successful "glassfrog me" read
@@ -95,7 +89,6 @@ Feature: Unconsumable Output — User-Defined Template Output
       And the "me" result's data will be rendered through it
 
     # Source: 035-user-defined-template-output — Scenario: stdin selected with nothing piped
-    @wip
     Scenario: Selecting stdin with nothing piped fails fast
       Given the invocation passed "-o stdin"
       And no template had been piped to standard input
@@ -110,7 +103,6 @@ Feature: Unconsumable Output — User-Defined Template Output
     # I want to supply my own template instead of the built-in full / compact views.
 
     # Source: 035-user-defined-template-output — Scenario: a reserved name wins over a same-named file
-    @wip
     Scenario: A reserved name wins over a same-named file
       Given a file named "full" existed in the current working directory
       And the invocation passed "-o full"

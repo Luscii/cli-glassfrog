@@ -35,7 +35,7 @@ const morePoliciesNote = "note: more policies exist than shown; re-run without -
 // policiesSeam supplies everything the policy reads need from the outside, so the
 // run* functions are pure over injected values and every branch runs offline. It
 // is the same shape as rolesSeam/subrolesSeam (assemble + newClient + sleep +
-// resolveFormat), so productionSeam satisfies it unchanged and the existing test
+// resolveSelection + readTemplateSource), so productionSeam satisfies it unchanged and the existing test
 // fakes drive it. The reads build the RetryExecutor-wrapped *Client once from these
 // and hand it to both a direct Execute (the single policy read) and paging.All
 // (the list walk). It never reads ctx.Cred.Token — the token rides 007's
@@ -44,7 +44,8 @@ type policiesSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // policiesConfig carries everything runPoliciesList needs, gathered by the
@@ -75,11 +76,12 @@ type policiesConfig struct {
 // passed through to a clean 404, and --query is a free-text search string, not a
 // closed enum. It adds no new Outcome/ExitCode and never reads the token.
 func runPoliciesList(cfg policiesConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Resolve the connection and build the client + retrying executor. A
@@ -87,11 +89,11 @@ func runPoliciesList(cfg policiesConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
-	return runPoliciesListWalk(cfg, exec, format)
+	return runPoliciesListWalk(cfg, exec, rt)
 }
 
 // runPoliciesListWalk walks GET /roles/{id}/policies. The output format changes
@@ -101,20 +103,20 @@ func runPoliciesList(cfg policiesConfig) (Outcome, error) {
 // is the 025 roles-list shape with Policy items and the per-role policies path. The
 // id is escaped as one path segment (passed through unvalidated per ADR-3, but a
 // raw `/`/`..` must not redirect/traverse).
-func runPoliciesListWalk(cfg policiesConfig, exec executor, format output.OutputFormat) (Outcome, error) {
+func runPoliciesListWalk(cfg policiesConfig, exec executor, rt renderTarget) (Outcome, error) {
 	path := "/roles/" + url.PathEscape(cfg.id) + "/policies"
 	req := apiclient.Request{Method: http.MethodGet, Path: path, Query: policiesQuery(cfg)}
 
 	if cfg.firstPage {
-		return runPoliciesFirstPage(cfg, exec, format, req)
+		return runPoliciesFirstPage(cfg, exec, rt, req)
 	}
 
 	// Structured: walk to completion preserving each policy's raw bytes, then emit
 	// the aggregated {data:[…]} document (reusing the resource-neutral aggregator).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		res := paging.All[json.RawMessage](cfg.reqCtx, exec, req, policiesWalkOptions(cfg)...)
 		if res.Stop != nil && len(res.Records) == 0 {
-			return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 		}
 		doc, rerr := aggregateRawData(machineFmt, res.Records)
 		if rerr != nil {
@@ -128,21 +130,18 @@ func runPoliciesListWalk(cfg policiesConfig, exec executor, format output.Output
 		return Success, nil
 	}
 
-	// Human: walk to completion, render the policies projection (a block per
-	// policy; an empty set renders `No policies.`).
+	// Human / user template: walk to completion, render the policies projection (a
+	// block per policy; an empty set renders `No policies.`).
 	res := paging.All[glassfrog.Policy](cfg.reqCtx, exec, req, policiesWalkOptions(cfg)...)
 	if res.Stop != nil && len(res.Records) == 0 {
 		// A walk that stopped before gathering any record is a clean failure (e.g. a
 		// first-page transport/auth/API error): no partial set to show.
-		return reportFailure(cfg.stdout, cfg.stderr, format, res.Stop)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, res.Stop)
 	}
 	view := render.PoliciesView{Policies: res.Records}
-	text, rerr := renderFn(render.ResourcePolicies, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourcePolicies, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if res.Stop != nil {
 		return reportIncompletePoliciesWalk(cfg.stderr, res.Stop)
 	}
@@ -155,7 +154,7 @@ func runPoliciesListWalk(cfg policiesConfig, exec executor, format output.Output
 // boundary). The structured path emits the same {data:[…]} envelope the default
 // walk does; the human path renders the projection. --per-page (if set) sizes the
 // single request; the walker is not involved.
-func runPoliciesFirstPage(cfg policiesConfig, exec executor, format output.OutputFormat, req apiclient.Request) (Outcome, error) {
+func runPoliciesFirstPage(cfg policiesConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -164,10 +163,10 @@ func runPoliciesFirstPage(cfg policiesConfig, exec executor, format output.Outpu
 		req.Query = q
 	}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var page glassfrog.Page[json.RawMessage]
 		if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := aggregateRawData(machineFmt, page.Data)
 		if rerr != nil {
@@ -183,15 +182,12 @@ func runPoliciesFirstPage(cfg policiesConfig, exec executor, format output.Outpu
 
 	var page glassfrog.Page[glassfrog.Policy]
 	if _, err := exec.Execute(cfg.reqCtx, req, &page); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.PoliciesView{Policies: page.Data}
-	text, rerr := renderFn(render.ResourcePolicies, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
+	if outcome, rerr := writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourcePolicies, rt.format, view); outcome != Success {
+		return outcome, rerr
 	}
-	fmt.Fprint(cfg.stdout, text)
 	if page.Meta.Pagination.HasNextPage {
 		fmt.Fprintln(cfg.stderr, morePoliciesNote)
 	}
@@ -254,15 +250,15 @@ type policyConfig struct {
 // PolicyView carrying the full body. It adds no new Outcome/ExitCode and never
 // reads the token.
 func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -272,10 +268,10 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 	// id one opaque segment the API reports as a 404.
 	req := apiclient.Request{Method: http.MethodGet, Path: "/policies/" + url.PathEscape(id)}
 
-	if machineFmt, ok := format.MachineFormat(); ok {
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -290,16 +286,10 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 
 	var doc glassfrog.Document[glassfrog.Policy]
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.PolicyView{Policy: doc.Data}
-	text, rerr := renderFn(render.ResourcePolicy, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourcePolicy, rt.format, view)
 }
 
 // newPolicyCommand builds the runnable `policy` leaf (ADR-1): a guard-ready cobra
