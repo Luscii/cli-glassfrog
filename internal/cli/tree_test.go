@@ -373,7 +373,7 @@ func TestRunTree_StructuredEmitsRawNestedPayload(t *testing.T) {
 func TestRunTree_InvalidOutputIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: orgTreeBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
-	outcome, _, _ := runTreeOver(t, seam, treeConfig{outputFlag: "bogus"})
+	outcome, _, _ := runTreeOver(t, seam, treeConfig{outputFlag: "bogus", outputPresent: true})
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}

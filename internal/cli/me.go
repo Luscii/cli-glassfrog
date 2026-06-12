@@ -35,7 +35,7 @@ var supportedIncludeTargets = map[string]bool{
 type meSeam interface {
 	// assemble resolves the ConnectionContext once from the --base-url flag value
 	// (009; resolution already happened, identity + endpoint are stable).
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	// newClient builds the request client once over the assembled context (010).
 	// A context with no usable endpoint returns its base-URL error verbatim.
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
@@ -54,15 +54,15 @@ type meSeam interface {
 	// UsageError(2). readTemplateSource reads a selected template's bytes behind the
 	// seam (file via os.ReadFile, stdin via the bounded isTTY-guarded reader, 035
 	// ADR-4) — both methods declared so the shared selectionSeam is satisfied.
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // productionSeam (defined for loginSeam in authlogin_seam.go) also satisfies
 // meSeam by binding the real OS resolvers and the real base transport. One
 // MustRegister(root, newMeCommand(productionSeam{})) line in Assemble wires it.
-func (productionSeam) assemble(baseURL string) apiclient.ConnectionContext {
-	return apiclient.AssembleFromOS(baseURL)
+func (productionSeam) assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext {
+	return apiclient.AssembleFromOS(baseURL, baseURLPresent)
 }
 
 func (productionSeam) newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error) {
@@ -82,13 +82,15 @@ func (productionSeam) sleep() func(time.Duration) { return time.Sleep }
 // whole read — validate, assemble, build, send, render/classify — testable over
 // a fake transport with no real network or ~/.glassfrogrc.
 type meConfig struct {
-	seam       meSeam
-	baseURL    string   // the persistent --base-url flag value (may be empty)
-	outputFlag string   // the persistent --output flag value (may be empty), resolved before any request
-	include    []string // the raw --include targets, validated before any request
-	reqCtx     context.Context
-	stdout     io.Writer
-	stderr     io.Writer
+	seam           meSeam
+	baseURL        string   // the persistent --base-url flag value (may be empty)
+	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string   // the persistent --output flag value (may be empty), resolved before any request
+	outputPresent  bool     // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	include        []string // the raw --include targets, validated before any request
+	reqCtx         context.Context
+	stdout         io.Writer
+	stderr         io.Writer
 }
 
 // runMe is the pure orchestration the command delegates to (ADR-5): validate the
@@ -107,7 +109,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 	//    missing file / unparseable template / empty stdin — fails fast as a usage
 	//    error before any assembly or request (no wasted call, pinned by a tripwire
 	//    transport). Resolution is independent of connection assembly (009).
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -122,7 +124,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client once. A base-URL error
 	//    surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -317,13 +319,15 @@ func newMeCommand(seam meSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runMe(meConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				include:    include,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				include:        include,
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

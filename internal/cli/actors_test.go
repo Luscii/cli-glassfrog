@@ -384,7 +384,7 @@ func TestRunActors_BadOutputIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actorsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{outputFlag: "xml"})
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{outputFlag: "xml", outputPresent: true})
 	if outcome != UsageError || ExitCode(outcome) != 2 {
 		t.Fatalf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
@@ -400,7 +400,7 @@ func TestRunActors_OutputResolvedBeforeKind(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actorsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{outputFlag: "xml", kind: "robot", kindSet: true})
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{outputFlag: "xml", outputPresent: true, kind: "robot", kindSet: true})
 	if outcome != UsageError {
 		t.Fatalf("outcome = %v, want UsageError", outcome)
 	}
@@ -418,7 +418,7 @@ func TestRunActors_StructuredJSONEmitsAggregatedRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actorsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runActorsOver(t, seam, actorsConfig{outputFlag: "json"})
+	outcome, stdout, _ := runActorsOver(t, seam, actorsConfig{outputFlag: "json", outputPresent: true})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
