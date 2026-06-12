@@ -15,6 +15,8 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,6 +169,111 @@ func TestAssetNames(t *testing.T) {
 		if got := strings.TrimSpace(stdout); got != tc.want {
 			t.Errorf("asset_names %s %s %s = %q, want %q", tc.ver, tc.os, tc.arch, got, tc.want)
 		}
+	}
+}
+
+// TestExtractLocation pins the redirect-header parser against both downloaders'
+// formats: `curl -sI` prints headers flush-left, while `wget -S` indents them.
+// The indented (wget) case is the regression guard — before stripping leading
+// whitespace, the `[Ll]ocation:*` glob never matched the wget header and the
+// default wget one-liner's tag resolution silently yielded nothing.
+func TestExtractLocation(t *testing.T) {
+	cases := []struct {
+		name, header, want string
+	}{
+		{"curl flush-left", "Location: /Luscii/cli-glassfrog/releases/tag/v1.4.0", "/Luscii/cli-glassfrog/releases/tag/v1.4.0"},
+		{"wget indented", "  Location: /Luscii/cli-glassfrog/releases/tag/v1.4.0", "/Luscii/cli-glassfrog/releases/tag/v1.4.0"},
+		{"lowercase + CR", "location: /a/b/v2.0.0\r", "/a/b/v2.0.0"},
+		{"tab-indented", "\tLocation: /a/b/v3.0.0", "/a/b/v3.0.0"},
+	}
+	for _, tc := range cases {
+		// Feed the header line on stdin via a pipe inside the sourcing shell.
+		expr := "printf '%s\\n' '" + tc.header + "' | extract_location"
+		stdout, _, code := sourceAndCall(t, expr)
+		if code != 0 {
+			t.Errorf("%s: extract_location exit %d", tc.name, code)
+		}
+		if got := strings.TrimSpace(stdout); got != tc.want {
+			t.Errorf("%s: extract_location = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// TestInstallViaWget exercises the wget code paths (redirect resolution +
+// download) end-to-end — the paths the godog suite cannot reach, because its
+// shim leaves the system PATH intact so detect_tooling always finds curl first.
+// Here PATH is restricted to a toolbox that deliberately omits curl, forcing
+// the wget branch. Skipped when wget is not installed (e.g. a bare macOS host).
+func TestInstallViaWget(t *testing.T) {
+	if _, err := exec.LookPath("wget"); err != nil {
+		t.Skip("wget not installed — skipping wget-path coverage")
+	}
+
+	bin := stubBinary("v1.4.0")
+	archive := makeTarGz(t, bin)
+	archiveName := "glassfrog_1.4.0_linux_amd64.tar.gz"
+	checksumsName := "glassfrog_1.4.0_checksums.txt"
+	checksums := sha256Hex(archive) + "  " + archiveName + "\n"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/releases/latest"):
+			rw.Header().Set("Location", "/Luscii/cli-glassfrog/releases/tag/v1.4.0")
+			rw.WriteHeader(http.StatusFound)
+		case strings.HasSuffix(r.URL.Path, "/"+archiveName):
+			_, _ = rw.Write(archive)
+		case strings.HasSuffix(r.URL.Path, "/"+checksumsName):
+			_, _ = rw.Write([]byte(checksums))
+		default:
+			http.NotFound(rw, r)
+		}
+	}))
+	defer srv.Close()
+
+	// A toolbox PATH that forces the wget branch: a fake uname (linux/amd64),
+	// real wget/tar/checksum/etc. symlinked in, and NO curl.
+	box := filepath.Join(t.TempDir(), "wget-only")
+	if err := os.MkdirAll(box, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	uname := "#!/bin/sh\ncase \"$1\" in\n -s) echo Linux;;\n -m) echo x86_64;;\n *) echo unknown;;\nesac\n"
+	if err := os.WriteFile(filepath.Join(box, "uname"), []byte(uname), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"wget", "tar", "mktemp", "mkdir", "mv", "chmod", "rm", "awk", "sed", "tr", "sha256sum", "shasum", "openssl", "cat", "gzip"} {
+		if p, err := exec.LookPath(name); err == nil {
+			_ = os.Symlink(p, filepath.Join(box, name))
+		}
+	}
+
+	installDir := filepath.Join(t.TempDir(), "bin")
+	cmd := exec.Command("/bin/sh", scriptPath(t))
+	cmd.Env = []string{
+		"PATH=" + box, // box only — no curl reachable
+		"HOME=" + t.TempDir(),
+		"GLASSFROG_DOWNLOAD_BASE_URL=" + srv.URL,
+		"GLASSFROG_INSTALL_DIR=" + installDir,
+	}
+	if tmp := os.Getenv("TMPDIR"); tmp != "" {
+		cmd.Env = append(cmd.Env, "TMPDIR="+tmp)
+	}
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	code := exitCodeOf(t, cmd, cmd.Run())
+
+	if code != 0 {
+		t.Fatalf("wget install exit %d, want 0\nstdout: %s\nstderr: %s", code, out.String(), errb.String())
+	}
+	installed := filepath.Join(installDir, "glassfrog")
+	body, err := os.ReadFile(installed)
+	if err != nil {
+		t.Fatalf("binary not installed at %s via the wget path: %v\nstderr: %s", installed, err, errb.String())
+	}
+	if !strings.Contains(string(body), "v1.4.0") {
+		t.Errorf("installed binary is not the v1.4.0 build; content: %q", string(body))
+	}
+	if !strings.Contains(out.String(), "v1.4.0") {
+		t.Errorf("stdout should report the installed version v1.4.0:\n%s", out.String())
 	}
 }
 

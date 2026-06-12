@@ -143,6 +143,11 @@ detect_tooling() {
 # response headers and echo its value (CR and surrounding space stripped).
 extract_location() {
 	while IFS= read -r _line; do
+		# Strip leading whitespace before matching: `wget -S` indents response
+		# headers (e.g. "  Location: …"), while `curl -sI` does not. Without this
+		# the indented wget header would never match and the default wget
+		# one-liner's tag resolution would silently yield an empty result.
+		_line=${_line#"${_line%%[![:space:]]*}"}
 		case "$_line" in
 			[Ll]ocation:*)
 				_loc=${_line#*:}
@@ -301,7 +306,13 @@ main() {
 	# Everything fetched/verified/extracted happens in a private temp dir; an
 	# EXIT trap removes it on every path. Nothing touches the install dir until
 	# the checksum verifies.
-	tmp=$(mktemp -d)
+	# `mktemp -d` (no template) works on modern macOS and GNU coreutils, but
+	# older/minimal BSD `mktemp` requires a template — fall back to the `-t`
+	# prefix form, and fail clearly if neither yields a directory.
+	tmp=$(mktemp -d 2>/dev/null || mktemp -d -t glassfrog 2>/dev/null) || true
+	if [ -z "${tmp:-}" ] || [ ! -d "$tmp" ]; then
+		die_runtime "could not create a temporary directory (mktemp failed)."
+	fi
 	trap 'rm -rf "$tmp"' EXIT INT TERM HUP
 
 	if ! download "${dl_base}/${checksums}" "${tmp}/${checksums}"; then
