@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"strings"
@@ -109,6 +110,17 @@ type fakeMeSeam struct {
 	filePath   string
 	fileFound  bool
 	fileErr    error
+
+	// User-Defined Template Output (035) injected template-source behavior for
+	// readTemplateSource, exercised over the real readTemplateSourceFrom logic with
+	// NO real filesystem/stdin: tmplFiles maps a TemplateFile path to its content (a
+	// path absent from the map reads as not-found, the missing-file fail-fast case);
+	// tmplStdin is the piped stdin text and tmplStdinPiped says whether a pipe is
+	// present (isTTY = !tmplStdinPiped — an un-piped stdin is the TTY fail-fast case).
+	// All zero by default — a built-in-format test never touches them.
+	tmplFiles      map[string]string
+	tmplStdin      string
+	tmplStdinPiped bool
 }
 
 func (s *fakeMeSeam) assemble(baseURL string) apiclient.ConnectionContext {
@@ -131,13 +143,29 @@ func (s *fakeMeSeam) sleep() func(time.Duration) {
 	return func(d time.Duration) { s.slept = append(s.slept, d) }
 }
 
-// resolveFormat drives the real output.ResolveFormat precedence core (020) over the
-// fake's injected flag/env/file sources, so a 020 test exercises genuine parsing and
-// precedence without reading the real environment or ~/.glassfrogrc. A
-// default-constructed fake (all sources absent) yields FormatFull — the standing
-// full path every pre-020 test relies on for byte-equivalence.
-func (s *fakeMeSeam) resolveFormat(flagValue string) (output.OutputFormat, error) {
-	return output.ResolveFormat(flagValue, s.envOutput, s.fileOutput, s.filePath, s.fileFound, s.fileErr)
+// resolveSelection drives the real output.ResolveSelection precedence core (020
+// widened by 035) over the fake's injected flag/env/file sources, so a test
+// exercises genuine parsing, precedence, and the flag-rung template classification
+// without reading the real environment or ~/.glassfrogrc. A default-constructed fake
+// (all sources absent) yields FormatFull — the standing full path every pre-020 test
+// relies on for byte-equivalence.
+func (s *fakeMeSeam) resolveSelection(flagValue string) (output.Selection, error) {
+	return output.ResolveSelection(flagValue, s.envOutput, s.fileOutput, s.filePath, s.fileFound, s.fileErr)
+}
+
+// readTemplateSource exercises the production readTemplateSourceFrom logic (035
+// ADR-4) over injected sources: a file read resolves against tmplFiles (a path not
+// present reads as not-found — the missing-file fail-fast case), and stdin reads
+// tmplStdin guarded by !tmplStdinPiped (an un-piped stdin is the TTY fail-fast case).
+// No real filesystem or os.Stdin is touched, so every fail-fast case is hermetic.
+func (s *fakeMeSeam) readTemplateSource(ref output.TemplateRef) (string, error) {
+	readFile := func(path string) ([]byte, error) {
+		if content, ok := s.tmplFiles[path]; ok {
+			return []byte(content), nil
+		}
+		return nil, fs.ErrNotExist
+	}
+	return readTemplateSourceFrom(ref, readFile, !s.tmplStdinPiped, strings.NewReader(s.tmplStdin))
 }
 
 // validMeContext is a complete, usable context: a parseable base URL and a

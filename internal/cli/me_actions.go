@@ -48,11 +48,13 @@ type meActionsConfig struct {
 // no exit code, never retries, and never reads the token — the projection renders
 // response-side fields only.
 func runMeActions(cfg meActionsConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020, ADR-4): a present-but-invalid selector
-	//    fails fast as a usage error before any assembly or request.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035, ADR-1/ADR-4): a
+	//    present-but-invalid selector — or, for a user template, a missing/unparseable
+	//    source or empty stdin — fails fast as a usage error before any assembly or
+	//    request.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate --status BEFORE any assembly or request (fail-fast usage error,
@@ -67,7 +69,7 @@ func runMeActions(cfg meActionsConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 
 	// 4. Send exactly one GET /me/actions and dispatch on the resolved format (020
@@ -82,7 +84,7 @@ func runMeActions(cfg meActionsConfig) (Outcome, error) {
 		req.Query = url.Values{"status": []string{cfg.status}}
 	}
 	return renderResult[glassfrog.MyActionsResponse](
-		cfg.stdout, cfg.stderr, format, render.ResourceActions, client, cfg.reqCtx, req,
+		cfg.stdout, cfg.stderr, rt.format, rt.tmpl, render.ResourceActions, client, cfg.reqCtx, req,
 		func(resp glassfrog.MyActionsResponse) string {
 			if incompleteActions(resp) {
 				return incompleteActionsNote

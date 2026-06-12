@@ -9,6 +9,7 @@ import (
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
 	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 )
 
 // Diagnostic is the one normalized shape every failure family collapses into
@@ -148,6 +149,17 @@ func Diagnose(err error) Diagnostic {
 	// names the source + value + supported list, so it stands as the cause verbatim.
 	var formatErr *output.FormatError
 	if errors.As(err, &formatErr) {
+		return Diagnostic{Category: UsageError, Cause: err.Error()}
+	}
+
+	// User-Defined Template Output (035): a caller template that fails to parse
+	// (pre-request) or to execute (an unguarded reference to an absent field/key
+	// under missingkey=error, post-response) is the operator's own input — a usage
+	// error, symmetric with the *output.FormatError arm above. Distinct from a
+	// built-in *render.RenderError, which stays a code defect (RuntimeError(1), the
+	// fail-safe below). The error's own text names the source + cause (token-free).
+	var userTmplErr *render.UserTemplateError
+	if errors.As(err, &userTmplErr) {
 		return Diagnostic{Category: UsageError, Cause: err.Error()}
 	}
 
