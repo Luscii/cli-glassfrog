@@ -101,10 +101,11 @@ When the base URL is resolved
 Then the system returns a `BaseURL` with that value and `Source` = flag
 And the environment and `.glassfrogrc` are not consulted.
 
-**Scenario: Output format falls through to the built-in default**
+**Scenario: Output selection falls through to the built-in default**
 Given no `--output` flag, no `GLASSFROG_OUTPUT`, and no `.glassfrogrc` `output` key
-When the output format is resolved
-Then the system returns `full` with `Source` = default.
+When the output selection is resolved
+Then the system returns the built-in default format `full`.
+And it reports no source on success — output resolution surfaces provenance only in a `*FormatError` (`output.Selection` carries no Source field).
 
 **Scenario: Base URL falls through flag→env→file→default**
 Given the `--base-url` flag is not supplied and `GLASSFROG_BASE_URL` is unset

@@ -75,13 +75,13 @@ RunE (every read command)                        internal/apiclient            i
 
 ### ADR-4: Each call site keeps its own OS seam and feeds it into `resolve`'s injected constructors
 
-**Context**: Each resolver owns a package-level `var getenv/getwd/userHomeDir` seam so its tests run hermetically over temp dirs and a controlled environment, never the developer's real `~/.glassfrogrc` (§49, §71, CONSTITUTION IV). 039 also provides `…FromOS` binding helpers. The retrofit could route through either.
+**Context**: Each resolver runs hermetically over temp dirs and a controlled environment, never the developer's real `~/.glassfrogrc` (§49, §71, CONSTITUTION IV) — but the *shape* of the seam differs by site. `internal/auth` and `internal/apiclient/baseurl.go` own package-level `var getenv`/`getwd`/`userHomeDir` and derive their own dirs. The **output** path (035) is different: `internal/output` owns only a `getenv` seam, and `ResolveSelectionFromOS(flagValue, startDir, homeDir)` *receives* `startDir`/`homeDir` — the cli `productionSeam.resolveSelection` derives them via `os.Getwd`/`os.UserHomeDir`. 039 also provides `…FromOS` binding helpers. The retrofit could route through either.
 
 **Options considered**:
 1. **Route through `resolve`'s own `FromOS` binding helpers** — fewer seam vars, but moves the OS-binding ownership out of each domain package and would make the secret-bearing token path depend on `resolve`'s binding surface.
-2. **Keep each site's existing seam; pass it into the injected constructors** — `resolve.FromEnv(getenv, name)`, `resolve.FromFile(startDir, homeDir, key)` with `startDir`/`homeDir` derived by the site's existing `getwd`/`userHomeDir`, exactly as today.
+2. **Keep each site's existing seam; pass it into the injected constructors** — `resolve.FromEnv(getenv, name)`, `resolve.FromFile(startDir, homeDir, key)`, with `startDir`/`homeDir` sourced exactly as today (derived in `auth`/`apiclient` from their own `getwd`/`userHomeDir`; passed in from `internal/cli` for the output path).
 
-**Decision**: Option 2. The `…FromOS` entrypoints (`auth.Resolve`, `ResolveBaseURLFromOS`, `ResolveSelectionFromOS`) keep deriving the real dirs/env through their own seam vars and pass them into `resolve`'s constructors; `resolve.FromFile` delegates to the same `rcfile.Resolve` the sites call today. `resolve`'s `FromOS` helpers are not used by these three sites.
+**Decision**: Option 2. The `…FromOS` entrypoints (`auth.Resolve`, `ResolveBaseURLFromOS`, `ResolveSelectionFromOS`) keep sourcing the real dirs/env exactly as today and pass them into `resolve`'s constructors; `resolve.FromFile` delegates to the same `rcfile.Resolve` the sites call today. `resolve`'s `FromOS` helpers are not used by these three sites. (Token and base URL derive their own dirs; the output path keeps deriving them in `internal/cli` — this slice does not relocate that derivation into `internal/output`.)
 
 **Consequences**: The existing hermetic test pattern (set the package `getenv` var, point at a temp-dir rcfile) carries forward with minimal churn; no test reads the real home. The token path gains no dependency on `resolve`'s binding helpers, keeping the secret concern self-contained. The exact testable-seam shape per site (e.g. whether `output`'s pre-fetched-source pure core is retained or folded) is interface-level.
 

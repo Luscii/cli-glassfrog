@@ -101,9 +101,9 @@ The `productionSeam` impl derives `startDir`/`homeDir` and delegates to `output.
 Each `RunE` reads both the value and the presence bit for the flags it forwards:
 
 ```go
-baseURL      := cmd.Flags().GetString(apiclient.FlagBaseURL)
-baseURLSet   := cmd.Flags().Changed(apiclient.FlagBaseURL)
-outputFlag   := cmd.Flags().GetString(output.FlagOutput)
+baseURL, _   := cmd.Flags().GetString(apiclient.FlagBaseURL) // GetString returns (string, error)
+baseURLSet   := cmd.Flags().Changed(apiclient.FlagBaseURL)    // Changed returns bool
+outputFlag, _ := cmd.Flags().GetString(output.FlagOutput)
 outputSet    := cmd.Flags().Changed(output.FlagOutput)
 // … baseURL/baseURLSet → AssembleFromOS;  outputFlag/outputSet → seam.resolveSelection
 ```
@@ -159,7 +159,7 @@ The two distinct error classes (resolution-error vs. value-invalidity) and their
 - **Pairs with `interface-cli.md`**: that file pins the operator-facing flag-semantics change; this file pins the Go contracts behind it. The two are the same change seen from the two sides of the seam.
 - **Consumes 039 (`interface-spec.md`)**: uses `resolve.Resolve`/`FromFlags`/`FromEnv`/`FromFile`/`Default` and the `resolve.Flag{Name,Present,Value}` shape exactly as 039 specified; this slice adds the call-site adapters 039 deferred to 040.
 - **Surface-stable (ADR-1)** — diverges from 039 ADR-2's forecast that 040 removes the per-domain `Source` enums. They are kept and mapped onto; the enum-unification is deferred (DECISIONS 2026-06-12; a `/score:deprecate` of the forecast is suggested).
-- **Per-site OS seam (ADR-4 / DECISIONS §49/§71)**: each `…FromOS` entrypoint keeps its own `getenv`/`getwd`/`userHomeDir` seam and feeds it into `resolve`'s injected constructors; `resolve`'s own `…FromOS` helpers are unused here. Tests stay hermetic (temp dirs + the package `getenv` var), never the real `~/.glassfrogrc`.
+- **Per-site OS seam (ADR-4 / DECISIONS §49/§71)**: each `…FromOS` entrypoint sources the real dirs/env exactly as today and feeds it into `resolve`'s injected constructors; `resolve`'s own `…FromOS` helpers are unused here. The seam shape differs: `auth` and `apiclient` own `getenv`/`getwd`/`userHomeDir` and derive their own dirs, while `internal/output` owns only `getenv` and `ResolveSelectionFromOS` *receives* `startDir`/`homeDir` from the cli `productionSeam.resolveSelection`. Tests stay hermetic (temp dirs + the package `getenv` var), never the real `~/.glassfrogrc`.
 - **Consumes 035 (User-Defined Template Output)**: the output setting resolves through `output.Selection`/`ResolveSelection`/`resolveSelection` (035 widened 020), so the retrofit composes the precedence walk inside `ResolveSelection` and preserves its flag-rung token-vs-template classification and the `readTemplateSource` seam — it does not revert to the bare `OutputFormat`/`ResolveFormat` surface.
 - **Compiler-enforced threading**: the presence-bearing signatures change with **no** default-value overload, so every un-threaded call site fails to compile — the safeguard against a missed `RunE` silently keeping value-emptiness behaviour (plan Risks).
 - **No `accords/` directory** exists, so there are no cross-spec package-API accord patterns to align against.

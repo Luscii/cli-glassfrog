@@ -22,12 +22,13 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       Then it will return that token with the source reported as the environment
       And it will not read any ".glassfrogrc"
 
-    # Source: 040-resolution-call-site-retrofit — Scenario: Output format falls through to the built-in default
+    # Source: 040-resolution-call-site-retrofit — Scenario: Output selection falls through to the built-in default
     @wip
-    Scenario: The output format falls through the composed chain to the built-in default
+    Scenario: The output selection falls through the composed chain to the built-in default
       Given no "--output" flag, no GLASSFROG_OUTPUT, and no ".glassfrogrc" output key
-      When the output format is resolved
-      Then it will return "full" with the source reported as the default
+      When the output selection is resolved
+      Then it will return the built-in default "full"
+      And it will report no source on success (output surfaces provenance only on a format error)
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Base URL falls through flag→env→file→default
     @wip
