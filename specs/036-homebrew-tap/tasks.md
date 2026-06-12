@@ -57,7 +57,7 @@ The `base` branch is cut from a main that contains 021/022/023 (the complete `.g
     - Each `sha256` in the rendered formula equals the matching line in the snapshot `checksums.txt`.
     - `builds`/`ldflags` are byte-unchanged; `release.disable: true` and a pinned `archives.mtime` are in effect.
     - The config-guard test fails loudly if the `brews` block is missing/retargeted, if `release.disable` is not true, or if `archives.mtime` is unpinned.
-    - Implementation and its tests ship in the same PR (CONSTITUTION I).
+    - Implementation and its tests ship in the same PR (CONSTITUTION VII).
   - **Dependencies**: None (parallel with Phase 1; the `brew audit`-clean property additionally needs T002's license)
   - **Plan reference**: Phase 2: Add the `brews` block + config-guard; ADR-1, ADR-3; Cross-cutting Concerns (config-drift guard, reproducibility)
   - **Scenario references**: homebrew-tap.feature: "Config-guard fails when the brews block is blanked or retargeted"; "The published formula's checksums match the release's checksums file"
