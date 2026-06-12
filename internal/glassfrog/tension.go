@@ -11,13 +11,16 @@ package glassfrog
 // silently never bind to the API's role_id. Decoding is tolerant of unknown/extra
 // fields (forward-compatible).
 //
-// The nullable fields (Body, RoleID, SensedByID, Label, MeetingType, ParentRoleID)
-// are modeled as plain strings — a JSON null decodes to the empty string, the
+// The optional fields (RoleID, SensedByID, Label, MeetingType, ParentRoleID) are
+// modeled as plain strings — a JSON null decodes to the empty string, the
 // nullable-as-empty-string convention the landed models use (Policy.Body,
 // Project.RoleID); the render guards explicit-absence on each rather than printing
-// a blank. Status is server-computed (unprocessed/processed/archived); the client
-// never sends it. The sensing person (SensedByID) is derived from the token and
-// never supplied by the client.
+// a blank. Body is modeled the same way (it is nullable in the v5 schema, so a wire
+// null decodes to empty), but it is the required, non-empty primary content of a
+// captured tension (the command rejects an empty --body), so the render shows it
+// verbatim rather than behind an absence guard. Status is server-computed
+// (unprocessed/processed/archived); the client never sends it. The sensing person
+// (SensedByID) is derived from the token and never supplied by the client.
 //
 // The token is never a field here — it is an X-Auth-Token request header, not a
 // response field, so secret hygiene holds by construction (CONSTITUTION II).
