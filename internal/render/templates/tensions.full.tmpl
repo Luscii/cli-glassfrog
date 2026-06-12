@@ -1,0 +1,5 @@
+{{if not .Data}}no tensions
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{if eq (trimSpace .Label) ""}}—{{else}}{{.Label}}{{end}}
+  {{.Body}}
+  sensing role: {{if eq (trimSpace .RoleID) ""}}—{{else}}{{.RoleID}}{{end}}
+{{end}}{{end}}

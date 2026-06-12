@@ -166,6 +166,21 @@ type TensionView struct {
 	Tension glassfrog.Tension
 }
 
+// TensionsView is the data the role-scoped `tensions` list templates (043) render:
+// the tensions a role carries, walked to completion. It mirrors ProjectsView's
+// shape (a single .Data slice the templates range over) — the plural list sibling
+// of the landed singular `tension` key (042), with roles reversed from 038 (042
+// shipped the singular; 043 adds the plural). Each row projects the ten_ id, the
+// status badge, the nullable Label (explicit-absence marker when blank), the
+// free-text Body rendered VERBATIM in `full` — never truncated or reflowed
+// (CONSTITUTION VI), matching projects.full and the singular tension.full — and the
+// nullable sensing RoleID. An empty Data set renders the explicit `no tensions`
+// line (a role carrying no tensions, or a --status filter that matched none, is a
+// valid empty answer, not an error).
+type TensionsView struct {
+	Data []glassfrog.Tension
+}
+
 // ActorsView is the data the org-wide `actors` directory templates (048) render:
 // the actors in the organization, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — a flat homogeneous list
@@ -334,6 +349,12 @@ const (
 	// glassfrog.Tension with its verbatim body). Singular — the first render key on
 	// the write path; no list/plural sibling (capture stays write-only).
 	ResourceTension Resource = "tension"
+	// ResourceTensions is the role-scoped tension list read (043):
+	// GET /roles/{id}/tensions rendered as a TensionsView ([]glassfrog.Tension).
+	// Plural — the list sibling of the landed singular ResourceTension (042); the
+	// plural/singular mirror of 038, with roles reversed (042 shipped the singular,
+	// 043 adds the plural).
+	ResourceTensions Resource = "tensions"
 	// ResourceSearch is the cross-model search read (041): GET /search rendered as
 	// a SearchView (the relevance-ordered heterogeneous result list, each row a
 	// `type`-badged hit). The first render key over a deliberately mixed-type list
@@ -356,7 +377,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceTension}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceTension, ResourceTensions}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
