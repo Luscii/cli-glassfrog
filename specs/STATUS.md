@@ -28,7 +28,7 @@
 | 024-pr-validation | Ready | validate | 2026-06-09T12:30:00 |
 | 025-role-reads | Complete | document | 2026-06-09T19:30:00 |
 | 026-organization-tree | Ready | document | 2026-06-09T19:30:00 |
-| 027-install-script | Analyzed | document | 2026-06-09T19:30:00 |
+| 027-install-script | Complete | validate | 2026-06-12T12:30:00 |
 | 028-pr-administration | Complete | validate | 2026-06-09T20:00:00 |
 | 029-main-branch-verification | Complete | validate | 2026-06-09T20:30:00 |
 | 031-diagnostic-normalization | Complete | validate | 2026-06-10T14:30:00 |

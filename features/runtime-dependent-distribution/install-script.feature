@@ -18,7 +18,6 @@ Feature: Runtime-Dependent Distribution — Install Script
     # I want to run a single command that detects my platform, downloads the right binary, verifies it, and puts it on my PATH.
 
     # Source: 027-install-script — Scenario: fresh install on a supported platform
-    @wip
     Scenario: Fresh install on a supported platform
       Given a clean Linux amd64 host with no "glassfrog" binary installed
       And the latest stable release has the four platform archives and a checksums file attached
@@ -29,7 +28,6 @@ Feature: Runtime-Dependent Distribution — Install Script
       And it will report the install location and the installed version
 
     # Source: 027-install-script — Scenario: unsupported platform is refused
-    @wip
     Scenario: Unsupported platform is refused
       Given the install script is run on a host whose platform is not a supported target
       When platform detection completes
@@ -38,7 +36,6 @@ Feature: Runtime-Dependent Distribution — Install Script
       And it will exit with a non-zero status
 
     # Source: 027-install-script — Scenario: install directory not on PATH
-    @wip
     Scenario: Install directory not on PATH still installs with guidance
       Given the chosen install directory is not present in the operator's PATH
       When the script finishes installing the binary
@@ -47,7 +44,6 @@ Feature: Runtime-Dependent Distribution — Install Script
       And it will not modify any shell profile or environment file
 
     # Source: 027-install-script — Proposed: missing required tooling fails before any download (interface Error Communication; plan tooling detection)
-    @wip
     Scenario: A host missing required tooling fails before any download
       Given a host that has neither a usable downloader nor a sha256 utility
       When the operator runs the install script
@@ -61,7 +57,6 @@ Feature: Runtime-Dependent Distribution — Install Script
     # I want to run the install script unattended, optionally pinning a version and choosing an install directory, with no sudo required.
 
     # Source: 027-install-script — Scenario: install a pinned version
-    @wip
     Scenario: Install a pinned version
       Given a published release "v1.3.0" exists alongside a newer "v1.4.0"
       When the operator runs the script requesting version "v1.3.0"
@@ -69,7 +64,6 @@ Feature: Runtime-Dependent Distribution — Install Script
       And it will download, verify, and install the "v1.3.0" binary
 
     # Source: 027-install-script — Scenario: custom install directory
-    @wip
     Scenario: Install into a custom directory
       Given the operator sets a writable custom install directory
       When the script runs
@@ -77,7 +71,6 @@ Feature: Runtime-Dependent Distribution — Install Script
       And it will report that location
 
     # Source: 027-install-script — Proposed: a pinned version that does not exist fails clearly (interface Error Communication)
-    @wip
     Scenario: A pinned version that does not exist fails clearly
       Given the operator requests a version that has no published release
       When the script attempts to download the matching archive
@@ -107,7 +100,6 @@ Feature: Runtime-Dependent Distribution — Install Script
     # I want the download verified against the release's checksums file before it lands on my PATH.
 
     # Source: 027-install-script — Scenario: checksum mismatch aborts the install
-    @wip
     Scenario: Checksum mismatch aborts the install
       Given the downloaded archive does not match its entry in the checksums file
       When the script runs
@@ -129,7 +121,6 @@ Feature: Runtime-Dependent Distribution — Install Script
     # I want to re-run the script and have it replace the existing binary in place.
 
     # Source: 027-install-script — Scenario: re-running upgrades in place
-    @wip
     Scenario: Re-running upgrades in place
       Given "glassfrog" "v1.3.0" is already installed at the target location
       And "v1.4.0" is the latest stable release

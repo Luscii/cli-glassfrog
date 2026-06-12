@@ -42,11 +42,13 @@ concurrency:
 
 jobs:
   # Lint runs ONCE per validation run (ADR-2) — not per test-matrix cell, since
-  # these checks are OS-independent. Three legible categories: a gofmt
-  # formatting check, `go vet`, and the configured aggregate linter
-  # (golangci-lint, driven by .golangci.yml). golangci-lint already bundles
-  # gofmt/govet, but running them explicitly keeps each failure category
-  # readable and gives a fast, dependency-light signal.
+  # these checks are OS-independent. Four legible categories: a gofmt
+  # formatting check, `go vet`, the configured aggregate linter (golangci-lint,
+  # driven by .golangci.yml), and a `shellcheck` pass over the install script
+  # (spec 027). golangci-lint already bundles gofmt/govet, but running them
+  # explicitly keeps each failure category readable and gives a fast,
+  # dependency-light signal. shellcheck is scoped to install.sh (the one shell
+  # artifact the project ships) and does not touch golangci-lint's Go scope.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -76,6 +78,14 @@ jobs:
           # that itself runs through this gate. See .golangci.yml for the
           # enabled-linter policy.
           version: v2.11.4
+      - name: shellcheck (install.sh)
+        # The installer (spec 027) targets POSIX `sh` (ADR-1), so it is checked
+        # with the `sh` dialect — this catches bashisms (arrays, [[ ]], ==,
+        # pipefail) that would break on dash/busybox hosts piped `curl … | sh`.
+        # shellcheck is pre-installed on ubuntu-latest, so no extra action or
+        # token is needed (fork-safe under the job's read-only permissions).
+        # Any finding fails the step.
+        run: shellcheck --shell=sh install.sh
 
   # The OS test matrix lives in the shared reusable workflow (spec 029, ADR-1):
   # both this pre-merge gate (024) and the post-merge net (main-verify.yml, 029)
