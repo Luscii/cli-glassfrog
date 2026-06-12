@@ -40,4 +40,5 @@
 | 039-source-composed-resolution | Ready | validate | 2026-06-11T14:30:00 |
 | 041-cross-model-search | Complete | validate | 2026-06-11T21:55:52 |
 | 042-tension-capture | Complete | validate | 2026-06-12T00:30:00 |
+| 043-tension-reads | Analyzed | analyze | 2026-06-12T10:40:00 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |
