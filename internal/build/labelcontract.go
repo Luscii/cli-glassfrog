@@ -35,6 +35,12 @@ var SemverBuckets = map[string][]string{
 	"patch": {"fixes"},
 }
 
+// ResolverDefault is the version-resolver fallback bump the guard pins (ADR-2):
+// spec 030 requires a patch bump when no included PR carries a semver-bearing
+// label. A drift away from this default would silently change the bump for
+// label-less releases, so the guard fails as loudly as a drifted bucket.
+const ResolverDefault = "patch"
+
 // NoReleaseNoteLabel is the eighth managed label (ADR-4): the exclusion label
 // that must appear in settings.yml, labeler.yml, and release-drafter's
 // exclude-labels. ManagedLabelCount is the exact size of the managed set across
@@ -64,9 +70,10 @@ type DrafterCategory struct {
 }
 
 // VersionResolver mirrors release-drafter's version-resolver: the three semver
-// buckets, each carrying the labels that trigger that bump. Default is captured
-// for completeness/debugging but is not asserted by this guard (the interface
-// guard contract pins the buckets, not the default).
+// buckets, each carrying the labels that trigger that bump, plus the fallback
+// Default bump. The guard pins both the buckets (SemverBuckets) and the Default
+// (ResolverDefault) — spec 030 requires a patch default when no semver-bearing
+// label is present.
 type VersionResolver struct {
 	Major   ResolverBucket `json:"major"`
 	Minor   ResolverBucket `json:"minor"`
@@ -152,7 +159,8 @@ func loadYAML(root, name string, dst interface{}) error {
 //     category labels in labeler.yml and settings.yml (each file's managed set
 //     minus the exclusion label) == the same seven;
 //   - the version-resolver major/minor/patch buckets == exactly
-//     breaking/features/fixes (SemverBuckets);
+//     breaking/features/fixes (SemverBuckets), and the fallback default bump ==
+//     ResolverDefault (patch);
 //   - NoReleaseNoteLabel is present in settings.yml, labeler.yml, AND
 //     release-drafter's exclude-labels;
 //   - the managed set in labeler.yml and settings.yml is exactly
@@ -171,13 +179,19 @@ func CheckLabelContract(rd ReleaseDrafterConfig, labeler LabelerConfig, settings
 	violations = append(violations,
 		diffLabelSet("settings.yml category", categoryLabelsOf(settingsNames(settings)), CategoryLabels)...)
 
-	// (b) version-resolver buckets are exactly the 028 semver-bearing labels.
+	// (b) version-resolver buckets are exactly the 028 semver-bearing labels,
+	// and the fallback default bump is patch (spec 030).
 	violations = append(violations,
 		diffLabelSet("version-resolver major", rd.VersionResolver.Major.Labels, SemverBuckets["major"])...)
 	violations = append(violations,
 		diffLabelSet("version-resolver minor", rd.VersionResolver.Minor.Labels, SemverBuckets["minor"])...)
 	violations = append(violations,
 		diffLabelSet("version-resolver patch", rd.VersionResolver.Patch.Labels, SemverBuckets["patch"])...)
+	if rd.VersionResolver.Default != ResolverDefault {
+		violations = append(violations, fmt.Sprintf(
+			"version-resolver default must be %q (spec 030: patch bump when no semver-bearing label is present), got %q",
+			ResolverDefault, rd.VersionResolver.Default))
+	}
 
 	// (c) the exclusion label is present in all three places.
 	if !containsString(settingsNames(settings), NoReleaseNoteLabel) {

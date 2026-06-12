@@ -134,6 +134,15 @@ func TestLabelContract_Drift(t *testing.T) {
 			wantNamed: []string{"version-resolver major", "major-change", "breaking"},
 		},
 		{
+			// spec 030 requires the fallback bump to be patch; a drifted default
+			// must fail as loudly as a drifted bucket.
+			name: "a drifted version-resolver default is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"  default: patch\n", "  default: minor\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"version-resolver default", "patch", "minor"},
+		},
+		{
 			name: "no-release-note missing from settings is rejected and named",
 			settings: strings.Replace(validSettingsYAML,
 				"  - name: no-release-note\n", "", 1),
