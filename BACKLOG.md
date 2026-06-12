@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-11T18:32:52 | Framework: MoSCoW | Items: 51
+> Generated: 2026-06-12T20:59:00 | Framework: MoSCoW | Items: 54
 
 ### 1. Command Registration
 
@@ -230,7 +230,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Maintains a label-driven draft release on merge; depends on PR Administration's labels for the semver bump. Adjacent to Automated Release Pipeline (which consumes the published tag), but a distinct, separately-buildable stage.
 - **Dependencies**: → requires: PR Administration
-- **Status**: pending
+- **Status**: specified:030-release-drafting
 
 ### 31. Diagnostic Normalization
 
@@ -309,7 +309,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Migrates the three landed resolution sites (token, base URL, output) onto the resolver, behavior-preserving; builds after the resolver exists.
 - **Dependencies**: → requires: Source-Composed Resolution
-- **Status**: pending
+- **Status**: specified:040-resolution-call-site-retrofit
 
 ### 41. Cross-Model Search
 
@@ -325,7 +325,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Captures a tension (`POST /roles/{role_id}/tensions`) — the anchor of the Later write path and where the write half of VISION success #2 begins; highest-value tension capability. Buildable now (deps shipped: 007, 010).
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:042-tension-capture
 
 ### 43. Tension Reads
 
@@ -333,7 +333,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Lists a role's tensions and reads one by id (`GET /roles/{role_id}/tensions` + `GET /tensions/{id}`); the read surface for tensions, following the capture anchor.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:043-tension-reads
 
 ### 44. Tension Update
 
@@ -341,7 +341,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Edits a tension's body/label/status/meeting_type (`PATCH /tensions/{id}`); a Later-tier write op, independent of the other tension capabilities.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:044-tension-update
 
 ### 45. Tension Discard
 
@@ -373,7 +373,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The discovery entry of Actor Reads (`GET /actors` / `listPeople`) — find an actor by name or role before drilling into their footprint. Self-contained, buildable now (deps shipped: 007, 010); ranks just below Role Fillers as the find-then-read primitive.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:048-actor-directory
 
 ### 49. Actor Read
 
@@ -397,4 +397,27 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: One-level roll-up of actors filling a role's direct subroles (`GET /roles/{id}/subroles/actors` / `subroles/people`) — an escalation aid for reaching the surrounding circle; requires an expanded role (leaf roles 404). The most peripheral of the wave, mirroring Subroles Tension Roll-up (#46).
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 52. Version Capture on Read
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Foundation of the Optimistic Concurrency solution (Clobbered Changes problem) — surfaces the `ETag` from a read so a later edit can be guarded; a Later/Client-Foundation safety mechanism that, per the roadmap, only becomes relevant once writes exist, so it ranks at the Could tier alongside the write wave it protects.
+- **Status**: pending
+
+### 53. Guarded Writes
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Sends the captured version via `If-Match` so the server refuses a stale write instead of silently overwriting (last-write-wins today); the core of Optimistic Concurrency, built once Version Capture exists.
+- **Dependencies**: → requires: Version Capture on Read
+- **Status**: pending
+
+### 54. Stale-Write Surfacing
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Reports a refused write (`412 Precondition Failed`) distinctly so the operator knows the resource changed under them and can re-read before retrying; completes Optimistic Concurrency, only reachable once Guarded Writes can be refused.
+- **Dependencies**: → requires: Guarded Writes
 - **Status**: pending
