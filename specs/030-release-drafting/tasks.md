@@ -45,7 +45,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
 
 ## Phase 2: Drafting Config, Workflow, and Guard [Shared]
 
-- [ ] **T002** [Shared] Add `.github/release-drafter.yml` — version-resolver (highest-wins, default patch), seven categories, exclude-labels, templates
+- [x] **T002** [Shared] Add `.github/release-drafter.yml` — version-resolver (highest-wins, default patch), seven categories, exclude-labels, templates — 4 scenarios, config matches interface-spec verbatim
   - **Scope**: Create `.github/release-drafter.yml` per interface-spec.md: `tag-template`/`name-template` = `v$RESOLVED_VERSION`; `version-template` = `$MAJOR.$MINOR.$PATCH`; `version-resolver` mapping `major.labels: [breaking]`, `minor.labels: [features]`, `patch.labels: [fixes]`, `default: patch`; a `categories` block mapping the seven 028 labels to titled sections (titles `[ASSUMED]`, tunable; label strings fixed); `exclude-labels: [no-release-note]`; `change-template: "- $TITLE (#$NUMBER) @$AUTHOR"`; a `template` with `$CHANGES`. Leave `prerelease` at the default (status is set by T003's post-step). Do not invent category labels — reference the exact 028 strings.
   - **Acceptance criteria**:
     - The seven `categories` labels are exactly `breaking`/`features`/`fixes`/`docs`/`infrastructure`/`dependencies`/`internal`; `version-resolver` buckets are exactly breaking→major / features→minor / fixes→patch with `default: patch`.
