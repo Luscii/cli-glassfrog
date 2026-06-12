@@ -46,7 +46,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 2: Test harness [Shared]
 
-- [ ] **T002** [Shared] Go exec-test driving `install.sh` against an `httptest` server
+- [x] **T002** [Shared] Go exec-test driving `install.sh` against an `httptest` server — `internal/install` (godog suite + pure-function unit tests). 9 scenarios / 45 steps pass; the 3 @validation scenarios stay @wip. Removed the 9 standalone @wip tags. Encodes the exact 022 asset names as fixtures; runs under `go test ./...`; gofmt/vet/golangci-lint clean.
   - **Scope**: A Go test (e.g. `internal/install/install_test.go`, or a test beside the script) that starts an `httptest.Server` serving a fake `releases/latest` redirect, a real `tar.gz` of a stub `glassfrog`, and a matching checksums file; execs `install.sh` with `GLASSFROG_DOWNLOAD_BASE_URL`, `GLASSFROG_INSTALL_DIR`, and (per case) `GLASSFROG_VERSION`. Encodes the exact 022 asset names as fixtures so template drift breaks the test. Hermetic — no network.
   - **Acceptance criteria**:
     - Happy path: the stub binary lands in the temp install dir and the script exits 0.
