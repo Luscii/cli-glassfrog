@@ -1,0 +1,4 @@
+{{if not .Data}}no actors
+{{else}}{{range .Data}}{{.ID}}  [{{.Kind}}]
+  Name:  {{if eq (trimSpace .Name) ""}}—{{else}}{{.Name}}{{end}}
+{{end}}{{end}}
