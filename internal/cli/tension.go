@@ -228,6 +228,7 @@ func newTensionCommand(seam tensionSeam) *cobra.Command {
 		Short: "Capture a tension — the seed of a governance proposal",
 	}
 	MustRegister(group, newTensionCreateCommand(seam))
+	MustRegister(group, newTensionListCommand(seam))
 	return group
 }
 
