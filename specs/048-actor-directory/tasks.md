@@ -32,7 +32,7 @@ Phase 3: Executable acceptance (1 task, depends on Phase 2) [Shared]
 
 ## Phase 1: `internal/render` `actors` list key [Shared]
 
-- [ ] **T001** [Shared] Add the `actors` list render key + `ActorsView` + templates — golden + registry-guard tests; `internal/render` (new `actors.{full,compact}.tmpl`, `ActorsView`, `ResourceActors`) + tests
+- [x] **T001** [Shared] Add the `actors` list render key + `ActorsView` + templates — golden + registry-guard tests; `internal/render` (new `actors.{full,compact}.tmpl`, `ActorsView`, `ResourceActors`) + tests — 6 golden/guard tests; registry exhaustiveness extended to 15 keys
   - **Scope**: In `internal/render`, add **one new** render key `actors` (a flat homogeneous list of `glassfrog.Actor`, via an `ActorsView` mirroring the landed list views). Add the `ResourceActors` constant to `builtinResources` so the registry-exhaustiveness guard covers it (PR #10 `len`+comma-ok shape). Add two `//go:embed` templates: `actors.full` — one block per actor (`<per_…|agt_…>  [<kind>]` then an indented `Name: <name>` line) with the empty-set line `no actors`; `actors.compact` — one line per actor (`<per_…|agt_…>  [<kind>]  <name>`) with the same empty line. Render `name` verbatim — never truncated or reflowed (CONSTITUTION VI). Use 019's absence-guard discipline for any empty field. `ResourceMe` (the single actor inside the `me` document) is **not** reused — touch no existing key or template. Depends only on `internal/glassfrog` + stdlib; must not import `cli`/`apiclient`.
   - **Acceptance criteria**:
     - The `actors` key renders both `full` and `compact`; each row shows the `per_`/`agt_` id, the `kind` badge, and the name
