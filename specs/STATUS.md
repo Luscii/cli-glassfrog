@@ -39,7 +39,7 @@
 | 035-user-defined-template-output | Complete | validate | 2026-06-11T13:00:00 |
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Ready | validate | 2026-06-11T14:30:00 |
-| 040-resolution-call-site-retrofit | Implemented | implement | 2026-06-12T13:00:00 |
+| 040-resolution-call-site-retrofit | Complete | validate | 2026-06-12T14:00:00 |
 | 041-cross-model-search | Complete | validate | 2026-06-11T21:55:52 |
 | 042-tension-capture | Complete | validate | 2026-06-12T00:30:00 |
 | 043-tension-reads | Complete | validate | 2026-06-12T12:30:00 |
