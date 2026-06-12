@@ -74,6 +74,16 @@ func Assemble() *cobra.Command {
 	// binds the real transport + clock; it reads the inherited persistent
 	// --base-url/--output.
 	MustRegister(root, newSearchCommand(productionSeam{}))
+	// Actor Directory (048): the `actors` command — the org-wide actor directory
+	// (GET /actors), walked to completion by default (reusing 025's walk +
+	// --first-page opt-out). The first read keyed purely on flags (cobra.NoArgs); its
+	// subject is the whole organization, narrowed by the optional --kind/--role-id/
+	// --query filters. --kind is validated locally (reject-unknown over {human,
+	// agent}); --role-id/--query are passed through. An org-wide sibling — child of no
+	// resource group (ADR-1). No `people`/`agents` command — --kind covers actor-kind
+	// selection through the ungated /actors. productionSeam binds the real transport +
+	// clock; it reads the inherited persistent --base-url/--output.
+	MustRegister(root, newActorsCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

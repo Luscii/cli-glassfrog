@@ -155,6 +155,22 @@ type ProjectView struct {
 	Project glassfrog.Project
 }
 
+// ActorsView is the data the org-wide `actors` directory templates (048) render:
+// the actors in the organization, walked to completion. It mirrors ProjectsView's
+// shape (a single .Data slice the templates range over) — a flat homogeneous list
+// where every row is the same glassfrog.Actor (unlike SearchView's heterogeneous
+// type-badged rows). Each row projects the per_/agt_ id, the kind badge, and the
+// name; the name is rendered verbatim — never truncated or reflowed (CONSTITUTION
+// VI) — with a trim-empty absence guard (the repo's `eq (trimSpace .X) ""`
+// convention) so a blank name shows the `—` marker rather than a fabricated value.
+// An empty Data set renders the explicit `no actors` line (an org/filter that
+// matched no actor is a valid empty answer, not an error). The reused
+// glassfrog.Actor also carries created_at/updated_at, which the directory row does
+// not project — discovery surfaces id/name/kind only (plan ADR-2/ADR-4).
+type ActorsView struct {
+	Data []glassfrog.Actor
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -308,6 +324,12 @@ const (
 	// — distinct from every per-resource key, and NOT split per type (which would
 	// break the ranked order — 041 plan ADR-2).
 	ResourceSearch Resource = "search"
+	// ResourceActors is the org-wide actor directory read (048): GET /actors
+	// rendered as an ActorsView (a flat homogeneous list of glassfrog.Actor). The
+	// first list render key keyed purely on filters (no positional subject). Distinct
+	// from ResourceMe, which renders ONE actor inside the `me` document (actor + org
+	// + membership + roles) — a different projection, not reused (plan ADR-4).
+	ResourceActors Resource = "actors"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -318,7 +340,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

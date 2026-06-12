@@ -18,7 +18,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
     # I want to list the actors filling a given role by its id.
 
     # Source: 048-actor-directory — Scenario: Find the actors filling a role
-    @wip
     Scenario: A role-id filter lists the actors filling that role
       Given a complete connection context with a stored token
       And a role that two actors fill
@@ -28,7 +27,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with code 0
 
     # Source: 048-actor-directory — Scenario: Malformed role-id filter is rejected by the API
-    @wip
     Scenario: A malformed role-id filter fails with the API status
       Given a complete connection context with a stored token
       And the API cannot parse the submitted role-id filter
@@ -37,7 +35,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with a non-zero API-error code
 
     # Source: 048-actor-directory — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog actors"
@@ -51,7 +48,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
     # I want to find an actor by free-text search across the directory.
 
     # Source: 048-actor-directory — Scenario: List every actor in the organization
-    @wip
     Scenario: A directory lists every actor in the organization
       Given a complete connection context with a stored token
       And the organization has several actors
@@ -61,7 +57,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with code 0
 
     # Source: 048-actor-directory — Scenario: No actor matches the filters
-    @wip
     Scenario: A free-text query matching no actor is a clean success
       Given a complete connection context with a stored token
       And no actor's name matches "zzzznomatch"
@@ -84,7 +79,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
     # I want to narrow the directory to just humans or just agents.
 
     # Source: 048-actor-directory — Scenario: Narrow the directory to agents
-    @wip
     Scenario: A kind filter narrows the directory to agents
       Given a complete connection context with a stored token
       And the organization has people and agents
@@ -94,7 +88,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with code 0
 
     # Source: 048-actor-directory — Scenario: Unsupported kind value is rejected before any request
-    @wip
     Scenario: An unsupported kind is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog actors --kind robot"
@@ -124,7 +117,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 048-actor-directory — Scenario: Paginated directory with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the organization's actors span more than one page
@@ -134,7 +126,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with code 0
 
     # Source: 048-actor-directory — Proposed: plan Cross-cutting (025 ADR-3 walk-by-default)
-    @wip
     Scenario: A multi-page directory walks to completion by default
       Given a complete connection context with a stored token
       And the organization's actors span more than one page
@@ -143,7 +134,6 @@ Feature: Actors Disconnected from Governance — Actor Directory
       And the command will exit with code 0
 
     # Source: 048-actor-directory — Proposed: plan Cross-cutting (mid-walk failure, 025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the page walk fails after retrieving the first page
