@@ -68,7 +68,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
   - **Interface references**: interface-spec.md: "`.github/workflows/release-drafting.yml` structure"; "Interactions"
   - **Risk**: ⚠️ External behaviour — `gh release edit` on an unpublished draft (ADR-5) and the v0.1.0 first-release floor (ADR-2) are verified at implement; both have documented fallbacks.
 
-- [ ] **T004** [Shared] [P] Add the label-contract config guard to `internal/build`
+- [x] **T004** [Shared] [P] Add the label-contract config guard to `internal/build` — 1 @validation scenario; new labelcontract.go + labelcontract_test.go (real-file + 8-case drift table), go test ./... + golangci-lint clean
   - **Scope**: Add a Go config-drift test to `internal/build` (joining the existing `.goreleaser`/`release.yml` guards; parse YAML via `sigs.k8s.io/yaml`, change-detector rigor — a missing entry fails as loudly as an extra). Assert across `.github/release-drafter.yml`, `.github/labeler.yml`, and `.github/settings.yml`: (a) release-drafter `categories` labels == the seven category labels in labeler.yml and settings.yml; (b) `version-resolver` major/minor/patch buckets == exactly breaking/features/fixes; (c) `no-release-note` present in settings.yml, labeler.yml, and release-drafter `exclude-labels`; (d) the managed set is exactly eight across labeler.yml/settings.yml. Exact Go symbol/file names are implementation-level.
   - **Acceptance criteria**:
     - The test fails if any category label is renamed/dropped/added in one of the three files but not the others.
