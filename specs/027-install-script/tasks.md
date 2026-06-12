@@ -26,7 +26,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 1: Core installer [Shared]
 
-- [ ] **T001** [Shared] Write `install.sh` — the complete POSIX install script
+- [x] **T001** [Shared] Write `install.sh` — the complete POSIX install script — shellcheck-clean (sh dialect); all 9 behavior paths verified end-to-end against a local fixture server (latest-redirect, pinned, upgrade-in-place, checksum-mismatch→3, not-found→1, bad-version→2, unsupported→2, PATH guidance). @wip removal + scenario execution land in T002 (the Go harness).
   - **Scope**: A single new file `install.sh` at the repo root (`#!/bin/sh`, `set -eu`). One reviewable PR. Implements the full pipeline: platform detection + mapping, tooling detection, tag resolution (latest-via-redirect default + pinned), deterministic asset-name construction, temp-dir download, sha256 verification, atomic `mv` install, PATH check + guidance, success reporting, and the exit-code scheme. Reads only `GLASSFROG_VERSION`, `GLASSFROG_INSTALL_DIR`, `GLASSFROG_DOWNLOAD_BASE_URL`.
   - **Acceptance criteria**:
     - `uname -s`/`uname -m` map to `{darwin,linux}`×`{amd64,arm64}`; any other platform exits 2 with a message naming the detected platform and supported set, installing nothing.
@@ -46,7 +46,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 2: Test harness [Shared]
 
-- [ ] **T002** [Shared] Go exec-test driving `install.sh` against an `httptest` server
+- [x] **T002** [Shared] Go exec-test driving `install.sh` against an `httptest` server — `internal/install` (godog suite + pure-function unit tests). 9 scenarios / 45 steps pass; the 3 @validation scenarios stay @wip. Removed the 9 standalone @wip tags. Encodes the exact 022 asset names as fixtures; runs under `go test ./...`; gofmt/vet/golangci-lint clean.
   - **Scope**: A Go test (e.g. `internal/install/install_test.go`, or a test beside the script) that starts an `httptest.Server` serving a fake `releases/latest` redirect, a real `tar.gz` of a stub `glassfrog`, and a matching checksums file; execs `install.sh` with `GLASSFROG_DOWNLOAD_BASE_URL`, `GLASSFROG_INSTALL_DIR`, and (per case) `GLASSFROG_VERSION`. Encodes the exact 022 asset names as fixtures so template drift breaks the test. Hermetic — no network.
   - **Acceptance criteria**:
     - Happy path: the stub binary lands in the temp install dir and the script exits 0.
@@ -60,7 +60,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
   - **Scenario references**: install-script.feature: "A corrupted download never reaches the install directory" (@validation), "Latest resolution installs the newest stable, not a pre-release" (@validation), "The installed binary reports the resolved version" (@validation), "Checksum mismatch aborts the install", "Install a pinned version", "Unsupported platform is refused"
   - **Interface references**: interface-spec.md: Interactions (Test invocation); Surface (Function decomposition)
 
-- [ ] **T003** [Shared] [P] Add `shellcheck` (sh dialect) static analysis to CI
+- [x] **T003** [Shared] [P] Add `shellcheck` (sh dialect) static analysis to CI — added a `shellcheck --shell=sh install.sh` step to 024's `lint` job (shellcheck is pre-installed on ubuntu-latest → no extra action/token, fork-safe under `contents: read`). Does not touch golangci-lint's scope. Verified locally: bashisms (arrays/`[[ ]]`/`==`) are reported (exit 1), the real script is clean; actionlint OK.
   - **Scope**: Wire `shellcheck` over `install.sh` into CI — either as a step in PR Validation (024)'s lint job or a dedicated lint step — targeting the POSIX `sh` dialect. CI-host tool only, not an artifact dependency.
   - **Acceptance criteria**:
     - `shellcheck` runs against `install.sh` in CI with the `sh` dialect and fails the build on a finding.
@@ -73,7 +73,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 3: Documentation surface [Shared]
 
-- [ ] **T004** [Shared] [P] Document the canonical one-liner and configuration
+- [x] **T004** [Shared] [P] Document the canonical one-liner and configuration — created `README.md` with an Installation section: curl + wget one-liners (main-branch raw URL), a configured example with env vars on the `sh` side, the three env vars with defaults, the `GLASSFROG_DOWNLOAD_BASE_URL` vs CLI `GLASSFROG_BASE_URL` distinction, supported platforms (macOS/Linux × amd64/arm64), and the per-user/no-sudo default. (No README existed; created one as the canonical front door for `curl … | sh`.)
   - **Scope**: Add install instructions to the README (and usage docs as appropriate): the canonical `curl … | sh` and `wget … | sh` one-liners, the `main`-branch raw URL, and the three env vars (`GLASSFROG_VERSION`, `GLASSFROG_INSTALL_DIR`, `GLASSFROG_DOWNLOAD_BASE_URL`) with defaults and the env-on-the-`sh`-side caveat.
   - **Acceptance criteria**:
     - The README shows the default curl one-liner, the wget alternative, and a configured example with env vars set on the `sh` invocation.
