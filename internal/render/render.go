@@ -344,10 +344,11 @@ const (
 	// full detail). Singular, distinct from ResourceProjects (the list key reused
 	// from 014).
 	ResourceProject Resource = "project"
-	// ResourceTension is the single created-tension projection (042): the
-	// createTension 201 {data: Tension} rendered as a TensionView (one
-	// glassfrog.Tension with its verbatim body). Singular — the first render key on
-	// the write path; no list/plural sibling (capture stays write-only).
+	// ResourceTension is the single-tension projection: the createTension 201
+	// {data: Tension} (042) and the getTension {data: Tension} read (043) rendered
+	// as a TensionView (one glassfrog.Tension with its verbatim body). Singular —
+	// first added on 042's write path and reused unchanged by 043's `tension get`
+	// read; its plural list sibling is ResourceTensions, below.
 	ResourceTension Resource = "tension"
 	// ResourceTensions is the role-scoped tension list read (043):
 	// GET /roles/{id}/tensions rendered as a TensionsView ([]glassfrog.Tension).
