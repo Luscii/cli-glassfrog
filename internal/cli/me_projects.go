@@ -41,6 +41,7 @@ type meProjectsConfig struct {
 	baseURL        string // the inherited persistent --base-url flag value (may be empty)
 	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string // the inherited persistent --output flag value (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	status         string // the raw --status flag value (may be empty); validated before any I/O
 	reqCtx         context.Context
 	stdout         io.Writer
@@ -61,7 +62,7 @@ func runMeProjects(cfg meProjectsConfig) (Outcome, error) {
 	//    present-but-invalid selector — or, for a user template, a missing/unparseable
 	//    source or empty stdin — fails fast as a usage error before any assembly or
 	//    request.
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -150,6 +151,7 @@ func newMeProjectsCommand(seam meSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				status:         status,
 				reqCtx:         cmd.Context(),
 				stdout:         cmd.OutOrStdout(),

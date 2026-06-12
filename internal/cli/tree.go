@@ -30,7 +30,7 @@ type treeSeam interface {
 	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -43,6 +43,7 @@ type treeConfig struct {
 	baseURL        string   // inherited persistent --base-url (may be empty)
 	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool     // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	args           []string // 0 → whole-org tree, 1 → subtree rooted at args[0]
 
 	depth    int  // --depth value (meaningful only when depthSet)
@@ -81,7 +82,7 @@ func runTree(cfg treeConfig) (Outcome, error) {
 	//    present-but-invalid selector — or, for a user template, a missing/unparseable
 	//    source or empty stdin — fails fast as a usage error before any assembly or
 	//    request.
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -250,6 +251,7 @@ func newTreeCommand(seam treeSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				args:           args,
 				depth:          depth,
 				// --depth is optional: send it only when set (Changed), so --depth 0

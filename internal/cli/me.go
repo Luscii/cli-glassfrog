@@ -54,7 +54,7 @@ type meSeam interface {
 	// UsageError(2). readTemplateSource reads a selected template's bytes behind the
 	// seam (file via os.ReadFile, stdin via the bounded isTTY-guarded reader, 035
 	// ADR-4) — both methods declared so the shared selectionSeam is satisfied.
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -86,6 +86,7 @@ type meConfig struct {
 	baseURL        string   // the persistent --base-url flag value (may be empty)
 	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string   // the persistent --output flag value (may be empty), resolved before any request
+	outputPresent  bool     // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	include        []string // the raw --include targets, validated before any request
 	reqCtx         context.Context
 	stdout         io.Writer
@@ -108,7 +109,7 @@ func runMe(cfg meConfig) (Outcome, error) {
 	//    missing file / unparseable template / empty stdin — fails fast as a usage
 	//    error before any assembly or request (no wasted call, pinned by a tripwire
 	//    transport). Resolution is independent of connection assembly (009).
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -322,6 +323,7 @@ func newMeCommand(seam meSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				include:        include,
 				reqCtx:         cmd.Context(),
 				stdout:         cmd.OutOrStdout(),

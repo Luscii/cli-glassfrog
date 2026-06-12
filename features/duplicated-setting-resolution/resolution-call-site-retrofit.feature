@@ -23,7 +23,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not read any ".glassfrogrc"
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Output selection falls through to the built-in default
-    @output @wip
+    @output
     Scenario: The output selection falls through the composed chain to the built-in default
       Given no "--output" flag, no GLASSFROG_OUTPUT, and no ".glassfrogrc" output key
       When the output selection is resolved
@@ -39,7 +39,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       Then it will return that file value with the source reported as the file and its path
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Unparseable .glassfrogrc on the output walk fails loud
-    @output @wip
+    @output
     Scenario: An unparseable config file on the output walk fails loud without using the default
       Given no "--output" flag and no GLASSFROG_OUTPUT
       And the nearest ".glassfrogrc" was malformed
@@ -86,7 +86,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not fall through to the environment
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Whitespace-only GLASSFROG_OUTPUT is treated as absent and falls through
-    @output @wip
+    @output
     Scenario: A whitespace-only output environment value is treated as absent and falls through
       Given the "--output" flag had not been supplied and GLASSFROG_OUTPUT was set to whitespace only
       And no ".glassfrogrc" output key was present

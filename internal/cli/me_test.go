@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -145,14 +147,50 @@ func (s *fakeMeSeam) sleep() func(time.Duration) {
 	return func(d time.Duration) { s.slept = append(s.slept, d) }
 }
 
-// resolveSelection drives the real output.ResolveSelection precedence core (020
-// widened by 035) over the fake's injected flag/env/file sources, so a test
-// exercises genuine parsing, precedence, and the flag-rung template classification
-// without reading the real environment or ~/.glassfrogrc. A default-constructed fake
-// (all sources absent) yields FormatFull — the standing full path every pre-020 test
-// relies on for byte-equivalence.
-func (s *fakeMeSeam) resolveSelection(flagValue string) (output.Selection, error) {
-	return output.ResolveSelection(flagValue, s.envOutput, s.fileOutput, s.filePath, s.fileFound, s.fileErr)
+// resolveSelection drives the real output.ResolveSelectionFromOS composing entry
+// (020 widened by 035, retrofit 040) so a test exercises genuine parsing, precedence,
+// and the flag-rung template classification. The 040 retrofit folded the 6-arg
+// pre-fetched-source core into ResolveSelectionFromOS and removed it, so the fake now
+// feeds its injected sources through the OS-shaped seam HERMETICALLY: the env rung via
+// the real GLASSFROG_OUTPUT (set/unset for this call, then restored) and the file rung
+// via a temp .glassfrogrc seeded from the injected file source — never the developer's
+// real environment or ~/.glassfrogrc. A default-constructed fake (all sources absent)
+// yields FormatFull — the standing full path every pre-020 test relies on.
+func (s *fakeMeSeam) resolveSelection(flagValue string, flagPresent bool) (output.Selection, error) {
+	dir, err := os.MkdirTemp("", "cli-sel-fake-")
+	if err != nil {
+		return output.Selection{Format: output.DefaultFormat}, err
+	}
+	defer os.RemoveAll(dir)
+
+	// Env rung: set the injected value (or unset, so an absent injection falls through
+	// regardless of the developer's ambient environment). Restored on return.
+	prev, had := os.LookupEnv(output.EnvVarOutput)
+	if strings.TrimSpace(s.envOutput) != "" {
+		os.Setenv(output.EnvVarOutput, s.envOutput)
+	} else {
+		os.Unsetenv(output.EnvVarOutput)
+	}
+	defer func() {
+		if had {
+			os.Setenv(output.EnvVarOutput, prev)
+		} else {
+			os.Unsetenv(output.EnvVarOutput)
+		}
+	}()
+
+	// File rung: translate the injected file source into a real temp .glassfrogrc.
+	// An injected read error is modelled by a directory at the file path, which makes
+	// rcfile fail loud with a real *ReadError naming that .glassfrogrc (no fall-through).
+	rcPath := filepath.Join(dir, rcfile.FileName)
+	switch {
+	case s.fileErr != nil:
+		_ = os.Mkdir(rcPath, 0o755)
+	case s.fileFound:
+		_ = os.WriteFile(rcPath, []byte("output="+s.fileOutput+"\n"), 0o600)
+	}
+
+	return output.ResolveSelectionFromOS(flagValue, flagPresent, dir, dir)
 }
 
 // readTemplateSource exercises the production readTemplateSourceFrom logic (035

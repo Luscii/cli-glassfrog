@@ -26,7 +26,7 @@ import (
 type domainSeam interface {
 	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -39,6 +39,7 @@ type domainConfig struct {
 	baseURL        string   // inherited persistent --base-url (may be empty)
 	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool     // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	id             string   // the required positional domain id (ExactArgs(1))
 	include        []string // --include, validated against {policies}
 
@@ -73,7 +74,7 @@ func runDomain(cfg domainConfig) (Outcome, error) {
 	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
 	//    selector — or, for a user template, a missing/unparseable source or empty
 	//    stdin — fails fast as a usage error before any assembly or request.
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -213,6 +214,7 @@ func newDomainCommand(seam domainSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				id:             args[0],
 				include:        include,
 				// Presence, not value: a list-only flag passed to the single read is a

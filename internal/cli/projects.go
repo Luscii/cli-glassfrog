@@ -47,7 +47,7 @@ type projectsSeam interface {
 	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -60,6 +60,7 @@ type projectsConfig struct {
 	baseURL        string // inherited persistent --base-url (may be empty)
 	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	id             string // the required positional role id (ExactArgs(1))
 
 	query    string // --query/-q free-text search, sent verbatim as q
@@ -92,7 +93,7 @@ func runProjectsList(cfg projectsConfig) (Outcome, error) {
 	//    stdin — fails fast as a usage error before any assembly or request.
 	//    Resolving --output ahead of --status keeps error precedence consistent with
 	//    the sibling reads (me_projects.go, policies.go).
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -309,6 +310,7 @@ func newProjectsCommand(seam projectsSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				id:             args[0],
 				query:          query,
 				// Presence, not value: q is sent only when --query is Changed AND
@@ -344,6 +346,7 @@ type projectConfig struct {
 	baseURL        string // inherited persistent --base-url (may be empty)
 	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 
 	reqCtx context.Context
 	stdout io.Writer
@@ -360,7 +363,7 @@ type projectConfig struct {
 // ProjectView carrying the full detail (mirroring runPolicyGet). It adds no new
 // Outcome/ExitCode and never reads the token.
 func runProjectGet(cfg projectConfig, id string) (Outcome, error) {
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -438,6 +441,7 @@ func newProjectCommand(seam projectsSeam) *cobra.Command {
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				reqCtx:         cmd.Context(),
 				stdout:         cmd.OutOrStdout(),
 				stderr:         cmd.ErrOrStderr(),
