@@ -215,17 +215,19 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTension, rt.format, view)
 }
 
-// newTensionCommand assembles the `tension` command group and its `create` leaf,
+// newTensionCommand assembles the `tension` command group and its leaves,
 // registered through the guard (group-has-children, non-empty Short, no action).
-// The group is built with its child attached BEFORE being returned for
+// The group is built with its children attached BEFORE being returned for
 // registration under root, so the guard's ">=1 child" rule holds at attach time
-// (the auth/auth login shape, plan ADR-2). The `tension` namespace is reserved for
-// future reads/edits. The seam is injected so tests drive a fake one; production
-// passes productionSeam{} from Assemble.
+// (the auth/auth login shape, plan ADR-2). The `tension` namespace parents the
+// write verb `create` (042) and the read verbs `list`/`get` (043), so the group
+// Short names the whole surface rather than just capture (a write-only Short would
+// make `glassfrog tension --help` misleading). The seam is injected so tests drive
+// a fake one; production passes productionSeam{} from Assemble.
 func newTensionCommand(seam tensionSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "tension",
-		Short: "Capture a tension — the seed of a governance proposal",
+		Short: "Work with tensions — capture one, or list and read a role's tensions",
 	}
 	MustRegister(group, newTensionCreateCommand(seam))
 	MustRegister(group, newTensionListCommand(seam))
