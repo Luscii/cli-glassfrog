@@ -3,7 +3,7 @@
 **Feature**: 036-homebrew-tap
 **Artifacts analyzed**: spec.md, plan.md, interface-spec.md, tasks.md, features/runtime-dependent-distribution/homebrew-tap.feature
 **Checklist context**: loaded (9 checks, 9 pass, 0 fail)
-**Checks**: 16 (15 pass, 1 fail)
+**Checks**: 16 (16 pass, 0 fail)
 **Generated**: 2026-06-12
 
 ---
@@ -14,10 +14,10 @@
 |---|---|---|---|---|
 | Consistency | 6 | 6 | 0 | P0 |
 | Completeness | 6 | 6 | 0 | P1 |
-| Coherence | 4 | 3 | 1 | P2 |
-| **Total** | **16** | **15** | **1** | |
+| Coherence | 4 | 4 | 0 | P2 |
+| **Total** | **16** | **16** | **0** | |
 
-No P0 contradictions. Completeness is clean after T004's workflow guard closed the earlier coverage gap; one P2 coherence drift remains — the repository `LICENSE`-file traceability.
+No P0 contradictions; all 16 checks pass. The earlier completeness and coherence gaps are both closed — T004's workflow guard covers the token/audit paths, and plan.md Phase 1 now calls out the repository `LICENSE` decision. The `LICENSE` remains an open *implementation* prerequisite (T002), not a cross-artifact drift.
 
 ---
 
@@ -29,25 +29,20 @@ Passed: spec↔plan integration-boundary alignment (C1 — 022 upstream, GitHub 
 
 Passed: every spec driving + validation scenario has a Gherkin equivalent (K1 — all 10 map into homebrew-tap.feature); the interface is covered by the single Specification accord with each integration boundary addressed (K2 — Specification-touchpoint pattern, matching sibling 022); every plan phase has task decomposition (K3 — Phase 1→T001(+T002), Phase 2→T003, Phase 3→T004); every plan component has implementing tasks (K4 — `brews` block→T003, `tap` job→T004, repo+token→T001, refinements→T003); every spec user scenario has interface coverage (K6 — acquire macOS/Linux, upgrade-currency, trust-integrity); and every interface surface has downstream coverage (K5). On K5, the interface's Error Communication paths that `.feature` scenarios cannot exercise without a live tap — a missing/expired `HOMEBREW_TAP_TOKEN` and the `if: !prerelease` gate — are now covered structurally: **T004 extends the `internal/build` workflow guard** to assert the `tap` job's token-env wiring and gating. The `brew audit`/license path is covered by T002 plus the optional `brew audit` CI step the interface testing strategy names.
 
-## Coherence: 3/4 passed
+## Coherence: 4/4 passed
 
-Passed: terminology consistent across the set (H1 — formula / tap / tap repo / archive / checksums / `brews` block; no stale "cask" survives the reframe; the tag-with-`v` vs asset-name-without-`v` distinction is reconciled in interface-spec.md as one rule); detail symmetry proportionate between spec↔plan and plan↔tasks (H2); task decomposition covers all plan phases structurally including the Phase 1 ∥ Phase 2 parallelism (H4).
-
-### Failure
-
-**P2 (coherence)** | **plan.md ↔ interface-spec.md ↔ tasks.md** (H3 — scope aligned across the set, no silently added/dropped capability)
-plan.md **does** address licensing at the formula level — ADR-1's consequences, the testing strategy, and Risk #4 each name `brew audit`/`license` requirements. The narrow gap is that plan.md does not explicitly call out the **repository `LICENSE`-file decision** (whether to add a `LICENSE` so GoReleaser populates `brews.license`), which interface-spec.md raises as `[NEEDS INPUT]` and tasks.md T002 owns. Not silently added — fully traceable interface→tasks — but a one-line item in plan.md Phase 1 ("resolve the formula's license / add a `LICENSE`") would complete the plan→interface→tasks chain. Low impact: traceability hygiene; the work is already captured in T002.
+Passed: terminology consistent across the set (H1 — formula / tap / tap repo / archive / checksums / `brews` block; no stale "cask" survives the reframe; the tag-with-`v` vs asset-name-without-`v` distinction is reconciled in interface-spec.md as one rule); detail symmetry proportionate between spec↔plan and plan↔tasks (H2); task decomposition covers all plan phases structurally including the Phase 1 ∥ Phase 2 parallelism (H4); scope aligned across the set with no silently added/dropped capability (H3). On H3, plan.md already addressed formula-level licensing (ADR-1 consequences, testing strategy, Risk #4), and **plan.md Phase 1 now explicitly calls out the repository `LICENSE` decision** that interface-spec.md raises as `[NEEDS INPUT]` and tasks.md T002 owns — completing the plan→interface→tasks chain. The `LICENSE` itself stays an open *implementation* prerequisite tracked in T002 (an impl to-do, not a cross-artifact gap).
 
 ---
 
 ## Checklist Correlation
 
-One overlap remains after T004's workflow guard closed the VII/K5 pair:
+Both earlier overlaps are now resolved:
 
-- **Resolved**: the earlier Checklist P0 (VII Working Software, T004 test-free) ↔ Analyze P1 (K5, token/audit coverage) were a single root cause — closed by extending T004 to ship the `internal/build` workflow guard (asserting `needs: [publish]`, the `if: !prerelease` gate, the `HOMEBREW_TAP_TOKEN` env, brew-publisher-only). Both now pass.
-- **Open (P2)**: Checklist's open `[NEEDS INPUT]` license note (T002) ↔ Analyze H3 — the repository `LICENSE`-file decision is traceable interface→tasks but not called out in plan.md. Resolving the license decision and adding a plan line closes both.
+- **Resolved**: Checklist P0 (VII Working Software, T004 test-free) ↔ Analyze P1 (K5, token/audit coverage) — closed by extending T004 to ship the `internal/build` workflow guard (asserting `needs: [publish]`, the `if: !prerelease` gate, the `HOMEBREW_TAP_TOKEN` env, brew-publisher-only).
+- **Resolved**: Checklist's `[NEEDS INPUT]` license note (T002) ↔ Analyze H3 — plan.md Phase 1 now calls out the repository `LICENSE` decision, closing the cross-artifact drift. The `LICENSE` itself remains an open implementation prerequisite (T002), not a cross-artifact gap.
 
-No analyze finding contradicts a checklist pass; the artifacts agree with one another. The only remaining gap is the shared `LICENSE`-file thread, not cross-artifact disagreement.
+No analyze finding contradicts a checklist pass; the artifacts agree with one another, with no open cross-artifact gap.
 
 ---
 
