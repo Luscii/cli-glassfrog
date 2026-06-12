@@ -16,7 +16,7 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
   Rule: Run the CLI once via npx without a separate install step
     # In order to run the CLI once in a Node-based agent environment without a separate install step,
     # as an AI agent or practitioner,
-    # I want to invoke `npx glassfrog ...` and have the right platform binary resolved and executed.
+    # I want to invoke `npx @luscii-healthtech/glassfrog ...` and have the right platform binary resolved and executed.
 
     # Source: 037-npm-wrapper-package — Scenario: npx on a supported platform resolves and runs the binary
     @wip
@@ -26,7 +26,7 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       When the operator runs "npx @luscii-healthtech/glassfrog --version"
       Then npm will resolve the Linux x64 platform package
       And the launcher will exec that bundled binary
-      And the reported version will equal the installed package version
+      And the reported version will be the release tag — the installed package version with the leading "v"
 
     # Source: 037-npm-wrapper-package — Scenario: unsupported platform is refused at install
     @wip
@@ -67,7 +67,7 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
   Rule: Provision a pinned version reproducibly in CI
     # In order to provision the CLI reproducibly in a Node-centric CI pipeline,
     # as a maintainer,
-    # I want to `npm i -g glassfrog@<version>` and get the matching binary, pinned to a known version.
+    # I want to `npm i -g @luscii-healthtech/glassfrog@<version>` and get the matching binary, pinned to a known version.
 
     # Source: 037-npm-wrapper-package — Scenario: pinned global install places the matching binary
     @wip
@@ -75,15 +75,15 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       Given a "@luscii-healthtech/glassfrog@1.3.0" package is published alongside a newer "1.4.0"
       When the operator runs "npm i -g @luscii-healthtech/glassfrog@1.3.0" on a supported platform
       Then the install will resolve the "1.3.0" platform binary
-      And running "glassfrog --version" will report "1.3.0"
+      And running "glassfrog --version" will report "v1.3.0"
 
     # Source: 037-npm-wrapper-package — Scenario: the placed binary's version matches the package and the release tag
     @validation @wip
     Scenario: The placed binary version matches the package and the release tag
       Given the package was installed at a specific version
       When the installed binary is run with "--version"
-      Then the reported version will equal the installed npm package version
-      And it will equal the resolved release's tag
+      Then the reported version will equal the resolved release's tag (e.g. "v1.3.0")
+      And stripping the leading "v" will equal the installed npm package version (e.g. "1.3.0")
 
   Rule: Trust the downloaded binary is authentic before it runs
     # In order to trust that the binary npm placed is the authentic released artifact even when it was downloaded rather than bundled,

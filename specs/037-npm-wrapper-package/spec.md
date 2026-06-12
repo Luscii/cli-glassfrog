@@ -8,7 +8,7 @@
 
 ## System Overview
 
-The NPM Wrapper Package is an **acquisition channel** in the Self-Contained Distribution cluster, aimed at Node-based agent environments. It is an npm package that, when installed, makes the released `glassfrog` binary runnable through the Node toolchain: an operator can `npx glassfrog ...` for a one-off, `npm i -g glassfrog` for a global command, or add it as a project dependency. The package does not contain the CLI's logic — it resolves and places the same self-contained binary the Automated Release Pipeline (022) already builds, exposing it as an npm-installed command. It is one of several acquisition channels alongside the Install Script (027) and the Homebrew Tap (036); each installs the same released binary by a different route, and none reimplements the tool.
+The NPM Wrapper Package is an **acquisition channel** in the Self-Contained Distribution cluster, aimed at Node-based agent environments. It is an npm package that, when installed, makes the released `glassfrog` binary runnable through the Node toolchain: an operator can `npx @luscii-healthtech/glassfrog ...` for a one-off, `npm i -g @luscii-healthtech/glassfrog` for a global command, or add it as a project dependency. The package does not contain the CLI's logic — it resolves and places the same self-contained binary the Automated Release Pipeline (022) already builds, exposing it as an npm-installed command. It is one of several acquisition channels alongside the Install Script (027) and the Homebrew Tap (036); each installs the same released binary by a different route, and none reimplements the tool.
 
 It works by the conventional npm native-binary pattern: a thin wrapper package declares one **platform-specific optional dependency** per supported target, and npm installs only the package matching the host OS and CPU. A small launcher exposed by the wrapper execs whichever platform binary was installed, passing arguments and exit codes straight through. When no matching optional package is available (for example when optional dependencies are omitted, or the registry lacks the platform package), a **postinstall fallback** downloads the matching archive and checksums file from the release's GitHub assets — the same artifacts 027 consumes — verifies the archive against the checksums file, and only then places the binary. The released binary remains the self-contained executable mandated by CONSTITUTION XII; this channel publishes and places it through npm, and owns the npm publishing step that the release pipeline (022) deliberately leaves to it.
 
@@ -26,7 +26,7 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 - When the matching platform optional dependency is present, the install completes using its bundled binary and contacts no external download source.
 - When no matching optional dependency is present (optional dependencies omitted, or the registry lacks the platform package), the postinstall fallback downloads the archive matching the detected platform and the release's checksums file from that release's GitHub assets, verifies the archive against its checksums entry, and installs the binary only when the checksum matches.
 - When the fallback's checksum does not match, or the download fails, the install stops, leaves no runnable `glassfrog` command in place, and exits non-zero.
-- The version of the binary placed equals the version of the npm package installed: installing `glassfrog@X` yields a binary that reports `X` via `--version`, and the package version mirrors the release tag.
+- The version of the binary placed corresponds to the version of the npm package installed: installing `@luscii-healthtech/glassfrog@X.Y.Z` yields the binary whose `--version` reports `vX.Y.Z` — the release tag, i.e. the npm package version with the leading `v` the build injects (Version Embedding, 023). The npm package version omits the `v` (npm semver) while the binary's embedded version restores it.
 
 ### Invocation and pass-through
 
@@ -43,11 +43,11 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 
 **In order to** run the CLI once in a Node-based agent environment without a separate install step,
 **as an** AI agent or practitioner,
-**I want to** invoke `npx glassfrog ...` and have the right platform binary resolved and executed.
+**I want to** invoke `npx @luscii-healthtech/glassfrog ...` and have the right platform binary resolved and executed.
 
 **In order to** provision the CLI reproducibly in a Node-centric CI pipeline,
 **as a** maintainer,
-**I want to** `npm i -g glassfrog@<version>` and get the matching binary, with the install pinned to a known version.
+**I want to** `npm i -g @luscii-healthtech/glassfrog@<version>` and get the matching binary, with the install pinned to a known version.
 
 **In order to** trust that the binary npm placed is the authentic released artifact even when it was downloaded rather than bundled,
 **as an** operator,
@@ -76,7 +76,7 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 - **Automated Release Pipeline (022 — upstream)**: attaches one archive per supported platform plus one checksums file to each published GitHub Release. The fallback path downloads the platform archive and the checksums file from that release and relies on the archive-naming convention to pick the right asset. 022 explicitly leaves npm publishing to this channel.
 - **npm registry (destination and source)**: this channel publishes the wrapper package and the per-platform binary packages, versioned to match the release. Installs resolve the wrapper and its matching optional dependency from the registry. A registry or package unavailable for the host platform drops the install to the fallback path; a total registry failure surfaces as a normal npm install failure.
 - **GitHub Releases (source — fallback)**: when the matching platform package is unavailable, the postinstall downloads the archive and checksums from the resolved release. A missing release or asset surfaces as a clear install failure with a non-zero exit.
-- **Version Embedding (023 — informational)**: the installed binary reports its version via `--version`; the npm package version mirrors the release tag, and the placed binary's embedded version is what an operator verifies after install.
+- **Version Embedding (023 — informational)**: the installed binary reports its version via `--version` as `vX.Y.Z` (the release tag); the npm package version is that tag without the leading `v` (`X.Y.Z`, npm semver), and the placed binary's embedded version is what an operator verifies after install.
 - **Node / npm environment (host)**: requires Node and npm; npm performs optional-dependency resolution by OS/architecture and links the command onto PATH. The wrapper reads the detected platform and, on the fallback path, standard download tooling available to a Node process.
 - **Install Script (027) / Homebrew Tap (036) — sibling channels**: independent acquisition routes that place the same released binary. This channel is unaware of them; they do not interact.
 
@@ -88,16 +88,16 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 
 **Scenario: npx on a supported platform resolves and runs the binary**
 Given a published release with the npm wrapper and its per-platform packages published, on a Linux amd64 host with Node and npm
-When the operator runs `npx glassfrog --version`
+When the operator runs `npx @luscii-healthtech/glassfrog --version`
 Then npm resolves the Linux amd64 optional dependency
 And the wrapper execs that binary
-And the reported version equals the installed package version.
+And the reported version is the release tag — the installed package version with the leading `v` (e.g. package `1.4.0` → `v1.4.0`).
 
 **Scenario: pinned global install places the matching binary**
-Given a `glassfrog@1.3.0` package is published alongside a newer `1.4.0`
-When the operator runs `npm i -g glassfrog@1.3.0` on a supported platform
+Given a `@luscii-healthtech/glassfrog@1.3.0` package is published alongside a newer `1.4.0`
+When the operator runs `npm i -g @luscii-healthtech/glassfrog@1.3.0` on a supported platform
 Then the install resolves the `1.3.0` platform binary
-And running `glassfrog --version` reports `1.3.0`.
+And running `glassfrog --version` reports `v1.3.0`.
 
 **Scenario: fallback download verifies before placing the binary**
 Given the matching platform package is not available from the registry for the host
@@ -147,8 +147,8 @@ And exits with the binary's own exit code unchanged.
 **Scenario: the placed binary's version matches the package and the release tag**
 Given the package is installed at a specific version (via the bundled package or the fallback)
 When the installed binary is run with `--version`
-Then the reported version equals the installed npm package version
-And equals the resolved release's tag.
+Then the reported version equals the resolved release's tag (e.g. `v1.3.0`)
+And stripping the leading `v` equals the installed npm package version (e.g. `1.3.0`).
 
 **Scenario: each supported platform resolves exactly its own binary**
 Given the wrapper and per-platform packages are published for the four supported targets

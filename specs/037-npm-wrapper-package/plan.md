@@ -15,16 +15,15 @@ The channel has two halves: **package sources** (committed, testable) and a **re
 **Package topology** (the esbuild/ailign model):
 
 ```
-glassfrog                         (main "umbrella" package — published to npm)
-├── bin/glassfrog                 launcher: a zero-dependency CommonJS shim
+@luscii-healthtech/glassfrog       (main "umbrella" package — published to npm)
+├── bin/glassfrog                 launcher: a zero-dependency CommonJS shim (the `glassfrog` command)
 ├── postinstall.js                fallback: detect platform → download+verify → place, or refuse
 ├── package.json                  declares the 4 platform packages as optionalDependencies (pinned =X.Y.Z)
-│                                  exposes the `glassfrog` command
 └── optionalDependencies:
-    ├── glassfrog-darwin-arm64    (each: package.json with os/cpu gating + the bundled binary)
-    ├── glassfrog-darwin-x64
-    ├── glassfrog-linux-arm64
-    └── glassfrog-linux-x64
+    ├── @luscii-healthtech/glassfrog-darwin-arm64   (each: package.json with os/cpu gating + the bundled binary)
+    ├── @luscii-healthtech/glassfrog-darwin-x64
+    ├── @luscii-healthtech/glassfrog-linux-arm64
+    └── @luscii-healthtech/glassfrog-linux-x64
 ```
 
 npm installs only the platform package whose `os`/`cpu` match the host; its `package.json` carries the OS/CPU map (GoReleaser `amd64` → npm `x64`; `arm64` → `arm64`; `darwin`/`linux` unchanged). The umbrella's launcher resolves whichever platform binary is present and execs it.
@@ -113,7 +112,7 @@ npm installs only the platform package whose `os`/`cpu` match the host; its `pac
 
 **Decision**: Option 1. The generator derives `X.Y.Z` from the tag (`${tag#v}`, the same transform 027/022 use for `<ver>`), stamps every package at that version, and pins `optionalDependencies` to `=X.Y.Z`. The bundled/downloaded binary reports `vX.Y.Z` via `023`.
 
-**Consequences**: `glassfrog@X.Y.Z` always runs binary `vX.Y.Z`; `--version` parity is structural. Pre-release tags publish as npm prerelease versions (installed only when explicitly requested, matching npm's dist-tag semantics). No skew between umbrella and platform package.
+**Consequences**: `@luscii-healthtech/glassfrog@X.Y.Z` always runs binary `vX.Y.Z` (the `v` is the build's, 023); `--version` parity is structural. Pre-release tags publish as npm prerelease versions (installed only when explicitly requested, matching npm's dist-tag semantics). No skew between umbrella and platform package.
 
 ### ADR-7: Publish from a dedicated `release.yml` job gated on build+verify, reusing the verified `dist/`, via npm OIDC trusted publishing
 
