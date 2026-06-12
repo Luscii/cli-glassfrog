@@ -55,11 +55,11 @@ This is the consuming half of the *Duplicated Setting Resolution* solution: 039 
 
 **In order to** get a loud, immediate error when I explicitly pass an empty or malformed `--base-url` or `--output` rather than having it silently ignored,
 **as a** CLI user,
-**I want to** the flag I supplied to be honoured as the winning source by presence, not quietly dropped when its value is blank.
+**I want** the flag I supplied to be honoured as the winning source by presence, not quietly dropped when its value is blank.
 
 **In order to** keep relying on the token, base-URL, and output-format outputs exactly as before,
 **as a** downstream consumer (Request Authentication, connection assembly, the read commands),
-**I want to** the retrofit to leave every public output type, provenance enum, and typed error unchanged.
+**I want** the retrofit to leave every public output type, provenance enum, and typed error unchanged.
 
 ---
 
