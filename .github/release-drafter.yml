@@ -50,3 +50,7 @@ template: |
   ## What's changed
 
   $CHANGES
+
+replacers:
+  - search: '/^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|specs)(!)?:\s*/i'
+    replace: ''
