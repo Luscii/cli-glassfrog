@@ -60,7 +60,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
   - **Scenario references**: install-script.feature: "A corrupted download never reaches the install directory" (@validation), "Latest resolution installs the newest stable, not a pre-release" (@validation), "The installed binary reports the resolved version" (@validation), "Checksum mismatch aborts the install", "Install a pinned version", "Unsupported platform is refused"
   - **Interface references**: interface-spec.md: Interactions (Test invocation); Surface (Function decomposition)
 
-- [ ] **T003** [Shared] [P] Add `shellcheck` (sh dialect) static analysis to CI
+- [x] **T003** [Shared] [P] Add `shellcheck` (sh dialect) static analysis to CI — added a `shellcheck --shell=sh install.sh` step to 024's `lint` job (shellcheck is pre-installed on ubuntu-latest → no extra action/token, fork-safe under `contents: read`). Does not touch golangci-lint's scope. Verified locally: bashisms (arrays/`[[ ]]`/`==`) are reported (exit 1), the real script is clean; actionlint OK.
   - **Scope**: Wire `shellcheck` over `install.sh` into CI — either as a step in PR Validation (024)'s lint job or a dedicated lint step — targeting the POSIX `sh` dialect. CI-host tool only, not an artifact dependency.
   - **Acceptance criteria**:
     - `shellcheck` runs against `install.sh` in CI with the `sh` dialect and fails the build on a finding.
