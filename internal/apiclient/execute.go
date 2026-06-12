@@ -107,6 +107,15 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 		return nil, &TransportError{cause: err}
 	}
 
+	if req.ContentType != "" {
+		// Set the body's media type only when the caller supplied one (042 ADR-1):
+		// a bodyless read leaves ContentType empty and the request carries no
+		// Content-Type header (unchanged from every landed GET). 007's AuthTransport
+		// owns only X-Auth-Token, so the content type is set here on the built
+		// request, before Do, never in the auth layer.
+		httpReq.Header.Set("Content-Type", req.ContentType)
+	}
+
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		// Discriminate 007's fail-safe BEFORE wrapping: a no-/broken-credential

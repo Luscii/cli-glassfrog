@@ -39,5 +39,5 @@
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Ready | validate | 2026-06-11T14:30:00 |
 | 041-cross-model-search | Complete | validate | 2026-06-11T21:55:52 |
-| 042-tension-capture | Analyzed | risk | 2026-06-11T22:02:36 |
+| 042-tension-capture | Complete | validate | 2026-06-12T00:30:00 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |

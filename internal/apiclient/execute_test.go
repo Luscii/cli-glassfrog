@@ -29,16 +29,22 @@ func (b *trackingBody) Close() error {
 // the X-Auth-Token it observed so a test can confirm the transport authenticated
 // the request.
 type respondingBase struct {
-	calls    int
-	gotToken string
-	status   int
-	header   http.Header
-	body     *trackingBody
+	calls          int
+	gotToken       string
+	gotContentType string
+	contentTypeSet bool
+	status         int
+	header         http.Header
+	body           *trackingBody
 }
 
 func (b *respondingBase) RoundTrip(req *http.Request) (*http.Response, error) {
 	b.calls++
 	b.gotToken = req.Header.Get(AuthHeaderName)
+	// Record presence-and-value so a test can distinguish "no Content-Type header"
+	// (the bodyless reads) from "set to application/json" (the write, 042 ADR-1).
+	_, b.contentTypeSet = req.Header["Content-Type"]
+	b.gotContentType = req.Header.Get("Content-Type")
 	header := b.header
 	if header == nil {
 		header = make(http.Header)
@@ -398,3 +404,44 @@ func capturingBase(inspect func(*http.Request)) http.RoundTripper {
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+// TestExecuteSetsContentTypeWhenPresent pins the 042 ADR-1 write-body seam: a
+// Request carrying a non-empty ContentType produces an outbound request whose
+// Content-Type header is exactly that value (so the API parses a JSON body rather
+// than ignoring it and answering 422). The body and the rest of the send path are
+// unchanged.
+func TestExecuteSetsContentTypeWhenPresent(t *testing.T) {
+	base := &respondingBase{status: 201, body: bodyOf(`{"data":{"id":"ten_1"}}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{
+		Method:      http.MethodPost,
+		Path:        "/roles/role_1/tensions",
+		Body:        strings.NewReader(`{"tension":{"body":"x"}}`),
+		ContentType: "application/json",
+	}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if !base.contentTypeSet {
+		t.Fatal("Content-Type header was not set for a non-empty ContentType")
+	}
+	if base.gotContentType != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", base.gotContentType)
+	}
+}
+
+// TestExecuteOmitsContentTypeWhenEmpty pins that the empty default (every landed
+// GET read) sets NO Content-Type header on the outbound request — the reads' wire
+// behavior is byte-identical to before the field existed (042 ADR-1).
+func TestExecuteOmitsContentTypeWhenEmpty(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"id":"per_1"}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	if _, err := client.Execute(context.Background(), Request{Method: http.MethodGet, Path: "/me"}, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if base.contentTypeSet {
+		t.Fatalf("a bodyless read must set no Content-Type header, got %q", base.gotContentType)
+	}
+}

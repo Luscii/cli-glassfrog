@@ -1,0 +1,9 @@
+{{$t := .Tension}}{{$t.ID}}  [{{$t.Status}}]
+  Body:          {{$t.Body}}
+  Label:         {{if eq (trimSpace $t.Label) ""}}(none){{else}}{{$t.Label}}{{end}}
+  Sensing role:  {{if eq (trimSpace $t.RoleID) ""}}(none){{else}}{{$t.RoleID}}{{end}}
+  Sensed by:     {{if eq (trimSpace $t.SensedByID) ""}}(none){{else}}{{$t.SensedByID}}{{end}}
+  Meeting type:  {{if eq (trimSpace $t.MeetingType) ""}}(none){{else}}{{$t.MeetingType}}{{end}}
+  Parent role:   {{if eq (trimSpace $t.ParentRoleID) ""}}(none){{else}}{{$t.ParentRoleID}}{{end}}
+  Created:       {{if eq (trimSpace $t.CreatedAt) ""}}(unknown){{else}}{{$t.CreatedAt}}{{end}}
+  Updated:       {{if eq (trimSpace $t.UpdatedAt) ""}}(unknown){{else}}{{$t.UpdatedAt}}{{end}}

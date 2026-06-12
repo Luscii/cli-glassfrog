@@ -33,6 +33,15 @@ type Request struct {
 	Query url.Values
 	// Body is the optional request body. Nil for bodyless requests (GET, DELETE).
 	Body io.Reader
+	// ContentType is the optional media type of Body, set as the request's
+	// Content-Type header by Execute only when non-empty (042 ADR-1). Empty for
+	// every bodyless read (the landed GETs), so their outbound request carries no
+	// Content-Type header and stays byte-identical; the first write sets it to
+	// "application/json" so the API parses the JSON body rather than ignoring it
+	// (a silent 422 the codebase designs against). A narrow field, not a general
+	// Header bag — generalize when a second header (If-Match, deferred) has a real
+	// consumer.
+	ContentType string
 }
 
 // Client is the API-client request seam: a configured HTTP client built once from
