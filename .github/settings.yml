@@ -1,0 +1,43 @@
+# PR Administration — label catalog (spec 028, ADR-4).
+#
+# Consumed by the Probot "Settings" GitHub App. The `labels:` block below is the
+# SINGLE SOURCE OF TRUTH for the seven managed PR labels — their names, colors,
+# and descriptions. The names are the cross-feature contract Release Drafting
+# (030) reads off merged PRs to compute the semver bump and group release notes;
+# renaming one is a coordinated 028↔030 change, not a local edit.
+#
+# This file is labels-only on purpose (no `repository:` / `branches:` blocks):
+# the app then manages ONLY these seven labels and leaves every other label —
+# human triage labels — untouched (no prune). A managed label that is hand-
+# deleted or renamed is restored on the next reconcile (push to the default
+# branch).
+#
+# PREREQUISITE (one-time, out of repo): the Probot "Settings" GitHub App must be
+# installed on this repo/org for this file to take effect. It is an established
+# team dependency (already used via ailign); no per-repo script to run.
+#
+# The label STRINGS here must stay exactly in sync with .github/labeler.yml,
+# which applies/removes them. Colors and descriptions are tunable without
+# touching the contract.
+labels:
+  - name: breaking
+    color: "B60205"
+    description: "Breaking change — major version bump"
+  - name: features
+    color: "0E8A16"
+    description: "New feature — minor version bump"
+  - name: fixes
+    color: "FBCA04"
+    description: "Bug fix — patch version bump"
+  - name: docs
+    color: "0075CA"
+    description: "Documentation change"
+  - name: infrastructure
+    color: "D93F0B"
+    description: "CI, build, tooling, and project-config change"
+  - name: dependencies
+    color: "0366D6"
+    description: "Dependency manifest change"
+  - name: internal
+    color: "CFD3D7"
+    description: "Internal change (chore/refactor/test)"

@@ -77,36 +77,16 @@ jobs:
           # enabled-linter policy.
           version: v2.11.4
 
-  # Tests run across an OS matrix (ADR-3): ubuntu + macos, the two families the
-  # tool ships to — exercising the OS-divergent paths that matter for this
-  # codebase (internal/build inspects linkage with otool on darwin vs ldd on
-  # linux; golang.org/x/term has per-OS paths). amd64 + single go.mod-pinned Go
-  # version keeps per-PR cost bounded; cross-arch breadth stays at release time
-  # (022). The matrix extends by adding axis values without restructuring — the
-  # ci-success gate keeps the required-check name stable when it does.
-  #
-  # `go test ./...` is kept a plain, flag-free invocation so Main-Branch
-  # Verification (029) can mirror it directly. It exercises the existing unit
-  # tests, every godog BDD suite, the internal/build host self-containment test,
-  # and the internal/build .goreleaser.yaml config-guard test the release
-  # pipeline (022) relies on. No new test logic is added here.
+  # The OS test matrix lives in the shared reusable workflow (spec 029, ADR-1):
+  # both this pre-merge gate (024) and the post-merge net (main-verify.yml, 029)
+  # call test.yml, so the matrix and the plain `go test ./...` invocation exist
+  # in exactly one place and cannot silently drift. The cell checks now display
+  # nested as `test / test (ubuntu-latest)`; ci-success still aggregates the
+  # called workflow's result (success iff every cell passed), and branch
+  # protection requires only the stable ci-success name — never the cell names —
+  # so the required gate is unaffected by the nesting.
   test:
-    strategy:
-      # Every cell must pass. fail-fast: false lets one OS finish and report
-      # even when the other fails, so the failing OS is identifiable by its
-      # cell name (e.g. `test (macos-latest)`).
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: go test
-        run: go test ./...
+    uses: ./.github/workflows/test.yml
 
   # The single stable required status check (ADR-4). A matrix `test` job
   # publishes one check PER cell (test (ubuntu-latest), test (macos-latest)),
