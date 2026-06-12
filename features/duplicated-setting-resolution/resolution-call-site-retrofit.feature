@@ -43,7 +43,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     Scenario: An unparseable config file on the output walk fails loud without using the default
       Given no "--output" flag and no GLASSFROG_OUTPUT
       And the nearest ".glassfrogrc" was malformed
-      When the output format is resolved
+      When the output selection is resolved
       Then it will surface the typed config read error naming that file
       And it will not fall through to the built-in default
 
@@ -90,7 +90,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     Scenario: A whitespace-only output environment value is treated as absent and falls through
       Given the "--output" flag had not been supplied and GLASSFROG_OUTPUT was set to whitespace only
       And no ".glassfrogrc" output key was present
-      When the output format is resolved
+      When the output selection is resolved
       Then it will treat the environment value as absent
       And it will return the built-in default "full"
 

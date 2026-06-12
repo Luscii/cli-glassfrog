@@ -124,7 +124,7 @@ And no lower-precedence source is consulted.
 **Scenario: Unparseable `.glassfrogrc` on the output walk fails loud**
 Given the `--output` flag is not supplied and `GLASSFROG_OUTPUT` is unset
 And the nearest `.glassfrogrc` is malformed
-When the output format is resolved
+When the output selection is resolved
 Then the system returns rcfile's typed format error naming the file
 And the built-in default is not used.
 
@@ -140,7 +140,7 @@ And does not fall through to the environment.
 **Scenario: Whitespace-only `GLASSFROG_OUTPUT` is treated as absent and falls through**
 Given the `--output` flag is not supplied and `GLASSFROG_OUTPUT` is set to `"   "`
 And no `.glassfrogrc` `output` key is present
-When the output format is resolved
+When the output selection is resolved
 Then the system treats the environment value as absent
 And returns the built-in default `full`.
 
