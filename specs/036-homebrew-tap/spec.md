@@ -21,7 +21,7 @@ It sits directly downstream of the Automated Release Pipeline (022): that pipeli
 - When a user taps the dedicated tap repository and installs the formula, Homebrew downloads the release archive matching the user's operating system and CPU architecture, verifies it against the recorded checksum, and places a working `glassfrog` binary on PATH.
 - When the user is on any supported platform — macOS amd64, macOS arm64, Linux amd64, or Linux arm64 — the formula resolves the archive matching that platform.
 - The formula is installable both by tapping then installing, and by the one-shot tap-qualified install form (a single `brew install <tap>/glassfrog`).
-- After a successful install, running `glassfrog --version` reports the version of the release the formula currently points at.
+- After a successful install, running `glassfrog version` (equivalently `glassfrog --version`) reports the version of the release the formula currently points at.
 - The formula installs the pre-built release binary as-is; it does not compile from source.
 
 ### Currency with releases
@@ -83,7 +83,7 @@ And a latest stable release with the four platform archives and a checksums file
 When the user taps the repository and runs `brew install glassfrog`
 Then Homebrew downloads the macOS arm64 archive and verifies it against the recorded checksum
 And places a working `glassfrog` binary on PATH
-And `glassfrog --version` reports the installed release's version.
+And `glassfrog version` reports the installed release's version.
 
 **Scenario: fresh install on Linux**
 Given a Linux amd64 machine with Homebrew and no `glassfrog` installed
@@ -95,7 +95,7 @@ Given `glassfrog` was installed via brew at an older stable release
 And a newer stable release has since been published and the formula updated to it
 When the user runs `brew upgrade`
 Then Homebrew moves the install to the newer stable release
-And `glassfrog --version` reports the newer version.
+And `glassfrog version` reports the newer version.
 
 ### Error scenarios
 
@@ -132,7 +132,7 @@ Then nothing is reinstalled and the version is unchanged.
 
 **Scenario: the installed binary matches the release the formula points at**
 Given a fresh `brew install` from the tap
-When the installed binary is run with `--version`
+When the installed binary is run with `glassfrog version`
 Then the reported version equals the stable release the formula currently references
 And equals that release's tag.
 
