@@ -6,6 +6,15 @@ Operational patterns discovered during implementation. Each entry records a non-
 
 ## Findings
 
+### 2026-06-12 — a cross-cutting feature file needs per-domain tags to fit the one-suite-per-feature convention
+(Found during [T001](../../specs/040-resolution-call-site-retrofit/tasks.md) implementation)
+
+- **Type**: process / test-architecture
+- **Location**: `features/duplicated-setting-resolution/resolution-call-site-retrofit.feature`; new per-package godog suites in `internal/auth`, `internal/apiclient`, `internal/output`
+- **Severity**: low — a deliberate, documented test-wiring decision; no production impact.
+- **Description**: 040's feature file spans three settings (token / base URL / output) whose resolvers live in three different packages. The repo's BDD convention is "one godog suite per feature file, steps bound per-suite" (039 LEARNINGS), and — critically — each setting must be driven **in its own package** to stay hermetic: the token walk has to rebind `auth`'s package-private `getwd`/`userHomeDir` seams to avoid reading the developer's real `~/.glassfrogrc` (CONSTITUTION IV). A single external suite cannot rebind those private seams without HOME-env/`os.Chdir` hacks that risk a real-home read if the mechanism slips. godog also fails on undefined steps in any scenario it *runs*, so a `~@wip`-only filter would force every suite to define every domain's steps. The resolution: tag each non-validation scenario with an orthogonal domain tag (`@token` / `@base-url` / `@output`) and have each package's suite filter `@<domain> && ~@wip`. The Builder's normal `.feature` edit is @wip-removal only; adding orthogonal categorization tags (never touching Given/When/Then) is the minimal extra modification needed to wire a genuinely cross-cutting feature, and it lets the three tasks land incrementally (each un-@wips and defines only its own slice).
+- **Suggested action**: future cross-cutting feature files (one feature, several owning packages) should carry domain tags from the `/score:scenarios` step so the Builder doesn't add them. The three `@validation @wip` scenarios stay held out for the validate skill as usual.
+
 ### 2026-06-03 — cobra injects `completion` and `help` commands outside the registration guard
 (Found during [T004](../../specs/001-command-registration/tasks.md) implementation)
 

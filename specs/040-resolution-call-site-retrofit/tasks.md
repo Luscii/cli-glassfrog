@@ -30,7 +30,7 @@ Each task carries its existing resolver test suite forward green (the behaviour-
 
 ## Phase 1: Token retrofit [US1/US3]
 
-- [ ] **T001** [US1] Migrate the token resolver onto `internal/resolve` (env → file), mapping provenance back onto `auth.Resolution`
+- [x] **T001** [US1] Migrate the token resolver onto `internal/resolve` (env → file), mapping provenance back onto `auth.Resolution` — 2 scenarios (@token), auth suite green; tagged 040 feature by domain (see LEARNINGS)
   - **Scope**: In `internal/auth/resolve.go`, replace the hand-rolled env-short-circuit-then-rcfile chain in `resolve(startDir, homeDir)` with `resolve.Resolve(resolve.FromEnv(getenv, envTokenVar), resolve.FromFile(startDir, homeDir, tokenKey))` (no flag rung, no default). Map `KindEnv→SourceEnvironment`, `KindFile→SourceFile` (Path = `Origin`), `KindNone→SourceNone`; `Token = res.Value`. `auth.Resolve()`'s signature is unchanged; `auth`'s own `getenv`/`getwd`/`userHomeDir` seam feeds the constructors (ADR-4). No cli plumbing changes.
   - **Acceptance criteria**:
     - `GLASSFROG_TOKEN` set → `auth.Resolution{Token, Source: SourceEnvironment}`, no `.glassfrogrc` read
