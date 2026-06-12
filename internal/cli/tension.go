@@ -66,15 +66,17 @@ func supportedMeetingTypeNames() []string {
 
 // tensionSeam supplies everything the tension write needs from the outside, so
 // runTensionCreate is pure over injected values and every branch runs offline. It
-// is the projectsSeam shape (assemble + newClient + sleep + resolveFormat — the
-// write needs no paging), so productionSeam satisfies it unchanged and the existing
-// test fakes drive it. It never reads ctx.Cred.Token — the token rides 007's
-// AuthTransport inside the client.
+// is the projectsSeam shape (assemble + newClient + sleep + resolveSelection +
+// readTemplateSource — 020's format resolution widened by User-Defined Template
+// Output (035); the write needs no paging), so productionSeam satisfies it unchanged
+// and the existing test fakes drive it. It never reads ctx.Cred.Token — the token
+// rides 007's AuthTransport inside the client.
 type tensionSeam interface {
 	assemble(baseURL string) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveFormat(flagValue string) (output.OutputFormat, error)
+	resolveSelection(flagValue string) (output.Selection, error)
+	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
 // tensionCreateConfig carries everything runTensionCreate needs, gathered by the
@@ -108,18 +110,20 @@ type tensionCreateConfig struct {
 // {tension:{…}} body, and sends ONE Execute to POST /roles/{id}/tensions with
 // Content-Type: application/json (T001/ADR-1). A structured --output emits the raw
 // {data: Tension} payload verbatim (018); the human path decodes Document[Tension]
-// and renders the `tension` template over a TensionView (mirroring runProjectGet).
-// The role id is escaped as one path segment but passed through unvalidated (ADR-3)
-// so an unknown/malformed id surfaces as the API's 404/422 via the shared
-// classifier. It adds no new Outcome/ExitCode and never reads the token.
+// and renders the `tension` template (or a selected user template, 035) over a
+// TensionView (mirroring runProjectGet). The role id is escaped as one path segment
+// but passed through unvalidated (ADR-3) so an unknown/malformed id surfaces as the
+// API's 404/422 via the shared classifier. It adds no new Outcome/ExitCode and never
+// reads the token.
 func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
-	// 1. Resolve the output format FIRST (020): a present-but-invalid selector fails
-	//    fast as a usage error before any assembly or request. Resolving --output
-	//    ahead of the input checks keeps error precedence consistent with the reads —
-	//    an invalid --output is reported even when --body/--meeting-type is also bad.
-	format, ferr := cfg.seam.resolveFormat(cfg.outputFlag)
-	if ferr != nil {
-		return reportFormatResolutionError(cfg.stderr, ferr)
+	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
+	//    selector — or, for a user template, a missing/unparseable source or empty
+	//    stdin — fails fast as a usage error before any assembly or request. Resolving
+	//    --output ahead of the input checks keeps error precedence consistent with the
+	//    reads — an invalid --output is reported even when --body/--meeting-type is bad.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
 	}
 
 	// 2. Validate --body non-empty BEFORE any assembly or request (fail-fast usage
@@ -146,7 +150,7 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 	ctx := cfg.seam.assemble(cfg.baseURL)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
@@ -179,14 +183,16 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 		ContentType: "application/json",
 	}
 
-	// 6. Dispatch on the resolved format. A POST is never auto-retried on 429 (017's
-	//    isSafeMethod gate), so a rate-limited capture surfaces once and cannot
+	// 6. Dispatch on the resolved render target. A POST is never auto-retried on 429
+	//    (017's isSafeMethod gate), so a rate-limited capture surfaces once and cannot
 	//    double-create (silent conformance to §133). On any failure route through the
-	//    shared reportFailure (032).
-	if machineFmt, ok := format.MachineFormat(); ok {
+	//    shared reportFailure (032). A user template (035) is a human render, so the
+	//    structured branch is taken only for a built-in json/yaml selection (rt.tmpl
+	//    is nil then, by construction in resolveRenderTarget).
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
 		var raw json.RawMessage
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
-			return reportFailure(cfg.stdout, cfg.stderr, format, err)
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
 		doc, rerr := output.RenderSuccess(machineFmt, raw)
 		if rerr != nil {
@@ -201,16 +207,12 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 
 	var doc glassfrog.Document[glassfrog.Tension]
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
-		return reportFailure(cfg.stdout, cfg.stderr, format, err)
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
 	view := render.TensionView{Tension: doc.Data}
-	text, rerr := renderFn(render.ResourceTension, humanFormat(format), view)
-	if rerr != nil {
-		fmt.Fprintln(cfg.stderr, rerr.Error())
-		return RuntimeError, rerr
-	}
-	fmt.Fprint(cfg.stdout, text)
-	return Success, nil
+	// writeHuman renders through the selected user template (035) or the built-in
+	// `tension` template (019), buffer-then-write.
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTension, rt.format, view)
 }
 
 // newTensionCommand assembles the `tension` command group and its `create` leaf,
