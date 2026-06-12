@@ -73,7 +73,7 @@ Phase 3: Documentation surface (1 task, depends on Phase 1 — parallel with Pha
 
 ## Phase 3: Documentation surface [Shared]
 
-- [ ] **T004** [Shared] [P] Document the canonical one-liner and configuration
+- [x] **T004** [Shared] [P] Document the canonical one-liner and configuration — created `README.md` with an Installation section: curl + wget one-liners (main-branch raw URL), a configured example with env vars on the `sh` side, the three env vars with defaults, the `GLASSFROG_DOWNLOAD_BASE_URL` vs CLI `GLASSFROG_BASE_URL` distinction, supported platforms (macOS/Linux × amd64/arm64), and the per-user/no-sudo default. (No README existed; created one as the canonical front door for `curl … | sh`.)
   - **Scope**: Add install instructions to the README (and usage docs as appropriate): the canonical `curl … | sh` and `wget … | sh` one-liners, the `main`-branch raw URL, and the three env vars (`GLASSFROG_VERSION`, `GLASSFROG_INSTALL_DIR`, `GLASSFROG_DOWNLOAD_BASE_URL`) with defaults and the env-on-the-`sh`-side caveat.
   - **Acceptance criteria**:
     - The README shows the default curl one-liner, the wget alternative, and a configured example with env vars set on the `sh` invocation.
