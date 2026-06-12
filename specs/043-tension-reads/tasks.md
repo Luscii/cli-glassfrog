@@ -55,7 +55,7 @@ Phase 4: Executable acceptance (1 task, depends on Phase 3) [Shared]
 
 ## Phase 2: `validateTensionStatus` + tension status set [US3]
 
-- [ ] **T002** [US3] [P] Add `validateTensionStatus` + the tension status set in the tension command file — unit tests; a NEW set distinct from `validateStatus`
+- [x] **T002** [US3] [P] Add `validateTensionStatus` + the tension status set in the tension command file — unit tests; a NEW set distinct from `validateStatus` — in new tension_reads.go, 3 unit tests
   - **Scope**: In the tension command file (the new `tension_reads.go`, or `tension.go` beside 042's `validateMeetingType`/`supportedMeetingTypes` — **tension-domain validators live with the tension code, NOT in the shared `status.go`**, per 042's just-landed precedent), add a pure `validateTensionStatus(s string) error` mirroring the landed `validateMeetingType`/`validateStatus` shape, over a **new** tension status set (`unprocessed`, `processed`, `archived`) in a single-sourced `supportedTensionStatuses` map + a sorted `supportedTensionStatusNames()` helper (the `supportedMeetingTypes`/`supportedMeetingTypeNames` shape from 042). An empty string passes (no filter); an unsupported non-empty value returns an error naming the value and the supported set (sorted, like `validateMeetingType`'s message). **Do not reuse `validateStatus`** — its action/project vocabulary (`current`/`completed`/…) is wrong for tensions (plan ADR-3). Pure, no I/O; imports nothing new.
   - **Acceptance criteria**:
     - `validateTensionStatus("unprocessed")`, `("processed")`, `("archived")`, and `("")` all return nil
