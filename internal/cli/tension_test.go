@@ -231,7 +231,7 @@ func TestRunTensionCreate_BadOutputUsageErrorNoRequest(t *testing.T) {
 	tr := &tensionTransport{status: 201, body: tensionCreatedBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, _ := runTensionCreateOver(t, seam, tensionCreateConfig{id: "role_0123", body: "a tension", outputFlag: "xml"})
+	outcome, _, _ := runTensionCreateOver(t, seam, tensionCreateConfig{id: "role_0123", body: "a tension", outputFlag: "xml", outputPresent: true})
 	if outcome != UsageError || ExitCode(outcome) != 2 {
 		t.Fatalf("outcome=%v exit=%d, want UsageError/2", outcome, ExitCode(outcome))
 	}
@@ -306,7 +306,7 @@ func TestRunTensionCreate_StructuredJSONEmitsRawPayload(t *testing.T) {
 	tr := &tensionTransport{status: 201, body: tensionCreatedBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runTensionCreateOver(t, seam, tensionCreateConfig{id: "role_0123", body: "a tension", outputFlag: "json"})
+	outcome, stdout, _ := runTensionCreateOver(t, seam, tensionCreateConfig{id: "role_0123", body: "a tension", outputFlag: "json", outputPresent: true})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}

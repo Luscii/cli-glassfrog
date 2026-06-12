@@ -275,7 +275,7 @@ func TestRunPolicies_BadOutputIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: policiesPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runPoliciesOver(t, seam, policiesConfig{id: "role_0123", outputFlag: "xml"})
+	outcome, _, stderr := runPoliciesOver(t, seam, policiesConfig{id: "role_0123", outputFlag: "xml", outputPresent: true})
 	if outcome != UsageError || ExitCode(outcome) != 2 {
 		t.Fatalf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
@@ -290,7 +290,7 @@ func TestRunPolicies_StructuredJSONEmitsRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: policiesPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runPoliciesOver(t, seam, policiesConfig{id: "role_0123", outputFlag: "json"})
+	outcome, stdout, _ := runPoliciesOver(t, seam, policiesConfig{id: "role_0123", outputFlag: "json", outputPresent: true})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -394,7 +394,7 @@ func TestRunPolicy_StructuredJSONEmitsRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: policyDocumentBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runPolicyOver(t, seam, policyConfig{outputFlag: "json"}, "pol_0123")
+	outcome, stdout, _ := runPolicyOver(t, seam, policyConfig{outputFlag: "json", outputPresent: true}, "pol_0123")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}

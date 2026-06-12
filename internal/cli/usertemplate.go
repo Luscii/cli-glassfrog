@@ -19,7 +19,7 @@ import (
 // (meSeam, rolesSeam, …) declares both methods, so it satisfies this structurally and
 // resolveRenderTarget can take any of them.
 type selectionSeam interface {
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -44,8 +44,8 @@ type renderTarget struct {
 // *output.FormatError) classifies as UsageError(2) via reportFormatResolutionError;
 // a missing/unreadable file, an unparseable template, or empty/un-piped stdin all
 // map to UsageError(2) via reportTemplateError.
-func resolveRenderTarget(seam selectionSeam, outputFlag string, stderr io.Writer) (renderTarget, Outcome, error, bool) {
-	sel, err := seam.resolveSelection(outputFlag)
+func resolveRenderTarget(seam selectionSeam, outputFlag string, outputPresent bool, stderr io.Writer) (renderTarget, Outcome, error, bool) {
+	sel, err := seam.resolveSelection(outputFlag, outputPresent)
 	if err != nil {
 		outcome, oerr := reportFormatResolutionError(stderr, err)
 		return renderTarget{}, outcome, oerr, false
@@ -178,7 +178,7 @@ func readTemplateSourceFrom(ref output.TemplateRef, readFile func(string) ([]byt
 // errors; a home directory that cannot be determined drops the home fallback (the
 // ResolveBaseURLFromOS shape). It replaces productionSeam.resolveFormat (020) — every
 // read command's seam now resolves a Selection.
-func (productionSeam) resolveSelection(flagValue string) (output.Selection, error) {
+func (productionSeam) resolveSelection(flagValue string, flagPresent bool) (output.Selection, error) {
 	startDir, err := os.Getwd()
 	if err != nil {
 		return output.Selection{Format: output.DefaultFormat}, fmt.Errorf("could not determine the working directory: %w", err)
@@ -187,7 +187,7 @@ func (productionSeam) resolveSelection(flagValue string) (output.Selection, erro
 	if err != nil {
 		homeDir = "" // no home → skip the home fallback rather than fail
 	}
-	return output.ResolveSelectionFromOS(flagValue, startDir, homeDir)
+	return output.ResolveSelectionFromOS(flagValue, flagPresent, startDir, homeDir)
 }
 
 // readTemplateSource is the single reader of the real filesystem / terminal for a

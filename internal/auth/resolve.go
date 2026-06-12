@@ -3,9 +3,8 @@ package auth
 import (
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/Luscii/cli-glassfrog/internal/rcfile"
+	resolvepkg "github.com/Luscii/cli-glassfrog/internal/resolve"
 )
 
 // Source names where a resolved credential came from. SourceNone is the zero
@@ -82,27 +81,35 @@ func Resolve() (Resolution, error) {
 
 // resolve walks the precedence chain — environment variable, then the nearest
 // .glassfrogrc up the directory tree from startDir, then the home file — and
-// returns the first source that yields a usable token (ADR-2). The file rung is
-// rcfile.Resolve over the "token" key: a present-but-tokenless file is skipped, a
-// missing file is skipped, and an unreadable or unparseable file fails loud with
-// rcfile's typed error naming the path (never falling through to another source).
-// Nothing found anywhere is Source: None with no error. The token value never
-// appears in any error.
+// returns the first source that yields a usable token (ADR-2). It composes the one
+// shared resolve walk (039) over two sources and no default: FromEnv reads
+// GLASSFROG_TOKEN (a value empty after trimming does not yield) and FromFile is
+// rcfile.Resolve over the "token" key (a present-but-tokenless or missing file is
+// skipped; an unreadable or unparseable file fails loud with rcfile's typed error
+// naming the path, never falling through). The optional-setting shape omits a
+// Default rung, so nothing found anywhere is the resolve KindNone outcome, mapped
+// back to Source: None with no error.
+//
+// The generic resolve.Resolution{Value, Provenance} is mapped onto auth's existing
+// surface — KindEnv→SourceEnvironment, KindFile→SourceFile (Path = Origin),
+// KindNone→SourceNone — so consumers (007) are untouched. The token reaches
+// auth.Resolution.Token only; the intermediate resolve.Resolution (which has no
+// redacting String) is never formatted or logged, preserving secret hygiene.
 func resolve(startDir, homeDir string) (Resolution, error) {
-	if token := getenv(envTokenVar); strings.TrimSpace(token) != "" {
-		// A usable environment value (non-empty after trimming) is used as-is
-		// and short-circuits all file reads. Empty, unset, or whitespace-only
-		// falls through to the file search — a blank value is treated as absent,
-		// matching the "usable token" rule applied to file tokens.
-		return Resolution{Token: token, Source: SourceEnvironment}, nil
-	}
-
-	token, path, found, err := rcfile.Resolve(startDir, homeDir, tokenKey)
+	res, err := resolvepkg.Resolve(
+		resolvepkg.FromEnv(getenv, envTokenVar),
+		resolvepkg.FromFile(startDir, homeDir, tokenKey),
+	)
 	if err != nil {
 		return Resolution{}, err // unreadable/unparseable → fail loud
 	}
-	if found {
-		return Resolution{Token: token, Source: SourceFile, Path: path}, nil
+
+	switch res.Provenance.Kind {
+	case resolvepkg.KindEnv:
+		return Resolution{Token: res.Value, Source: SourceEnvironment}, nil
+	case resolvepkg.KindFile:
+		return Resolution{Token: res.Value, Source: SourceFile, Path: res.Provenance.Origin}, nil
+	default:
+		return Resolution{Source: SourceNone}, nil
 	}
-	return Resolution{Source: SourceNone}, nil
 }

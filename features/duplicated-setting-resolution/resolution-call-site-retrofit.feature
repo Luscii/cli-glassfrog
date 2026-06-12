@@ -15,7 +15,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     # I want to express each setting's resolution as a composition of shared resolve sources.
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Token resolved from the environment
-    @wip
+    @token
     Scenario: The token resolver returns the environment value through the composed walk
       Given GLASSFROG_TOKEN had been set to a non-empty value
       When the token is resolved
@@ -23,7 +23,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not read any ".glassfrogrc"
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Output selection falls through to the built-in default
-    @wip
+    @output
     Scenario: The output selection falls through the composed chain to the built-in default
       Given no "--output" flag, no GLASSFROG_OUTPUT, and no ".glassfrogrc" output key
       When the output selection is resolved
@@ -31,7 +31,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will report no source on success (output surfaces provenance only on a format error)
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Base URL falls through flag→env→file→default
-    @wip
+    @base-url
     Scenario: The base URL falls through an unsupplied flag and unset environment to the file
       Given the "--base-url" flag had not been supplied and GLASSFROG_BASE_URL was unset
       And the nearest ".glassfrogrc" carried "base_url = https://team.example.com/api/v5"
@@ -39,7 +39,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       Then it will return that file value with the source reported as the file and its path
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Unparseable .glassfrogrc on the output walk fails loud
-    @wip
+    @output
     Scenario: An unparseable config file on the output walk fails loud without using the default
       Given no "--output" flag and no GLASSFROG_OUTPUT
       And the nearest ".glassfrogrc" was malformed
@@ -61,7 +61,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     # I want the flag I supplied to be honoured as the winning source by presence, not quietly dropped when its value is blank.
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Base URL resolved from a supplied flag
-    @wip
+    @base-url
     Scenario: A supplied base-URL flag wins its rung
       Given "--base-url https://example.com/api/v5" had been supplied
       When the base URL is resolved
@@ -69,7 +69,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not consult the environment or any ".glassfrogrc"
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Malformed base URL from the flag fails loud
-    @wip
+    @base-url
     Scenario: A malformed base-URL flag fails loud without consulting lower sources
       Given "--base-url not-a-url" had been supplied
       When the base URL is resolved
@@ -77,7 +77,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And no lower-precedence source will be consulted
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Explicitly empty --base-url is honoured by presence and fails loud
-    @wip
+    @base-url
     Scenario: An explicitly empty base-URL flag is honoured by presence and fails loud
       Given "--base-url" had been supplied with an empty or whitespace value
       When the base URL is resolved
@@ -86,7 +86,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not fall through to the environment
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Whitespace-only GLASSFROG_OUTPUT is treated as absent and falls through
-    @wip
+    @output
     Scenario: A whitespace-only output environment value is treated as absent and falls through
       Given the "--output" flag had not been supplied and GLASSFROG_OUTPUT was set to whitespace only
       And no ".glassfrogrc" output key was present
@@ -95,7 +95,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will return the built-in default "full"
 
     # Source: 040-resolution-call-site-retrofit — Proposed: presence is detected wherever the flag sits on the command path (plan: Changed() on inherited persistent flags)
-    @wip
+    @base-url
     Scenario: An empty base-URL flag fails loud regardless of its position on the command path
       Given "glassfrog --base-url \"\" me" and "glassfrog me --base-url \"\"" are both invoked
       When each command resolves the base URL
@@ -107,7 +107,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     # I want the retrofit to leave every public output type, provenance enum, and typed error unchanged.
 
     # Source: 040-resolution-call-site-retrofit — Scenario: No token anywhere is a normal empty outcome
-    @wip
+    @token
     Scenario: No token anywhere remains a normal empty outcome
       Given GLASSFROG_TOKEN was unset and no ".glassfrogrc" carried a token key
       When the token is resolved
