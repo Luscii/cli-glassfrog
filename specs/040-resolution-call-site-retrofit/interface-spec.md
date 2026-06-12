@@ -59,12 +59,14 @@ res, err := resolve.Resolve(
 
 ### Output-selection resolver — `internal/output` (signature GAINS presence)
 
-The output setting resolves to a **`Selection`** (035: a built-in `OutputFormat` *or* a `*TemplateRef` — a template file path / piped `"stdin"`), via `ResolveSelection` / `ResolveSelectionFromOS` — **not** the narrower `ResolveFormat`/`OutputFormat`. The retrofit composes the *precedence walk* inside `ResolveSelection` onto `resolve.Resolve`; the flag-rung classification (token vs. template) stays.
+The output setting resolves to a **`Selection`** (035: a built-in `OutputFormat` *or* a `*TemplateRef` — a template file path / piped `"stdin"`), via `ResolveSelectionFromOS` — **not** the narrower `ResolveFormat`/`OutputFormat`. `ResolveSelectionFromOS` becomes the single composing entry: it composes the *precedence walk* onto `resolve.Resolve` (the flag-rung token-vs-template classification stays). The existing 6-arg pre-fetched-source pure core `ResolveSelection(flagValue, envValue, fileValue, filePath, fileFound, fileErr)` is **folded into `ResolveSelectionFromOS` and removed** — `resolve.Resolve` now fetches env/file via `FromEnv`/`FromFile`, so a pre-fetched-values core no longer fits (mirrors base URL, whose composing core takes dirs and has no pre-fetched variant). The `selection_test.go` cases that drove the 6-arg core move to driving `ResolveSelectionFromOS` over the package `getenv` seam + temp-dir `.glassfrogrc` files (the ADR-4 hermetic harness).
 
 ```go
-// getenv stays the package seam var, startDir/homeDir are injected (ADR-4).
-// flagPresent is cobra Changed() for --output. Returns the discriminated Selection
-// (035), not a bare OutputFormat.
+// getenv stays the package seam var, startDir/homeDir are injected (ADR-4 — the
+// cli productionSeam.resolveSelection derives and passes them). flagPresent is
+// cobra Changed() for --output. Returns the discriminated Selection (035), not a
+// bare OutputFormat. The 6-arg ResolveSelection(flag, env, file, path, found, err)
+// pure core is folded in here and removed.
 func ResolveSelectionFromOS(flagValue string, flagPresent bool, startDir, homeDir string) (Selection, error)
 ```
 
