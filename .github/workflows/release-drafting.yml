@@ -1,0 +1,65 @@
+# Release Drafting (spec 030).
+#
+# On every merge to main, keep a single draft GitHub Release current: the next
+# semantic version (resolved highest-wins from the 028 PR labels, default patch)
+# and the merged-PR titles grouped into the seven release-note categories. The
+# config lives in .github/release-drafter.yml. This workflow NEVER publishes —
+# the draft waits for a maintainer to publish it, and that act triggers the
+# Automated Release Pipeline (022, release.yml).
+#
+# Deliberately a SEPARATE workflow from main-verify.yml (029), which is also on
+# push:main but scoped contents:read/tests-only (ADR-1). Drafting needs
+# contents:write to maintain the release, so it gets its own least-privilege
+# file. It is NOT a required status check — it runs after the merge and gates
+# nothing; a drafting failure leaves the previous draft intact (spec §Non-Blocking).
+name: Release Drafting
+
+on:
+  push:
+    branches: [main]   # NOT tags — 022 owns the published-tag trigger.
+
+# Least privilege: write the draft release + read merged-PR labels/titles.
+permissions:
+  contents: write
+  pull-requests: read
+
+# Latest tip wins: a newer merge supersedes an in-flight draft run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      # No actions/checkout: release-drafter reads merged-PR metadata via the
+      # API, and the workflow runs on trusted main (not an untrusted PR head).
+      # Pinned to a concrete release (NOT a floating major), matching 022/024/028
+      # pin-the-toolchain discipline so an upstream release can't silently change
+      # drafting behaviour.
+      - name: Draft the next release
+        id: draft
+        uses: release-drafter/release-drafter@v6.4.0
+        with:
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # ADR-5: status follows the version — pre-release while 0.x, latest at
+      # >=1.0.0. Addressed by the release ID (steps.draft.outputs.id), not the
+      # tag: a draft has no real git tag yet, so `gh release edit <tag>` /
+      # `gh release view <tag>` 404 on drafts (the releases/tags/{tag} endpoint
+      # only finds PUBLISHED releases). PATCH-by-id via the API is the reliable
+      # handle for an unpublished draft. The interface marked the exact
+      # invocation [ASSUMED]; this realizes ADR-5's intent with the by-id form.
+      - name: Set pre-release/latest from version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.draft.outputs.major_version }}" = "0" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }}" \
+              -F prerelease=true -F make_latest=false
+          else
+            gh api -X PATCH "repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }}" \
+              -F prerelease=false -F make_latest=true
+          fi
