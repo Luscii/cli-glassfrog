@@ -54,7 +54,7 @@ No residual risk is Red. Three Yellow residuals (H-1, H-4, H-6) are acceptable w
 - **Severity: Medium** — blocks/warns acquisition on a fresh tap; no data or safety impact.
 - **Probability: Medium (pre-control)** — the repo has no `LICENSE` today, so this *will* occur on the first real tap unless resolved.
 - **Controls**: **RC-9** — resolve the licensing decision / add a `LICENSE` before the first stable release relies on the tap (tasks T002; the open interface `[NEEDS INPUT]`). **RC-10** — an optional `brew audit`/`brew style` CI step against the rendered formula surfaces audit failures before a release depends on them (interface testing strategy).
-- **Residual: Green** — once RC-9 lands; until then this is the feature's most concrete open thread (correlates with checklist's open-input note and analyze H3).
+- **Residual: Green** — once RC-9 lands; until then the LICENSE is still the feature's most concrete open thread — an open implementation prerequisite (T002, checklist's open-input note). The earlier cross-artifact flag (analyze H3) is now resolved by the plan Phase 1 LICENSE call-out.
 
 ### H-6 — 022 config refinements regress the release pipeline
 - **Severity: High** — a broken `.goreleaser.yaml` would fail the landed build/verify/publish flow, blocking *all* distribution.
@@ -98,4 +98,4 @@ The dominant theme is **supply-chain and pipeline integrity**: the new cross-rep
 ## Notes
 
 - **Default acceptability matrix** used — PROJECT.md defines no project-level matrix. If distribution-channel risk warrants a stricter bar, define one in PROJECT.md.
-- **First run** — no test-gap analysis (that is a re-run step). The `.feature` scenarios already cover H-2 (checksums-match), H-3 (pre-release-doesn't-move-tap), and the integrity hazards; H-1/H-4/H-6 are structural/CI hazards whose controls are best verified by the T004 workflow guard (the gap checklist VII and analyze K5 both flag) rather than by Gherkin.
+- **First run** — no test-gap analysis (that is a re-run step). The `.feature` scenarios already cover H-2 (checksums-match), H-3 (pre-release-doesn't-move-tap), and the integrity hazards; H-1/H-4/H-6 are structural/CI hazards whose controls are best verified by the T004 workflow guard (added to assert the tap job's contract, closing the earlier checklist VII / analyze K5 gap) rather than by Gherkin.
