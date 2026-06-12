@@ -3,7 +3,7 @@
 **Feature**: 036-homebrew-tap
 **Checked against**: CONSTITUTION.md (12 principles; done-* accords not present)
 **Artifacts checked**: spec.md, plan.md, interface-spec.md, tasks.md, features/runtime-dependent-distribution/homebrew-tap.feature
-**Checks**: 9 (8 pass, 1 fail)
+**Checks**: 9 (9 pass, 0 fail)
 **Generated**: 2026-06-12
 
 ---
@@ -12,26 +12,24 @@
 
 | Severity | Count | Pass | Fail |
 |---|---|---|---|
-| P0 (blocking) | 9 | 8 | 1 |
+| P0 (blocking) | 9 | 9 | 0 |
 | P1 (should fix) | 0 | 0 | 0 |
 | P2 (consider) | 0 | 0 | 0 |
-| **Total** | **9** | **8** | **1** |
+| **Total** | **9** | **9** | **0** |
 
 All 9 checks derive from constitution MUST / MUST NOT / NON-NEGOTIABLE principles, so every check is P0. Seven principles (I, II, V, VI, IX, X, XI) produced zero applicable checks — they govern the CLI's Glassfrog-API command surface and operator-facing output, which this distribution channel does not add (the user surface is Homebrew's). See Governance Notes.
 
 ---
 
-## Constitution Checks: 8/9 passed
+## Constitution Checks: 9/9 passed
 
-### Failures
+> **Resolution trace**: the initial pre-implementation guard pass flagged a P0 against **VII Working Software** — T004 added the `tap` job to `release.yml` with no test. That gap was closed in the same PR by extending T004's scope to ship the `internal/build` workflow-structural guard alongside the workflow change (see VII below). This artifact reflects the resolved decomposition.
 
-**P0** | CONSTITUTION.md VII. Working Software: "Every commit and PR MUST include implementation together with its tests … No code-only or test-only increments"
-→ **tasks.md § Phase 3 (T004)**: T004 adds the `tap` job to `.github/workflows/release.yml` but its scope and acceptance criteria specify **no test**. The sibling it extends (022) tested every workflow change with a structural guard (`CheckReleaseWorkflow`, `CheckVerifyGate` in `internal/build`), and 036's own T003 extends the config-guard for the `brews` block — but T004 leaves the workflow change test-free, so as decomposed the T004 PR is a code-only increment. The end-to-end `.feature` behaviors are held `@wip` for post-implementation validate and cannot run in CI without a live tap, so they don't cover the workflow structurally. Recommend T004 extend the `internal/build` workflow guard to assert the `tap` job's presence and contract (`needs: [publish]`, the `if: !prerelease` gate, the `HOMEBREW_TAP_TOKEN` env, brew-publisher-only) — mirroring 022's guard-as-proxy — so the workflow change ships with its test.
+### Passed (9/9)
 
-### Passed (8/9)
-
+- **VII. Working Software** (1 check): every code/config-changing task ships its tests in the same PR — T003 ships the config-guard extension and offline render test; **T004 now extends the `internal/build` workflow guard** (the `CheckReleaseWorkflow`/`CheckVerifyGate` family) to assert the `tap` job's contract (`needs: [publish]`, the `if: !prerelease` gate, the `HOMEBREW_TAP_TOKEN` env, brew-publisher-only), mirroring 022's guard-as-proxy. No task is planned as a code-only increment. **Pass.**
 - **III. Fail Safe, Not Silent** (3 checks): (a) integrity-before-install — spec.md § Behavioral Accord ("verifies it against the recorded checksum … no binary is placed" on mismatch) and the driving + validation integrity scenarios; (b) no partial/cross-contaminated state — interface-spec.md § Error Communication: a failed `tap` job leaves the already-published release unaffected, and a missing asset fails the install clearly rather than placing a wrong binary; (c) no failure-as-success — interface Error Communication maps a missing/expired token to a non-zero (loud red) `tap` run, never a silent skip. **Pass.**
-- **IV. Test-Driven Development** (2 checks): (a) user-facing behavior has executable acceptance scenarios authored before the code — homebrew-tap.feature, 12 scenarios, all `@wip` (the pre-implementation RED layer); (b) the decomposition includes test work — T003 ships the config-guard extension and the offline render-and-inspect test in the same PR. **Pass.** (The workflow-change PR-granularity gap is captured under VII above.)
+- **IV. Test-Driven Development** (2 checks): (a) user-facing behavior has executable acceptance scenarios authored before the code — homebrew-tap.feature, 12 scenarios, all `@wip` (the pre-implementation RED layer); (b) the decomposition includes test work — T003 ships the config-guard extension and the offline render-and-inspect test in the same PR. **Pass.**
 - **VIII. No Fabricated Data**: the formula records only real release data — interface-spec.md § "Generated Formula structural contract" pins each `url` to an attached release asset and each `sha256` to its `checksums.txt` entry (hard contract); the reproducibility requirement (T003, pinned `archives.mtime`) ensures the recorded checksums equal the published bytes rather than a divergent rebuild. No guessed/placeholder values. **Pass.**
 - **XII. Standalone Executable** (2 checks): (a) the installed artifact remains the self-contained binary — spec.md § Behavioral Accord and plan ADR-1 install the pre-built release binary with no Go toolchain or source compile (`bin.install`), the non-behavior explicitly forbidding a source build; (b) Homebrew's own presence as the acquisition tool is scoped to the channel and is not a XII concern — XII governs the distributed binary's runtime, and the 021/022 build-host-vs-artifact distinction (DECISIONS) treats acquisition channels as host tooling. **Pass.**
 
