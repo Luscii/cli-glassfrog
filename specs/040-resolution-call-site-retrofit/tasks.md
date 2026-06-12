@@ -46,7 +46,7 @@ Each task carries its existing resolver test suite forward green (the behaviour-
 
 ## Phase 2: Base-URL retrofit + presence threading [US1/US2/US3]
 
-- [ ] **T002** [Shared] Migrate the base-URL resolver onto `internal/resolve` with presence-based flag semantics, threading `Changed()` through assembly and every read command
+- [x] **T002** [Shared] Migrate the base-URL resolver onto `internal/resolve` with presence-based flag semantics, threading `Changed()` through assembly and every read command — 5 scenarios (@base-url) + cli RunE presence test; existing 008 whitespace-flag test rewritten to the new fail-loud behaviour (ADR-2)
   - **Scope**: In `internal/apiclient/baseurl.go`, rewrite `ResolveBaseURL` to compose `resolve.Resolve(FromFlags(Flag{Name:"--"+FlagBaseURL, Present: flagPresent, Value: flagValue}), FromEnv(getenv, EnvVarBaseURL), FromFile(startDir, homeDir, baseURLKey), Default(DefaultBaseURL))`; relocate `isUsableURL` to validate the winner when `Kind != KindDefault` (ADR-3), returning `&BaseURLError{Source: res.Provenance.Origin}`; map `KindFlag/KindEnv/KindFile/KindDefault` → the existing `BaseURLSource` members (Path = `Origin` for file). Change signatures (no default-value overload): `ResolveBaseURL(flagValue string, flagPresent bool, startDir, homeDir string)`, `ResolveBaseURLFromOS(flagValue string, flagPresent bool)`, `AssembleFromOS(flagValue string, flagPresent bool)`. Thread the presence bit: every read-command `RunE` passes `cmd.Flags().Changed(apiclient.FlagBaseURL)` alongside its `GetString` value.
   - **Acceptance criteria**:
     - Precedence unchanged: supplied `--base-url` (valid) wins and is used verbatim; unset flag → env → file → default

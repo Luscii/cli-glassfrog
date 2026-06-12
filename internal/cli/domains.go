@@ -40,7 +40,7 @@ const moreDomainsNote = "note: more domains exist than shown; re-run without --f
 // It never reads ctx.Cred.Token — the token rides 007's AuthTransport in the
 // client.
 type domainsSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
 	resolveSelection(flagValue string) (output.Selection, error)
@@ -52,10 +52,11 @@ type domainsSeam interface {
 // validate, assemble, build, walk, render/classify — testable over a fake
 // transport with no real network or ~/.glassfrogrc.
 type domainsConfig struct {
-	seam       domainsSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
-	id         string // the required positional role id (ExactArgs(1))
+	seam           domainsSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	id             string // the required positional role id (ExactArgs(1))
 
 	query      string // --query/-q full-text search; sent only when the trimmed value is non-blank
 	firstPage  bool
@@ -97,7 +98,7 @@ func runDomains(cfg domainsConfig) (Outcome, error) {
 	}
 
 	// 3. Resolve the connection and build the client + retrying executor.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -294,13 +295,14 @@ func newDomainsCommand(seam domainsSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runDomains(domainsConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				id:         args[0],
-				query:      query,
-				firstPage:  firstPage,
-				perPage:    perPage,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				id:             args[0],
+				query:          query,
+				firstPage:      firstPage,
+				perPage:        perPage,
 				// Presence, not value: --per-page=0 must reach the API rather than be
 				// silently ignored (paging's no-clamp contract).
 				perPageSet: cmd.Flags().Changed("per-page"),

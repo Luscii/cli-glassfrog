@@ -93,9 +93,10 @@ type fakeMeSeam struct {
 	newClientErr error
 	transport    http.RoundTripper
 
-	assembledBaseURL string
-	assembleCalled   bool
-	newClientCalled  bool
+	assembledBaseURL    string
+	assembledBaseURLSet bool // the presence bit (cobra Changed()) the RunE threaded to assemble (040 ADR-2)
+	assembleCalled      bool
+	newClientCalled     bool
 
 	slept []time.Duration // the 017 backoff waits the recording fake-sleep observed
 
@@ -123,9 +124,10 @@ type fakeMeSeam struct {
 	tmplStdinPiped bool
 }
 
-func (s *fakeMeSeam) assemble(baseURL string) apiclient.ConnectionContext {
+func (s *fakeMeSeam) assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext {
 	s.assembleCalled = true
 	s.assembledBaseURL = baseURL
+	s.assembledBaseURLSet = baseURLPresent
 	return s.ctx
 }
 
@@ -704,4 +706,57 @@ func TestMeCommand_PassesBaseURLFlagToAssemble(t *testing.T) {
 	if seam.assembledBaseURL != "https://flag.test/api/v5" {
 		t.Errorf("assemble received base URL %q, want the flag value", seam.assembledBaseURL)
 	}
+}
+
+// TestMeCommand_ThreadsBaseURLPresence pins the 040 presence threading (ADR-2):
+// the RunE forwards cobra Changed() for --base-url to the seam's assemble, and
+// Changed() reports the inherited persistent root flag as supplied regardless of
+// whether it sits before or after the `me` subcommand — including an explicit
+// empty value (`--base-url ""`). An unsupplied flag threads presence=false. This
+// is the cli-side companion to the resolver-level @base-url scenarios (the
+// command-path-position scenario in particular), exercising the real cobra
+// parse that those resolver tests model.
+func TestMeCommand_ThreadsBaseURLPresence(t *testing.T) {
+	run := func(args ...string) *fakeMeSeam {
+		t.Helper()
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: &cannedTransport{status: 200, body: meBodyAlice}}
+		root := NewRootCommand()
+		MustRegister(root, newMeCommand(seam))
+		var out, errb bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		_, _ = Run(root, args)
+		return seam
+	}
+
+	t.Run("flag before subcommand (empty value, supplied)", func(t *testing.T) {
+		seam := run("--base-url", "", "me")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url \"\" before `me` is supplied)")
+		}
+		if seam.assembledBaseURL != "" {
+			t.Errorf("base URL = %q, want the empty supplied value", seam.assembledBaseURL)
+		}
+	})
+
+	t.Run("flag after subcommand (empty value, supplied)", func(t *testing.T) {
+		seam := run("me", "--base-url", "")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url \"\" after `me` is supplied)")
+		}
+	})
+
+	t.Run("flag with explicit =empty (supplied)", func(t *testing.T) {
+		seam := run("me", "--base-url=")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url= is supplied)")
+		}
+	})
+
+	t.Run("flag unsupplied", func(t *testing.T) {
+		seam := run("me")
+		if seam.assembledBaseURLSet {
+			t.Errorf("presence = true, want false (no --base-url supplied)")
+		}
+	})
 }

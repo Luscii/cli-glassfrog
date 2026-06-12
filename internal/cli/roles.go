@@ -42,7 +42,7 @@ const moreRolesNote = "note: more roles exist than shown; re-run without --first
 // never reads ctx.Cred.Token — the token rides 007's AuthTransport inside the
 // client.
 type rolesSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
 	resolveSelection(flagValue string) (output.Selection, error)
@@ -54,10 +54,11 @@ type rolesSeam interface {
 // assemble, build, walk/send, render/classify — testable over a fake transport
 // with no real network or ~/.glassfrogrc.
 type rolesConfig struct {
-	seam       rolesSeam
-	baseURL    string   // inherited persistent --base-url (may be empty)
-	outputFlag string   // inherited persistent --output (may be empty), resolved before any request
-	args       []string // 0 → list, 1 → single read by id
+	seam           rolesSeam
+	baseURL        string   // inherited persistent --base-url (may be empty)
+	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	args           []string // 0 → list, 1 → single read by id
 
 	// list flags (the single-read branch forbids them; validateRolesFlags guards)
 	parent      string
@@ -123,7 +124,7 @@ func runRoles(cfg rolesConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client + retrying executor once. A
 	//    base-URL error surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -572,16 +573,17 @@ func newRolesCommand(seam rolesSeam) *cobra.Command {
 				hasSubrolesPtr = &hasSubroles
 			}
 			outcome, oerr := runRoles(rolesConfig{
-				seam:        seam,
-				baseURL:     baseURL,
-				outputFlag:  outputFlag,
-				args:        args,
-				parent:      parent,
-				person:      person,
-				tag:         tag,
-				hasSubroles: hasSubrolesPtr,
-				firstPage:   firstPage,
-				perPage:     perPage,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				args:           args,
+				parent:         parent,
+				person:         person,
+				tag:            tag,
+				hasSubroles:    hasSubrolesPtr,
+				firstPage:      firstPage,
+				perPage:        perPage,
 				// Presence, not value: --per-page=0 alongside an id must still be
 				// rejected as a list-only flag (Changed), and a provided 0/negative
 				// must reach the API rather than be silently ignored.

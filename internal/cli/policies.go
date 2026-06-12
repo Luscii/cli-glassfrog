@@ -41,7 +41,7 @@ const morePoliciesNote = "note: more policies exist than shown; re-run without -
 // (the list walk). It never reads ctx.Cred.Token — the token rides 007's
 // AuthTransport inside the client. Shared by both `policies` and `policy`.
 type policiesSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
 	resolveSelection(flagValue string) (output.Selection, error)
@@ -53,10 +53,11 @@ type policiesSeam interface {
 // flow — resolve, assemble, build, walk, render/classify — testable over a fake
 // transport with no real network or ~/.glassfrogrc.
 type policiesConfig struct {
-	seam       policiesSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
-	id         string // the required positional role id (ExactArgs(1))
+	seam           policiesSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	id             string // the required positional role id (ExactArgs(1))
 
 	query      string // --query/-q free-text search, sent verbatim as q
 	querySet   bool   // whether --query was provided (Changed); q is sent only when set AND non-empty
@@ -86,7 +87,7 @@ func runPoliciesList(cfg policiesConfig) (Outcome, error) {
 
 	// 2. Resolve the connection and build the client + retrying executor. A
 	//    base-URL error surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -231,9 +232,10 @@ func policiesWalkOptions(cfg policiesConfig) []paging.Option {
 // policyConfig carries everything runPolicyGet needs, gathered by the `policy`
 // command's RunE. It declares no list flags — the single read has none (ADR-1).
 type policyConfig struct {
-	seam       policiesSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
+	seam           policiesSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
 
 	reqCtx context.Context
 	stdout io.Writer
@@ -255,7 +257,7 @@ func runPolicyGet(cfg policyConfig, id string) (Outcome, error) {
 		return outcome, oerr
 	}
 
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -323,12 +325,13 @@ func newPolicyCommand(seam policiesSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runPolicyGet(policyConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			}, args[0])
 			return outcomeToDispatchError(outcome, oerr)
 		},
@@ -374,11 +377,12 @@ func newPoliciesCommand(seam policiesSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runPoliciesList(policiesConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				id:         args[0],
-				query:      query,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				id:             args[0],
+				query:          query,
 				// Presence, not value: q is sent only when --query is Changed AND
 				// non-empty, so `--query ""` behaves as no filter (ADR-3).
 				querySet:  cmd.Flags().Changed("query"),

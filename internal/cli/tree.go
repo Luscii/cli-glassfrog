@@ -27,7 +27,7 @@ import (
 // retried like every other read. It never reads ctx.Cred.Token — the token rides
 // 007's AuthTransport inside the client.
 type treeSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
 	resolveSelection(flagValue string) (output.Selection, error)
@@ -39,10 +39,11 @@ type treeSeam interface {
 // assemble, build, send, render/classify — testable over a fake transport with no
 // real network or ~/.glassfrogrc.
 type treeConfig struct {
-	seam       treeSeam
-	baseURL    string   // inherited persistent --base-url (may be empty)
-	outputFlag string   // inherited persistent --output (may be empty), resolved before any request
-	args       []string // 0 → whole-org tree, 1 → subtree rooted at args[0]
+	seam           treeSeam
+	baseURL        string   // inherited persistent --base-url (may be empty)
+	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	args           []string // 0 → whole-org tree, 1 → subtree rooted at args[0]
 
 	depth    int  // --depth value (meaningful only when depthSet)
 	depthSet bool // whether --depth was provided (Changed); 0 = root only ≠ omitted = full tree
@@ -105,7 +106,7 @@ func runTree(cfg treeConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client + retrying executor. A
 	//    base-URL error surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -245,11 +246,12 @@ func newTreeCommand(seam treeSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runTree(treeConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				args:       args,
-				depth:      depth,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				args:           args,
+				depth:          depth,
 				// --depth is optional: send it only when set (Changed), so --depth 0
 				// (root only) is distinct from omitting it (full tree).
 				depthSet:   cmd.Flags().Changed("depth"),

@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 
-	"github.com/Luscii/cli-glassfrog/internal/rcfile"
+	"github.com/Luscii/cli-glassfrog/internal/resolve"
 )
 
 // Connection-configuration constants for base URL resolution, centralized here
@@ -121,14 +120,13 @@ var (
 )
 
 // ResolveBaseURLFromOS resolves the base URL using the real working directory,
-// home directory, and environment, given the flag value supplied at invocation.
-// It is the thin production entrypoint over ResolveBaseURL — the seam binding the
-// pure algorithm to the OS globals (parallel to auth.Resolve). The --base-url
-// flag's cobra registration is deferred to the consuming command; this accepts
-// the flag value as an input now (the build-ahead pattern of 005/007). A working
-// directory that cannot be determined is an error; a home directory that cannot
-// be determined simply drops the home fallback.
-func ResolveBaseURLFromOS(flagValue string) (BaseURL, error) {
+// home directory, and environment, given the flag value supplied at invocation
+// and whether the --base-url flag was present (cobra Changed()). It is the thin
+// production entrypoint over ResolveBaseURL — the seam binding the pure algorithm
+// to the OS globals (parallel to auth.Resolve). A working directory that cannot
+// be determined is an error; a home directory that cannot be determined simply
+// drops the home fallback.
+func ResolveBaseURLFromOS(flagValue string, flagPresent bool) (BaseURL, error) {
 	startDir, err := getwd()
 	if err != nil {
 		return BaseURL{}, fmt.Errorf("could not determine the working directory: %w", err)
@@ -137,62 +135,64 @@ func ResolveBaseURLFromOS(flagValue string) (BaseURL, error) {
 	if err != nil {
 		homeDir = "" // no home → skip the home fallback rather than fail
 	}
-	return ResolveBaseURL(flagValue, startDir, homeDir)
+	return ResolveBaseURL(flagValue, flagPresent, startDir, homeDir)
 }
 
-// ResolveBaseURL walks the precedence chain — the --base-url flag value, then
+// ResolveBaseURL walks the precedence chain — the --base-url flag, then
 // GLASSFROG_BASE_URL, then the nearest .glassfrogrc base_url up the tree (and the
-// home file), then the built-in default — and returns the first source that
-// yields a usable value (ADR-2). It reads GLASSFROG_BASE_URL through the env seam
-// and the file rung through the generic internal/rcfile walk (rcfile.Resolve over
-// the base_url key); startDir and homeDir are injected so the walk is hermetic.
+// home file), then the built-in default — by composing the one shared resolve
+// walk (039) over four sources. It reads GLASSFROG_BASE_URL through the env seam
+// and the file rung through the generic internal/rcfile walk (resolve.FromFile
+// over the base_url key); startDir and homeDir are injected so the walk is
+// hermetic.
 //
-// "Usable" means an absolute URL carrying an http or https scheme (ADR-4). A
-// whitespace-only flag/env/file value is treated as absent and falls through; a
-// non-empty value that is not a usable URL fails loud with a typed BaseURLError
-// naming the source, with NO fall-through to a lower-precedence source. A file
-// that exists but cannot be read or parsed surfaces internal/rcfile's typed
-// read/format error (also no fall-through). The built-in default is valid by
-// construction and never re-validated, so the chain always yields a value.
+// The flag rung is PRESENCE-based (ADR-2): a supplied flag (flagPresent, cobra
+// Changed()) wins its rung even when its value is empty or whitespace — the
+// operator's explicit act of typing the flag is the signal. An unsupplied flag
+// does not yield and the walk falls through to the environment. The env and file
+// rungs keep their non-empty-after-trim yield rule, so a whitespace-only
+// GLASSFROG_BASE_URL / file value still falls through (unchanged).
+//
+// Validation runs on the resolved WINNER, not inside the walk (ADR-3): because
+// resolve returns the first YIELDING (not first valid) source, an invalid
+// high-precedence value still wins and is rejected here — never silently
+// superseded by a lower source. "Usable" means an absolute URL carrying an http
+// or https scheme. A present-but-unusable value fails loud with a typed
+// BaseURLError naming the source via Provenance.Origin, with NO fall-through. A
+// file that exists but cannot be read or parsed surfaces internal/rcfile's typed
+// read/format error verbatim (also no fall-through), before any validation. The
+// built-in default is valid by construction and never re-validated, so the chain
+// always yields a value.
 //
 // The token is never in scope on any base-URL path; the value carries no secret
 // and is passed through verbatim. The resolver makes no network call, no write,
 // and emits no exit code.
-func ResolveBaseURL(flagValue, startDir, homeDir string) (BaseURL, error) {
-	// Rung 1: the flag. A non-empty value (after trimming) short-circuits all
-	// else; a usable value is used verbatim, a malformed one fails loud.
-	if strings.TrimSpace(flagValue) != "" {
-		if !isUsableURL(flagValue) {
-			return BaseURL{}, &BaseURLError{Source: "--" + FlagBaseURL}
-		}
-		return BaseURL{Value: flagValue, Source: SourceFlag}, nil
-	}
-
-	// Rung 2: GLASSFROG_BASE_URL. Same usable/malformed/absent rules, uniformly.
-	if envValue := getenv(EnvVarBaseURL); strings.TrimSpace(envValue) != "" {
-		if !isUsableURL(envValue) {
-			return BaseURL{}, &BaseURLError{Source: EnvVarBaseURL}
-		}
-		return BaseURL{Value: envValue, Source: SourceEnvironment}, nil
-	}
-
-	// Rung 3: the nearest .glassfrogrc base_url up the tree, then home, via the
-	// generic rcfile walk. A typed read/format error fails loud (no fall-through
-	// to the default); a base_url-less or missing file is skipped inside the walk.
-	fileValue, filePath, found, err := rcfile.Resolve(startDir, homeDir, baseURLKey)
+func ResolveBaseURL(flagValue string, flagPresent bool, startDir, homeDir string) (BaseURL, error) {
+	res, err := resolve.Resolve(
+		resolve.FromFlags(resolve.Flag{Name: "--" + FlagBaseURL, Present: flagPresent, Value: flagValue}),
+		resolve.FromEnv(getenv, EnvVarBaseURL),
+		resolve.FromFile(startDir, homeDir, baseURLKey),
+		resolve.Default(DefaultBaseURL),
+	)
 	if err != nil {
-		return BaseURL{}, err
-	}
-	if found {
-		if !isUsableURL(fileValue) {
-			return BaseURL{}, &BaseURLError{Source: filePath}
-		}
-		return BaseURL{Value: fileValue, Source: SourceFile, Path: filePath}, nil
+		return BaseURL{}, err // unreadable/unparseable .glassfrogrc → fail loud, before validation
 	}
 
-	// Rung 4: the built-in default backstops the chain — known-valid, not
-	// re-validated, always a value.
-	return BaseURL{Value: DefaultBaseURL, Source: SourceDefault}, nil
+	// Validate the winner unless it is the default (valid by construction).
+	if res.Provenance.Kind != resolve.KindDefault && !isUsableURL(res.Value) {
+		return BaseURL{}, &BaseURLError{Source: res.Provenance.Origin}
+	}
+
+	switch res.Provenance.Kind {
+	case resolve.KindFlag:
+		return BaseURL{Value: res.Value, Source: SourceFlag}, nil
+	case resolve.KindEnv:
+		return BaseURL{Value: res.Value, Source: SourceEnvironment}, nil
+	case resolve.KindFile:
+		return BaseURL{Value: res.Value, Source: SourceFile, Path: res.Provenance.Origin}, nil
+	default:
+		return BaseURL{Value: res.Value, Source: SourceDefault}, nil
+	}
 }
 
 // isUsableURL reports whether value is an absolute URL carrying an http or https

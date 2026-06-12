@@ -30,13 +30,14 @@ const incompleteActionsNote = "note: more actions exist than shown; pagination i
 // Actions needs nothing more. status is the raw --status flag value (may be
 // empty), validated before any request.
 type meActionsConfig struct {
-	seam       meSeam
-	baseURL    string // the inherited persistent --base-url flag value (may be empty)
-	outputFlag string // the inherited persistent --output flag value (may be empty), resolved before any request
-	status     string // the raw --status flag value (may be empty); validated before any I/O
-	reqCtx     context.Context
-	stdout     io.Writer
-	stderr     io.Writer
+	seam           meSeam
+	baseURL        string // the inherited persistent --base-url flag value (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // the inherited persistent --output flag value (may be empty), resolved before any request
+	status         string // the raw --status flag value (may be empty); validated before any I/O
+	reqCtx         context.Context
+	stdout         io.Writer
+	stderr         io.Writer
 }
 
 // runMeActions is the pure orchestration the `me actions` leaf delegates to:
@@ -66,7 +67,7 @@ func runMeActions(cfg meActionsConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client once. A base-URL error
 	//    surfaces here (no doomed send); classify + report it via 011's helper.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -133,13 +134,14 @@ func newMeActionsCommand(seam meSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runMeActions(meActionsConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				status:     status,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				status:         status,
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

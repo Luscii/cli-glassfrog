@@ -24,7 +24,7 @@ import (
 // extra list methods harmlessly), and the existing test fakes drive it. It never
 // reads ctx.Cred.Token — the token rides 007's AuthTransport in the client.
 type domainSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	resolveSelection(flagValue string) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
@@ -35,11 +35,12 @@ type domainSeam interface {
 // validate, assemble, build, send, render/classify — testable over a fake
 // transport with no real network or ~/.glassfrogrc.
 type domainConfig struct {
-	seam       domainSeam
-	baseURL    string   // inherited persistent --base-url (may be empty)
-	outputFlag string   // inherited persistent --output (may be empty), resolved before any request
-	id         string   // the required positional domain id (ExactArgs(1))
-	include    []string // --include, validated against {policies}
+	seam           domainSeam
+	baseURL        string   // inherited persistent --base-url (may be empty)
+	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	id             string   // the required positional domain id (ExactArgs(1))
+	include        []string // --include, validated against {policies}
 
 	// The list-only walk/search flags are declared on `domain` only to reject
 	// them: the single read is unpaginated and unsearchable, so passing any of
@@ -94,7 +95,7 @@ func runDomain(cfg domainConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client. A base-URL error surfaces
 	//    here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -208,11 +209,12 @@ func newDomainCommand(seam domainSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runDomain(domainConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				id:         args[0],
-				include:    include,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				id:             args[0],
+				include:        include,
 				// Presence, not value: a list-only flag passed to the single read is a
 				// usage error regardless of its value (Changed).
 				querySet:     cmd.Flags().Changed("query"),

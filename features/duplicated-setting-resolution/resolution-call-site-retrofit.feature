@@ -31,7 +31,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will report no source on success (output surfaces provenance only on a format error)
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Base URL falls through flag→env→file→default
-    @base-url @wip
+    @base-url
     Scenario: The base URL falls through an unsupplied flag and unset environment to the file
       Given the "--base-url" flag had not been supplied and GLASSFROG_BASE_URL was unset
       And the nearest ".glassfrogrc" carried "base_url = https://team.example.com/api/v5"
@@ -61,7 +61,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
     # I want the flag I supplied to be honoured as the winning source by presence, not quietly dropped when its value is blank.
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Base URL resolved from a supplied flag
-    @base-url @wip
+    @base-url
     Scenario: A supplied base-URL flag wins its rung
       Given "--base-url https://example.com/api/v5" had been supplied
       When the base URL is resolved
@@ -69,7 +69,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will not consult the environment or any ".glassfrogrc"
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Malformed base URL from the flag fails loud
-    @base-url @wip
+    @base-url
     Scenario: A malformed base-URL flag fails loud without consulting lower sources
       Given "--base-url not-a-url" had been supplied
       When the base URL is resolved
@@ -77,7 +77,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And no lower-precedence source will be consulted
 
     # Source: 040-resolution-call-site-retrofit — Scenario: Explicitly empty --base-url is honoured by presence and fails loud
-    @base-url @wip
+    @base-url
     Scenario: An explicitly empty base-URL flag is honoured by presence and fails loud
       Given "--base-url" had been supplied with an empty or whitespace value
       When the base URL is resolved
@@ -95,7 +95,7 @@ Feature: Duplicated Setting Resolution — Resolution Call-Site Retrofit
       And it will return the built-in default "full"
 
     # Source: 040-resolution-call-site-retrofit — Proposed: presence is detected wherever the flag sits on the command path (plan: Changed() on inherited persistent flags)
-    @base-url @wip
+    @base-url
     Scenario: An empty base-URL flag fails loud regardless of its position on the command path
       Given "glassfrog --base-url \"\" me" and "glassfrog me --base-url \"\"" are both invoked
       When each command resolves the base URL

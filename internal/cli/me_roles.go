@@ -24,12 +24,13 @@ const incompleteRolesNote = "note: more roles exist than shown; pagination is no
 // transport with no real network or ~/.glassfrogrc. It reuses the meSeam (the
 // assemble + newClient pair Identity Read defined); My Roles needs nothing more.
 type meRolesConfig struct {
-	seam       meSeam
-	baseURL    string // the inherited persistent --base-url flag value (may be empty)
-	outputFlag string // the inherited persistent --output flag value (may be empty), resolved before any request
-	reqCtx     context.Context
-	stdout     io.Writer
-	stderr     io.Writer
+	seam           meSeam
+	baseURL        string // the inherited persistent --base-url flag value (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // the inherited persistent --output flag value (may be empty), resolved before any request
+	reqCtx         context.Context
+	stdout         io.Writer
+	stderr         io.Writer
 }
 
 // runMeRoles is the pure orchestration the `me roles` leaf delegates to: assemble
@@ -50,7 +51,7 @@ func runMeRoles(cfg meRolesConfig) (Outcome, error) {
 
 	// Resolve the connection and build the client once. A base-URL error surfaces
 	// here (no doomed send); classify + report it via 011's shared helper.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -111,12 +112,13 @@ func newMeRolesCommand(seam meSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runMeRoles(meRolesConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			})
 			return outcomeToDispatchError(outcome, oerr)
 		},

@@ -167,7 +167,7 @@ func TestAssemble_NilResolverPanics(t *testing.T) {
 }
 
 // TestAssembleFromOS_BindsResolvers confirms the production seam binds
-// ResolveBaseURLFromOS(flagValue) and auth.Resolve and delegates to Assemble. It
+// ResolveBaseURLFromOS(flagValue, flagPresent) and auth.Resolve and delegates to Assemble. It
 // is driven hermetically: apiclient's OS seams are stubbed to a config-free temp
 // tree (→ built-in default base URL), and GLASSFROG_TOKEN is set so auth.Resolve
 // short-circuits at the environment rung without touching the filesystem.
@@ -182,7 +182,7 @@ func TestAssembleFromOS_BindsResolvers(t *testing.T) {
 	getwd = func() (string, error) { return emptyDir, nil }
 	userHomeDir = func() (string, error) { return homeDir, nil }
 
-	ctx := AssembleFromOS("")
+	ctx := AssembleFromOS("", false)
 
 	if ctx.BaseURLErr != nil {
 		t.Fatalf("unexpected base-URL error: %v", ctx.BaseURLErr)
