@@ -84,7 +84,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
   + depends-on: Release Drafting (trigger source: the published release a maintainer publishes; a hand-published release also works)
 - Install Script — a POSIX one-liner (hosted in this repo) that detects OS/arch, downloads the matching archive from Releases, verifies its checksum, and installs onto PATH; the primary path for Linux (and macOS) laptops and CI
   + depends-on: Automated Release Pipeline
-- Homebrew Tap — a GoReleaser-published Homebrew cask committed within this repository (no separate tap repo), so macOS and Linux users can `brew install` / `brew upgrade`
+- Homebrew Tap — a GoReleaser-published Homebrew formula in a dedicated tap repository (`Luscii/homebrew-cli-glassfrog`), tracking stable releases, so macOS and Linux users can `brew install` / `brew upgrade` (a formula installs the pre-built binary on both platforms with no source build; the dedicated tap repo lets GoReleaser publish the formula directly to it, so nothing is committed to this repo's protected main)
   + depends-on: Automated Release Pipeline
 - NPM Wrapper Package — an npm package that resolves and installs the correct platform binary (platform-specific optional dependencies with a postinstall fallback), so Node-based agent environments can `npx` / `npm i -g`
   + depends-on: Automated Release Pipeline
