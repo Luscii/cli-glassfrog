@@ -1,0 +1,47 @@
+# Main-Branch Verification (spec 029).
+#
+# The post-merge net. It re-runs the project's full test suite on every commit
+# that lands on main (a merge, or a direct push), via the SAME reusable
+# workflow the pre-merge gate (ci.yml, 024) calls — so "green on main" is the
+# same computation as "green on the PR", not two files agreeing.
+#
+# It is a net, not a gate: the code is already on main, so there is nothing to
+# block. Unlike ci.yml there is NO ci-success aggregation job, NO required-check
+# name, and NO branch-protection coupling (ADR-3). The whole observable surface
+# is the workflow run plus the commit status GitHub attaches automatically — a
+# red run is the loud signal a human acts on (re-run, fix, or revert; never
+# automated here).
+#
+# Lint is NOT re-run post-merge: it is OS-independent and 024 already enforced
+# it pre-merge. 029 runs tests only.
+name: Main-Branch Verification
+
+# `branches: [main]` matches the main branch ref ONLY. A tag push (which the
+# Automated Release Pipeline, 022, owns) does not match a `branches:` filter, so
+# tags never trigger this workflow — the "tag push does not verify" edge is
+# structural, no `tags-ignore` needed. There is no `pull_request` trigger, so
+# PRs do not run it either (024 owns the pre-merge run).
+on:
+  push:
+    branches: [main]
+
+# Least privilege: the net builds and tests, it never writes. No secrets. (The
+# commit status GitHub attaches to a run needs no extra token grant.)
+permissions:
+  contents: read
+
+# Each commit landing on main must get its own verdict (ADR-4) — the deliberate
+# INVERSE of ci.yml's PR-ref group with cancel-in-progress: true. Keying the
+# group on the commit SHA means distinct commits never collide, and
+# cancel-in-progress: false guarantees a later merge never cancels an earlier
+# commit's in-flight verification. Pinpointing WHICH commit regressed is the
+# whole point of a post-merge net, so no run is ever superseded.
+concurrency:
+  group: main-verify-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  # The same reusable workflow ci.yml calls — the single source of truth for the
+  # OS matrix and the plain `go test ./...`. No lint job, no aggregation job.
+  test:
+    uses: ./.github/workflows/test.yml
