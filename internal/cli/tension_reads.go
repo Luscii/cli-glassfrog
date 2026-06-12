@@ -293,6 +293,114 @@ func newTensionListCommand(seam tensionSeam) *cobra.Command {
 	return cmd
 }
 
+// tensionGetConfig carries everything runTensionGet needs, gathered by the `get`
+// command's RunE. It declares no list flags — the single read has none (ADR-1).
+type tensionGetConfig struct {
+	seam       tensionSeam
+	baseURL    string // inherited persistent --base-url (may be empty)
+	outputFlag string // inherited persistent --output (may be empty), resolved before any request
+
+	reqCtx context.Context
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// runTensionGet reads a single tension by id (GET /tensions/{id}). It resolves the
+// output format FIRST (020 widened by 035), assembles the connection and builds the
+// retrying executor, then sends one Execute (no walk). The id is escaped as a single
+// path segment but passed through unvalidated (ADR-3) so an unknown/malformed id
+// surfaces as the API's 404/4xx via the shared classifier — no local regex gate. A
+// structured --output emits the raw {data: Tension} payload verbatim (018); the
+// human path decodes Document[Tension] and renders the landed singular `tension`
+// template (042) over a TensionView (mirroring runProjectGet/runTensionCreate). It
+// adds no new Outcome/ExitCode and never reads the token.
+func runTensionGet(cfg tensionGetConfig, id string) (Outcome, error) {
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	if !ok {
+		return outcome, oerr
+	}
+
+	ctx := cfg.seam.assemble(cfg.baseURL)
+	client, err := cfg.seam.newClient(ctx)
+	if err != nil {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+	}
+	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
+
+	// Escape the id as a single path segment: passed through unvalidated (ADR-3),
+	// but a raw `/` or `..` must not redirect the request or traverse the path.
+	// PathEscape is a no-op for a valid ten_… id and keeps a malformed/adversarial
+	// id one opaque segment the API reports as a 404.
+	req := apiclient.Request{Method: http.MethodGet, Path: "/tensions/" + url.PathEscape(id)}
+
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			// Buffer-then-write: a render failure leaves stdout empty and maps to
+			// RuntimeError(1). The error is token-free (018 contract).
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	var doc glassfrog.Document[glassfrog.Tension]
+	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+	}
+	view := render.TensionView{Tension: doc.Data}
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTension, rt.format, view)
+}
+
+// newTensionGetCommand builds the runnable `tension get <ten-id>` leaf (ADR-1): a
+// guard-ready cobra command with a REQUIRED positional tension id (Args:
+// cobra.ExactArgs(1)), a non-empty Short, and SilenceErrors/SilenceUsage so
+// runTensionGet owns its messages. It declares NO list flags — so passing --status,
+// --first-page, or --per-page is a cobra unknown-flag usage error before any request
+// (this is how the spec's "filter applies only to the list" is enforced — no
+// hand-rolled cross-combo guard, ADR-1). It reads the inherited persistent
+// --base-url/--output flags, then delegates to the pure runTensionGet. The seam is
+// injected so tests drive a fake one; production passes productionSeam{}.
+func newTensionGetCommand(seam tensionSeam) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get <ten-id>",
+		Short: "Read a single tension by its id, with its full detail",
+		Long: "get reads one tension by its ten_ id and prints its status, body, sensing " +
+			"role, sensed-by person, meeting type, parent role, and timestamps. To list the " +
+			"tensions a role carries use `tension list <role-id>`.",
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
+				return err
+			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
+			outcome, oerr := runTensionGet(tensionGetConfig{
+				seam:       seam,
+				baseURL:    baseURL,
+				outputFlag: outputFlag,
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
+			}, args[0])
+			return outcomeToDispatchError(outcome, oerr)
+		},
+	}
+	return cmd
+}
+
 // supportedTensionStatuses is the spec's tension status set — the status enum on
 // the Tension schema (spec/glassfrog-api-v5.yaml: unprocessed, processed,
 // archived). It is the single source of truth for `tension list --status`

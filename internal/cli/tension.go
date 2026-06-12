@@ -229,6 +229,7 @@ func newTensionCommand(seam tensionSeam) *cobra.Command {
 	}
 	MustRegister(group, newTensionCreateCommand(seam))
 	MustRegister(group, newTensionListCommand(seam))
+	MustRegister(group, newTensionGetCommand(seam))
 	return group
 }
 

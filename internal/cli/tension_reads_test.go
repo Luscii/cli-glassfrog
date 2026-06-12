@@ -21,6 +21,27 @@ const tensionsPageComplete = `{"data":[
 
 const tensionsPageEmpty = `{"data":[],"meta":{"pagination":{"per_page":100,"has_next_page":false,"next_cursor":""}}}`
 
+// tensionDocumentBody is a representative GET /tensions/{id} body: the single-object
+// {data: Tension} envelope carrying the full detail (status, body, sensing role,
+// sensed-by, meeting type, timestamps).
+const tensionDocumentBody = `{"data":{"id":"ten_0123","type":"tension","body":"We ship faster than we update the roadmap.","status":"unprocessed","role_id":"role_0123","sensed_by_id":"per_0123","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","label":"Roadmap drift","meeting_type":"governance","parent_role_id":null}}`
+
+// runTensionGetOver drives the pure runTensionGet over a fake seam, returning the
+// outcome and captured stdout/stderr, and failing if the token leaks.
+func runTensionGetOver(t *testing.T, seam tensionSeam, cfg tensionGetConfig, id string) (Outcome, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	cfg.seam = seam
+	cfg.reqCtx = context.Background()
+	cfg.stdout = &out
+	cfg.stderr = &errb
+	outcome, _ := runTensionGet(cfg, id)
+	if strings.Contains(out.String()+errb.String(), meSecretToken) {
+		t.Fatalf("the token leaked into output: %q", out.String()+errb.String())
+	}
+	return outcome, out.String(), errb.String()
+}
+
 // tensionsPage builds a one-tension page; a non-empty nextCursor marks more pages.
 func tensionsPage(id, label, nextCursor string) string {
 	hasNext := "false"
@@ -418,6 +439,118 @@ func TestTensionListCommand_RequiresExactlyOneArg(t *testing.T) {
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
 	outcome, _ := Run(root, []string{"tension", "list"})
+	if outcome != UsageError {
+		t.Errorf("zero args should be a UsageError, got %v", outcome)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a wrong arg count must send no request, got %d calls", tr.calls)
+	}
+}
+
+// --- single tension read (T004) --------------------------------------------
+
+func TestRunTensionGet_SingleReadPrintsDetail(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: tensionDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runTensionGetOver(t, seam, tensionGetConfig{}, "ten_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{
+		"ten_0123  [unprocessed]",                    // header: id + status
+		"We ship faster than we update the roadmap.", // body, verbatim
+		"role_0123",            // sensing role
+		"per_0123",             // sensed by
+		"governance",           // meeting type
+		"2026-01-01T00:00:00Z", // created
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the single tension should show %q:\n%s", want, stdout)
+		}
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single read is one call, got %d", tr.calls)
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/tensions/ten_0123") {
+		t.Errorf("path = %q, want it to target /tensions/ten_0123", got)
+	}
+}
+
+func TestRunTensionGet_UnknownIdSurfacesAPIStatus(t *testing.T) {
+	tr := &cannedTransport{status: 404, body: `{"detail":"Tension not found"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runTensionGetOver(t, seam, tensionGetConfig{}, "ten_ffff")
+	if outcome != APIError || ExitCode(outcome) != 3 {
+		t.Fatalf("an unknown id should surface APIError/3, got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
+	}
+	if !strings.Contains(stderr, "404") {
+		t.Errorf("stderr should name the HTTP status (404):\n%s", stderr)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("nothing should be printed to stdout on a not-found, got:\n%s", stdout)
+	}
+}
+
+func TestRunTensionGet_StructuredJSONEmitsRawPayload(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: tensionDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runTensionGetOver(t, seam, tensionGetConfig{outputFlag: "json"}, "ten_0123")
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{`"data"`, "ten_0123", `"role_id"`, `"updated_at"`} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured json should carry the raw single-tension payload, missing %q:\n%s", want, stdout)
+		}
+	}
+	// The single read emits the raw {data: Tension} body, not the human projection.
+	if strings.Contains(stdout, "Sensing role:") {
+		t.Errorf("structured json must not render the human projection:\n%s", stdout)
+	}
+}
+
+// TestTensionGetCommand_ListFlagRejectedNoRequest pins the structural list-only
+// guard (ADR-1): a list-only flag on `get` is a cobra unknown-flag UsageError before
+// any request — the transport tripwire confirms nothing is sent.
+func TestTensionGetCommand_ListFlagRejectedNoRequest(t *testing.T) {
+	for _, flag := range []string{"--status", "--first-page", "--per-page"} {
+		tr := &cannedTransport{status: 200, body: tensionDocumentBody}
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+		root := NewRootCommand()
+		MustRegister(root, newTensionCommand(seam))
+		var out, errb bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		// The value-taking flags need a value so cobra's failure is unknown-flag, not
+		// missing-value; --first-page is a bool.
+		args := []string{"tension", "get", "ten_0123", flag}
+		if flag != "--first-page" {
+			args = append(args, "x")
+		}
+		outcome, _ := Run(root, args)
+		if outcome != UsageError {
+			t.Errorf("%s on `tension get` should be a UsageError, got %v", flag, outcome)
+		}
+		if tr.calls != 0 {
+			t.Errorf("%s on `tension get` must send no request, got %d calls", flag, tr.calls)
+		}
+	}
+}
+
+// TestTensionGetCommand_RequiresExactlyOneArg pins ExactArgs(1) on the single read.
+func TestTensionGetCommand_RequiresExactlyOneArg(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: tensionDocumentBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	root := NewRootCommand()
+	MustRegister(root, newTensionCommand(seam))
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	outcome, _ := Run(root, []string{"tension", "get"})
 	if outcome != UsageError {
 		t.Errorf("zero args should be a UsageError, got %v", outcome)
 	}
