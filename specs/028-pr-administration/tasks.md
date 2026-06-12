@@ -30,7 +30,7 @@ The `base` branch is cut from current `main`. The three tasks touch different fi
 
 ## Phase 1: Label Catalog [Shared]
 
-- [ ] **T001** [Shared] Create `.github/settings.yml` with a `labels:` block defining the seven managed PR labels
+- [x] **T001** [Shared] Create `.github/settings.yml` with a `labels:` block defining the seven managed PR labels — labels-only, 7 names exact, YAML validated; no scenarios (precondition only)
   - **Scope**: Add `.github/settings.yml` (Probot "Settings" app schema) with a `labels:` block defining exactly the seven managed labels — `breaking`, `features`, `fixes`, `docs`, `infrastructure`, `dependencies`, `internal` — each with `name`/`color`/`description` per interface-spec.md's catalog table (colors `[ASSUMED]`, tunable). Keep it **labels-only** (no `repository:`/`branches:` blocks) so the app manages only these labels and leaves human triage labels in place (no prune). Add a header comment that the names are the contract Release Drafting (030) reads. This is the single source of truth for the label strings — do **not** create label definitions from the workflow (spec §Non-Behaviors: PR Administration does not own the label catalog). Document the one-time prerequisite that the Settings app must be installed on the repo/org.
   - **Acceptance criteria**:
     - `.github/settings.yml` defines all seven labels with the intended names, colors, and descriptions, in valid Probot Settings-app YAML; the file is labels-only.
@@ -44,7 +44,7 @@ The `base` branch is cut from current `main`. The three tasks touch different fi
 
 ## Phase 2: Signal Mapping [Shared]
 
-- [ ] **T002** [Shared] Create `.github/labeler.yml` mapping title/branch + changed-file signals to the seven labels, with authoritative sync
+- [x] **T002** [Shared] Create `.github/labeler.yml` mapping title/branch + changed-file signals to the seven labels, with authoritative sync — version 1, 7 names parity with settings.yml, regexes spot-checked against scenarios; covers 6 behavioral scenarios (verified by inspection, no local harness)
   - **Scope**: Add `.github/labeler.yml` (`srvaroa/labeler` `version: 1`) with one entry per managed label, each carrying its `title` (conventional-commit) and/or `branch` and/or `files` matchers per interface-spec.md's mapping table: `breaking` (`!`-marked type / `major|breaking/` branch), `features` (`feat:` / `feat|feature/`), `fixes` (`fix:` / `fix|bug|hotfix/`), `docs` (`docs:` / `*.md`, `docs/`), `infrastructure` (`ci|build:` / `.github/workflows/`, `.goreleaser.yaml`, `.golangci.yml`, `scripts/`, `Makefile`, `Dockerfile*`, pre-commit), `dependencies` (`*(deps)` / `dependabot/` branch / `go.mod`, `go.sum`), `internal` (`chore|refactor|perf|test|style:` / `chore|refactor|cleanup/`). Rely on (or, if the pinned version requires it, explicitly enable) the per-label evaluate→add-if-match / remove-if-not-match behavior so stale managed labels are removed (B1 sync) — scoped to labels named in this file only. Regexes are `[ASSUMED]` and tunable; the names must match T001 exactly.
   - **Acceptance criteria**:
     - A `feat:`-titled PR maps to `features`; a docs-only diff maps to `docs`; a PR matching several signals carries all matching labels (e.g. `features` + `dependencies`); a PR matching no signal gets no managed label.
@@ -57,7 +57,7 @@ The `base` branch is cut from current `main`. The three tasks touch different fi
 
 ## Phase 3: Labelling Workflow [Shared]
 
-- [ ] **T003** [Shared] Create `.github/workflows/pr-administration.yml` on `pull_request_target` running the pinned labeler, fork-safe and non-blocking
+- [x] **T003** [Shared] Create `.github/workflows/pr-administration.yml` on `pull_request_target` running the pinned labeler, fork-safe and non-blocking — actionlint clean, invariants asserted (no checkout, exact perms, no secrets, pinned srvaroa/labeler@v1.14.0), 8 behavioral @wip removed, 3 @validation held for /score:validate
   - **Scope**: Add `.github/workflows/pr-administration.yml` with `name: PR Administration`; `on: pull_request_target: { types: [opened, reopened, synchronize, edited] }` (no `branches:` filter); least-privilege `permissions: { contents: read, pull-requests: write }`; a `concurrency` block keyed on `${{ github.workflow }}-${{ github.event.pull_request.number }}` (the same group shape as 024's `ci.yml`, so the workflow name namespaces the group and PRs can't cross-cancel between workflows) with `cancel-in-progress: true`; a single `label` job (`runs-on: ubuntu-latest`) whose only step runs `srvaroa/labeler` pinned to a concrete tag (`[ASSUMED]` `v1.14.0` — pin at impl time) with `GITHUB_TOKEN: ${{ github.token }}` and `continue-on-error: true`. **No `actions/checkout`** and no PR-supplied script (ADR-5 — the labeller reads PR title, head branch, and changed-file list via the API, and loads the config from the base branch). Do **not** add this workflow to branch protection (spec §Non-Blocking). Remove `@wip` from the behavioral scenarios in `pr-administration.feature` as they pass; leave the three `@validation` scenarios for `/score:validate`.
   - **Acceptance criteria**:
     - The workflow triggers on open/reopen/synchronize/edit of any PR including fork PRs, and applies labels per `.github/labeler.yml`; a fork PR is labelled without checking out or executing PR head code.

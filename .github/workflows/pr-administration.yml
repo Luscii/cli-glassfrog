@@ -1,0 +1,65 @@
+# PR Administration (spec 028).
+#
+# Applies administrative labels to every pull request — including fork PRs —
+# from two signals: the title/branch (the semver-bearing breaking/features/fixes
+# categories) and the changed files (docs/infrastructure/dependencies/internal).
+# The mapping lives in .github/labeler.yml; the label catalog in
+# .github/settings.yml. Labelling is authoritative (it reconciles its managed
+# labels to the PR's current state, never touching labels outside that set) and
+# the resulting labels feed Release Drafting (030).
+#
+# This is deliberately a SEPARATE workflow from ci.yml (spec 024), not an
+# extension of it (ADR-1): the verification gate stays read-only and fork-safe on
+# `pull_request`, while this one needs `pull-requests: write` and must label fork
+# PRs — which only `pull_request_target` (base-repo context, writable token) can
+# do. It is NOT a required status check (spec §Non-Blocking): a labelling failure
+# never blocks or reddens a merge — ci-success (024) remains the sole gate.
+name: PR Administration
+
+# `pull_request_target` runs in the BASE-repo context, so the token can carry
+# `pull-requests: write` and fork PRs are labelled too (spec C1). No `branches:`
+# filter — every PR is labelled regardless of base. `edited` is required because
+# the PR TITLE drives the semver-bearing labels, so a title edit must
+# re-reconcile; `synchronize` re-runs on head pushes (changed-files signal).
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+
+# Least privilege: read repo metadata + write PR labels. Nothing else — no
+# `id-token`, no `contents: write`, no secrets exposed to the action.
+permissions:
+  contents: read
+  pull-requests: write
+
+# Reconcile to the latest PR state; a new edit/push cancels the superseded run so
+# rapid successive title edits resolve to the latest title. Keyed on the workflow
+# name + PR number (same shape as ci.yml), so the name namespaces the group and
+# PRs can't cross-cancel between workflows.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      # No `actions/checkout` (ADR-5): under `pull_request_target` the token is
+      # writable, so checking out and running PR head code would be a privilege-
+      # escalation vector. The labeler reads the PR title, head branch, and the
+      # changed-file LIST via the API (metadata only — never file contents or
+      # code), and loads .github/labeler.yml from the BASE repo's default branch,
+      # so a fork cannot supply its own config. Any future step that checks out PR
+      # head code under this trigger is a security change.
+      - name: Apply administrative labels
+        # Pinned to a concrete release (NOT a floating tag), matching 022/024's
+        # pin-the-toolchain discipline so an upstream release can't silently
+        # change labelling behaviour. v1.14.0 removes a managed label by default
+        # when it no longer matches (B1 sync), scoped to labels named in the
+        # config — no extra flag needed.
+        uses: srvaroa/labeler@v1.14.0
+        # Labelling is administrative, not a gate: a transient API hiccup or
+        # action error must never surface as a blocking red mark. The next
+        # triggering event re-reconciles.
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

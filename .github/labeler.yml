@@ -1,0 +1,52 @@
+# PR Administration — signal→label mapping (spec 028, ADR-2/ADR-3).
+#
+# Consumed by `srvaroa/labeler` (see .github/workflows/pr-administration.yml).
+# One entry per managed label. For EACH label the action evaluates its matchers
+# against the PR's title, head branch, and changed-file list: a match ADDS the
+# label, a non-match REMOVES it if present — and it only ever touches labels
+# named in THIS file. That per-label evaluate→add/remove is the spec's
+# authoritative sync (B1), scoped to the managed set by construction, so a
+# maintainer's hand-applied triage labels (not named here) are never touched.
+#
+# The label STRINGS must stay exactly in sync with .github/settings.yml (the
+# catalog) and are the contract Release Drafting (030) reads. The regexes are
+# tunable without changing that contract. `breaking`/`features`/`fixes` double
+# as the semver bump signal 030 resolves (major/minor/patch); a PR may match
+# several labels at once (030 decides which semver label wins), and a PR
+# matching no signal receives no managed label.
+version: 1
+labels:
+  - label: breaking
+    title: "^\\w+(\\([^)]+\\))?!:"
+    branch: "^(major|breaking)/"
+  - label: features
+    title: "^feat(\\([^)]+\\))?:"
+    branch: "^(feat|feature)/"
+  - label: fixes
+    title: "^fix(\\([^)]+\\))?:"
+    branch: "^(fix|bug|hotfix)/"
+  - label: docs
+    title: "^docs(\\([^)]+\\))?:"
+    files:
+      - ".*\\.md$"
+      - "docs/.*"
+  - label: infrastructure
+    title: "^(ci|build)(\\([^)]+\\))?:"
+    files:
+      - "\\.github/workflows/.*"
+      - "\\.github/[^/]+\\.ya?ml$"
+      - "\\.goreleaser\\.ya?ml$"
+      - "\\.golangci\\.ya?ml$"
+      - "scripts/.*"
+      - "Makefile"
+      - "Dockerfile.*"
+      - "\\.pre-commit-config\\.yaml"
+  - label: dependencies
+    title: "^\\w+\\(deps\\)"
+    branch: "^dependabot/"
+    files:
+      - "go\\.mod$"
+      - "go\\.sum$"
+  - label: internal
+    title: "^(chore|refactor|perf|test|style)(\\([^)]+\\))?:"
+    branch: "^(chore|refactor|cleanup)/"
