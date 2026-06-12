@@ -89,14 +89,14 @@ res, err := resolve.Resolve(
 
 ```go
 // Was: resolveSelection(flagValue string) (output.Selection, error)
-// Now (all the per-read-command resolveSelection seam declarations — 11 today —
+// Now (all the per-read-command resolveSelection seam declarations
 // + the productionSeam impl):
 resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 ```
 
 The `productionSeam` impl derives `startDir`/`homeDir` and delegates to `output.ResolveSelectionFromOS(flagValue, flagPresent, startDir, homeDir)`. The companion `readTemplateSource(ref output.TemplateRef) (string, error)` seam method (035) is **unchanged** — the retrofit touches only how the `Selection` is resolved, not how a chosen template is read. Test seams bind a fake over the new `resolveSelection` signature.
 
-### `internal/cli` RunE plumbing (every read command — 13 today)
+### `internal/cli` RunE plumbing (every read command)
 
 Each `RunE` reads both the value and the presence bit for the flags it forwards:
 

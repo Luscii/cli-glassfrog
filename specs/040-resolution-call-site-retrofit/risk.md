@@ -39,7 +39,7 @@ No residual **Red** risks. One residual **Yellow** (H-5) — acceptable with the
 **Controls**: **RC-2** — assert the mapped labels against the pre-retrofit error strings (tasks T002/T003). Residual **Green**.
 
 ### H-3 — Incomplete presence threading
-**Description**: the presence bit threads through every read-command `RunE` (13 today) + all the `resolveSelection` seam declarations (11 today); a missed site would silently keep value-emptiness, so `--base-url ""` fails loud on some commands but falls through on others.
+**Description**: the presence bit threads through every read-command `RunE` + all the `resolveSelection` seam declarations; a missed site would silently keep value-emptiness, so `--base-url ""` fails loud on some commands but falls through on others.
 **Severity — Medium**: inconsistent cross-command behaviour → operator confusion; not data loss.
 **Probability — Low**: the signature change is deliberately overload-free (plan Risks), so every un-threaded call site fails to compile.
 **Controls**: **RC-3** — overload-free signatures (compiler-enforced completeness) + a `RunE`-level presence test. Residual **Green**.
