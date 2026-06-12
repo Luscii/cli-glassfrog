@@ -52,5 +52,5 @@ template: |
   $CHANGES
 
 replacers:
-  - search: '/^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|specs)(!)?:\s*/i'
+  - search: '/^-\s*(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|specs)(?:\([^)]+\))?(!)?:\s*/i'
     replace: ''
