@@ -44,10 +44,10 @@ const moreRoleProjectsNote = "note: more projects exist than shown; re-run witho
 // (the list walk). It never reads ctx.Cred.Token — the token rides 007's
 // AuthTransport inside the client. Shared by both `projects` and `project`.
 type projectsSeam interface {
-	assemble(baseURL string) apiclient.ConnectionContext
+	assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext
 	newClient(ctx apiclient.ConnectionContext) (*apiclient.Client, error)
 	sleep() func(time.Duration)
-	resolveSelection(flagValue string) (output.Selection, error)
+	resolveSelection(flagValue string, flagPresent bool) (output.Selection, error)
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
@@ -56,10 +56,12 @@ type projectsSeam interface {
 // flow — validate, resolve, assemble, build, walk, render/classify — testable over
 // a fake transport with no real network or ~/.glassfrogrc.
 type projectsConfig struct {
-	seam       projectsSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
-	id         string // the required positional role id (ExactArgs(1))
+	seam           projectsSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	id             string // the required positional role id (ExactArgs(1))
 
 	query    string // --query/-q free-text search, sent verbatim as q
 	querySet bool   // whether --query was provided (Changed); q is sent only when set AND non-empty
@@ -91,7 +93,7 @@ func runProjectsList(cfg projectsConfig) (Outcome, error) {
 	//    stdin — fails fast as a usage error before any assembly or request.
 	//    Resolving --output ahead of --status keeps error precedence consistent with
 	//    the sibling reads (me_projects.go, policies.go).
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
@@ -108,7 +110,7 @@ func runProjectsList(cfg projectsConfig) (Outcome, error) {
 
 	// 3. Resolve the connection and build the client + retrying executor. A
 	//    base-URL error surfaces here (no doomed send); classify + report it.
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -304,11 +306,13 @@ func newProjectsCommand(seam projectsSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runProjectsList(projectsConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				id:         args[0],
-				query:      query,
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				id:             args[0],
+				query:          query,
 				// Presence, not value: q is sent only when --query is Changed AND
 				// non-empty, so `--query ""` behaves as no filter (ADR-3).
 				querySet:  cmd.Flags().Changed("query"),
@@ -338,9 +342,11 @@ func newProjectsCommand(seam projectsSeam) *cobra.Command {
 // projectConfig carries everything runProjectGet needs, gathered by the `project`
 // command's RunE. It declares no list flags — the single read has none (ADR-1).
 type projectConfig struct {
-	seam       projectsSeam
-	baseURL    string // inherited persistent --base-url (may be empty)
-	outputFlag string // inherited persistent --output (may be empty), resolved before any request
+	seam           projectsSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 
 	reqCtx context.Context
 	stdout io.Writer
@@ -357,12 +363,12 @@ type projectConfig struct {
 // ProjectView carrying the full detail (mirroring runPolicyGet). It adds no new
 // Outcome/ExitCode and never reads the token.
 func runProjectGet(cfg projectConfig, id string) (Outcome, error) {
-	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.stderr)
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
 
-	ctx := cfg.seam.assemble(cfg.baseURL)
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
@@ -431,12 +437,14 @@ func newProjectCommand(seam projectsSeam) *cobra.Command {
 				return err
 			}
 			outcome, oerr := runProjectGet(projectConfig{
-				seam:       seam,
-				baseURL:    baseURL,
-				outputFlag: outputFlag,
-				reqCtx:     cmd.Context(),
-				stdout:     cmd.OutOrStdout(),
-				stderr:     cmd.ErrOrStderr(),
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
 			}, args[0])
 			return outcomeToDispatchError(outcome, oerr)
 		},

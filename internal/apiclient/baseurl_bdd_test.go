@@ -47,8 +47,9 @@ type baseURLWorld struct {
 	currDir string // the "current directory"
 	homeDir string
 
-	flagValue string
-	envValue  string // "" models both unset and empty (the resolver treats them alike)
+	flagValue   string
+	flagPresent bool   // cobra Changed() for --base-url: the flag rung is presence-based (040 ADR-2)
+	envValue    string // "" models both unset and empty (the resolver treats them alike)
 
 	currPath string // seeded current-dir .glassfrogrc, when present
 	homePath string // seeded home-dir .glassfrogrc, when present
@@ -162,8 +163,8 @@ func initializeBaseURLScenario(sc *godog.ScenarioContext) {
 
 // --- Given implementations ---
 
-func (w *baseURLWorld) givenFlag(v string) error { w.flagValue = v; return nil }
-func (w *baseURLWorld) givenNoFlag() error       { w.flagValue = ""; return nil }
+func (w *baseURLWorld) givenFlag(v string) error { w.flagValue = v; w.flagPresent = true; return nil }
+func (w *baseURLWorld) givenNoFlag() error       { w.flagValue = ""; w.flagPresent = false; return nil }
 func (w *baseURLWorld) givenEnv(v string) error  { w.envValue = v; return nil }
 func (w *baseURLWorld) givenNoEnv() error        { w.envValue = ""; return nil }
 
@@ -211,7 +212,7 @@ func (w *baseURLWorld) givenNearestUnreadable() error {
 // --- When implementation ---
 
 func (w *baseURLWorld) whenResolve() error {
-	w.result, w.err = ResolveBaseURL(w.flagValue, w.currDir, w.homeDir)
+	w.result, w.err = ResolveBaseURL(w.flagValue, w.flagPresent, w.currDir, w.homeDir)
 	return nil
 }
 
