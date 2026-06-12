@@ -43,10 +43,13 @@ labels:
   - name: internal
     color: "CFD3D7"
     description: "Internal change (chore/refactor/test)"
-  # no-release-note (030 ADR-4): the eighth managed label. Applied by the
-  # labeler to PRs touching nothing noteworthy (spec/feature-only churn) and
-  # hand-applied by a maintainer to suppress a note; Release Drafting lists it
-  # under exclude-labels so the PR leaves both the notes and the version bump.
+  # no-release-note (030 ADR-4): the eighth managed label. The labeler
+  # auto-applies it to PRs touching nothing noteworthy (spec/feature-only
+  # churn); Release Drafting lists it under exclude-labels so the PR leaves
+  # both the notes and the version bump. NOTE: it is sync-managed — the labeler
+  # reconciles it on every PR event and REMOVES it from any PR that does touch
+  # a noteworthy file, so a maintainer hand-applying it to a noteworthy PR will
+  # not have it persist. Durable use is the automatic spec/feature-only case.
   - name: no-release-note
     color: "EDEDED"
-    description: "Excluded from release notes (spec/feature-only or maintainer-flagged)"
+    description: "Auto-excluded from release notes (changes confined to specs/ and .feature files)"

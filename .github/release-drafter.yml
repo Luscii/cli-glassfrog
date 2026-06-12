@@ -42,7 +42,7 @@ categories:                 # ADR-3: the seven 028 labels, exact strings.
   - title: "Internal"
     labels: [internal]
 
-exclude-labels:             # ADR-4: spec/feature-only + maintainer-flagged PRs.
+exclude-labels:             # ADR-4: auto-applied to spec/feature-only PRs (see labeler.yml).
   - no-release-note
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"

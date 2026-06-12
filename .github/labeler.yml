@@ -56,11 +56,15 @@ labels:
     branch: "^(chore|refactor|cleanup)/"
   # no-release-note (030 ADR-4): applied iff NO changed file is noteworthy
   # (negate inverts the block). Noteworthy = code / real docs / infra / deps /
-  # vendored API spec. A PR confined to specs/*.md and *.feature matches none,
-  # so it gets this label and release-drafter excludes it. Patterns are
-  # [ASSUMED]/tunable; the contract is "no noteworthy file → excluded".
-  # NOTE: real-docs patterns are docs/ + README.md ONLY — NOT a broad .*\.md$,
-  # which would (wrongly) treat Score spec markdown under specs/ as noteworthy.
+  # vendored API spec. A PR confined to specs/*.md and *.feature matches none
+  # of THESE patterns, so it gets this label and release-drafter excludes it.
+  # (Such a PR may still match the `docs` label above via its .*\.md$ rule —
+  # harmless: exclude-labels drops the PR regardless of any category label it
+  # also carries.) Patterns are [ASSUMED]/tunable; the contract is "no
+  # noteworthy file → excluded".
+  # NOTE: the real-docs patterns HERE are docs/ + README.md ONLY — NOT a broad
+  # .*\.md$, which would (wrongly) treat Score spec markdown under specs/ as
+  # noteworthy for exclusion purposes.
   - label: no-release-note
     negate: true
     files:
