@@ -62,7 +62,8 @@ jobs:
       - name: Set pre-release/latest from version
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |          # [ASSUMED] exact gh invocation — verify draft is addressable by tag at impl time
+        # [ASSUMED] exact gh invocation — verify draft is addressable by tag at impl time
+        run: |
           if [ "${{ steps.draft.outputs.major_version }}" = "0" ]; then
             gh release edit "${{ steps.draft.outputs.tag_name }}" --draft --prerelease
           else
