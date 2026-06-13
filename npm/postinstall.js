@@ -53,9 +53,14 @@ function downloadToFile(url, dest, redirectsLeft = 5) {
 				return;
 			}
 			const out = fs.createWriteStream(dest);
-			res.pipe(out);
-			out.on('finish', () => out.close(resolve));
+			// Reject on a response-stream error (e.g. a connection reset mid-download)
+			// or a write/close error (e.g. disk full / permission), so a failed
+			// download never silently resolves. close()'s callback receives an error
+			// on failure — surface it as a rejection rather than resolving with it.
+			res.on('error', reject);
 			out.on('error', reject);
+			res.pipe(out);
+			out.on('finish', () => out.close((err) => (err ? reject(err) : resolve())));
 		});
 		req.on('error', reject);
 	});

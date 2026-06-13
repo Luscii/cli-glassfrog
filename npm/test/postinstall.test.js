@@ -105,6 +105,23 @@ test('checksum mismatch aborts before placing the binary', { skip: !hasTar() }, 
 	}
 });
 
+test('a failed download (missing asset) rejects and places nothing', { skip: !hasTar() }, async () => {
+	// No assets served → the checksums fetch 404s; downloadToFile must reject (not
+	// silently resolve), surfacing as a clear install failure with nothing placed.
+	const server = await serveRelease({});
+	const root = makeUmbrella();
+	try {
+		await assert.rejects(
+			postinstall({ baseUrl: server.baseUrl, pkgRoot: root, version: VER, log: () => {} }),
+			(err) => err instanceof InstallError && /failed to download/.test(err.message),
+		);
+		assert.ok(!fs.existsSync(platform.placedBinaryPath(root)), 'nothing placed on download failure');
+	} finally {
+		await server.close();
+		rmrf(root);
+	}
+});
+
 test('rejects a non-regular-file member (symlink) and places nothing', { skip: !hasTar() }, async () => {
 	const work = mkTmp('glassfrog-symlink-');
 	// An archive whose `glassfrog` entry is a symlink, not a regular file — even
