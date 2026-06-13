@@ -54,7 +54,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Interface references**: interface-spec.md: Surface (In-repo sources — postinstall; Configuration schema); Interactions (Install-time flow); Error Communication (Install-time table)
   - **Risk**: ⚠️ Hard coupling to 022's archive/checksum name template — a template change 404s the fallback (pin via this task's fixtures; see risk.md H-2 / RC-2)
 
-- [ ] **T003** [Shared] Write the package generator + umbrella `package.json` template **and its package-shape tests**
+- [x] **T003** [Shared] Write the package generator + umbrella `package.json` template **and its package-shape tests** — npm/package.json template (umbrella + dev manifest) + build.mjs generator (os/cpu map, =version pinning, extract-from-022-archive, copies sources) + 5 shape/integration tests
   - **Scope**: The umbrella `package.json` template and a generator (e.g. `npm/build.mjs`) that, given the release version and the verified `dist/` binaries, emits the umbrella (`@luscii-healthtech/glassfrog`) and the four platform packages (`@luscii-healthtech/glassfrog-<os>-<cpu>`) into a gitignored output dir — **together with its `node --test` package-shape tests in the same PR**. Applies the GoReleaser→npm arch map (`amd64`→`x64`, `arm64`→`arm64`; `darwin`/`linux` unchanged), stamps every package at the version (tag minus leading `v`), pins the umbrella's `optionalDependencies` to `=<version>`, sets `bin` only on the umbrella (the launcher) and `os`/`cpu` on each platform package, copies the launcher + postinstall into the umbrella, and bundles each platform binary.
   - **Acceptance criteria**:
     - The generator emits one umbrella + four platform package directories from a version + a `dist/` location.
