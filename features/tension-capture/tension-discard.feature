@@ -20,7 +20,6 @@ Feature: Tension Discard
     # I want to remove it by id with one command.
 
     # Source: 045-tension-discard — Scenario: Discard a live tension
-    @wip
     Scenario: A live tension is discarded
       Given a complete connection context with a stored token
       And a tension "ten_0123" exists
@@ -32,7 +31,6 @@ Feature: Tension Discard
       And the command will exit with code 0
 
     # Source: 045-tension-discard — Scenario: Missing tension id is rejected before any request
-    @wip
     Scenario: A missing tension id is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension discard"
@@ -41,7 +39,6 @@ Feature: Tension Discard
       And the command will exit with code 2
 
     # Source: 045-tension-discard — Scenario: More than one positional id is a usage error
-    @wip
     Scenario: More than one positional id is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension discard ten_0123 ten_0456"
@@ -50,7 +47,6 @@ Feature: Tension Discard
       And the command will exit with code 2
 
     # Source: 045-tension-discard — Scenario: No credential surfaces the not-authenticated outcome
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog tension discard ten_0123"
@@ -59,7 +55,6 @@ Feature: Tension Discard
       And the command will exit with code 2
 
     # Source: 045-tension-discard — Scenario: A refused permission fails loudly
-    @wip
     Scenario: A refused permission fails with the API status
       Given a complete connection context with a stored token
       And the caller may not delete the tension "ten_0123"
@@ -68,7 +63,6 @@ Feature: Tension Discard
       And the command will exit with a non-zero permission code
 
     # Source: 045-tension-discard — Scenario: A transport failure surfaces network-unavailable
-    @wip
     Scenario: A transport failure surfaces the network-unavailable outcome
       Given a complete connection context with a stored token
       And the tensions endpoint cannot be reached
@@ -77,7 +71,6 @@ Feature: Tension Discard
       And the command will exit with the network-unavailable code
 
     # Source: 045-tension-discard — Proposed: plan Interactions (--output resolved first; an invalid selector fails fast before any request)
-    @wip
     Scenario: An invalid output format is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension discard ten_0123 -o xml"
@@ -99,7 +92,6 @@ Feature: Tension Discard
     # I want to discard it and have a re-run of the same command stay safe rather than fail.
 
     # Source: 045-tension-discard — Scenario: Re-discarding an already-gone tension stays safe
-    @wip
     Scenario: Re-discarding an already-gone tension stays safe
       Given a complete connection context with a stored token
       And a tension "ten_0123" that has already been discarded
@@ -121,7 +113,6 @@ Feature: Tension Discard
       And the command will exit with code 0
 
     # Source: 045-tension-discard — Proposed: plan Cross-cutting non-idempotent retry (§133 isSafeMethod)
-    @wip
     Scenario: A rate-limited discard is surfaced, not silently retried
       Given a complete connection context with a stored token
       And the tensions endpoint answers the discard with a rate-limit response
@@ -136,7 +127,6 @@ Feature: Tension Discard
     # I want the discard to produce a structured result I can parse as JSON, even though the API returns no body.
 
     # Source: 045-tension-discard — Scenario: Discard result rendered as JSON
-    @wip
     Scenario: The discard result is rendered as JSON
       Given a complete connection context with a stored token
       And a tension "ten_0123" exists

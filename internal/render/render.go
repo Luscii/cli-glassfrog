@@ -181,6 +181,19 @@ type TensionsView struct {
 	Data []glassfrog.Tension
 }
 
+// TensionDiscardView is the data the `tension-discard` templates (045) render: the
+// synthesized confirmation of a soft-deleted tension. Unlike TensionView/TensionsView
+// (which project a server-decoded glassfrog.Tension), a successful discard carries NO
+// body — `DELETE /tensions/{id}` returns 204 with nothing to decode — so the command
+// constructs this view client-side from the id it was given (plan ADR-3). It exposes
+// ONLY the discarded ten_ id: there is no server-owned field (no discarded_at) to
+// project, because the bodyless response never provided one (the result must claim
+// nothing the server did not return — spec validation scenario). The human projection
+// is a single confirmation line (`<ten_…>  [discarded]`), identical in full/compact.
+type TensionDiscardView struct {
+	ID string
+}
+
 // ActorsView is the data the org-wide `actors` directory templates (048) render:
 // the actors in the organization, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — a flat homogeneous list
@@ -356,6 +369,13 @@ const (
 	// plural/singular mirror of 038, with roles reversed (042 shipped the singular,
 	// 043 adds the plural).
 	ResourceTensions Resource = "tensions"
+	// ResourceTensionDiscard is the synthesized soft-delete confirmation (045):
+	// DELETE /tensions/{id} returns no body, so the command builds a
+	// TensionDiscardView{ID} client-side and renders it through this key (plan
+	// ADR-3). Distinct from ResourceTension (the decoded single-tension projection)
+	// — the discard result carries only the id + a discarded marker, no server-owned
+	// fields. The first render key over a wholly synthesized (un-decoded) result.
+	ResourceTensionDiscard Resource = "tension-discard"
 	// ResourceSearch is the cross-model search read (041): GET /search rendered as
 	// a SearchView (the relevance-ordered heterogeneous result list, each row a
 	// `type`-badged hit). The first render key over a deliberately mixed-type list
@@ -378,7 +398,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceTension, ResourceTensions}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceTension, ResourceTensions, ResourceTensionDiscard}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
