@@ -94,7 +94,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Interface references**: interface-spec.md: Interactions (Publish flow); Consistency Notes (OIDC trusted publishing)
   - **Risk**: ⚠️ Edits 022's `release.yml` (additive, demarcated as 037's job) — confirm OIDC `id-token: write` is scoped to the publish job and the build/verify gates still bound it
 
-- [ ] **T006** [Shared] [P] Document the npm install path and the one-time trusted-publisher setup
+- [x] **T006** [Shared] [P] Document the npm install path and the one-time trusted-publisher setup — README "Install via npm" section (npx / npm i -g / pinned forms, supported platforms, sibling channels) + scripts/npm-trusted-publishers.md (one-time per-package OIDC setup as a release prerequisite)
   - **Scope**: Add an npm Installation section to the README (`npx @luscii-healthtech/glassfrog`, `npm i -g @luscii-healthtech/glassfrog`, pinned-version form, supported platforms) and document the one-time npmjs.com trusted-publisher registration for the five package names as a release prerequisite (a `scripts/` helper or README instructions, in the spirit of `setup-branch-protection.sh`).
   - **Acceptance criteria**:
     - The README shows the `npx` / `npm i -g` / pinned forms with the `@luscii-healthtech/glassfrog` name and the supported platforms (macOS/Linux × x64/arm64).

@@ -55,6 +55,48 @@ curl -fsSL https://raw.githubusercontent.com/Luscii/cli-glassfrog/main/install.s
 > `GLASSFROG_BASE_URL`, which overrides the **API** endpoint the installed
 > `glassfrog` talks to. Exporting one does not affect the other.
 
+## Install via npm
+
+If you work in a Node toolchain, install the same binary through npm. The
+`@luscii-healthtech/glassfrog` package resolves and runs the matching platform
+binary: npm installs only the platform package for your OS and CPU, and a
+zero-dependency launcher execs that binary with arguments and exit codes passed
+straight through.
+
+Run it once, without installing:
+
+```sh
+npx @luscii-healthtech/glassfrog --version
+```
+
+Install globally:
+
+```sh
+npm i -g @luscii-healthtech/glassfrog
+glassfrog --version
+```
+
+Pin a specific version (a stable release or a pre-release):
+
+```sh
+npm i -g @luscii-healthtech/glassfrog@1.3.0
+npm i -g @luscii-healthtech/glassfrog@1.4.0-rc.1
+```
+
+Supported platforms match the install script: macOS and Linux on `x64`
+(`amd64`) and `arm64`. An unsupported platform (e.g. Windows) is refused at
+install with a clear message and nothing runnable is placed. When the matching
+platform package is available the install needs **no network**; otherwise a
+postinstall fallback downloads the release archive, **verifies its sha256
+checksum**, and only then places the binary.
+
+> The npm package, the [install script](#installation) above, and the Homebrew
+> tap are independent acquisition channels for the **same** released binary —
+> pick whichever fits your environment. Maintainers: the npm channel publishes
+> over GitHub OIDC trusted publishing, which requires a
+> [one-time per-package setup](scripts/npm-trusted-publishers.md) before the
+> first release.
+
 ## Documentation
 
 See [`docs/`](docs/) for guides, reference, and explanation, organised along the
