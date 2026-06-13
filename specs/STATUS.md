@@ -46,4 +46,5 @@
 | 042-tension-capture | Complete | validate | 2026-06-12T00:30:00 |
 | 043-tension-reads | Complete | validate | 2026-06-12T12:30:00 |
 | 044-tension-update | Ready | validate | 2026-06-13T12:30:00 |
+| 047-role-fillers | Analyzed | analyze | 2026-06-13T13:44:10 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |
