@@ -25,7 +25,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
 
 ## Phase 1: Package sources + hermetic tests [Shared]
 
-- [ ] **T001** [Shared] [P] Write the umbrella launcher (`bin/glassfrog`) **and its unit tests** — zero-dependency CommonJS exec shim
+- [x] **T001** [Shared] [P] Write the umbrella launcher (`bin/glassfrog`) **and its unit tests** — zero-dependency CommonJS exec shim — launcher + shared `lib/platform.js` + 4 launcher scenarios (argv/exit/signal/backstop) + 8 lib unit tests; lib is shared infra reused by T002/T003
   - **Scope**: One new file (e.g. `npm/bin/glassfrog`), CommonJS, no runtime npm dependencies (Node built-ins only), **together with its `node --test` unit tests in the same PR**. Resolves the platform binary — the installed platform package via `require.resolve('@luscii-healthtech/glassfrog-<os>-<cpu>/bin/glassfrog')`, else the postinstall-placed path — and `spawn`s it with `stdio: 'inherit'` and `process.argv.slice(2)`. Propagates the child's exit code and re-raises its terminating signal. Runtime backstop: when no binary resolves, prints the detected platform + supported set and an advice to reinstall without `--ignore-scripts`, then exits non-zero.
   - **Acceptance criteria**:
     - Running the launcher forwards all arguments and stdin/stdout/stderr to the binary unchanged.
