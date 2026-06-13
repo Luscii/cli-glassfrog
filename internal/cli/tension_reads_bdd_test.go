@@ -287,8 +287,11 @@ func (w *tensionReadsWorld) stderrReportsUsageError() error {
 }
 
 func (w *tensionReadsWorld) stderrReportsRejectedOutput(value string) error {
-	if w.outcome != UsageError || w.exitCode != 2 {
-		return fmt.Errorf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", w.outcome, w.exitCode, w.stderr)
+	// Reuse the shared usage-error contract (UsageError/exit-2 + non-empty stderr) so
+	// it has a single source — a change to that contract updates one place — then add
+	// the message assertion this step is about: the rejected value is named.
+	if err := w.stderrReportsUsageError(); err != nil {
+		return err
 	}
 	if !strings.Contains(w.stderr, value) {
 		return fmt.Errorf("stderr should name the rejected output value %q:\n%s", value, w.stderr)
