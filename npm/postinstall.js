@@ -159,17 +159,32 @@ async function postinstall(opts = {}) {
 			);
 		}
 
-		const extract = spawnSync('tar', ['-xzf', archivePath, '-C', tmp], { encoding: 'utf8' });
+		// Extract ONLY the expected member, the way the generator (build.mjs) does —
+		// not the whole archive. The archive is already sha256-verified, but pulling
+		// just `glassfrog` avoids writing any other entry (e.g. a path-traversal
+		// member) to disk at all.
+		const extract = spawnSync('tar', ['-xzf', archivePath, '-C', tmp, platform.BINARY], {
+			encoding: 'utf8',
+		});
 		if (extract.status !== 0) {
 			throw new InstallError(
-				`glassfrog: failed to extract ${archive} (${(extract.stderr || '').trim()}).\n` +
+				`glassfrog: failed to extract ${platform.BINARY} from ${archive} (${(extract.stderr || '').trim()}).\n` +
 					'Next step: re-run the install; if it persists, the release asset may be corrupt — report it.',
 			);
 		}
+		// Require a regular file (lstat does not follow symlinks) before placing — a
+		// symlink or directory entry named `glassfrog` is never runnable and must not
+		// be moved into place.
 		const extracted = path.join(tmp, platform.BINARY);
-		if (!fs.existsSync(extracted)) {
+		let extractedStat = null;
+		try {
+			extractedStat = fs.lstatSync(extracted);
+		} catch {
+			extractedStat = null;
+		}
+		if (!extractedStat || !extractedStat.isFile()) {
 			throw new InstallError(
-				`glassfrog: the archive ${archive} did not contain the expected ${platform.BINARY} binary.\n` +
+				`glassfrog: the archive ${archive} did not contain a regular ${platform.BINARY} binary.\n` +
 					'Next step: re-run the install; if it persists, report it.',
 			);
 		}

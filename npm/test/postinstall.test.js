@@ -11,6 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const platform = require('../lib/platform.js');
 const { postinstall, InstallError } = require('../postinstall.js');
+const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 const { mkTmp, rmrf, makeArchive, startReleaseServer, hasTar } = require('./helpers.js');
 
 const VER = '1.3.0';
@@ -96,6 +98,34 @@ test('checksum mismatch aborts before placing the binary', { skip: !hasTar() }, 
 			(err) => err instanceof InstallError && /integrity check failed/.test(err.message),
 		);
 		assert.ok(!fs.existsSync(platform.placedBinaryPath(root)), 'no binary placed on mismatch');
+	} finally {
+		await server.close();
+		rmrf(work);
+		rmrf(root);
+	}
+});
+
+test('rejects a non-regular-file member (symlink) and places nothing', { skip: !hasTar() }, async () => {
+	const work = mkTmp('glassfrog-symlink-');
+	// An archive whose `glassfrog` entry is a symlink, not a regular file — even
+	// with a matching checksum it must never be placed (path-traversal / symlink
+	// hardening).
+	fs.symlinkSync('/etc/passwd', path.join(work, 'glassfrog'));
+	const archivePath = path.join(work, 'evil.tar.gz');
+	execFileSync('tar', ['-czf', archivePath, '-C', work, 'glassfrog']);
+	const archiveBytes = fs.readFileSync(archivePath);
+	const sha = crypto.createHash('sha256').update(archiveBytes).digest('hex');
+	const server = await serveRelease({
+		[NAMES.archive]: archiveBytes,
+		[NAMES.checksums]: `${sha}  ${NAMES.archive}\n`,
+	});
+	const root = makeUmbrella();
+	try {
+		await assert.rejects(
+			postinstall({ baseUrl: server.baseUrl, pkgRoot: root, version: VER, log: () => {} }),
+			(err) => err instanceof InstallError && /did not contain a regular/.test(err.message),
+		);
+		assert.ok(!fs.existsSync(platform.placedBinaryPath(root)), 'nothing placed for a symlink member');
 	} finally {
 		await server.close();
 		rmrf(work);
