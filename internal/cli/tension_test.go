@@ -27,6 +27,7 @@ type tensionTransport struct {
 	lastPath        string
 	lastBody        string
 	lastContentType string
+	lastIfMatch     string
 	status          int
 	body            string
 	netErr          error
@@ -37,6 +38,7 @@ func (c *tensionTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	c.lastMethod = req.Method
 	c.lastPath = req.URL.Path
 	c.lastContentType = req.Header.Get("Content-Type")
+	c.lastIfMatch = req.Header.Get("If-Match")
 	if req.Body != nil {
 		b, _ := io.ReadAll(req.Body)
 		c.lastBody = string(b)
