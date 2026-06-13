@@ -37,7 +37,7 @@
 | 033-role-domains | Complete | validate | 2026-06-10T13:30:00 |
 | 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
 | 035-user-defined-template-output | Complete | validate | 2026-06-11T13:00:00 |
-| 036-homebrew-tap | Implementing | implement | 2026-06-13T08:46:41 |
+| 036-homebrew-tap | Needs rework | validate | 2026-06-13T08:50:38 |
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Ready | validate | 2026-06-11T14:30:00 |
 | 040-resolution-call-site-retrofit | Complete | validate | 2026-06-12T14:00:00 |
