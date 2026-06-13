@@ -63,10 +63,10 @@ Feature: Tension Update
     @wip
     Scenario: A rate-limited update is surfaced, not silently retried
       Given a complete connection context with a stored token
-      And the update request is answered with a rate-limit response
+      And the tensions endpoint answers the update with a rate-limit response
       When an agent runs "glassfrog tension update ten_0123 --body \"New wording.\""
-      Then the rate-limit will be surfaced on its first occurrence
-      And the PATCH will not be automatically retried
+      Then the rate-limit will be surfaced on the first occurrence
+      And the update will not be retried
       And the command will exit with the rate-limit code
 
   Rule: Retire a finished tension
@@ -88,7 +88,7 @@ Feature: Tension Update
     Scenario: An unsupported status is rejected as a usage error
       Given a complete connection context with a stored token
       When a practitioner runs "glassfrog tension update ten_0123 --status open"
-      Then stderr will report "open" and list the supported set "unprocessed, processed, archived"
+      Then stderr will report the unsupported value and list the supported set
       And no request will be sent
       And the command will exit with code 2
 
