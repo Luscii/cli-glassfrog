@@ -19,7 +19,6 @@ Feature: Subroles Tension Roll-up
     # I want to roll up the tensions across a circle's direct sub-roles with one command.
 
     # Source: 046-subroles-tension-roll-up — Scenario: Roll up tensions across a circle's direct sub-roles
-    @wip
     Scenario: A circle's direct sub-roles' tensions are rolled up
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles carrying several tensions
@@ -29,7 +28,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with code 0
 
     # Source: 046-subroles-tension-roll-up — Scenario: Anchor is a leaf role
-    @wip
     Scenario: A leaf anchor fails with the API status
       Given a complete connection context with a stored token
       And the role "role_0123" has no sub-roles
@@ -39,7 +37,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with a non-zero API-error code
 
     # Source: 046-subroles-tension-roll-up — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog tension subroles role_0123"
@@ -48,7 +45,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with code 2
 
     # Source: 046-subroles-tension-roll-up — Scenario: Sub-roles exist but carry no tensions
-    @wip
     Scenario: Sub-roles with no tensions are a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles carrying no tensions
@@ -92,7 +88,6 @@ Feature: Subroles Tension Roll-up
     # I want to narrow the roll-up by status.
 
     # Source: 046-subroles-tension-roll-up — Scenario: Narrow the roll-up by status
-    @wip
     Scenario: The roll-up is narrowed by a supported status
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles carrying tensions in several statuses
@@ -102,7 +97,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with code 0
 
     # Source: 046-subroles-tension-roll-up — Scenario: Unsupported status value is rejected before any request
-    @wip
     Scenario: An unsupported status is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension subroles role_0123 --status open"
@@ -124,7 +118,6 @@ Feature: Subroles Tension Roll-up
     # I want the roll-up to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 046-subroles-tension-roll-up — Scenario: Roll-up walks every page to completion
-    @wip
     Scenario: The roll-up walks every page to completion
       Given a complete connection context with a stored token
       And the role "role_0123" has sub-role tensions spanning more than one page
@@ -134,7 +127,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with code 0
 
     # Source: 046-subroles-tension-roll-up — Scenario: Paginated roll-up with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" has sub-role tensions spanning more than one page
@@ -144,7 +136,6 @@ Feature: Subroles Tension Roll-up
       And the command will exit with code 0
 
     # Source: 046-subroles-tension-roll-up — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the subroles tension roll-up walk fails after retrieving the first page
