@@ -49,6 +49,14 @@ Feature: Tension Reads
       Then it will show the reshaped projection only
       And it will not contain the raw "data" or "meta" JSON envelope
 
+    # Source: 043-tension-reads — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
+    Scenario: An invalid output format is rejected before any list request
+      Given a complete connection context with a stored token
+      When an agent runs "glassfrog tension list role_0123 -o xml"
+      Then stderr will report a usage error and name the rejected output value "xml"
+      And no request will be sent
+      And the command will exit with code 2
+
   Rule: Read the full detail of a tension by its id
     # In order to read the full detail of a tension I captured or found referenced elsewhere,
     # as a practitioner working a governance issue,
@@ -85,6 +93,14 @@ Feature: Tension Reads
       When their behavior and help are inspected
       Then only reading will be available under each
       And no create, update, or discard behavior will be advertised or implemented
+
+    # Source: 043-tension-reads — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
+    Scenario: An invalid output format is rejected before any get request
+      Given a complete connection context with a stored token
+      When an agent runs "glassfrog tension get ten_0123 -o xml"
+      Then stderr will report a usage error and name the rejected output value "xml"
+      And no request will be sent
+      And the command will exit with code 2
 
   Rule: Narrow a role's tensions by status
     # In order to focus on just the unworked tensions in a role with a long history,

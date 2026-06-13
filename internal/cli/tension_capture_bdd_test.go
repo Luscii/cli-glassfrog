@@ -83,6 +83,7 @@ func initializeTensionCaptureScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^stderr will report "([^"]*)" and point to "([^"]*)"$`, w.stderrReportsAndPointsTo)
 	sc.Step(`^stderr will report that the capture failed and name the HTTP status$`, w.stderrNamesHTTPStatus)
 	sc.Step(`^stderr will report the unsupported value and list the supported set$`, w.stderrReportsUnsupportedMeetingType)
+	sc.Step(`^stderr will report a usage error and name the rejected output value "([^"]*)"$`, w.stderrReportsRejectedOutput)
 	sc.Step(`^stderr will report that "([^"]*)" is required$`, w.stderrReportsRequired)
 	sc.Step(`^no request will be sent$`, w.noRequestSent)
 	sc.Step(`^the rate-limit will be surfaced on the first occurrence$`, w.rateLimitSurfaced)
@@ -219,6 +220,16 @@ func (w *tensionCaptureWorld) stderrReportsUnsupportedMeetingType() error {
 		if !strings.Contains(w.stderr, want) {
 			return fmt.Errorf("stderr should list the supported set (missing %q):\n%s", want, w.stderr)
 		}
+	}
+	return nil
+}
+
+func (w *tensionCaptureWorld) stderrReportsRejectedOutput(value string) error {
+	if w.outcome != UsageError || w.exitCode != 2 {
+		return fmt.Errorf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", w.outcome, w.exitCode, w.stderr)
+	}
+	if !strings.Contains(w.stderr, value) {
+		return fmt.Errorf("stderr should name the rejected output value %q:\n%s", value, w.stderr)
 	}
 	return nil
 }
