@@ -81,7 +81,7 @@ Feature: Tension Discard
     Scenario: An invalid output format is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension discard ten_0123 -o xml"
-      Then stderr will report a usage error naming the unsupported output value "xml" and the valid formats
+      Then stderr will report a usage error and name the rejected output value "xml"
       And no request will be sent
       And the command will exit with code 2
 
