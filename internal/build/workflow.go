@@ -24,6 +24,16 @@ const ReleaseTriggerType = "published"
 
 var RoutineTriggers = []string{"push", "pull_request", "workflow_dispatch", "schedule"}
 
+// GoReleaserVersion is the goreleaser-action `version:` the build and tap jobs
+// must pin (spec 036). GoReleaser deprecated the `brews` formula publisher in
+// favour of `homebrew_casks`; 036/ADR-1 needs the formula (casks are macOS-only,
+// the spec needs Linux), so the pipeline stays on this brews-supporting v2 line.
+// The guard pins it so an edit that bumps or unpins GoReleaser can't silently
+// reintroduce the risk of `brews` being removed upstream and the tap job
+// breaking. Bumping is a deliberate act: update this constant AND re-confirm the
+// target version still ships `brews` (see .score/memory/DEPRECATION.md).
+const GoReleaserVersion = "~> v2.16"
+
 // VerifyRunners is the required mapping from each build target to the GitHub
 // native-arch runner that must verify it (interface accord, ADR-3). The mapping
 // is load-bearing: TestSelfContainment_HostBinary selects its target binary by
@@ -312,6 +322,9 @@ func CheckTapJob(wf Workflow) []string {
 		violations = append(violations, fmt.Sprintf(
 			"tap job must NOT pass --skip=publish — that skips the brew formula push, which is the job's whole purpose (got args %q)", args))
 	}
+	if args != "" {
+		violations = append(violations, checkGoreleaserVersionPin(tap, "tap")...)
+	}
 	// Brew-publisher-only: the tap job must never create or modify the GitHub
 	// release (that boundary stays with the publish job's `gh release upload`).
 	for _, s := range tap.Steps {
@@ -454,6 +467,7 @@ func checkBuildJob(j Job) []string {
 		if !strings.Contains(args, "--skip=publish") {
 			violations = append(violations, fmt.Sprintf("build job must pass --skip=publish (GoReleaser must not publish; gh does), got args %q", args))
 		}
+		violations = append(violations, checkGoreleaserVersionPin(j, "build")...)
 	}
 	if !uploadsDistArtifact(j) {
 		violations = append(violations, "build job must upload dist/ as a CI artifact (so verify/publish read the verified bytes)")
@@ -511,6 +525,33 @@ func checkPublishJob(j Job) []string {
 func runsGoreleaserRelease(args string) bool {
 	fields := strings.Fields(args)
 	return len(fields) > 0 && fields[0] == "release"
+}
+
+// goreleaserVersion returns the `version` input of the goreleaser-action step,
+// or "" if no such step exists (or it sets no version).
+func goreleaserVersion(j Job) string {
+	for _, s := range j.Steps {
+		if strings.Contains(s.Uses, "goreleaser/goreleaser-action") {
+			if v, ok := s.With["version"].(string); ok {
+				return v
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// checkGoreleaserVersionPin asserts a goreleaser-running job pins the action to
+// GoReleaserVersion exactly — so a bump/unpin that could drop the `brews`
+// publisher fails the guard rather than shipping silently. jobName names the job
+// in the violation message.
+func checkGoreleaserVersionPin(j Job, jobName string) []string {
+	if v := goreleaserVersion(j); v != GoReleaserVersion {
+		return []string{fmt.Sprintf(
+			"%s job's goreleaser-action must pin version: %q (the brews-supporting line — a bump/unpin risks losing the deprecated brews publisher), got %q",
+			jobName, GoReleaserVersion, v)}
+	}
+	return nil
 }
 
 // goreleaserArgs returns the `args` input of the goreleaser-action step, or ""

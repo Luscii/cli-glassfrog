@@ -79,7 +79,7 @@ jobs:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v6
         with:
-          version: "~> v2"
+          version: "~> v2.16"
           args: release --clean --skip=publish
       - uses: actions/upload-artifact@v4
         with:
@@ -364,6 +364,24 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 				"          args: release --clean\n      - name: tamper\n        run: gh release edit foo\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"must not touch the GitHub release"},
+		},
+		{
+			// 036 — an unpinned/bumped GoReleaser in the build job risks losing brews.
+			name: "a build job that unpins GoReleaser (~> v2) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          version: \"~> v2.16\"\n          args: release --clean --skip=publish\n",
+				"          version: \"~> v2\"\n          args: release --clean --skip=publish\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"build job", "pin version"},
+		},
+		{
+			// 036 — same for the tap job's GoReleaser pin.
+			name: "a tap job that unpins GoReleaser (~> v2) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          version: \"~> v2.16\"\n          args: release --clean\n",
+				"          version: \"~> v2\"\n          args: release --clean\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"tap job", "pin version"},
 		},
 	}
 
