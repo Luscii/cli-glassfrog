@@ -17,7 +17,7 @@ import (
 // the `fillers` command driven through its seam over a fake base transport, so
 // every scenario runs offline (no real network, no real ~/.glassfrogrc). Its Paths
 // name ONLY this spec's feature file — never the features/ directory — so the suite
-// reports its own independent scenario count and un-@wip-ping these scenarios cannot
+// reports its own independent scenario count, and un-@wip-ing these scenarios cannot
 // disturb another suite (LEARNINGS: a suite points at its own feature file). The
 // @validation scenarios stay @wip (held for the validate skill) and are skipped by
 // the ~@wip filter.
