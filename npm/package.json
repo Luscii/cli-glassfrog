@@ -1,0 +1,38 @@
+{
+  "name": "@luscii-healthtech/glassfrog",
+  "version": "0.0.0",
+  "description": "Run the Glassfrog CLI — a command-line surface over the Glassfrog Holacracy governance API v5 — via npm/npx.",
+  "homepage": "https://github.com/Luscii/cli-glassfrog#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Luscii/cli-glassfrog.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Luscii/cli-glassfrog/issues"
+  },
+  "license": "UNLICENSED",
+  "keywords": [
+    "glassfrog",
+    "holacracy",
+    "governance",
+    "cli"
+  ],
+  "bin": {
+    "glassfrog": "bin/glassfrog"
+  },
+  "files": [
+    "bin/glassfrog",
+    "postinstall.js",
+    "lib/"
+  ],
+  "scripts": {
+    "postinstall": "node postinstall.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
