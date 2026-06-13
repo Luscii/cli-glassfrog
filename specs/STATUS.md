@@ -38,7 +38,7 @@
 | 034-role-policies | Complete | validate | 2026-06-10T15:00:00 |
 | 035-user-defined-template-output | Complete | validate | 2026-06-11T13:00:00 |
 | 036-homebrew-tap | Needs fixes | validate | 2026-06-13T10:32:10 |
-| 037-npm-wrapper-package | Analyzed | risk | 2026-06-12T18:13:54 |
+| 037-npm-wrapper-package | Implemented | implement | 2026-06-13T11:38:12 |
 | 038-role-projects | Complete | validate | 2026-06-11T12:30:00 |
 | 039-source-composed-resolution | Ready | validate | 2026-06-11T14:30:00 |
 | 040-resolution-call-site-retrofit | Complete | validate | 2026-06-12T14:00:00 |
