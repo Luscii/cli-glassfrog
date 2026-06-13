@@ -195,6 +195,16 @@ func TestConfigGuard_Drift(t *testing.T) {
 			wantNamed: []string{"builds_info.mtime"},
 		},
 		{
+			// 036 — a non-empty but NON-deterministic mtime (build-time {{ .Now }})
+			// passes a presence-only check yet breaks cross-job reproducibility; the
+			// guard must reject anything not commit-anchored.
+			name: "a non-deterministic build-time archive mtime ({{ .Now }}) is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      mtime: \"{{ .CommitDate }}\"\n", "      mtime: \"{{ .Now }}\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"builds_info.mtime", "commit-anchored"},
+		},
+		{
 			// #2 — a name_template rename silently breaks downstream consumers; pin it.
 			name: "an archive name_template rename is rejected and named",
 			yaml: strings.Replace(validConfigYAML,

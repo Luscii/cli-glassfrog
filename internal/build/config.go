@@ -66,6 +66,17 @@ const (
 	BrewTapRepo     = "homebrew-cli-glassfrog"
 )
 
+// CommitAnchoredMTime are the GoReleaser template sources that pin the archive
+// entry mtime to a deterministic, commit-anchored value (036 reproducibility).
+// The guard requires builds_info.mtime to reference one of these — not merely to
+// be non-empty — because reproducibility hinges on the value being the SAME
+// across two jobs building the same commit. A build-time template
+// (e.g. {{ .Now }} / {{ .Date }} / {{ .Timestamp }}) varies per run, so the
+// tap job's rebuilt archive would get a different mtime, a different sha256, and
+// every `brew install` would fail its integrity check — exactly the silent hole
+// a non-empty-only check would let through.
+var CommitAnchoredMTime = []string{".CommitDate", ".CommitTimestamp"}
+
 // Config is the subset of the GoReleaser schema the guard inspects. Fields the
 // guard does not assert on (project_name, flags, ldflags) are kept so a round
 // trip is lossless enough for debugging and so the ldflags 023 seam is visible.
@@ -369,13 +380,34 @@ func checkArchives(archives []Archive) []string {
 	// bytes are already reproducible (-trimpath + CGO_ENABLED=0), but an unpinned
 	// tar-entry mtime would still make the rebuilt archive's sha256 differ from
 	// the published asset's — and every `brew install` would then fail its
-	// integrity check. Pinning builds_info.mtime closes that gap; an empty mtime
-	// (the zero value of a missing builds_info) fails as loudly as a bad format.
-	if strings.TrimSpace(a.BuildsInfo.MTime) == "" {
-		violations = append(violations,
-			"archives must pin builds_info.mtime (036 reproducibility) so the tap job's rebuilt archives are byte-identical to the published ones; got an empty/absent mtime")
+	// integrity check. The mtime must be pinned to a deterministic, commit-anchored
+	// value (not merely non-empty): a build-time template like {{ .Now }} varies
+	// per run and would reintroduce exactly that drift while passing a presence-only
+	// check. An empty/absent mtime (the zero value of a missing builds_info) fails
+	// for the same reason.
+	if !mtimeIsCommitAnchored(a.BuildsInfo.MTime) {
+		violations = append(violations, fmt.Sprintf(
+			"archives must pin builds_info.mtime to a deterministic commit-anchored value (%s) so the tap job's rebuilt archives are byte-identical to the published ones — a build-time or empty value (e.g. {{ .Now }}) would break the cross-job checksum match; got %q",
+			strings.Join(CommitAnchoredMTime, " or "), a.BuildsInfo.MTime))
 	}
 	return violations
+}
+
+// mtimeIsCommitAnchored reports whether the builds_info.mtime template references
+// a deterministic, commit-anchored source (the build's commit date/timestamp).
+// Matching the commit-anchored source — rather than merely non-empty — is what
+// guarantees reproducibility: two jobs building the same commit derive the same
+// mtime, hence byte-identical archives and matching checksums. A build-time
+// template (.Now/.Date/.Timestamp) or an empty value varies per run and is
+// rejected. This is an allowlist (robust to a new build-time template appearing)
+// rather than a denylist of known-bad sources.
+func mtimeIsCommitAnchored(mtime string) bool {
+	for _, src := range CommitAnchoredMTime {
+		if strings.Contains(mtime, src) {
+			return true
+		}
+	}
+	return false
 }
 
 // checkChecksum requires the checksum section to be present, enabled, sha256, and
