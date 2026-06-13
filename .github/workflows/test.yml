@@ -66,12 +66,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        # Test both the current LTS (22) and the Node major the release job
+        # publishes on (24, see release.yml npm-publish) — so the shipped path is
+        # never on an untested runtime.
+        node: ["22", "24"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ matrix.node }}
       - name: node test (npm channel)
         run: node --test
         working-directory: npm
