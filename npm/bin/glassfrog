@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+// glassfrog launcher (spec 037, ADR-4) — the `glassfrog` command the umbrella
+// package exposes. A zero-dependency CommonJS exec shim: it resolves the platform
+// binary (the bundled optional-dependency package, else the postinstall-placed
+// path), execs it with every argument and stdio forwarded unchanged, and exits
+// with the binary's own exit code (re-raising a terminating signal). It adds
+// nothing to stdout — the binary's output and exit code are honoured verbatim, so
+// 004's exit-code convention passes through the npm channel identically to a
+// direct call.
+//
+// It is also the runtime backstop: if no binary resolves (e.g. the postinstall
+// was skipped via --ignore-scripts), it prints a clear refusal to stderr and
+// exits non-zero rather than crashing confusingly.
+'use strict';
+
+const path = require('path');
+const { spawnSync } = require('child_process');
+const platform = require('../lib/platform.js');
+
+// run({ argv, pkgRoot, plat, arch, stderr }) — resolve and exec the binary.
+// Returns { code } for the no-binary backstop; on a successful exec it does not
+// return (process exits / is signalled). Arguments are injectable so node --test
+// can drive it against a stub binary without a real install.
+function run(opts = {}) {
+	const argv = opts.argv || process.argv.slice(2);
+	const pkgRoot = opts.pkgRoot || path.join(__dirname, '..');
+	const plat = opts.plat || process.platform;
+	const arch = opts.arch || process.arch;
+	const stderr = opts.stderr || process.stderr;
+
+	const binary = platform.resolveBinary(plat, arch, pkgRoot);
+	if (!binary) {
+		stderr.write(platform.noBinaryMessage(plat, arch) + '\n');
+		return { code: 1 };
+	}
+
+	// stdio: 'inherit' wires the child's stdin/stdout/stderr straight to ours, so
+	// all I/O passes through untouched. process.argv.slice(2) forwards every CLI
+	// argument verbatim.
+	const child = spawnSync(binary, argv, { stdio: 'inherit' });
+
+	// A spawn-level failure (e.g. the placed file is not executable) is a launcher
+	// fault, not the binary's exit code — report it and exit non-zero.
+	if (child.error) {
+		stderr.write(`glassfrog: failed to run the binary at ${binary}: ${child.error.message}\n`);
+		return { code: 1 };
+	}
+
+	// A signal-terminated child carries a null status and a signal name. Re-raise
+	// the same signal on ourselves so a parent observes the launcher dying exactly
+	// as the binary did (Ctrl-C, SIGTERM, …) — matching a direct invocation.
+	if (child.signal) {
+		process.kill(process.pid, child.signal);
+		// process.kill may not terminate synchronously for every signal; fall back
+		// to a non-zero exit so we never return success after a signalled child.
+		return { code: 1 };
+	}
+
+	return { code: child.status === null ? 1 : child.status };
+}
+
+module.exports = { run };
+
+// Run only when invoked as the command, not when a test requires this file.
+if (require.main === module) {
+	process.exit(run().code);
+}

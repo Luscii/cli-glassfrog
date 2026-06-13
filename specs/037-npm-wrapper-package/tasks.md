@@ -25,7 +25,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
 
 ## Phase 1: Package sources + hermetic tests [Shared]
 
-- [ ] **T001** [Shared] [P] Write the umbrella launcher (`bin/glassfrog`) **and its unit tests** — zero-dependency CommonJS exec shim
+- [x] **T001** [Shared] [P] Write the umbrella launcher (`bin/glassfrog`) **and its unit tests** — zero-dependency CommonJS exec shim — launcher + shared `lib/platform.js` + 4 launcher scenarios (argv/exit/signal/backstop) + 8 lib unit tests; lib is shared infra reused by T002/T003
   - **Scope**: One new file (e.g. `npm/bin/glassfrog`), CommonJS, no runtime npm dependencies (Node built-ins only), **together with its `node --test` unit tests in the same PR**. Resolves the platform binary — the installed platform package via `require.resolve('@luscii-healthtech/glassfrog-<os>-<cpu>/bin/glassfrog')`, else the postinstall-placed path — and `spawn`s it with `stdio: 'inherit'` and `process.argv.slice(2)`. Propagates the child's exit code and re-raises its terminating signal. Runtime backstop: when no binary resolves, prints the detected platform + supported set and an advice to reinstall without `--ignore-scripts`, then exits non-zero.
   - **Acceptance criteria**:
     - Running the launcher forwards all arguments and stdin/stdout/stderr to the binary unchanged.
@@ -38,7 +38,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Scenario references**: npm-wrapper-package.feature: "Exit code and arguments pass through unchanged", "Launcher refuses clearly when no binary is installed", "npx resolves and runs the matching platform binary" (exec half)
   - **Interface references**: interface-spec.md: Surface (In-repo sources — Launcher); Interactions (Runtime flow); Error Communication (Runtime/launcher table)
 
-- [ ] **T002** [Shared] [P] Write the postinstall fallback (`postinstall.js`) **and its fixture-server tests** — platform detection, verified download, unsupported refusal
+- [x] **T002** [Shared] [P] Write the postinstall fallback (`postinstall.js`) **and its fixture-server tests** — platform detection, verified download, unsupported refusal — postinstall.js (no-op-when-bundled, verified fallback download/extract/atomic-place, refusals) + 5 fixture-server tests (happy/bundled-no-network/mismatch/unsupported/missing-tar); fixtures pin 022's asset names
   - **Scope**: One new file (e.g. `npm/postinstall.js`), CommonJS, zero runtime npm dependencies, **together with its `node --test` tests (driven against a local fixture server via the `GLASSFROG_DOWNLOAD_BASE_URL` seam) in the same PR**. If a bundled platform binary resolves → no-op success (no network). Else fallback: map `process.platform`/`process.arch` to a supported target; on no supported target → refuse (message naming detected platform + supported set), place nothing, exit non-zero. On a supported target: construct the release asset URLs from 022's `name_template` against `GLASSFROG_DOWNLOAD_BASE_URL` (default `https://github.com`), download archive + checksums, verify the archive's sha256 against its checksums entry (refuse + non-zero on mismatch), probe for `tar` (clear failure if absent), extract, and place the binary atomically (temp → verify → move; nothing placed on any failure). Each error names a cause and a next step (CONSTITUTION II — see interface-spec.md § Error Communication).
   - **Acceptance criteria**:
     - With the matching platform package present, the postinstall is a no-op and makes no network call.
@@ -54,7 +54,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Interface references**: interface-spec.md: Surface (In-repo sources — postinstall; Configuration schema); Interactions (Install-time flow); Error Communication (Install-time table)
   - **Risk**: ⚠️ Hard coupling to 022's archive/checksum name template — a template change 404s the fallback (pin via this task's fixtures; see risk.md H-2 / RC-2)
 
-- [ ] **T003** [Shared] Write the package generator + umbrella `package.json` template **and its package-shape tests**
+- [x] **T003** [Shared] Write the package generator + umbrella `package.json` template **and its package-shape tests** — npm/package.json template (umbrella + dev manifest) + build.mjs generator (os/cpu map, =version pinning, extract-from-022-archive, copies sources) + 5 shape/integration tests
   - **Scope**: The umbrella `package.json` template and a generator (e.g. `npm/build.mjs`) that, given the release version and the verified `dist/` binaries, emits the umbrella (`@luscii-healthtech/glassfrog`) and the four platform packages (`@luscii-healthtech/glassfrog-<os>-<cpu>`) into a gitignored output dir — **together with its `node --test` package-shape tests in the same PR**. Applies the GoReleaser→npm arch map (`amd64`→`x64`, `arm64`→`arm64`; `darwin`/`linux` unchanged), stamps every package at the version (tag minus leading `v`), pins the umbrella's `optionalDependencies` to `=<version>`, sets `bin` only on the umbrella (the launcher) and `os`/`cpu` on each platform package, copies the launcher + postinstall into the umbrella, and bundles each platform binary.
   - **Acceptance criteria**:
     - The generator emits one umbrella + four platform package directories from a version + a `dist/` location.
@@ -67,7 +67,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Scenario references**: npm-wrapper-package.feature: "Pinned global install places the matching binary", "npx resolves and runs the matching platform binary" (optional-dep resolution half), "Each supported platform resolves exactly its own binary" (@validation), "The placed binary version matches the package and the release tag" (@validation)
   - **Interface references**: interface-spec.md: Surface (Published packages, umbrella/platform package.json contracts, Generated output); Interactions (Generator invocation, Version normalisation)
 
-- [ ] **T004** [Shared] Wire the `node --test` suite into CI + add cross-unit integration coverage; clear `@wip`
+- [x] **T004** [Shared] Wire the `node --test` suite into CI + add cross-unit integration coverage; clear `@wip` — added `node-test` job to shared test.yml (ubuntu+macos, picked up by 024 & 029) + install→launch integration test; removed `@wip` from 9 covered scenarios, kept 3 `@validation @wip` held out
   - **Scope**: Wire the per-unit `node --test` suites shipped by T001–T003 into CI as a Node test job (running under the existing gate surface, alongside 024's lint/test), and add the cross-unit/end-to-end coverage that no single unit's tests own: a full install-then-launch pass against the fixture server (postinstall places via fallback → launcher execs the placed binary). This task adds the integration layer and CI wiring; it introduces no new untested package source — each source unit already ships its own unit tests (T001–T003). On completion, remove the `@wip` tags from the now-covered scenarios; the three `@validation` scenarios stay `@wip` for independent verification.
   - **Acceptance criteria**:
     - The combined `node --test` suite runs in CI (a Node test job) on PRs and main, so PR Validation (024) / Main-Branch Verification (029) pick it up.
@@ -81,7 +81,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
 
 ## Phase 2: Release integration [Shared]
 
-- [ ] **T005** [Shared] [P] Add the `npm-publish` job to `release.yml` and gitignore the generated output dir
+- [x] **T005** [Shared] [P] Add the `npm-publish` job to `release.yml` and gitignore the generated output dir — npm-publish job (needs [build, verify], id-token: write, reuses dist/ artifact, generates at release version, publishes platform packages then umbrella via OIDC --provenance, no NPM_TOKEN); dist/npm/ covered by the documented /dist/ gitignore
   - **Scope**: Append an `npm-publish` job to `.github/workflows/release.yml`, `needs: [build, verify]`, that downloads the verified `dist/` artifact, runs the generator (T003) at the release version, and publishes — **platform packages first, then the umbrella** — with `npm publish --access public --provenance` authenticated by GitHub OIDC (`permissions: id-token: write`; no stored `NPM_TOKEN`). Add the generated output dir (e.g. `dist/npm/`) to `.gitignore`.
   - **Acceptance criteria**:
     - The job runs only on `release: published` and only after `build` and `verify` succeed (no npm release without a verified release).
@@ -94,7 +94,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
   - **Interface references**: interface-spec.md: Interactions (Publish flow); Consistency Notes (OIDC trusted publishing)
   - **Risk**: ⚠️ Edits 022's `release.yml` (additive, demarcated as 037's job) — confirm OIDC `id-token: write` is scoped to the publish job and the build/verify gates still bound it
 
-- [ ] **T006** [Shared] [P] Document the npm install path and the one-time trusted-publisher setup
+- [x] **T006** [Shared] [P] Document the npm install path and the one-time trusted-publisher setup — README "Install via npm" section (npx / npm i -g / pinned forms, supported platforms, sibling channels) + scripts/npm-trusted-publishers.md (one-time per-package OIDC setup as a release prerequisite)
   - **Scope**: Add an npm Installation section to the README (`npx @luscii-healthtech/glassfrog`, `npm i -g @luscii-healthtech/glassfrog`, pinned-version form, supported platforms) and document the one-time npmjs.com trusted-publisher registration for the five package names as a release prerequisite (a `scripts/` helper or README instructions, in the spirit of `setup-branch-protection.sh`).
   - **Acceptance criteria**:
     - The README shows the `npx` / `npm i -g` / pinned forms with the `@luscii-healthtech/glassfrog` name and the supported platforms (macOS/Linux × x64/arm64).
