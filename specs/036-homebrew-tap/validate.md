@@ -1,11 +1,11 @@
 # Validate: Homebrew Tap
 
 **Feature**: 036-homebrew-tap
-**Round**: 1 of 3
+**Round**: 2 of 3
 **Date**: 2026-06-13
-**Verdict**: Not Ready (partial)
-**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, homebrew-tap.feature, PROJECT.md
-**Implementation files**: `.goreleaser.yaml` (brews block + 022 refinements); `internal/build/config.go` (config-guard extension); `internal/build/config_guard_test.go`, `internal/build/formula_render_test.go`, `internal/build/homebrew_tap_bdd_test.go` (tests)
+**Verdict**: Issues
+**Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, homebrew-tap.feature, PROJECT.md, validate.md (round 1)
+**Implementation files**: `.goreleaser.yaml` (brews + refinements), `LICENSE`, `.github/workflows/release.yml` (tap job + GoReleaser pin), `internal/build/config.go` + `workflow.go` (guards), `internal/build/{config_guard,workflow,formula_render,homebrew_tap_bdd}_test.go`; tap repo `Luscii/homebrew-cli-glassfrog` (created)
 
 ---
 
@@ -13,139 +13,151 @@
 
 | Dimension | Status | Findings |
 |---|---|---|
-| Driving scenario coverage | ◐ Partial (T003 scope only) | 0 |
-| Acceptance criteria | ✓ Pass (T003 — the only checked task) | 0 |
-| Interface contract conformance | ✓ Pass (T003 surfaces; tap-job surface deferred to T004) | 2 (low, intent-conformant) |
+| Driving scenario coverage | ✓ Pass (lower-confidence; brew-side is manual) | 0 |
+| Acceptance criteria | ✗ Fail (T001 deviates from its criteria) | F-1, F-2 |
+| Interface contract conformance | ✓ Pass (3 intent-conformant adaptations) | F-4, F-5 |
 | Non-behavior absence | ✓ Pass | 0 |
-| @wip lifecycle completion | ✓ Pass | 0 |
-| **Validation scenarios** | ◐ Not yet traceable (depend on T004 + live tap) | 0 |
+| @wip lifecycle completion | ✗ Fail (T004 scenarios still @wip) | F-3 |
+| **Validation scenarios** | ◐ Partially satisfied (1 structural; 2 need a live tap) | — |
 
-**Total**: 5 dimensions checked, all pass for the checked task; 2 low-severity, intent-conformant interface adaptations recorded. **1 of 4 tasks complete** — this is a progress checkpoint, not a failure.
-
----
-
-## Task Completion
-
-| Task | State | Notes |
-|---|---|---|
-| T001 — provision tap repo + `HOMEBREW_TAP_TOKEN` | ☐ Not done | Ops/credential work; developer-owned (cannot be done by the Builder) |
-| T002 — LICENSE decision + `brews.license` | ☐ Not done | Developer-owned decision; `license` left unset (GoReleaser auto-detects from a `LICENSE`) |
-| T003 — `brews` block + config-guard + offline render test | ☑ Done | Validated below |
-| T004 — `tap` job in `release.yml` + workflow guard | ☐ Not done | Blocked on T001 (live repo+secret); also entangled with the `brews`-deprecation decision |
+**Total**: 5 dimensions checked, 3 pass / 2 fail; 5 findings (2 medium-ish operational, 3 low intent-conformant). **All 4 tasks complete.** Verdict **Issues** — incremental/operational, not fundamental gaps.
 
 ---
 
 ## Driving Scenario Coverage
 
-**Status**: Partial — only scenarios referenced by the checked task (T003) are evaluated. The spec's seven brew-install/upgrade driving scenarios are all referenced by **T004** (unchecked) and are reported as *not yet implemented* — they describe live `brew install`/`brew upgrade` behaviour that the tap job (T004) plus a live tap produce.
+**Status**: Pass (lower-confidence). The code paths that *produce* each scenario's outcome now exist and are guarded; the Homebrew-side install/verify behavior is the package manager's and needs a live, public tap to exercise end-to-end (manual).
 
-| Scenario | Referenced by | Status | Implementation |
-|---|---|---|---|
-| Config-guard fails when the brews block is blanked or retargeted | T003 | ✓ Covered | `internal/build/config.go:checkBrews`; `config_guard_test.go` (blanked/retargeted/owner/formula-name drift cases); `homebrew_tap_bdd_test.go` |
-| The published formula's checksums match the release's checksums file | T003 | ✓ Covered | `internal/build/formula_render_test.go:TestFormulaRender_OfflineShapeAndChecksums` (each rendered sha256 == snapshot `checksums.txt` entry) |
-| Fresh install on macOS / Linux | T004 | ○ Not yet implemented | Tap job not built |
-| Upgrade moves to the latest stable / no-op when current | T004 | ○ Not yet implemented | Tap job not built |
-| A missing release asset fails the install clearly | T004 | ○ Not yet implemented | Tap job not built |
-| Checksum mismatch refuses the install | T004 | ○ Not yet implemented | Tap job not built |
-| A pre-release does not move the tap | T004 | ○ Not yet implemented | Tap job not built (stable-only `if`-gate lives in T004) |
+| Scenario | Status | Implementation / proxy |
+|---|---|---|
+| Fresh install on macOS / Linux | ◑ Covered (manual e2e) | Tap job publishes a correct `Formula/glassfrog.rb` (render test verifies shape + 4 url/sha256); `bin.install` places the binary. Actual `brew install` is manual. |
+| Upgrade to latest stable / no-op when current | ◑ Covered (manual e2e) | Each stable release re-renders the formula at the new version (reproducible); `brew upgrade` is Homebrew's behavior. |
+| Checksum mismatch refuses install / missing asset fails | ◑ Covered (manual e2e) | Formula sha256 == release `checksums.txt` (render test asserts); URL points at the published asset. Homebrew enforces the integrity check. |
+| Pre-release does not move the tap | ✓ Covered | `tap` job `if: ${{ !github.event.release.prerelease }}`; `CheckTapJob` asserts the gate. |
 
 ---
 
 ## Acceptance Criteria
 
-**Status**: Pass — T003 is the only checked task; all five of its acceptance criteria have implementation evidence.
+**Status**: Fail — T002/T003/T004 criteria met; **T001's credential and visibility criteria diverge** from what was implemented (developer-approved, documented), and one criterion is unverified.
 
-| Criterion (T003) | Status | Evidence |
+| Task | Status | Evidence / gap |
 |---|---|---|
-| Snapshot render produces `Formula/glassfrog.rb` with four platform url+sha256 blocks, install + test stanzas, populated version | ✓ Met | `TestFormulaRender_OfflineShapeAndChecksums` (asserts class, both OS blocks, 4 url+sha, `bin.install`, `test`, non-empty version) — passes |
-| Each formula sha256 equals the matching `checksums.txt` line | ✓ Met | Same test cross-checks all four; verified green |
-| `builds`/`ldflags` byte-unchanged; `release.disable: true`; archive mtime pinned | ✓ Met | `builds`/`ldflags` untouched in `.goreleaser.yaml`; `release.disable: true`; archive entry mtime pinned via `builds_info.mtime` (see F-1) |
-| Config-guard fails loudly on missing/retargeted brews, non-disabled release, or unpinned mtime | ✓ Met | `checkBrews`/`checkRelease`/`checkArchives` + drift cases in `config_guard_test.go` — all pass |
-| Implementation and tests ship in the same PR (CONSTITUTION VII) | ✓ Met | Same commit (`7e5df7f`) |
+| T001 — tap repo + scoped token + secret | ✗ Partial | Repo created (✓), but: token is the **org-wide `CI_GITHUB_TOKEN`**, not the criterion's *tap-scoped least-privilege* token; **no dedicated `HOMEBREW_TAP_TOKEN` secret** (env-mapped instead); repo is **internal**, not the criterion's *public*; "main writable by the token" **unverified**. See F-1, F-2. |
+| T002 — LICENSE + `brews.license` | ✓ Met | MIT `LICENSE` at root; `brews.license: "MIT"` (set explicitly — GoReleaser doesn't auto-fill offline); rendered formula carries `license "MIT"`; audit no longer fails on a missing license. |
+| T003 — brews block + config-guard + render test | ✓ Met | (Round 1) + triage hardening: commit-anchored mtime guard, branch pin, CI-runnable parse test. |
+| T004 — tap job + workflow guard | ✓ Met (structurally) | `tap` job (`needs: [publish]`, `if: !prerelease`, token env, brew-publisher-only); `CheckTapJob` asserts the contract with drift tests; impl+guard same PR. Runtime publish behavior is manual (no live release yet). |
 
 ---
 
 ## Interface Contract Conformance
 
-**Status**: Pass for the T003 surfaces (the `.goreleaser.yaml` `brews` section, the two 022 refinements, the config-guard extension, and the generated-formula structural contract). The `release.yml` `tap` job surface is **not yet implemented** (T004) — reported as deferred, not as a finding. Two low-severity, intent-conformant adaptations recorded (F-1, F-2).
-
-| Interface surface | Status | Notes |
-|---|---|---|
-| `brews` fields (name, ids, repository.*, directory, homepage, description, install, test, skip_upload) | ✓ Conformant | All present; `license` intentionally omitted (auto-detect; T002's `[NEEDS INPUT]`) |
-| Refinement: `release.disable: true` | ✓ Conformant | In effect; config-guard pins it |
-| Refinement: pinned archive mtime | ◑ Conformant (adapted) | Realized as `builds_info.mtime` — see **F-1** |
-| Config-guard extension (brews target + refinements) | ✓ Conformant | `checkBrews` + extended `checkArchives`/`checkRelease` |
-| Generated `Formula/glassfrog.rb` structural contract | ✓ Conformant | Real GoReleaser output uses `on_macos`/`on_linux` + `Hardware::CPU` branches (interface noted "exact whitespace/order is GoReleaser's"); URL hard-contract satisfied — see **F-2** |
-| `release.yml` `tap` job structure | ○ Deferred (T004) | Not yet implemented |
+**Status**: Pass. All surfaces (brews section incl. `license: MIT`, `release.disable`, archive mtime, config-guard, generated formula, the `release.yml` tap job) conform. Three low-severity, intent-conformant adaptations (F-4, F-5).
 
 ---
 
 ## Non-Behavior Absence
 
-**Status**: Pass — no excluded behaviour is present in the T003 implementation.
+**Status**: Pass.
 
 | Non-behavior | Status | Evidence |
 |---|---|---|
-| Must not build / require a Go toolchain or source checkout | ✓ Absent | Formula uses `bin.install "glassfrog"` (installs the pre-built archive); no compile stanza |
-| Must not track pre-releases | ✓ Absent | Nothing publishes yet; the authoritative stable-only `if`-gate is T004. `skip_upload: false` is set with the job-level gate as the contract — no pre-release tracking introduced |
-| Must not commit the formula to this repo / push to its `main` | ✓ Absent | `brews.repository` targets the separate `Luscii/homebrew-cli-glassfrog`; nothing writes this repo's `main` |
-| Must not author release notes, sign/notarize, or bump versions | ✓ Absent | `release.disable: true` stops GoReleaser from touching the GitHub release; no signing/version code added |
-| Must not support platforms outside the four release targets | ✓ Absent | `brews.ids` draws from the four-target `glassfrog` build; rendered formula has exactly darwin/linux × amd64/arm64, no windows |
-
----
-
-## Validation Scenario Results
-
-**Status**: Not yet traceable — all three held-out @validation scenarios depend on the **tap job (T004)** and a live tap/release, which are not yet implemented. They remain `@validation @wip` (correctly held). None is a finding at this stage; they are revisited when T004 lands.
-
-| Scenario | Status | Trace |
-|---|---|---|
-| The installed binary matches the release the formula points at | ○ Not yet traceable | Requires a live `brew install` from the tap (T004 + manual post-first-release validation) |
-| A mismatched checksum never lets a binary reach PATH | ○ Not yet traceable | Homebrew install-time integrity behaviour; T004 + manual |
-| A pre-release leaves the tap repository untouched | ○ Not yet traceable | Tap-job `if`-gate behaviour (T004) |
+| No build / Go toolchain on host | ✓ Absent | `bin.install "glassfrog"`; no compile stanza |
+| No pre-release tracking | ✓ Absent | Authoritative job-level `if: !github.event.release.prerelease` (now implemented) |
+| No commit to this repo's `main` | ✓ Absent | Tap job pushes to the separate `homebrew-cli-glassfrog`; `release.disable: true` |
+| No release authoring / signing / version bumps | ✓ Absent | `release.disable: true`; no signing/version code |
+| No platforms beyond the four targets | ✓ Absent | brews `ids` draws from the four-target build; rendered formula has exactly darwin/linux × amd64/arm64 |
 
 ---
 
 ## @wip Lifecycle Completion
 
-**Status**: Pass. The two scenarios referenced by the checked task T003 ("Config-guard fails when the brews block is blanked or retargeted", "The published formula's checksums match the release's checksums file") have had their `@wip` removed and are exercised by the suites. All other scenarios — the install/upgrade/pre-release driving scenarios (T004) and the three `@validation` scenarios — correctly retain `@wip`.
+**Status**: Fail — F-3. T003's two scenarios are un-`@wip`'d. But **T004 is now checked and references the install / upgrade / missing-asset / checksum-mismatch / pre-release scenarios, which remain `@wip`.** They are not CI-exercisable (they need a live, public tap + a real published release), so they were intentionally left `@wip` with the `CheckTapJob` workflow guard as the structural proxy. This is a real divergence from the "remove `@wip` when the referencing task completes" expectation — see F-3 for resolution options.
+
+---
+
+## Validation Scenario Results
+
+**Status**: Partially satisfied — 1 of 3 structurally provable now; 2 need a live tap (manual).
+
+| Scenario | Status | Trace |
+|---|---|---|
+| A pre-release leaves the tap repository untouched | ✓ Satisfied (structural) | `tap` job `if`-gate skips pre-releases; `CheckTapJob` asserts it |
+| The installed binary matches the release the formula points at | ◐ Not traceable in CI | Needs a live `brew install` from the public tap (manual post-first-release) |
+| A mismatched checksum never lets a binary reach PATH | ◐ Not traceable in CI | Homebrew install-time integrity behavior; manual |
 
 ---
 
 ## Findings
 
-### F-1: Archive mtime pinned via `builds_info.mtime`, not the interface's `archives.mtime`
+### F-1: T001 credential diverges from the acceptance criterion (org-wide token, no dedicated secret)
+
+- **Dimension**: Acceptance criteria
+- **Source**: tasks.md § T001 — "least-privilege credential scoped to *only* that repository … stored as a repository secret named `HOMEBREW_TAP_TOKEN`"
+- **Implementation**: `.github/workflows/release.yml` `tap.env.HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}`
+- **Gap**: The implemented credential is the **org-wide `CI_GITHUB_TOKEN`** mapped into the `HOMEBREW_TAP_TOKEN` env var, not a tap-repo-scoped least-privilege token, and there is no dedicated `HOMEBREW_TAP_TOKEN` repo secret. Developer-approved and recorded in `.score/memory/DEPRECATION.md` (ADR-4 deviation: broader blast radius than tap-only). Low-medium: a deliberate, documented tradeoff — surfaced here because it diverges from the task's written criterion.
+
+### F-2: Tap repo is internal and write-access unverified (operational preconditions)
+
+- **Dimension**: Acceptance criteria
+- **Source**: tasks.md § T001 — "Create the empty **public** repository … its `main` is **writable by the minted token**"
+- **Implementation**: `Luscii/homebrew-cli-glassfrog` created **internal**; token write-access not yet exercised
+- **Gap**: While `internal`, anonymous `brew tap`/`brew install` cannot resolve the tap, so the user-facing channel is not yet live (flip to **public** before relying on it). And `CI_GITHUB_TOKEN`'s `contents: write` on the new repo is unconfirmed — the first stable release's `tap` job is the first real exercise (it fails loud if the token can't push). Operational, not a code defect.
+
+### F-3: @wip remains on T004-referenced scenarios (not CI-exercisable)
+
+- **Dimension**: @wip lifecycle completion
+- **Source**: features/runtime-dependent-distribution/homebrew-tap.feature — the install/upgrade/missing-asset/checksum-mismatch/pre-release scenarios; tasks.md § T004 scenario references
+- **Implementation**: tap job + `CheckTapJob` guard (the structural proxy)
+- **Gap**: T004 (checked) references these scenarios, but they remain `@wip` because they describe live Homebrew install/upgrade behavior that cannot run in CI without a public tap and a real release. Resolution: either reclassify them as manual/held (e.g., keep them `@wip` by intent and document, or tag `@validation`), or exercise them on the live tap as the post-first-release manual validation. Intentional — flagged so the divergence is explicit, not silent.
+
+### F-4: Archive mtime realized as `builds_info.mtime` (carried from round 1)
 
 - **Dimension**: Interface contract conformance
-- **Source**: interface-spec.md § Refinements to 022's sections > "Reproducible archives — Pin `archives.mtime` (to the commit date)"
-- **Implementation**: `.goreleaser.yaml` `archives[0].builds_info.mtime: "{{ .CommitDate }}"`; guard at `internal/build/config.go:checkArchives`
-- **Gap**: The interface names a top-level `archives.mtime` field. The installed GoReleaser (v2.16.0, the `~> v2` pinned in `release.yml`) has no such field — its parser rejects it — so the archive-entry modification time is pinned under `builds_info.mtime` instead. **Intent met**: the offline render produces archives whose sha256 match `checksums.txt` (verified). Low severity; tooling-driven adaptation, documented in `.score/memory/LEARNINGS.md`.
+- **Source**: interface-spec.md § Refinements — "Pin `archives.mtime`"
+- **Implementation**: `.goreleaser.yaml` `archives.builds_info.mtime: "{{ .CommitDate }}"`; guard `mtimeIsCommitAnchored`
+- **Gap**: GoReleaser ~> v2 has no top-level `archives.mtime`; realized via `builds_info.mtime`. Intent (reproducible archives) met and tested; the guard now requires a commit-anchored value. Low.
 
-### F-2: `brews.url_template` added (not in the interface's brews field list)
+### F-5: `url_template` added and GoReleaser pinned to `~> v2.16`
 
 - **Dimension**: Interface contract conformance
-- **Source**: interface-spec.md § `.goreleaser.yaml` — `brews` section (field table) and § Generated `Formula/glassfrog.rb` ("Hard contract" on asset URLs)
-- **Implementation**: `.goreleaser.yaml` `brews[0].url_template`
-- **Gap**: The interface's `brews` field table does not list `url_template`, but `release.disable: true` (the interface's own refinement) removes GoReleaser's default URL template, so the URLs must be pinned explicitly. The added `url_template` reproduces the interface's exact URL **hard contract** (`.../releases/download/{{ .Tag }}/{{ .ArtifactName }}`). Conformant in substance; the addition is the mechanism the contract requires. Low severity; documented in `.score/memory/LEARNINGS.md`.
+- **Source**: interface-spec.md § brews fields (no `url_template`); § Producer/CI (`version: "~> v2"`)
+- **Implementation**: `.goreleaser.yaml` `brews.url_template`; `release.yml` `version: "~> v2.16"`
+- **Gap**: `url_template` is required because `release.disable: true` removes GoReleaser's default URL template (it reproduces the interface's exact URL hard-contract). The GoReleaser pin (vs the interface's `~> v2`) is the deliberate decision to keep the deprecated `brews` publisher (recorded in DEPRECATION.md). Both intent-conformant. Low.
 
 ---
 
-## Observation (non-conformance — forward risk for T004)
+## Changes Since Previous Run
 
-Not a spec-conformance gap: the implementation **is** a Homebrew formula, exactly as ADR-1/spec require. But GoReleaser has **deprecated the `brews` (formula) publisher** in favour of `homebrew_casks` (soft since v2.10). `goreleaser release` still renders the formula (with a deprecation warning) and CI does **not** run `goreleaser check`, so nothing fails today — but `goreleaser check` exits non-zero on it, and a future `~> v2` bump could remove `brews` and break the T004 tap job. This conflicts with ADR-1's reason for choosing a formula over a cask (casks are macOS-only; the spec needs Linux). **Decide before T004 / the first live publish**: pin GoReleaser to a `brews`-supporting v2, or revisit ADR-1 (and flag for `/score:deprecate`). Recorded in `.score/memory/LEARNINGS.md`.
+**Round**: 2 (previous: Round 1 — Not Ready (partial), 1 of 4 tasks)
+
+### Resolved
+- The partial state — **all 4 tasks now complete** (T001 repo created, T002 MIT LICENSE, T003 merged + hardened, T004 tap job + guard). Round 1's "0 of 7 driving scenarios / 0 of 3 @validation traceable" is now "driving scenarios covered (manual e2e) / 1 of 3 @validation structurally provable."
+
+### Carried / re-scoped
+- F-1 (round 1, mtime field) → **F-4** here, unchanged (intent-conformant).
+- F-2 (round 1, url_template) → folded into **F-5** here, plus the new GoReleaser pin.
+
+### New
+- **F-1** (T001 credential deviation), **F-2** (internal repo + unverified write), **F-3** (@wip on T004 scenarios). The first two are operational/approved deviations; the third is an intentional, now-explicit deferral.
 
 ---
 
-## Verdict: Not Ready (partial)
+## Verdict: Issues
 
-1 of 4 tasks complete (T003). 2 of the feature's T003-scoped scenarios covered; 0 of the 7 spec driving scenarios covered (all belong to T004); 0 of 3 @validation scenarios traceable yet (all depend on T004 + a live tap). For the **one** checked task, every conformance dimension passes: acceptance criteria met, interface surfaces conformant (two low-severity, intent-conformant adaptations), all non-behaviors absent, @wip lifecycle correct. This is a clean progress checkpoint — the implemented slice conforms; the remaining behaviour is genuinely not built yet, not built wrong.
+All four tasks are implemented and the structural conformance is strong: the formula renders correctly (MIT license, four platforms, checksums matching the release file), every non-behavior is absent, the config-guard and the new `CheckTapJob` workflow guard pin the contract with change-detector rigor, and the full suite is green. The findings are incremental and mostly **operational or intentional-deferral**, not fundamental gaps requiring rethinking:
 
-T001 (provision tap repo + token) and T002 (LICENSE decision) are developer-owned and cannot be completed by the Builder. T004 (tap job + workflow guard) is blocked on T001 and entangled with the `brews`-deprecation decision above.
+- **F-1/F-2** — T001's credential and visibility diverge from its written acceptance criteria (org-wide token vs least-privilege; internal vs public; write-access unverified). Developer-approved and documented, but real divergences, and the tap is not yet *live-functional* (internal repo → no anonymous install).
+- **F-3** — the live-install scenarios referenced by T004 stay `@wip` because they can't run in CI; the workflow guard is the structural proxy and `brew install` is the manual post-first-release check.
+- **F-4/F-5** — low-severity, intent-conformant tooling adaptations.
 
 ---
 
 ## Next Steps
 
-- **T001 / T002** — developer actions: create `Luscii/homebrew-cli-glassfrog` + mint the scoped `HOMEBREW_TAP_TOKEN`; decide the LICENSE (or accept the auto-detect/omit).
-- **Resolve the `brews`-deprecation question** (pin GoReleaser, or revisit ADR-1) before building T004.
-- **T004** — once T001 lands and the deprecation is settled, implement the `tap` job + workflow guard via `/score:implement`, then **re-validate** (`/score:validate`). Re-validation will then cover the seven driving scenarios and the three held-out @validation scenarios (the latter partly via the documented manual post-first-release `brew install`).
+Mostly operational + a manual validation pass — not an `/score:implement` code round:
+
+1. **Flip the tap repo to `public`** and **confirm `CI_GITHUB_TOKEN` has `contents: write`** on it (F-1, F-2) before the first stable release relies on the tap.
+2. **Cut the first stable release** and run the **manual `brew install`/`brew upgrade`** validation from the live tap — this exercises the held `@wip` driving scenarios and the two non-CI-traceable `@validation` scenarios (F-3). Reclassify or un-`@wip` them once exercised.
+3. **Accept or revisit** the documented deviations (F-1 org token vs least-privilege; F-5 GoReleaser pin) — both are tracked in DEPRECATION.md.
+4. Re-validate (or close out) after the live run. The remaining items are not code defects, so a re-`/score:implement` is not required; this PR's code is mergeable on its own merits.
