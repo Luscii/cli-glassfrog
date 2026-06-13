@@ -8,7 +8,7 @@
 
 ## System Overview
 
-The NPM Wrapper Package is an **acquisition channel** in the Self-Contained Distribution cluster, aimed at Node-based agent environments. It is an npm package that, when installed, makes the released `glassfrog` binary runnable through the Node toolchain: an operator can `npx @luscii-healthtech/glassfrog ...` for a one-off, `npm i -g @luscii-healthtech/glassfrog` for a global command, or add it as a project dependency. The package does not contain the CLI's logic — it resolves and places the same self-contained binary the Automated Release Pipeline (022) already builds, exposing it as an npm-installed command. It is one of several acquisition channels alongside the Install Script (027) and the Homebrew Tap (036); each installs the same released binary by a different route, and none reimplements the tool.
+The NPM Wrapper Package is an **acquisition channel** in the Self-Contained Distribution cluster, aimed at Node-based agent environments. It is an npm package that, when installed, makes the released `glassfrog` binary runnable through the Node toolchain: an operator can `npx @luscii-healthtech/glassfrog ...` for a one-off, `npm i -g @luscii-healthtech/glassfrog` for a global command, or add it as a project dependency. The package does not contain the CLI's logic — it resolves and places the same self-contained binary that Self-Contained Executable Build (021) builds and the Automated Release Pipeline (022) packages and attaches, exposing it as an npm-installed command. It is one of several acquisition channels alongside the Install Script (027) and the Homebrew Tap (036); each installs the same released binary by a different route, and none reimplements the tool.
 
 It works by the conventional npm native-binary pattern: a thin wrapper package declares one **platform-specific optional dependency** per supported target, and npm installs only the package matching the host OS and CPU. A small launcher exposed by the wrapper execs whichever platform binary was installed, passing arguments and exit codes straight through. When no matching optional package is available (for example when optional dependencies are omitted, or the registry lacks the platform package), a **postinstall fallback** downloads the matching archive and checksums file from the release's GitHub assets — the same artifacts 027 consumes — verifies the archive against the checksums file, and only then places the binary. The released binary remains the self-contained executable mandated by CONSTITUTION XII; this channel publishes and places it through npm, and owns the npm publishing step that the release pipeline (022) deliberately leaves to it.
 
@@ -18,7 +18,7 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 
 ### Platform resolution
 
-- When the package is installed on a supported target — macOS amd64, macOS arm64, Linux amd64, Linux arm64 — npm resolves the matching platform-specific optional dependency, and the wrapper's command runs that target's binary.
+- When the package is installed on a supported target — macOS x64, macOS arm64, Linux x64, Linux arm64 (npm's CPU labels; `x64` is the `amd64` the release builds) — npm resolves the matching platform-specific optional dependency, and the wrapper's command runs that target's binary.
 - When the package is installed on a platform outside the four supported targets (for example Windows, or an unsupported architecture), the install stops with a clear message naming the detected platform and the supported set, installs no runnable command, and exits non-zero. A Node environment running on an unsupported platform never ends up with a `glassfrog` command that cannot work.
 
 ### Install and placement
@@ -62,7 +62,7 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 ## Non-Behaviors
 
 - The package must not build the binary or require a Go toolchain or source checkout. **Why**: it is an acquisition channel that consumes pre-built release artifacts (and npm-published platform packages built from them); building on the host would defeat the self-contained distribution goal (CONSTITUTION XII) and reintroduce a build dependency.
-- The package must not publish, or claim to install, a Windows or any other unsupported-platform artifact. **Why**: the Automated Release Pipeline (022) builds only macOS and Linux on amd64/arm64; offering a Node install path where no matching binary exists would either fail opaquely at first run or place an unusable command.
+- The package must not publish, or claim to install, a Windows or any other unsupported-platform artifact. **Why**: the Automated Release Pipeline (022) ships only macOS and Linux on amd64/arm64; offering a Node install path where no matching binary exists would either fail opaquely at first run or place an unusable command.
 - The package must not place a binary whose checksum does not match the release's checksums file on the fallback path. **Why**: the download path must carry the same integrity guarantee as the Install Script (027); skipping verification would let a corrupted or tampered download become a runnable command.
 - The package must not require network access at install when the matching platform optional dependency is available. **Why**: the bundled-binary path is the primary one and must work in offline or air-gapped Node environments; the download is only a fallback for when the bundled package is absent.
 - The package must not modify, re-parse, or reinterpret the binary's arguments, output, or exit code. **Why**: the wrapper is a transparent launcher; altering exit codes or output would fork the CLI's behavior (exit-code convention, output rendering) between the npm channel and every other channel.
@@ -87,9 +87,9 @@ It works by the conventional npm native-binary pattern: a thin wrapper package d
 ### Happy path
 
 **Scenario: npx on a supported platform resolves and runs the binary**
-Given a published release with the npm wrapper and its per-platform packages published, on a Linux amd64 host with Node and npm
+Given a published release with the npm wrapper and its per-platform packages published, on a Linux x64 host with Node and npm
 When the operator runs `npx @luscii-healthtech/glassfrog --version`
-Then npm resolves the Linux amd64 optional dependency
+Then npm resolves the Linux x64 optional dependency
 And the wrapper execs that binary
 And the reported version is the release tag — the installed package version with the leading `v` (e.g. package `1.4.0` → `v1.4.0`).
 
@@ -152,7 +152,7 @@ And stripping the leading `v` equals the installed npm package version (e.g. `1.
 
 **Scenario: each supported platform resolves exactly its own binary**
 Given the wrapper and per-platform packages are published for the four supported targets
-When the package is installed on each of macOS amd64, macOS arm64, Linux amd64, and Linux arm64
+When the package is installed on each of macOS x64, macOS arm64, Linux x64, and Linux arm64
 Then each install resolves the binary for that exact platform
 And no install resolves a binary for a different OS or architecture.
 
