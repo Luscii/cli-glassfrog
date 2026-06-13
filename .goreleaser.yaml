@@ -9,7 +9,12 @@
 #   - 022 Automated Release Pipeline owns the `archives`, `checksum`, and
 #     `release` sections below — extending this file rather than introducing a
 #     parallel packaging path.
-#   - #36 Homebrew Tap will later add a `brew` section to this same file.
+#   - 036 Homebrew Tap owns the `brews` section at the foot of this file, plus
+#     two refinements to 022's sections: `release.disable: true` (the strict
+#     form of 022's `keep-existing`, so the tap job's `goreleaser release` never
+#     touches the GitHub release) and a pinned `archives.mtime` (so the tap
+#     job's rebuilt archives are byte-reproducible and their sha256 sums equal
+#     the published archives').
 # 022 must not re-decide `builds`/`ldflags`; the config-guard (internal/build)
 # pins both the matrix and the new sections against drift.
 #
@@ -72,6 +77,18 @@ archives:
     formats:
       - tar.gz
     name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # 036 refinement: pin the modification time of the files inside each archive
+    # to the commit date so the tar.gz bytes are reproducible across jobs. The
+    # Homebrew tap job rebuilds the archives at the release tag in a SEPARATE job
+    # from the one that published them; the binary bytes are already
+    # reproducible (-trimpath + CGO_ENABLED=0), but an unpinned tar-entry mtime
+    # would still make the rebuilt archive's sha256 differ from the published
+    # asset's and every `brew install` would fail its integrity check.
+    # (GoReleaser pins the archive entry mtime via `builds_info.mtime`; this is
+    # the realized form of the interface's "pin archives.mtime to the commit
+    # date" — see internal/build config-guard and .score/memory/LEARNINGS.md.)
+    builds_info:
+      mtime: "{{ .CommitDate }}"
 
 # A single sha256 checksums file over every archive — the integrity mechanism
 # (no signing/notarization). One line per archive.
@@ -79,11 +96,62 @@ checksum:
   algorithm: sha256
   name_template: "glassfrog_{{ .Version }}_checksums.txt"
 
-# Defensive default for any direct `goreleaser release`: never replace an
-# existing release's body or flip its status. The canonical workflow does NOT
-# publish through GoReleaser (it uses `gh release upload --clobber`), so this
-# section only governs ad-hoc local/manual `goreleaser release` runs — keeping
-# them from clobbering #30's notes or the publisher's pre-release/latest choice.
+# 036 refinement (supersedes 022's `mode: keep-existing`): disable GoReleaser's
+# GitHub-release publisher entirely. The Homebrew tap job runs `goreleaser
+# release` to push the formula, and that invocation must NOT create or modify
+# the GitHub release — asset attachment and the release body/status stay with
+# 022's `gh release upload` and #30's drafting. `disable: true` is the strict
+# form of `keep-existing`: rather than "keep an existing release's body", it
+# means "never touch the GitHub release at all", which is exactly what the
+# brew-publisher-only tap job (and any ad-hoc local `goreleaser release`) needs.
 release:
-  mode: keep-existing
-  draft: false
+  disable: true
+
+# --- 036 Homebrew Tap: formula publisher -------------------------------------
+
+# GoReleaser authors Formula/glassfrog.rb from the same archives + checksums 022
+# produces, and (in the tap job, spec 036 Phase 3) pushes it to the dedicated
+# tap repository. Rendering is offline: `goreleaser release --snapshot --clean
+# --skip=publish` writes the formula into dist/ without tagging or pushing —
+# the render-and-inspect test in internal/build drives exactly that.
+brews:
+  - name: glassfrog
+    # Draw the formula's source artifacts from 021's `glassfrog` build's archives
+    # (the same tar.gz set 022 publishes), so the per-platform url/sha256 the
+    # formula records are derived from the published bytes.
+    ids:
+      - glassfrog
+    # The dedicated tap repository (ADR-2). Publishing the formula here — not in
+    # this repo — keeps the release flow off this repository's protected `main`.
+    repository:
+      owner: Luscii
+      name: homebrew-cli-glassfrog
+      branch: main
+      # The cross-repo, least-privilege token (ADR-4). The default GITHUB_TOKEN
+      # cannot push to another repository; this secret is injected ONLY in the
+      # tap job's env (spec 036 Phase 3 / release.yml).
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    # The formula lands at Formula/glassfrog.rb in the tap repo.
+    directory: Formula
+    # With `release.disable: true` (above) GoReleaser cannot derive the formula's
+    # download URLs from the GitHub-release config, so the asset URLs are pinned
+    # explicitly. This is the interface's hard URL contract: each url points at an
+    # asset 022 attached to THIS repo's release — {{ .Tag }} keeps the leading
+    # `v`, {{ .ArtifactName }} is 022's `glassfrog_<ver>_<os>_<arch>.tar.gz`.
+    url_template: "https://github.com/Luscii/cli-glassfrog/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    homepage: "https://github.com/Luscii/cli-glassfrog"
+    description: "Command-line surface over the Glassfrog Holacracy governance API (v5)."
+    # `license` is intentionally omitted: GoReleaser auto-detects it from a
+    # LICENSE file at the repo root. The repo has no LICENSE yet (spec 036 T002,
+    # a developer-owned decision); once one is added the field fills in
+    # automatically and `brew audit --strict` passes.
+    # Install the pre-built binary — no compilation on the user's host (ADR-1).
+    install: |
+      bin.install "glassfrog"
+    # A no-network smoke test: the `version` subcommand asserts the binary runs.
+    test: |
+      system "#{bin}/glassfrog", "version"
+    # Pre-release gating is enforced at the workflow JOB level (the tap job's
+    # `if: !github.event.release.prerelease`), not by `skip_upload: auto` — the
+    # GitHub pre-release flag is authoritative, a semver `-rc` suffix is not.
+    skip_upload: false

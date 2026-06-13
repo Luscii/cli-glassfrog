@@ -1,8 +1,9 @@
 // Package build holds the executable verification of the project's build and
 // release contract:
 //   - the GoReleaser configuration declares exactly the four supported,
-//     cgo-disabled targets and the 022 release sections (archives/checksum/
-//     release) — the config-guard;
+//     cgo-disabled targets, the 022 release sections (archives/checksum/
+//     release), and the 036 Homebrew formula publisher (brews + the
+//     reproducibility/disable refinements) — the config-guard;
 //   - a produced glassfrog binary runs on a clean host of its target depending
 //     only on OS-provided libraries — the self-containment check;
 //   - the release workflow triggers, gates, and publishes as specified — the
@@ -43,10 +44,6 @@ var (
 const (
 	ArchiveFormat     = "tar.gz"
 	ChecksumAlgorithm = "sha256"
-	// ReleaseMode is the only accepted `release.mode`: keep-existing never
-	// replaces an existing release's body, so a direct `goreleaser release` can
-	// not clobber #30's notes or the publisher's pre-release/latest status.
-	ReleaseMode = "keep-existing"
 
 	// ArchiveNameTemplate and ChecksumNameTemplate are the exact name templates
 	// downstream consumers (#27 install script, #36 Homebrew, #37 npm) depend on.
@@ -59,12 +56,23 @@ const (
 	ArchiveBuildID       = "glassfrog"
 )
 
+// 036 Homebrew Tap — the brews entry's pinned identity. The config-guard asserts
+// the formula publisher targets exactly this formula name and tap repository, so
+// a blanked or retargeted brews block fails a test rather than silently shipping
+// no formula (or pushing it to the wrong repo).
+const (
+	BrewFormulaName = "glassfrog"
+	BrewTapOwner    = "Luscii"
+	BrewTapRepo     = "homebrew-cli-glassfrog"
+)
+
 // Config is the subset of the GoReleaser schema the guard inspects. Fields the
 // guard does not assert on (project_name, flags, ldflags) are kept so a round
 // trip is lossless enough for debugging and so the ldflags 023 seam is visible.
 //
 // 022 adds Archives/Checksum/Release; the guard asserts those sections are
-// present and unchanged alongside 021's build matrix.
+// present and unchanged alongside 021's build matrix. 036 adds Brews and refines
+// two of 022's sections (Release.Disable, Archive.BuildsInfo.MTime).
 type Config struct {
 	Version     int       `json:"version"`
 	ProjectName string    `json:"project_name"`
@@ -72,17 +80,47 @@ type Config struct {
 	Archives    []Archive `json:"archives"`
 	Checksum    Checksum  `json:"checksum"`
 	Release     Release   `json:"release"`
+	Brews       []Brew    `json:"brews"`
 }
 
 // Archive mirrors a single GoReleaser archives entry. GoReleaser v2 renamed the
 // single `format` field to a `formats` list; both are captured so the guard can
 // read either spelling and fail clearly if neither yields tar.gz.
 type Archive struct {
-	ID           string   `json:"id"`
-	IDs          []string `json:"ids"`
-	Formats      []string `json:"formats"`
-	Format       string   `json:"format"`
-	NameTemplate string   `json:"name_template"`
+	ID           string          `json:"id"`
+	IDs          []string        `json:"ids"`
+	Formats      []string        `json:"formats"`
+	Format       string          `json:"format"`
+	NameTemplate string          `json:"name_template"`
+	BuildsInfo   ArchiveFileInfo `json:"builds_info"`
+}
+
+// ArchiveFileInfo mirrors GoReleaser's archives.builds_info — the FileInfo
+// applied to files placed in each archive. MTime is the only field the guard
+// reads: pinning it (036) makes the tar entries' modification time deterministic,
+// so the Homebrew tap job's rebuilt archive is byte-identical to the published
+// one and the formula's sha256 matches. This is the realized form of the
+// interface's "pin archives.mtime to the commit date" — the installed GoReleaser
+// (~> v2) exposes the archive-entry mtime under builds_info, not a top-level
+// archives.mtime.
+type ArchiveFileInfo struct {
+	MTime string `json:"mtime"`
+}
+
+// Brew mirrors a single GoReleaser brews entry (036 Homebrew Tap). The guard
+// inspects the formula name and the tap-repository target; the rest of the
+// formula DSL (install/test/url_template/license) is the publisher's concern and
+// deliberately not pinned here.
+type Brew struct {
+	Name       string         `json:"name"`
+	Repository BrewRepository `json:"repository"`
+}
+
+// BrewRepository is the brews entry's tap-repository target (ADR-2): the
+// dedicated repo the rendered formula is pushed to.
+type BrewRepository struct {
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
 }
 
 // Checksum mirrors the GoReleaser checksum section. Disable is captured so the
@@ -94,21 +132,21 @@ type Checksum struct {
 	Disable      bool   `json:"disable"`
 }
 
-// Release mirrors the GoReleaser release section. The guard pins Mode to
-// keep-existing and Draft to false, and requires Prerelease/MakeLatest to be
-// absent, so a direct `goreleaser release` honors the existing release's body
-// AND its pre-release/latest status (022's honor-not-decide contract).
+// Release mirrors the GoReleaser release section. 036 pins Disable to true: the
+// Homebrew tap job runs `goreleaser release` to push the formula, and that
+// invocation must NOT create or modify the GitHub release — asset attachment and
+// the release body/status stay with 022's `gh release upload` + #30's drafting.
+// `disable: true` is the strict form of 022's former `keep-existing`: rather than
+// "keep an existing release's body", it means "never touch the GitHub release at
+// all", which is exactly what the brew-publisher-only tap job needs.
 //
-// Prerelease/MakeLatest are modeled as interface{} so the guard can distinguish
-// "absent" (nil — the only acceptable state) from "set to anything" (a non-nil
-// value, including the string "auto" or a bool). They are NOT typed bool/string:
-// a typed field could not tell an explicit `prerelease: false` from an omitted
-// one, and the contract is that 022 sets neither.
+// Mode/Draft are retained so the parse is lossless and a stray `mode:`/`draft:`
+// stays visible for debugging, but they are no longer asserted — with the
+// release disabled, GoReleaser ignores them entirely.
 type Release struct {
-	Mode       string      `json:"mode"`
-	Draft      bool        `json:"draft"`
-	Prerelease interface{} `json:"prerelease"`
-	MakeLatest interface{} `json:"make_latest"`
+	Disable bool   `json:"disable"`
+	Mode    string `json:"mode"`
+	Draft   bool   `json:"draft"`
 }
 
 // Build mirrors a single GoReleaser builds entry.
@@ -257,7 +295,12 @@ func ParseConfig(raw []byte) (Config, error) {
 // 022 release sections (a missing section fails as loudly as an extra one):
 //   - exactly one archives entry, format tar.gz,
 //   - the checksum section is enabled with algorithm sha256,
-//   - the release section is mode keep-existing, draft false.
+//   - the release section is disabled (036 refinement — see checkRelease).
+//
+// 036 Homebrew Tap:
+//   - the archives entry pins builds_info.mtime (reproducible tar bytes),
+//   - exactly one brews entry, formula glassfrog, targeting the Luscii/
+//     homebrew-cli-glassfrog tap (a blanked or retargeted brews block fails).
 func CheckConfigGuard(cfg Config) []string {
 	var violations []string
 
@@ -277,6 +320,7 @@ func CheckConfigGuard(cfg Config) []string {
 	violations = append(violations, checkArchives(cfg.Archives)...)
 	violations = append(violations, checkChecksum(cfg.Checksum)...)
 	violations = append(violations, checkRelease(cfg.Release)...)
+	violations = append(violations, checkBrews(cfg.Brews)...)
 
 	return violations
 }
@@ -320,6 +364,17 @@ func checkArchives(archives []Archive) []string {
 		violations = append(violations, fmt.Sprintf(
 			"archives must draw from exactly the %q build (ids/id), got %v", ArchiveBuildID, ids))
 	}
+	// 036 reproducibility: the Homebrew tap job rebuilds the archives at the
+	// release tag in a separate job from the one that published them. The binary
+	// bytes are already reproducible (-trimpath + CGO_ENABLED=0), but an unpinned
+	// tar-entry mtime would still make the rebuilt archive's sha256 differ from
+	// the published asset's — and every `brew install` would then fail its
+	// integrity check. Pinning builds_info.mtime closes that gap; an empty mtime
+	// (the zero value of a missing builds_info) fails as loudly as a bad format.
+	if strings.TrimSpace(a.BuildsInfo.MTime) == "" {
+		violations = append(violations,
+			"archives must pin builds_info.mtime (036 reproducibility) so the tap job's rebuilt archives are byte-identical to the published ones; got an empty/absent mtime")
+	}
 	return violations
 }
 
@@ -346,30 +401,48 @@ func checkChecksum(c Checksum) []string {
 	return violations
 }
 
-// checkRelease pins the release section to keep-existing/draft:false and rejects
-// any prerelease/make_latest override, so a direct `goreleaser release` honors
-// the existing release's body AND its pre-release/latest status rather than
-// authoring, replacing, or flipping them (022's honor-not-decide contract). A
-// non-nil prerelease/make_latest means the field was set to something — the
-// contract is that 022 sets neither, so any value (including "auto" or false) is
-// a violation.
+// checkRelease pins the release section to disable: true (036 refinement,
+// superseding 022's `mode: keep-existing`). The Homebrew tap job runs
+// `goreleaser release` to push the formula, and that invocation must never
+// create or modify the GitHub release — asset attachment and the release
+// body/status stay with 022's `gh release upload` + #30. Disabling the release
+// entirely is the strict form of keep-existing and the only accepted state; a
+// false or absent disable (the zero value) fails as loudly as any other drift.
 func checkRelease(r Release) []string {
+	if !r.Disable {
+		return []string{
+			"release section must set disable: true — the Homebrew tap job runs `goreleaser release` to push the formula and must never create or modify the GitHub release (that stays with 022's `gh release upload`)"}
+	}
+	return nil
+}
+
+// checkBrews enforces the 036 formula-publisher contract: exactly one brews
+// entry, the formula named glassfrog, targeting the dedicated tap repository
+// (Luscii/homebrew-cli-glassfrog). A blanked brews block (no entry) or a
+// retargeted one (wrong formula name or wrong tap owner/repo) fails as loudly as
+// a missing build target — otherwise a release would silently ship no formula,
+// or push it to the wrong repository. The rest of the formula DSL (install/test/
+// url_template/license) is the publisher's concern and is deliberately not
+// pinned here (the interface owns it).
+func checkBrews(brews []Brew) []string {
+	if len(brews) != 1 {
+		return []string{fmt.Sprintf(
+			"brews section must declare exactly one formula entry targeting the %s/%s tap, found %d (a blanked brews block ships no Homebrew formula)",
+			BrewTapOwner, BrewTapRepo, len(brews))}
+	}
+	b := brews[0]
 	var violations []string
-	if r.Mode != ReleaseMode {
+	if b.Name != BrewFormulaName {
 		violations = append(violations, fmt.Sprintf(
-			"release mode must be %q (never replace an existing release body), got %q", ReleaseMode, r.Mode))
+			"brews formula name must be %q, got %q", BrewFormulaName, b.Name))
 	}
-	if r.Draft {
-		violations = append(violations,
-			"release draft must be false — 022 attaches to an already-published release, it does not draft one")
-	}
-	if r.Prerelease != nil {
+	if b.Repository.Owner != BrewTapOwner {
 		violations = append(violations, fmt.Sprintf(
-			"release must not set prerelease — it honors the published release's status (got %v)", r.Prerelease))
+			"brews repository.owner must be %q (the tap repo owner), got %q", BrewTapOwner, b.Repository.Owner))
 	}
-	if r.MakeLatest != nil {
+	if b.Repository.Name != BrewTapRepo {
 		violations = append(violations, fmt.Sprintf(
-			"release must not set make_latest — it honors the published release's latest status (got %v)", r.MakeLatest))
+			"brews repository.name must be %q (the dedicated tap repo), got %q", BrewTapRepo, b.Repository.Name))
 	}
 	return violations
 }

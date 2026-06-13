@@ -86,7 +86,6 @@ Feature: Runtime-Dependent Distribution — Homebrew Tap
       Then it will still reference the latest stable release rather than the pre-release
 
     # Source: 036-homebrew-tap — Proposed: the .goreleaser.yaml config-guard catches a missing or retargeted brews block (interface config-guard extension; plan config-drift guard)
-    @wip
     Scenario: Config-guard fails when the brews block is blanked or retargeted
       Given the ".goreleaser.yaml" no longer has a "brews" entry targeting the "homebrew-cli-glassfrog" tap
       When the config-guard test runs in PR validation
@@ -122,7 +121,6 @@ Feature: Runtime-Dependent Distribution — Homebrew Tap
       And it will equal that release's tag
 
     # Source: 036-homebrew-tap — Proposed: each formula sha256 equals the release's checksums.txt entry (interface hard contract; plan Risk — reproducible archives)
-    @wip
     Scenario: The published formula's checksums match the release's checksums file
       Given a stable release whose formula has been published to the tap
       When each archive recorded in the formula is checked against the release's "glassfrog_<version>_checksums.txt"

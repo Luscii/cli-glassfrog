@@ -6,6 +6,24 @@ Operational patterns discovered during implementation. Each entry records a non-
 
 ## Findings
 
+### 2026-06-13 — GoReleaser deprecated `brews` (formula) in favour of `homebrew_casks`, conflicting with ADR-1
+(Found during [T003](../../specs/036-homebrew-tap/tasks.md) implementation)
+
+- **Type**: design-issue / tooling-risk — **needs a developer decision**
+- **Location**: `.goreleaser.yaml` `brews:` block; `.github/workflows/release.yml` `tap` job (036 T004, not yet implemented)
+- **Severity**: medium — does not block T003 or break CI today, but threatens the durability of the chosen mechanism and the future T004 live publish.
+- **Description**: 036 ADR-1 deliberately chose a Homebrew **formula** (`brews`) over a **cask**, reasoning that Cask is macOS-only (Linuxbrew has no cask support) while the spec requires macOS **and** Linux. But the installed GoReleaser (v2.16.0, and the `~> v2` the workflow pins) has **deprecated `brews`** in favour of `homebrew_casks` ("soft since v2.10"): `goreleaser release` still renders the formula (with a deprecation warning) and all T003 tests pass, but **`goreleaser check` now exits non-zero** on it ("configuration is valid, but uses deprecated properties"). A future `~> v2` bump that *removes* `brews` would break the tap job. CI does **not** run `goreleaser check` today (release.yml only runs `goreleaser release`), so nothing fails now. The catch for ADR-1: migrating to `homebrew_casks` may not serve Linux (casks are macOS-only), which is the exact reason ADR-1 rejected casks — so the deprecation is a genuine architectural tension, not a mechanical swap.
+- **Suggested action**: **developer decision before 036 T004 / the first live tap publish.** Options: (a) **pin GoReleaser** to a known-good v2 that still supports `brews` (change `version: "~> v2"` in release.yml to a pinned `~> v2.16` or similar, and track the eventual removal); or (b) **revisit ADR-1** — evaluate whether `homebrew_casks` can serve Linux (it likely cannot), and if not, document `brews` as a deliberate, version-pinned exception until Homebrew/GoReleaser offer a cross-platform binary-install path. Either way, flag for `/score:deprecate` and re-open the ADR-1 decision. The `brews`-vs-cask question is squarely a developer/architecture call, not the Builder's.
+
+### 2026-06-13 — the interface's `archives.mtime` is realized as `archives.builds_info.mtime` in GoReleaser ~> v2
+(Found during [T003](../../specs/036-homebrew-tap/tasks.md) implementation)
+
+- **Type**: tooling / spec-DSL drift (adapted; structural drift, intent recovered)
+- **Location**: `.goreleaser.yaml` `archives.builds_info.mtime`; `internal/build/config.go` (`ArchiveFileInfo`, `checkArchives`)
+- **Severity**: low — adapted in place; the reproducibility intent is fully met.
+- **Description**: 036's interface-spec and tasks prescribe pinning `archives.mtime` (to the commit date) so the tap job's rebuilt archives are byte-reproducible and their sha256 match the published assets. The installed GoReleaser (v2.16.0, `~> v2`) has **no top-level `archives.mtime` field** — the parser rejects it ("field mtime not found in type config.Archive"). The archive-entry modification time is exposed under **`archives.builds_info.mtime`** (a `FileInfo`). Adapted to `builds_info.mtime: "{{ .CommitDate }}"`; the config-guard asserts `builds_info.mtime` is pinned (an empty/absent mtime fails as loudly as a bad format). This also avoided touching the `builds` block (T003 scope forbids it): Go's `-trimpath` + `CGO_ENABLED=0` already make the binary bytes reproducible, so only the tar-entry mtime needed pinning — `builds.mod_timestamp` was not required.
+- **Suggested action**: when a later GoReleaser version reinstates/renames a top-level `archives.mtime` (or removes `builds_info`), re-verify the guard's `builds_info.mtime` assertion still matches the shipped field. Verified empirically that the offline render produces byte-checksum-matching archives with `builds_info.mtime`.
+
 ### 2026-06-12 — a cross-cutting feature file needs per-domain tags to fit the one-suite-per-feature convention
 (Found during [T001](../../specs/040-resolution-call-site-retrofit/tasks.md) implementation)
 
