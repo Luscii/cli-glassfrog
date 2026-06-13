@@ -380,7 +380,7 @@ func runTensionUpdate(cfg tensionUpdateConfig) (Outcome, error) {
 // tension whole, so it has NO editable-field flags — only the inherited persistent
 // --base-url/--output (and their Changed() presence) plus the positional ten_ id.
 // Keeping the discard a function of injected values makes every branch — success-204,
-// 404-as-success, transport, non-2xx, not-authenticated, bad---output — testable over
+// 404-as-success, transport, non-2xx, not-authenticated, bad --output — testable over
 // a fake transport with no real network or ~/.glassfrogrc.
 type tensionDiscardConfig struct {
 	seam           tensionSeam
