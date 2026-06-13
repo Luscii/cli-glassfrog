@@ -110,7 +110,7 @@ Feature: Tension Update
       Given a complete connection context with a stored token
       And a tension "ten_0123" exists
       When a practitioner runs "glassfrog tension update ten_0123 --label \"Roadmap drift\" --meeting-type governance"
-      Then the request will carry "label" and "meeting_type" set to "governance" and no other fields
+      Then the request will carry "label" set to "Roadmap drift" and "meeting_type" set to "governance" and no other fields
       And the updated tension will be printed as the result
       And the command will exit with code 0
 
