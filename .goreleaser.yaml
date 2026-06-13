@@ -146,10 +146,11 @@ brews:
     url_template: "https://github.com/Luscii/cli-glassfrog/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://github.com/Luscii/cli-glassfrog"
     description: "Command-line surface over the Glassfrog Holacracy governance API (v5)."
-    # `license` is intentionally omitted: GoReleaser auto-detects it from a
-    # LICENSE file at the repo root. The repo has no LICENSE yet (spec 036 T002,
-    # a developer-owned decision); once one is added the field fills in
-    # automatically and `brew audit --strict` passes.
+    # SPDX license id for the formula (036 T002 — a LICENSE file is now at the
+    # repo root). Set explicitly: GoReleaser does not populate brews.license from
+    # the LICENSE file during an offline render, and `brew audit --strict`
+    # requires a valid id.
+    license: "MIT"
     # Install the pre-built binary — no compilation on the user's host (ADR-1).
     install: |
       bin.install "glassfrog"
