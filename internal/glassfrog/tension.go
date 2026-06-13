@@ -71,3 +71,46 @@ func NewTensionInput(body, label, meetingType string) TensionInput {
 		MeetingType: meetingType,
 	}}
 }
+
+// TensionUpdateInput is the updateTension PATCH request body: the same nested
+// {"tension": {…}} envelope as capture, but a SIBLING type rather than a reuse of
+// TensionInput (plan ADR-1). Update is a true partial update: ALL FOUR inner fields
+// use omitempty (including Status), so only the supplied fields ride the wire and
+// the rest are left untouched server-side. Status IS present here — unlike capture,
+// the API allows an explicit transition (notably `archived`) on PATCH and recomputes
+// it on save — whereas capture's TensionInputBody deliberately has NO status field
+// (creation cannot claim a server-owned status). Forking keeps capture's "no status
+// field / Body non-omitempty" invariant byte-stable and load-bearing while giving
+// update an honest partial-update contract. The token is never a field here.
+type TensionUpdateInput struct {
+	Tension TensionUpdateBody `json:"tension"`
+}
+
+// TensionUpdateBody is the inner object of TensionUpdateInput. Every field uses
+// omitempty so an unsupplied field is dropped from the wire — the command resolves
+// the send-set (presence + non-empty value) and a still-empty value is omitted,
+// never sent as JSON null (no clear-to-null affordance — spec non-behavior). Status
+// is present here (unlike capture's TensionInputBody) because update may set it.
+type TensionUpdateBody struct {
+	Body        string `json:"body,omitempty"`
+	Label       string `json:"label,omitempty"`
+	Status      string `json:"status,omitempty"`
+	MeetingType string `json:"meeting_type,omitempty"`
+}
+
+// NewTensionUpdateInput builds the partial-update body from the already-resolved
+// (presence-filtered, validated) field values: each value rides only when the
+// command supplied it non-empty, and omitempty drops the rest. Because every
+// supplied value is guaranteed non-empty by the command (a blank --body is rejected;
+// --status/--meeting-type are closed-enum; --label rides only when non-empty),
+// omitempty + plain strings faithfully expresses "send only what was supplied" with
+// no pointer fields. Mirrors NewTensionInput (042) over the four-field,
+// all-omitempty body. It marshals to {"tension":{ … only the non-empty fields … }}.
+func NewTensionUpdateInput(body, label, status, meetingType string) TensionUpdateInput {
+	return TensionUpdateInput{Tension: TensionUpdateBody{
+		Body:        body,
+		Label:       label,
+		Status:      status,
+		MeetingType: meetingType,
+	}}
+}
