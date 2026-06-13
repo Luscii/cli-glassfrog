@@ -6,6 +6,15 @@ Operational patterns discovered during implementation. Each entry records a non-
 
 ## Findings
 
+### 2026-06-13 — GoReleaser `{{ .Env.X }}` errors on a missing key; use `{{ index .Env "X" }}` for optional env in publish-section config
+(Found during PR #106 triage of [036](../../specs/036-homebrew-tap/tasks.md) T003)
+
+- **Type**: tooling gotcha / latent pipeline-break
+- **Location**: `.goreleaser.yaml` `brews.repository.token`
+- **Severity**: medium — would only surface on a real (non-snapshot) release, not in PR CI.
+- **Description**: the brews `repository.token` was `"{{ .Env.HOMEBREW_TAP_TOKEN }}"`. The release pipeline's **build** job runs `goreleaser release --skip=publish` **without** that secret in env (the secret belongs only to the future tap job). `{{ .Env.X }}` field access errors when `X` is unset, so the build job risked failing on the template even though it never publishes the formula. The fix is GoReleaser's documented optional-env idiom: `'{{ index .Env "HOMEBREW_TAP_TOKEN" }}'` — `index` on a missing map key returns empty (no error), and the brew push still fails loud at real publish time if the token is genuinely missing.
+- **Verification trap**: `goreleaser release --snapshot` **masks** template errors ("ignoring errors because this is a snapshot"), so a snapshot render *without* the env var returns exit 0 and looks safe — it does **not** prove the non-snapshot `--skip=publish` build job is safe. Test optional-env templating by reasoning about the real build path, not just snapshot; verified the `index` form renders cleanly with and without the env var. General companion: when building config/YAML by string concatenation, escape for the target format (YAML single-quote = `''` doubling) and don't assume safety from a partial source (a `MkdirTemp` suffix) while ignoring the parent (`$TMPDIR`).
+
 ### 2026-06-13 — GoReleaser deprecated `brews` (formula) in favour of `homebrew_casks`, conflicting with ADR-1
 (Found during [T003](../../specs/036-homebrew-tap/tasks.md) implementation)
 
