@@ -1,0 +1,6 @@
+{{if not .Data}}no fillers
+{{else}}{{range .Data}}{{.Actor.ID}}  [{{.Actor.Kind}}]
+  Name:           {{if eq (trimSpace .Actor.Name) ""}}—{{else}}{{.Actor.Name}}{{end}}
+  Focus:          {{if eq (trimSpace .Focus) ""}}(none){{else}}{{.Focus}}{{end}}
+  Elected until:  {{if eq (trimSpace .ElectedUntil) ""}}(not an elected seat){{else}}{{.ElectedUntil}}{{end}}
+{{end}}{{end}}
