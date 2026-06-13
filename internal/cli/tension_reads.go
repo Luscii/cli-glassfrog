@@ -47,6 +47,15 @@ type tensionsConfig struct {
 	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
 	id             string // the required positional role id (ExactArgs(1))
 
+	// subroles selects the cross-role roll-up endpoint
+	// (GET /roles/{role_id}/subroles/tensions) over the role's-own-tensions endpoint
+	// (GET /roles/{role_id}/tensions). It is the ONE data difference between the
+	// `tension list` and `tension subroles` leaves (plan ADR-3): every other field —
+	// status validation, paging, completeness, render, error classification — is
+	// single-sourced through runTensionList, so the path is parameterized here rather
+	// than forking a second runner.
+	subroles bool
+
 	status string // --status filter, validated against the tension status set before any request
 
 	firstPage  bool
@@ -64,9 +73,11 @@ type tensionsConfig struct {
 // value is a usage error with NO request issued) — both pure checks run before any
 // assembly, in the same output-first order as the sibling reads so error precedence
 // is consistent. Then assemble the connection, build the retrying executor, and
-// walk GET /roles/{role_id}/tensions to completion. The role id is a free
-// identifier passed through to a clean 404 (plan ADR-3). It adds no new
-// Outcome/ExitCode and never reads the token.
+// walk the role tensions endpoint to completion — GET /roles/{role_id}/tensions for
+// `tension list`, or GET /roles/{role_id}/subroles/tensions for the `tension subroles`
+// roll-up (selected by cfg.subroles; plan ADR-3). The role id is a free identifier
+// passed through to a clean 404 (plan ADR-3). It adds no new Outcome/ExitCode and
+// never reads the token.
 func runTensionList(cfg tensionsConfig) (Outcome, error) {
 	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
 	//    selector — or, for a user template, a missing/unparseable source or empty
@@ -98,16 +109,17 @@ func runTensionList(cfg tensionsConfig) (Outcome, error) {
 	return runTensionListWalk(cfg, exec, rt)
 }
 
-// runTensionListWalk walks GET /roles/{role_id}/tensions. The output format changes
-// ONLY how the gathered set is rendered — never how much is fetched: every format
-// walks to completion by default and signals incompleteness the same way (a stderr
-// note, never a silently short list). --first-page opts out to a single page. This
-// is the 025/038 roles/projects walked-list shape with Tension items. The id is
-// escaped as one path segment (passed through unvalidated per ADR-3, but a raw
-// `/`/`..` must not redirect/traverse).
+// runTensionListWalk walks the role's tensions endpoint — GET /roles/{role_id}/tensions
+// for `tension list`, or GET /roles/{role_id}/subroles/tensions for the `tension
+// subroles` roll-up (selected by cfg.subroles; the ONLY data difference, plan ADR-3).
+// The output format changes ONLY how the gathered set is rendered — never how much is
+// fetched: every format walks to completion by default and signals incompleteness the
+// same way (a stderr note, never a silently short list). --first-page opts out to a
+// single page. This is the 025/038 roles/projects walked-list shape with Tension
+// items. The id is escaped as one path segment (passed through unvalidated per ADR-3,
+// but a raw `/`/`..` must not redirect/traverse).
 func runTensionListWalk(cfg tensionsConfig, exec executor, rt renderTarget) (Outcome, error) {
-	path := "/roles/" + url.PathEscape(cfg.id) + "/tensions"
-	req := apiclient.Request{Method: http.MethodGet, Path: path, Query: tensionsQuery(cfg)}
+	req := apiclient.Request{Method: http.MethodGet, Path: tensionsListPath(cfg), Query: tensionsQuery(cfg)}
 
 	if cfg.firstPage {
 		return runTensionListFirstPage(cfg, exec, rt, req)
@@ -208,6 +220,21 @@ func reportIncompleteTensionsWalk(stderr io.Writer, stop error) (Outcome, error)
 	return classifyClientError(refined), refined
 }
 
+// tensionsListPath builds the role tensions path for the walk, swapping in the
+// roll-up endpoint when cfg.subroles is set (plan ADR-3): the role's own tensions
+// (GET /roles/{role_id}/tensions) for `tension list`, or the one-level roll-up across
+// its direct sub-roles (GET /roles/{role_id}/subroles/tensions) for `tension
+// subroles`. The anchor id is escaped as a single path segment — passed through
+// unvalidated (ADR-3) so an unknown id or a leaf anchor surfaces the API's 404 via the
+// shared classifier, but a raw `/`/`..` must not redirect or traverse.
+func tensionsListPath(cfg tensionsConfig) string {
+	base := "/roles/" + url.PathEscape(cfg.id)
+	if cfg.subroles {
+		return base + "/subroles/tensions"
+	}
+	return base + "/tensions"
+}
+
 // tensionsQuery builds the GET /roles/{role_id}/tensions query from the single
 // optional filter. --status (sent as `status`) is sent only when non-empty — it was
 // already validated by runTensionList against the tension status set, so an empty
@@ -278,6 +305,77 @@ func newTensionListCommand(seam tensionSeam) *cobra.Command {
 				outputFlag:     outputFlag,
 				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
 				id:             args[0],
+				status:         status,
+				firstPage:      firstPage,
+				perPage:        perPage,
+				// Presence, not value: a provided 0/negative --per-page must reach the
+				// API rather than be silently ignored (paging's no-clamp contract).
+				perPageSet: cmd.Flags().Changed("per-page"),
+				reqCtx:     cmd.Context(),
+				stdout:     cmd.OutOrStdout(),
+				stderr:     cmd.ErrOrStderr(),
+			})
+			return outcomeToDispatchError(outcome, oerr)
+		},
+	}
+	cmd.Flags().StringVar(&status, "status", "", "Filter by tension status (one of: "+strings.Join(supportedTensionStatusNames(), ", ")+")")
+	cmd.Flags().BoolVar(&firstPage, "first-page", false, "Fetch only the first page and signal if more tensions exist")
+	cmd.Flags().IntVar(&perPage, "per-page", 0, "Page size for the walk (the API owns the valid range)")
+	return cmd
+}
+
+// newTensionSubrolesCommand builds the runnable `tension subroles <role-id>` leaf
+// (ADR-1): the cross-role counterpart to `tension list`. Where `list` reads a role's
+// own tensions, `subroles` rolls up the tensions sensed across the anchor role's
+// DIRECT sub-roles (one level, not transitive) via
+// GET /roles/{role_id}/subroles/tensions. It is a guard-ready cobra command with a
+// REQUIRED positional anchor role id (Args: cobra.ExactArgs(1)), a non-empty Short,
+// and SilenceErrors/SilenceUsage so the shared runner owns its messages. It declares
+// the same list-only flags as `list` (--status, --first-page, --per-page) and reuses
+// the SAME runTensionList runner with cfg.subroles set — so status validation, paging,
+// completeness, render, and error classification are single-sourced (plan ADR-3, no
+// second copy of the walk/render/classify logic). A leaf anchor's 404 surfaces through
+// the shared classifier with no "no sub-roles" special case (ADR-3), distinct from an
+// empty-200 success. The seam is injected so tests drive a fake one; production passes
+// productionSeam{}.
+func newTensionSubrolesCommand(seam tensionSeam) *cobra.Command {
+	var (
+		status    string
+		firstPage bool
+		perPage   int
+	)
+	cmd := &cobra.Command{
+		Use:   "subroles <role-id>",
+		Short: "Roll up the tensions across a role's direct sub-roles, walking pages to completion",
+		Long: "subroles rolls up the tensions sensed across the anchor role's direct " +
+			"sub-roles (one level, not transitive), walking every page to completion by " +
+			"default so the roll-up is complete or plainly flagged incomplete. Narrow it " +
+			"with a --status filter (one of: " + strings.Join(supportedTensionStatusNames(), ", ") + "). " +
+			"This is the cross-role counterpart to `tension list`: `list` reads one role's " +
+			"own tensions, `subroles` reads the tensions its direct children carry. A leaf " +
+			"anchor with no sub-roles surfaces the API's not-found status as a read failure.",
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
+				return err
+			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
+			outcome, oerr := runTensionList(tensionsConfig{
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				id:             args[0],
+				subroles:       true,
 				status:         status,
 				firstPage:      firstPage,
 				perPage:        perPage,

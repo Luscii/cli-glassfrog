@@ -514,20 +514,22 @@ func isNotFound(err error) bool {
 // registration under root, so the guard's ">=1 child" rule holds at attach time
 // (the auth/auth login shape, plan ADR-2). The `tension` namespace parents the
 // write verb `create` (042), the read verbs `list`/`get` (043), the edit verb
-// `update` (044), and the soft-delete verb `discard` (045), so the group Short
-// names the whole surface rather than just capture (a write-only Short would make
-// `glassfrog tension --help` misleading). The seam is injected so tests drive
-// a fake one; production passes productionSeam{} from Assemble.
+// `update` (044), the soft-delete verb `discard` (045), and the cross-role roll-up
+// read `subroles` (046), so the group Short names the whole surface rather than just
+// capture (a write-only Short would make `glassfrog tension --help` misleading). The
+// seam is injected so tests drive a fake one; production passes productionSeam{} from
+// Assemble.
 func newTensionCommand(seam tensionSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "tension",
-		Short: "Work with tensions — capture one, list and read a role's tensions, edit one, or discard one",
+		Short: "Work with tensions — capture one, list and read a role's tensions, roll up its sub-roles' tensions, edit one, or discard one",
 	}
 	MustRegister(group, newTensionCreateCommand(seam))
 	MustRegister(group, newTensionListCommand(seam))
 	MustRegister(group, newTensionGetCommand(seam))
 	MustRegister(group, newTensionUpdateCommand(seam))
 	MustRegister(group, newTensionDiscardCommand(seam))
+	MustRegister(group, newTensionSubrolesCommand(seam))
 	return group
 }
 

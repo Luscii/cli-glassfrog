@@ -47,6 +47,6 @@
 | 043-tension-reads | Complete | validate | 2026-06-12T12:30:00 |
 | 044-tension-update | Ready | validate | 2026-06-13T12:30:00 |
 | 045-tension-discard | Complete | validate | 2026-06-13T16:30:00 |
-| 046-subroles-tension-roll-up | Analyzed | analyze | 2026-06-13T15:45:00 |
+| 046-subroles-tension-roll-up | Complete | validate | 2026-06-13T16:45:00 |
 | 047-role-fillers | Analyzed | analyze | 2026-06-13T13:44:10 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |
