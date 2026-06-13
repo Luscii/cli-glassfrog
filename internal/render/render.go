@@ -210,6 +210,25 @@ type ActorsView struct {
 	Data []glassfrog.Actor
 }
 
+// FillersView is the data the role-scoped `fillers` list templates (047) render:
+// the actors who fill a role, walked to completion — the answer to "whom do I
+// contact about this role?". It mirrors ProjectsView/ActorsView's shape (a single
+// .Data slice the templates range over), a flat homogeneous list where every row
+// is the same glassfrog.Assignment (reused as-is, grown by Role Reads 025 — plan
+// ADR-2; no schema change). Each row leads with the filling actor (the per_/agt_
+// id + the kind badge + the name), then the assignment's governance context: the
+// nullable Focus (rendered verbatim, never truncated or reflowed — CONSTITUTION VI)
+// and ElectedUntil. Both are nullable in the spec, so each gets an explicit-absence
+// marker — `(none)` for a focus-less filling and `(not an elected seat)` for a
+// non-elected one under `full`, the `—` marker under `compact` — never a fabricated
+// value or an empty gap (CONSTITUTION VIII). The assignment's own id (asgn_…) is
+// not projected here (it is not a spec row field); it stays in the structured
+// output. An empty Data set renders the explicit `no fillers` line (a role no actor
+// fills is a valid empty answer, not an error).
+type FillersView struct {
+	Data []glassfrog.Assignment
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -388,6 +407,14 @@ const (
 	// from ResourceMe, which renders ONE actor inside the `me` document (actor + org
 	// + membership + roles) — a different projection, not reused (plan ADR-4).
 	ResourceActors Resource = "actors"
+	// ResourceFillers is the role-scoped filler list read (047):
+	// GET /roles/{role_id}/assignments rendered as a FillersView (a flat
+	// homogeneous list of glassfrog.Assignment — the actors who fill a role). Plural
+	// only — there is no singular sibling because the API exposes no
+	// GET /assignments/{id} (plan ADR-1). Distinct from ResourceActors (the org-wide
+	// directory of bare actor records): a filler row leads with the filling actor but
+	// adds the assignment's focus/election context (plan ADR-2).
+	ResourceFillers Resource = "fillers"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -398,7 +425,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceTension, ResourceTensions, ResourceTensionDiscard}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceFillers, ResourceTension, ResourceTensions, ResourceTensionDiscard}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

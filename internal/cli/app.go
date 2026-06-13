@@ -84,6 +84,16 @@ func Assemble() *cobra.Command {
 	// selection through the ungated /actors. productionSeam binds the real transport +
 	// clock; it reads the inherited persistent --base-url/--output.
 	MustRegister(root, newActorsCommand(productionSeam{}))
+	// Role Fillers (047): the `fillers <role-id>` command — the role-scoped read of
+	// who fills a role (GET /roles/{role_id}/assignments), walked to completion by
+	// default (reusing 025's walk + --first-page opt-out). Each row leads with the
+	// filling actor (per_/agt_ id + kind badge + name) then the assignment's focus and
+	// election context, rendered through the new `fillers` key (plan ADR-2). A required
+	// positional role id (cobra.ExactArgs(1)); no filter flags and no --include — the
+	// endpoint offers none beyond the default include + pagination (ADR-3). No singular
+	// sibling — the API exposes no GET /assignments/{id} (ADR-1). productionSeam binds
+	// the real transport + clock; it reads the inherited persistent --base-url/--output.
+	MustRegister(root, newFillersCommand(productionSeam{}))
 	// Tension Capture (042): the `tension` group + `create` leaf — the CLI's first
 	// write. `tension create <role-id>` POSTs a captured tension (the seed of a
 	// governance proposal) and prints the created tension with its ten_ id. A

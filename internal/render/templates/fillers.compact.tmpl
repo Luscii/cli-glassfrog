@@ -1,0 +1,3 @@
+{{if not .Data}}no fillers
+{{else}}{{range .Data}}{{.Actor.ID}}  [{{.Actor.Kind}}]  {{if eq (trimSpace .Actor.Name) ""}}—{{else}}{{.Actor.Name}}{{end}}  — focus: {{if eq (trimSpace .Focus) ""}}—{{else}}{{.Focus}}{{end}}; elected until: {{if eq (trimSpace .ElectedUntil) ""}}—{{else}}{{.ElectedUntil}}{{end}}
+{{end}}{{end}}
