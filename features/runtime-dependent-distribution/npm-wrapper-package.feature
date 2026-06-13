@@ -19,7 +19,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
     # I want to invoke `npx @luscii-healthtech/glassfrog ...` and have the right platform binary resolved and executed.
 
     # Source: 037-npm-wrapper-package — Scenario: npx on a supported platform resolves and runs the binary
-    @wip
     Scenario: npx resolves and runs the matching platform binary
       Given a published release with the umbrella and its four platform packages on the registry
       And a Linux x64 host with Node and npm
@@ -29,7 +28,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       And the reported version will be the release tag — the installed package version with the leading "v"
 
     # Source: 037-npm-wrapper-package — Scenario: unsupported platform is refused at install
-    @wip
     Scenario: Unsupported platform is refused at install
       Given the package is installed on a host whose platform is not a supported target
       When the postinstall runs
@@ -38,7 +36,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       And the install will fail with a non-zero status
 
     # Source: 037-npm-wrapper-package — Scenario: offline install using the bundled platform package
-    @wip
     Scenario: Offline install uses the bundled platform package
       Given the matching platform package is available in the install cache
       And there is no network access to the release host
@@ -47,7 +44,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       And it will not attempt a fallback download
 
     # Source: 037-npm-wrapper-package — Proposed: launcher backstop when postinstall was skipped (plan ADR-4 / Risk R3)
-    @wip
     Scenario: Launcher refuses clearly when no binary is installed
       Given the umbrella was installed with "--ignore-scripts" on a supported host
       And no matching platform package was installed
@@ -70,7 +66,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
     # I want to `npm i -g @luscii-healthtech/glassfrog@<version>` and get the matching binary, pinned to a known version.
 
     # Source: 037-npm-wrapper-package — Scenario: pinned global install places the matching binary
-    @wip
     Scenario: Pinned global install places the matching binary
       Given a "@luscii-healthtech/glassfrog@1.3.0" package is published alongside a newer "1.4.0"
       When the operator runs "npm i -g @luscii-healthtech/glassfrog@1.3.0" on a supported platform
@@ -91,7 +86,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
     # I want the fallback download verified against the release's checksums file before it becomes runnable.
 
     # Source: 037-npm-wrapper-package — Scenario: fallback download verifies before placing the binary
-    @wip
     Scenario: Fallback download verifies before placing the binary
       Given the matching platform package is not available from the registry for the host
       And the resolved release has the platform archive and checksums file attached
@@ -101,7 +95,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       And it will place the binary only after the checksum matches
 
     # Source: 037-npm-wrapper-package — Scenario: checksum mismatch aborts the fallback install
-    @wip
     Scenario: Checksum mismatch aborts the fallback install
       Given the fallback downloaded an archive that does not match its checksums entry
       When the postinstall runs
@@ -110,7 +103,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
       And the install will fail with a non-zero status naming the integrity failure
 
     # Source: 037-npm-wrapper-package — Proposed: fallback fails before placing when tar is missing (plan ADR-3 / Risk R4)
-    @wip
     Scenario: Missing extractor fails before any binary is placed
       Given the fallback path was taken on a host with no "tar" extractor
       When the postinstall attempts to extract the archive
@@ -132,7 +124,6 @@ Feature: Runtime-Dependent Distribution — NPM Wrapper Package
     # I want arguments and exit codes to pass straight through the wrapper to the underlying binary.
 
     # Source: 037-npm-wrapper-package — Scenario: exit code and arguments pass through unchanged
-    @wip
     Scenario: Exit code and arguments pass through unchanged
       Given the CLI was installed through the npm wrapper
       And the underlying binary exits non-zero for a given command

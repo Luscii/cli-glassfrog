@@ -10,7 +10,9 @@
 # It adds NO Go package, NO cobra command, and NO test: it orchestrates the
 # suite the repo already has — the existing unit tests, every godog BDD suite,
 # the internal/build host self-containment test, and the internal/build
-# .goreleaser.yaml config-guard test.
+# .goreleaser.yaml config-guard test. The npm channel (spec 037) is a second
+# language under npm/; its `node --test` suite runs as the separate `node-test`
+# job below so both callers exercise it without duplicating the wiring.
 #
 # Lint is NOT here: it is OS-independent and stays a pre-merge-only concern in
 # ci.yml (029 runs tests only). The Go version comes from go.mod via
@@ -50,3 +52,26 @@ jobs:
           cache: true
       - name: go test
         run: go test ./...
+
+  # The npm acquisition channel (spec 037) is plain CommonJS/ESM under npm/ with
+  # zero runtime dependencies and Node's built-in test runner — no install step.
+  # It runs on the same ubuntu + macos families the binary ships to, so the
+  # launcher's signal/exit passthrough and the postinstall's tar extraction are
+  # exercised per-OS. The suite is hermetic (a localhost fixture server via the
+  # GLASSFROG_DOWNLOAD_BASE_URL seam); it makes no network call and touches no
+  # registry. As a job in this shared workflow it is picked up by BOTH the
+  # pre-merge gate (024) and the post-merge net (029).
+  node-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: node test (npm channel)
+        run: node --test
+        working-directory: npm
