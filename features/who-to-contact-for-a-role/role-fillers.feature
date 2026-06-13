@@ -16,7 +16,6 @@ Feature: Who to Contact for a Role — Role Fillers
     # I want to list the actors who fill any role by its id with one command.
 
     # Source: 047-role-fillers — Scenario: List the fillers of a role
-    @wip
     Scenario: A role's fillers are listed
       Given a complete connection context with a stored token
       And the role "role_0123" is filled by two actors
@@ -26,7 +25,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with code 0
 
     # Source: 047-role-fillers — Scenario: Fillers span both a person and an agent
-    @wip
     Scenario: A person and an agent filler are distinguished by kind
       Given a complete connection context with a stored token
       And the role "role_0123" is filled by one person and one agent
@@ -36,7 +34,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with code 0
 
     # Source: 047-role-fillers — Scenario: Role id does not exist
-    @wip
     Scenario: An unknown role id fails with the API status
       Given a complete connection context with a stored token
       And no role "role_ffff" exists
@@ -45,7 +42,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with a non-zero API-error code
 
     # Source: 047-role-fillers — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog fillers role_0123"
@@ -54,7 +50,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with code 2
 
     # Source: 047-role-fillers — Scenario: Role has no fillers
-    @wip
     Scenario: A role with no fillers is a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" is filled by no actors
@@ -63,7 +58,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with code 0
 
     # Source: 047-role-fillers — Scenario: Missing role-id is rejected before any request
-    @wip
     Scenario: A missing role-id is a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog fillers"
@@ -96,7 +90,6 @@ Feature: Who to Contact for a Role — Role Fillers
     # I want each filler shown with its focus and, for elected seats, its election expiry.
 
     # Source: 047-role-fillers — Scenario: A filler row shows its focus and election expiry
-    @wip
     Scenario: A filler shows its focus and election expiry
       Given a complete connection context with a stored token
       And the role "role_0123" is filled by an actor whose assignment has a focus and an election date
@@ -119,7 +112,6 @@ Feature: Who to Contact for a Role — Role Fillers
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 047-role-fillers — Scenario: Paginated list with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" has fillers spanning more than one page
@@ -129,7 +121,6 @@ Feature: Who to Contact for a Role — Role Fillers
       And the command will exit with code 0
 
     # Source: 047-role-fillers — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the filler list walk fails after retrieving the first page
