@@ -81,7 +81,7 @@ Phase 2: Release integration (2 tasks, depends on Phase 1) [Shared]
 
 ## Phase 2: Release integration [Shared]
 
-- [ ] **T005** [Shared] [P] Add the `npm-publish` job to `release.yml` and gitignore the generated output dir
+- [x] **T005** [Shared] [P] Add the `npm-publish` job to `release.yml` and gitignore the generated output dir — npm-publish job (needs [build, verify], id-token: write, reuses dist/ artifact, generates at release version, publishes platform packages then umbrella via OIDC --provenance, no NPM_TOKEN); dist/npm/ covered by the documented /dist/ gitignore
   - **Scope**: Append an `npm-publish` job to `.github/workflows/release.yml`, `needs: [build, verify]`, that downloads the verified `dist/` artifact, runs the generator (T003) at the release version, and publishes — **platform packages first, then the umbrella** — with `npm publish --access public --provenance` authenticated by GitHub OIDC (`permissions: id-token: write`; no stored `NPM_TOKEN`). Add the generated output dir (e.g. `dist/npm/`) to `.gitignore`.
   - **Acceptance criteria**:
     - The job runs only on `release: published` and only after `build` and `verify` succeed (no npm release without a verified release).

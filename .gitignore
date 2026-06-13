@@ -8,5 +8,8 @@
 /glassfrog
 # Plain `go build` dev binary (named after the repo when built with no -o)
 /cli-glassfrog
-# GoReleaser output (snapshot/matrix binaries + the artifacts.json manifest)
+# GoReleaser output (snapshot/matrix binaries + the artifacts.json manifest).
+# This also covers the npm channel's generated packages (spec 037): the
+# release-time generator (npm/build.mjs) emits the umbrella + four platform
+# package directories into dist/npm/, which are published, never committed.
 /dist/
