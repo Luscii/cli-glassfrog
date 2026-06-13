@@ -57,7 +57,7 @@ func TestResolveBaseURL_FlagWinsAndConsultsNoOtherSource(t *testing.T) {
 	start := t.TempDir()
 	tripwireDir(t, start)
 
-	got, err := ResolveBaseURL("https://staging.example.com/api/v5", start, t.TempDir())
+	got, err := ResolveBaseURL("https://staging.example.com/api/v5", true, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("a usable flag must not consult any other source, but got: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestResolveBaseURL_MalformedFlagFailsLoudNoFallThrough(t *testing.T) {
 	// through to it — it fails loud naming the flag.
 	stubBaseURLEnv(t, "https://env.example.com/api/v5")
 
-	_, err := ResolveBaseURL("api.glassfrog.com", t.TempDir(), t.TempDir())
+	_, err := ResolveBaseURL("api.glassfrog.com", true, t.TempDir(), t.TempDir())
 	if err == nil {
 		t.Fatalf("expected a BaseURLError for a scheme-less flag, got nil")
 	}
@@ -97,7 +97,7 @@ func TestResolveBaseURL_EnvWinsAndReadsNoFile(t *testing.T) {
 	// the env hit must read no file at all.
 	tripwireDir(t, start)
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("an env hit must not read any file, but got: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestResolveBaseURL_MalformedEnvNamesTheVariableNoFallThrough(t *testing.T) 
 	start := t.TempDir()
 	seedBaseURLFile(t, start, "https://file.example.com/api/v5") // a usable file below
 
-	_, err := ResolveBaseURL("", start, t.TempDir())
+	_, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err == nil {
 		t.Fatalf("expected a BaseURLError for a non-http env scheme, got nil")
 	}
@@ -135,7 +135,7 @@ func TestResolveBaseURL_EmptyEnvFallsThroughToFile(t *testing.T) {
 	start := t.TempDir()
 	want := seedBaseURLFile(t, start, "https://file.example.com/api/v5")
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestResolveBaseURL_WhitespaceOnlyEnvFallsThrough(t *testing.T) {
 	start := t.TempDir()
 	want := seedBaseURLFile(t, start, "https://file.example.com/api/v5")
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,15 +158,39 @@ func TestResolveBaseURL_WhitespaceOnlyEnvFallsThrough(t *testing.T) {
 	}
 }
 
-func TestResolveBaseURL_WhitespaceOnlyFlagFallsThrough(t *testing.T) {
+// TestResolveBaseURL_WhitespaceOnlyFlagSuppliedFailsLoud pins the one deliberate
+// behaviour change of the 040 retrofit (ADR-2): the flag rung is now PRESENCE-based
+// (cobra Changed()), not value-emptiness. A supplied whitespace-only --base-url wins
+// its rung by presence and fails loud as an unusable URL — it no longer falls through
+// to the environment. (The unsupplied case — present=false — still falls through; see
+// the "" tests above.)
+func TestResolveBaseURL_WhitespaceOnlyFlagSuppliedFailsLoud(t *testing.T) {
 	stubBaseURLEnv(t, "https://env.example.com/api/v5")
 
-	got, err := ResolveBaseURL("   ", t.TempDir(), t.TempDir())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := ResolveBaseURL("   ", true, t.TempDir(), t.TempDir())
+	var be *BaseURLError
+	if !errors.As(err, &be) {
+		t.Fatalf("expected a *BaseURLError, got %T: %v", err, err)
 	}
-	if got.Source != SourceEnvironment {
-		t.Errorf("Source = %v, want Environment (whitespace flag ignored)", got.Source)
+	if be.Source != "--"+FlagBaseURL {
+		t.Errorf("error source = %q, want %q (no fall-through to the environment)", be.Source, "--"+FlagBaseURL)
+	}
+}
+
+// TestResolveBaseURL_ExplicitEmptyFlagSuppliedFailsLoud is the truly-empty
+// companion to the whitespace case: a supplied --base-url with an empty value
+// (present=true) wins its rung by presence and fails loud, with no fall-through to
+// the seeded environment value (040 ADR-2).
+func TestResolveBaseURL_ExplicitEmptyFlagSuppliedFailsLoud(t *testing.T) {
+	stubBaseURLEnv(t, "https://env.example.com/api/v5")
+
+	_, err := ResolveBaseURL("", true, t.TempDir(), t.TempDir())
+	var be *BaseURLError
+	if !errors.As(err, &be) {
+		t.Fatalf("expected a *BaseURLError, got %T: %v", err, err)
+	}
+	if be.Source != "--"+FlagBaseURL {
+		t.Errorf("error source = %q, want %q (no fall-through to the environment)", be.Source, "--"+FlagBaseURL)
 	}
 }
 
@@ -177,7 +201,7 @@ func TestResolveBaseURL_NearestFileWinsOverHome(t *testing.T) {
 	want := seedBaseURLFile(t, start, "https://project.example.com/api/v5")
 	seedBaseURLFile(t, home, "https://home.example.com/api/v5")
 
-	got, err := ResolveBaseURL("", start, home)
+	got, err := ResolveBaseURL("", false, start, home)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -195,7 +219,7 @@ func TestResolveBaseURL_BaseURLlessFileFallsThroughToDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -211,7 +235,7 @@ func TestResolveBaseURL_DefaultBackstopWhenNothingConfigured(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("the default must not be an error, got: %v", err)
 	}
@@ -231,7 +255,7 @@ func TestResolveBaseURL_MalformedFileNamesFileNoFallThrough(t *testing.T) {
 	start := t.TempDir()
 	want := seedBaseURLFile(t, start, "api.glassfrog.com") // scheme-less
 
-	_, err := ResolveBaseURL("", start, t.TempDir())
+	_, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err == nil {
 		t.Fatalf("expected a BaseURLError for a scheme-less file value, got nil")
 	}
@@ -249,7 +273,7 @@ func TestResolveBaseURL_UnreadableFileFailsLoudNoDefault(t *testing.T) {
 	start := t.TempDir()
 	tripwireDir(t, start) // a directory at .glassfrogrc → an unreadable file
 
-	_, err := ResolveBaseURL("", start, t.TempDir())
+	_, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err == nil {
 		t.Fatalf("expected a read error, got nil (must not fall through to the default)")
 	}
@@ -265,7 +289,7 @@ func TestResolveBaseURL_ValuePassedThroughVerbatim(t *testing.T) {
 	// A trailing slash must survive verbatim — the resolver never normalizes.
 	seedBaseURLFile(t, start, "https://glassfrog.com/api/v5/")
 
-	got, err := ResolveBaseURL("", start, t.TempDir())
+	got, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -280,8 +304,8 @@ func TestResolveBaseURL_Deterministic(t *testing.T) {
 	seedBaseURLFile(t, start, "https://file.example.com/api/v5")
 	home := t.TempDir()
 
-	first, err1 := ResolveBaseURL("", start, home)
-	second, err2 := ResolveBaseURL("", start, home)
+	first, err1 := ResolveBaseURL("", false, start, home)
+	second, err2 := ResolveBaseURL("", false, start, home)
 	if err1 != nil || err2 != nil {
 		t.Fatalf("unexpected error: %v / %v", err1, err2)
 	}
@@ -302,7 +326,7 @@ func TestResolveBaseURL_BaseURLErrorCarriesNoSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := ResolveBaseURL("", start, t.TempDir())
+	_, err := ResolveBaseURL("", false, start, t.TempDir())
 	if err == nil {
 		t.Fatalf("expected a BaseURLError, got nil")
 	}
@@ -360,7 +384,7 @@ func TestResolveBaseURLFromOS_BindsSeams(t *testing.T) {
 	getwd = func() (string, error) { return start, nil }
 	userHomeDir = func() (string, error) { return home, nil }
 
-	got, err := ResolveBaseURLFromOS("")
+	got, err := ResolveBaseURLFromOS("", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

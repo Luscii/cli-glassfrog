@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -93,9 +95,10 @@ type fakeMeSeam struct {
 	newClientErr error
 	transport    http.RoundTripper
 
-	assembledBaseURL string
-	assembleCalled   bool
-	newClientCalled  bool
+	assembledBaseURL    string
+	assembledBaseURLSet bool // the presence bit (cobra Changed()) the RunE threaded to assemble (040 ADR-2)
+	assembleCalled      bool
+	newClientCalled     bool
 
 	slept []time.Duration // the 017 backoff waits the recording fake-sleep observed
 
@@ -123,9 +126,10 @@ type fakeMeSeam struct {
 	tmplStdinPiped bool
 }
 
-func (s *fakeMeSeam) assemble(baseURL string) apiclient.ConnectionContext {
+func (s *fakeMeSeam) assemble(baseURL string, baseURLPresent bool) apiclient.ConnectionContext {
 	s.assembleCalled = true
 	s.assembledBaseURL = baseURL
+	s.assembledBaseURLSet = baseURLPresent
 	return s.ctx
 }
 
@@ -143,14 +147,54 @@ func (s *fakeMeSeam) sleep() func(time.Duration) {
 	return func(d time.Duration) { s.slept = append(s.slept, d) }
 }
 
-// resolveSelection drives the real output.ResolveSelection precedence core (020
-// widened by 035) over the fake's injected flag/env/file sources, so a test
-// exercises genuine parsing, precedence, and the flag-rung template classification
-// without reading the real environment or ~/.glassfrogrc. A default-constructed fake
-// (all sources absent) yields FormatFull — the standing full path every pre-020 test
-// relies on for byte-equivalence.
-func (s *fakeMeSeam) resolveSelection(flagValue string) (output.Selection, error) {
-	return output.ResolveSelection(flagValue, s.envOutput, s.fileOutput, s.filePath, s.fileFound, s.fileErr)
+// resolveSelection drives the real output.ResolveSelectionFromOS composing entry
+// (020 widened by 035, retrofit 040) so a test exercises genuine parsing, precedence,
+// and the flag-rung template classification. The 040 retrofit folded the 6-arg
+// pre-fetched-source core into ResolveSelectionFromOS and removed it, so the fake now
+// feeds its injected sources through the OS-shaped seam HERMETICALLY: the env rung via
+// the real GLASSFROG_OUTPUT (set/unset for this call, then restored) and the file rung
+// via a temp .glassfrogrc seeded from the injected file source — never the developer's
+// real environment or ~/.glassfrogrc. A default-constructed fake (all sources absent)
+// yields FormatFull — the standing full path every pre-020 test relies on.
+func (s *fakeMeSeam) resolveSelection(flagValue string, flagPresent bool) (output.Selection, error) {
+	dir, err := os.MkdirTemp("", "cli-sel-fake-")
+	if err != nil {
+		return output.Selection{Format: output.DefaultFormat}, err
+	}
+	defer os.RemoveAll(dir)
+
+	// Env rung: set the injected value (or unset, so an absent injection falls through
+	// regardless of the developer's ambient environment). Restored on return.
+	prev, had := os.LookupEnv(output.EnvVarOutput)
+	if strings.TrimSpace(s.envOutput) != "" {
+		os.Setenv(output.EnvVarOutput, s.envOutput)
+	} else {
+		os.Unsetenv(output.EnvVarOutput)
+	}
+	defer func() {
+		if had {
+			os.Setenv(output.EnvVarOutput, prev)
+		} else {
+			os.Unsetenv(output.EnvVarOutput)
+		}
+	}()
+
+	// File rung: translate the injected file source into a real temp .glassfrogrc.
+	// An injected read error is modelled by a directory at the file path, which makes
+	// rcfile fail loud with a real *ReadError naming that .glassfrogrc (no fall-through).
+	rcPath := filepath.Join(dir, rcfile.FileName)
+	switch {
+	case s.fileErr != nil:
+		if err := os.Mkdir(rcPath, 0o755); err != nil {
+			return output.Selection{Format: output.DefaultFormat}, err
+		}
+	case s.fileFound:
+		if err := os.WriteFile(rcPath, []byte("output="+s.fileOutput+"\n"), 0o600); err != nil {
+			return output.Selection{Format: output.DefaultFormat}, err
+		}
+	}
+
+	return output.ResolveSelectionFromOS(flagValue, flagPresent, dir, dir)
 }
 
 // readTemplateSource exercises the production readTemplateSourceFrom logic (035
@@ -704,4 +748,57 @@ func TestMeCommand_PassesBaseURLFlagToAssemble(t *testing.T) {
 	if seam.assembledBaseURL != "https://flag.test/api/v5" {
 		t.Errorf("assemble received base URL %q, want the flag value", seam.assembledBaseURL)
 	}
+}
+
+// TestMeCommand_ThreadsBaseURLPresence pins the 040 presence threading (ADR-2):
+// the RunE forwards cobra Changed() for --base-url to the seam's assemble, and
+// Changed() reports the inherited persistent root flag as supplied regardless of
+// whether it sits before or after the `me` subcommand — including an explicit
+// empty value (`--base-url ""`). An unsupplied flag threads presence=false. This
+// is the cli-side companion to the resolver-level @base-url scenarios (the
+// command-path-position scenario in particular), exercising the real cobra
+// parse that those resolver tests model.
+func TestMeCommand_ThreadsBaseURLPresence(t *testing.T) {
+	run := func(args ...string) *fakeMeSeam {
+		t.Helper()
+		seam := &fakeMeSeam{ctx: validMeContext(), transport: &cannedTransport{status: 200, body: meBodyAlice}}
+		root := NewRootCommand()
+		MustRegister(root, newMeCommand(seam))
+		var out, errb bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errb)
+		_, _ = Run(root, args)
+		return seam
+	}
+
+	t.Run("flag before subcommand (empty value, supplied)", func(t *testing.T) {
+		seam := run("--base-url", "", "me")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url \"\" before `me` is supplied)")
+		}
+		if seam.assembledBaseURL != "" {
+			t.Errorf("base URL = %q, want the empty supplied value", seam.assembledBaseURL)
+		}
+	})
+
+	t.Run("flag after subcommand (empty value, supplied)", func(t *testing.T) {
+		seam := run("me", "--base-url", "")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url \"\" after `me` is supplied)")
+		}
+	})
+
+	t.Run("flag with explicit =empty (supplied)", func(t *testing.T) {
+		seam := run("me", "--base-url=")
+		if !seam.assembledBaseURLSet {
+			t.Errorf("presence = false, want true (--base-url= is supplied)")
+		}
+	})
+
+	t.Run("flag unsupplied", func(t *testing.T) {
+		seam := run("me")
+		if seam.assembledBaseURLSet {
+			t.Errorf("presence = true, want false (no --base-url supplied)")
+		}
+	})
 }

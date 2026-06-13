@@ -353,7 +353,7 @@ func TestRunTensionList_BadOutputIsUsageErrorNoRequest(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: tensionsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, _, stderr := runTensionListOver(t, seam, tensionsConfig{id: "role_0123", outputFlag: "xml"})
+	outcome, _, stderr := runTensionListOver(t, seam, tensionsConfig{id: "role_0123", outputFlag: "xml", outputPresent: true})
 	if outcome != UsageError || ExitCode(outcome) != 2 {
 		t.Fatalf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
@@ -368,7 +368,7 @@ func TestRunTensionList_StructuredJSONEmitsAggregatedRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: tensionsPageComplete}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runTensionListOver(t, seam, tensionsConfig{id: "role_0123", outputFlag: "json"})
+	outcome, stdout, _ := runTensionListOver(t, seam, tensionsConfig{id: "role_0123", outputFlag: "json", outputPresent: true})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
@@ -497,7 +497,7 @@ func TestRunTensionGet_StructuredJSONEmitsRawPayload(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: tensionDocumentBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
-	outcome, stdout, _ := runTensionGetOver(t, seam, tensionGetConfig{outputFlag: "json"}, "ten_0123")
+	outcome, stdout, _ := runTensionGetOver(t, seam, tensionGetConfig{outputFlag: "json", outputPresent: true}, "ten_0123")
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}

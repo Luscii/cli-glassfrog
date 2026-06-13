@@ -31,7 +31,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
 
 ## Phase 1: Label Contract Extension [US2]
 
-- [ ] **T001** [US2] Add the `no-release-note` exclusion label to `.github/settings.yml` and `.github/labeler.yml` (eighth managed label; negate-over-noteworthy matcher)
+- [x] **T001** [US2] Add the `no-release-note` exclusion label to `.github/settings.yml` and `.github/labeler.yml` (eighth managed label; negate-over-noteworthy matcher) — 2 scenarios (auto half), header comments updated seven→eight; noted maintainer-flagged-vs-sync-removal tension in LEARNINGS.md
   - **Scope**: Two coordinated edits, one contract. (1) In `.github/settings.yml`, add an eighth entry to the `labels:` block — `name: no-release-note`, a color (`[ASSUMED]`, tunable), and a description (e.g. "Excluded from release notes (spec/feature-only or maintainer-flagged)"). (2) In `.github/labeler.yml`, add an eighth label entry with `negate: true` and a `files:` list of the **noteworthy** path patterns (`.*\.go$`, `go\.mod$`/`go\.sum$`, `docs/.*`, `README\.md$`, `\.github/.*`, `\.goreleaser\.ya?ml$`, `\.golangci\.ya?ml$`, `scripts/.*`, `Makefile`, `Dockerfile.*`, `\.pre-commit-config\.yaml`, `spec/.*`) so the label is applied **iff no changed file is noteworthy** — i.e. the PR is confined to `specs/` and `.feature` files. **Do not** use a broad `.*\.md$` pattern: Score spec markdown lives under `specs/` and must remain non-noteworthy. Leave the existing seven labeler entries untouched. Update the in-file header comments in both files that assert "seven managed labels" to reflect eight.
   - **Acceptance criteria**:
     - `.github/settings.yml` defines `no-release-note` as an eighth labels-only entry; valid Probot Settings-app YAML; the existing seven entries are unchanged.
@@ -45,7 +45,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
 
 ## Phase 2: Drafting Config, Workflow, and Guard [Shared]
 
-- [ ] **T002** [Shared] Add `.github/release-drafter.yml` — version-resolver (highest-wins, default patch), seven categories, exclude-labels, templates
+- [x] **T002** [Shared] Add `.github/release-drafter.yml` — version-resolver (highest-wins, default patch), seven categories, exclude-labels, templates — 4 scenarios, config matches interface-spec verbatim
   - **Scope**: Create `.github/release-drafter.yml` per interface-spec.md: `tag-template`/`name-template` = `v$RESOLVED_VERSION`; `version-template` = `$MAJOR.$MINOR.$PATCH`; `version-resolver` mapping `major.labels: [breaking]`, `minor.labels: [features]`, `patch.labels: [fixes]`, `default: patch`; a `categories` block mapping the seven 028 labels to titled sections (titles `[ASSUMED]`, tunable; label strings fixed); `exclude-labels: [no-release-note]`; `change-template: "- $TITLE (#$NUMBER) @$AUTHOR"`; a `template` with `$CHANGES`. Leave `prerelease` at the default (status is set by T003's post-step). Do not invent category labels — reference the exact 028 strings.
   - **Acceptance criteria**:
     - The seven `categories` labels are exactly `breaking`/`features`/`fixes`/`docs`/`infrastructure`/`dependencies`/`internal`; `version-resolver` buckets are exactly breaking→major / features→minor / fixes→patch with `default: patch`.
@@ -56,7 +56,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
   - **Scenario references**: release-drafting.feature: "A feature merge bumps the draft to the next minor"; "The highest semver label wins across several merges"; "A change with no semver label takes the default patch bump"; "An excluded pull request affects neither notes nor version"
   - **Interface references**: interface-spec.md: "`.github/release-drafter.yml` structure"
 
-- [ ] **T003** [Shared] [P] Add `.github/workflows/release-drafting.yml` — push:main, least-privilege, pinned release-drafter, auto pre-release/latest post-step
+- [x] **T003** [Shared] [P] Add `.github/workflows/release-drafting.yml` — push:main, least-privilege, pinned release-drafter, auto pre-release/latest post-step — actionlint clean; corrected [ASSUMED] gh invocation (PATCH-by-id, not edit-by-tag — drafts 404 by tag) and pin (v6.4.0; v6.1.0 doesn't exist), both noted in LEARNINGS.md
   - **Scope**: Create `.github/workflows/release-drafting.yml` per interface-spec.md: `name: Release Drafting`; `on: push: { branches: [main] }` (no tags); `permissions: { contents: write, pull-requests: read }`; `concurrency` group `${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress: true`; one `draft` job on `ubuntu-latest` with (step 1) the **pinned** `release-drafter/release-drafter` action (id `draft`, `config-name: release-drafter.yml`, `GITHUB_TOKEN`), and (step 2) a status step that reads `steps.draft.outputs.major_version` and marks the draft pre-release when `== 0`, else latest, via `gh release edit` (exact invocation `[ASSUMED]` — verify a draft is addressable by its tag at implement; fallback is release-drafter's static `prerelease` with a documented 1.0.0 flip). No `actions/checkout`.
   - **Acceptance criteria**:
     - Workflow triggers only on `push` to `main` (a tag push or PR does not trigger it); permissions are exactly `contents: write` + `pull-requests: read`; the action is pinned to a concrete version.
@@ -68,7 +68,7 @@ Phase 1 (T001) lands the label contract first because Phase 2's `exclude-labels`
   - **Interface references**: interface-spec.md: "`.github/workflows/release-drafting.yml` structure"; "Interactions"
   - **Risk**: ⚠️ External behaviour — `gh release edit` on an unpublished draft (ADR-5) and the v0.1.0 first-release floor (ADR-2) are verified at implement; both have documented fallbacks.
 
-- [ ] **T004** [Shared] [P] Add the label-contract config guard to `internal/build`
+- [x] **T004** [Shared] [P] Add the label-contract config guard to `internal/build` — 1 @validation scenario; new labelcontract.go + labelcontract_test.go (real-file + 8-case drift table), go test ./... + golangci-lint clean
   - **Scope**: Add a Go config-drift test to `internal/build` (joining the existing `.goreleaser`/`release.yml` guards; parse YAML via `sigs.k8s.io/yaml`, change-detector rigor — a missing entry fails as loudly as an extra). Assert across `.github/release-drafter.yml`, `.github/labeler.yml`, and `.github/settings.yml`: (a) release-drafter `categories` labels == the seven category labels in labeler.yml and settings.yml; (b) `version-resolver` major/minor/patch buckets == exactly breaking/features/fixes; (c) `no-release-note` present in settings.yml, labeler.yml, and release-drafter `exclude-labels`; (d) the managed set is exactly eight across labeler.yml/settings.yml. Exact Go symbol/file names are implementation-level.
   - **Acceptance criteria**:
     - The test fails if any category label is renamed/dropped/added in one of the three files but not the others.

@@ -41,17 +41,17 @@ func Assemble(
 }
 
 // AssembleFromOS is the thin production seam over Assemble: it binds the real
-// resolvers — ResolveBaseURLFromOS(flagValue) for the base URL and auth.Resolve
-// for the credential — and delegates. The --base-url flag value is an input now;
-// its cobra registration is deferred to the consuming command.
+// resolvers — ResolveBaseURLFromOS(flagValue, flagPresent) for the base URL and
+// auth.Resolve for the credential — and delegates. The --base-url flag value and
+// its presence (cobra Changed()) are inputs threaded from the consuming command.
 //
 // Intended to be called ONCE per invocation: assembly is the single resolution
 // point for an invocation (both walks happen here), and the command layer threads
 // the returned context to every request. Calling it repeatedly would re-resolve;
 // Request Authentication's own sync.Once backstops the request layer.
-func AssembleFromOS(flagValue string) ConnectionContext {
+func AssembleFromOS(flagValue string, flagPresent bool) ConnectionContext {
 	return Assemble(
-		func() (BaseURL, error) { return ResolveBaseURLFromOS(flagValue) },
+		func() (BaseURL, error) { return ResolveBaseURLFromOS(flagValue, flagPresent) },
 		auth.Resolve,
 	)
 }

@@ -196,9 +196,9 @@ func (w *udtoWorld) whenRun() error {
 	var out, errb bytes.Buffer
 	switch w.which {
 	case "roles":
-		w.outcome, _ = runMeRoles(meRolesConfig{seam: seam, outputFlag: w.flag, reqCtx: context.Background(), stdout: &out, stderr: &errb})
+		w.outcome, _ = runMeRoles(meRolesConfig{seam: seam, outputFlag: w.flag, outputPresent: w.flag != "", reqCtx: context.Background(), stdout: &out, stderr: &errb})
 	default:
-		w.outcome, _ = runMe(meConfig{seam: seam, outputFlag: w.flag, reqCtx: context.Background(), stdout: &out, stderr: &errb})
+		w.outcome, _ = runMe(meConfig{seam: seam, outputFlag: w.flag, outputPresent: w.flag != "", reqCtx: context.Background(), stdout: &out, stderr: &errb})
 	}
 	w.exitCode = ExitCode(w.outcome)
 	w.stdout, w.stderr = out.String(), errb.String()

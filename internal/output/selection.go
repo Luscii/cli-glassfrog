@@ -3,7 +3,7 @@ package output
 import (
 	"strings"
 
-	"github.com/Luscii/cli-glassfrog/internal/rcfile"
+	"github.com/Luscii/cli-glassfrog/internal/resolve"
 )
 
 // reservedStdin is the fifth reserved --output flag word added by User-Defined
@@ -59,46 +59,68 @@ func (s Selection) AsTemplate() (TemplateRef, bool) {
 	return *s.Template, true
 }
 
-// ResolveSelectionFromOS is the thin production seam over ResolveSelection: it binds
-// the real GLASSFROG_OUTPUT lookup and the internal/rcfile nearest-wins walk (over
-// the output key) to the pure core's injected sources, mirroring ResolveFormatFromOS.
-func ResolveSelectionFromOS(flagValue, startDir, homeDir string) (Selection, error) {
-	envValue := getenv(EnvVarOutput)
-	fileValue, filePath, fileFound, fileErr := rcfile.Resolve(startDir, homeDir, outputKey)
-	return ResolveSelection(flagValue, envValue, fileValue, filePath, fileFound, fileErr)
-}
-
-// ResolveSelection is the pure precedence core for the discriminated selection
-// (035 ADR-1). It reuses ResolveFormat's precedence (flag → env → file → default)
-// but, at the FLAG rung only, classifies a non-empty value into a built-in format
-// or a user-template source:
+// ResolveSelectionFromOS is the single composing entry for the discriminated
+// selection (035 widened by the 040 retrofit). It composes the precedence walk —
+// the --output flag, then GLASSFROG_OUTPUT, then the .glassfrogrc output key, then
+// the built-in default — onto the one shared resolve walk (039), binding the real
+// GLASSFROG_OUTPUT lookup (the getenv seam) and the internal/rcfile nearest-wins
+// walk (resolve.FromFile over the output key); startDir/homeDir are injected so the
+// walk is hermetic (ADR-4). It replaces the former 6-arg pre-fetched-source pure
+// core, which no longer fits now that resolve fetches env/file itself (mirrors base
+// URL's composing core).
 //
-//   - a reserved format token (full/compact/json/yaml, any casing) → that OutputFormat
-//   - "stdin" (any casing)                                          → TemplateRef{TemplateStdin}
-//   - any other non-empty value                                     → TemplateRef{TemplateFile, value}
+// The flag rung is PRESENCE-based (ADR-2): a supplied --output (flagPresent, cobra
+// Changed()) wins its rung even with an empty/whitespace value — its act of being
+// typed is the signal. An unsupplied flag falls through to the environment; the env
+// and file rungs keep their non-empty-after-trim yield rule, so a whitespace-only
+// GLASSFROG_OUTPUT / file value still falls through.
 //
-// Reserved names win — a value equal to a reserved word never becomes a file. The
-// env and file rungs are UNCHANGED: they still parse the four tokens or yield a
-// *FormatError (and the rcfile read error unchanged), and NEVER a TemplateRef — a
-// template source is reachable only from the command line (ADR-1). When every source
-// is absent the built-in default (Full) backstops the chain. On error the zero
-// Selection (Full, no template) is returned as a placeholder.
-func ResolveSelection(flagValue, envValue, fileValue, filePath string, fileFound bool, fileErr error) (Selection, error) {
-	// Flag rung: a non-empty value short-circuits all lower rungs and may name a
-	// user-template source (035). A whitespace-only value is treated as absent and
-	// falls through (the base-URL / ResolveFormat convention).
-	if strings.TrimSpace(flagValue) != "" {
-		return classifyFlagSelection(flagValue), nil
-	}
-
-	// Env / file / default rungs: unchanged. Delegate to ResolveFormat with an empty
-	// flag so it skips rung 1 — it yields one of the four tokens, a *FormatError
-	// naming the env/file source, or the rcfile read error; never a TemplateRef.
-	format, err := ResolveFormat("", envValue, fileValue, filePath, fileFound, fileErr)
+// The winner is interpreted at the call site (ADR-3), keyed off its provenance:
+//
+//   - a FLAG winner → classifyFlagSelection: a reserved format token
+//     (full/compact/json/yaml, any casing) → that OutputFormat; "stdin" (any casing)
+//     → TemplateRef{TemplateStdin}; any other non-empty value → TemplateRef{
+//     TemplateFile, path}. A non-token flag value is therefore NOT an error — it
+//     selects a user template (035). An empty/whitespace flag classifies as a
+//     degenerate empty template selection that fails loud downstream.
+//   - an ENV/FILE winner → ParseFormat: one of the four tokens, or a *FormatError
+//     naming the source via Provenance.Origin (GLASSFROG_OUTPUT or the file path).
+//     A template is NEVER reachable here — templates are flag-only (035 ADR-1).
+//   - the DEFAULT winner → Selection{DefaultFormat} (Full), valid by construction and
+//     never re-validated.
+//
+// A resolution error (an unreadable/unparseable .glassfrogrc) surfaces verbatim
+// before any parse, with NO fall-through to the default. On error the zero Selection
+// (Full, no template) is returned as a placeholder.
+func ResolveSelectionFromOS(flagValue string, flagPresent bool, startDir, homeDir string) (Selection, error) {
+	res, err := resolve.Resolve(
+		resolve.FromFlags(resolve.Flag{Name: "--" + FlagOutput, Present: flagPresent, Value: flagValue}),
+		resolve.FromEnv(getenv, EnvVarOutput),
+		resolve.FromFile(startDir, homeDir, outputKey),
+		resolve.Default(FormatFull.String()), // "full"; classified back to DefaultFormat
+	)
 	if err != nil {
-		return Selection{Format: DefaultFormat}, err
+		return Selection{Format: DefaultFormat}, err // unreadable/unparseable .glassfrogrc → fail loud, no fall-through
 	}
-	return Selection{Format: format}, nil
+
+	switch res.Provenance.Kind {
+	case resolve.KindFlag:
+		// Flag rung: token → format, "stdin" → stdin template, else → template file
+		// path (035). A non-token flag value is NOT an error.
+		return classifyFlagSelection(res.Value), nil
+	case resolve.KindEnv, resolve.KindFile:
+		// Env/file rung: only the four tokens; a non-token fails loud naming the
+		// source (templates are flag-only).
+		format, perr := ParseFormat(res.Value)
+		if perr != nil {
+			return Selection{Format: DefaultFormat}, &FormatError{Source: res.Provenance.Origin, Value: res.Value}
+		}
+		return Selection{Format: format}, nil
+	default:
+		// Default rung (KindDefault): the built-in default backstops the chain,
+		// valid by construction and never re-validated.
+		return Selection{Format: DefaultFormat}, nil
+	}
 }
 
 // classifyFlagSelection classifies a non-empty --output flag value (035 ADR-1):
