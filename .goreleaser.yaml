@@ -14,7 +14,7 @@
 #     form of 022's `keep-existing`, so the tap job's `goreleaser release` never
 #     touches the GitHub release) and a pinned `archives.builds_info.mtime` (so
 #     the tap job's rebuilt archives are byte-reproducible and their sha256 sums
-#     equal the published archives').
+#     equal those of the published archives).
 # 022 must not re-decide `builds`/`ldflags`; the config-guard (internal/build)
 # pins both the matrix and the new sections against drift.
 #

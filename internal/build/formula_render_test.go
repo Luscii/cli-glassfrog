@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -92,7 +93,10 @@ func doRenderFormula(bin string) (renderedFormula, error) {
 		return renderedFormula{}, fmt.Errorf("reading the real %s: %w", ConfigFileName, err)
 	}
 	renderCfg := filepath.Join(workDir, "goreleaser-render.yaml")
-	if err := os.WriteFile(renderCfg, []byte(string(realCfg)+"\ndist: "+distDir+"\n"), 0o644); err != nil {
+	// Single-quote the dist path so a temp path containing YAML-significant
+	// characters (a `:` in a Windows path, a `#`) can't make the render config
+	// invalid. MkdirTemp never produces a single quote, so no escaping is needed.
+	if err := os.WriteFile(renderCfg, []byte(string(realCfg)+"\ndist: '"+distDir+"'\n"), 0o644); err != nil {
 		return renderedFormula{}, err
 	}
 
@@ -130,7 +134,9 @@ var formulaURLSHA = regexp.MustCompile(`url "([^"]+)"\s+sha256 "([0-9a-f]{64})"`
 func parseFormulaSHAs(body string) map[string]string {
 	out := map[string]string{}
 	for _, m := range formulaURLSHA.FindAllStringSubmatch(body, -1) {
-		out[filepath.Base(m[1])] = m[2]
+		// path.Base (not filepath.Base): these are HTTP URLs, always `/`-separated,
+		// regardless of the host OS's path separator.
+		out[path.Base(m[1])] = m[2]
 	}
 	return out
 }
@@ -228,4 +234,69 @@ func keysOf(m map[string]string) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestParseFormulaSHAsAndChecksums exercises the formula/checksums parse + map
+// helpers against static fixtures — no goreleaser required, so unlike the
+// render-driven TestFormulaRender_* (which t.Skips when goreleaser is absent,
+// e.g. in PR-validation CI) this runs on every `go test ./...`. It protects the
+// url→sha extraction (including the path.Base URL handling), the
+// checksums-file parse, and the filename-keyed cross-check from regression —
+// the parsing logic the skipped end-to-end render would otherwise be the only
+// thing covering.
+func TestParseFormulaSHAsAndChecksums(t *testing.T) {
+	const amd = "glassfrog_1.2.3_darwin_amd64.tar.gz"
+	const arm = "glassfrog_1.2.3_darwin_arm64.tar.gz"
+	shaAMD := strings.Repeat("a", 64)
+	shaARM := strings.Repeat("b", 64)
+
+	// A formula fragment in the real GoReleaser shape: url line directly followed
+	// by its sha256 line, inside on_macos/Hardware::CPU branches.
+	body := fmt.Sprintf(`class Glassfrog < Formula
+  on_macos do
+    if Hardware::CPU.intel?
+      url "https://github.com/Luscii/cli-glassfrog/releases/download/v1.2.3/%s"
+      sha256 "%s"
+    end
+    if Hardware::CPU.arm?
+      url "https://github.com/Luscii/cli-glassfrog/releases/download/v1.2.3/%s"
+      sha256 "%s"
+    end
+  end
+end`, amd, shaAMD, arm, shaARM)
+
+	shas := parseFormulaSHAs(body)
+	if len(shas) != 2 {
+		t.Fatalf("expected 2 url+sha pairs parsed, got %d: %v", len(shas), shas)
+	}
+	if shas[amd] != shaAMD {
+		t.Errorf("formula sha for %s: got %q, want %q", amd, shas[amd], shaAMD)
+	}
+	if shas[arm] != shaARM {
+		t.Errorf("formula sha for %s: got %q, want %q", arm, shas[arm], shaARM)
+	}
+
+	// A matching checksums.txt (`<sha>  <filename>` lines) in a temp dir.
+	dir := t.TempDir()
+	checksums := fmt.Sprintf("%s  %s\n%s  %s\n", shaAMD, amd, shaARM, arm)
+	if err := os.WriteFile(filepath.Join(dir, "glassfrog_1.2.3_checksums.txt"), []byte(checksums), 0o644); err != nil {
+		t.Fatalf("writing fixture checksums file: %v", err)
+	}
+	got, err := parseSnapshotChecksums(dir)
+	if err != nil {
+		t.Fatalf("parseSnapshotChecksums: %v", err)
+	}
+
+	// The cross-check the render test performs end-to-end: every formula sha256
+	// equals the checksums-file entry for the same archive filename.
+	for filename, formulaSHA := range shas {
+		wantSHA, ok := got[filename]
+		if !ok {
+			t.Errorf("formula references %s but it is absent from the checksums file", filename)
+			continue
+		}
+		if formulaSHA != wantSHA {
+			t.Errorf("sha256 mismatch for %s: formula %s, checksums %s", filename, formulaSHA, wantSHA)
+		}
+	}
 }
