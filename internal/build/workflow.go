@@ -305,7 +305,7 @@ func CheckTapJob(wf Workflow) []string {
 	switch {
 	case args == "":
 		violations = append(violations, "tap job must run the goreleaser-action (the brew publisher)")
-	case !strings.Contains(args, "release"):
+	case !runsGoreleaserRelease(args):
 		violations = append(violations, fmt.Sprintf(
 			"tap job must run `goreleaser release` (the brew publisher), got args %q", args))
 	case strings.Contains(args, "--skip=publish"):
@@ -330,7 +330,9 @@ func CheckTapJob(wf Workflow) []string {
 // both reduce to `!github.event.release.prerelease`, while an augmented
 // condition (`… || true`, `… && …`) does not.
 func normalizeIf(cond string) string {
-	c := strings.ReplaceAll(cond, " ", "")
+	// strings.Fields splits on ANY whitespace run (spaces, tabs, newlines), so
+	// joining with "" removes all of it — robust to a multi-line `if:`.
+	c := strings.Join(strings.Fields(cond), "")
 	c = strings.TrimPrefix(c, "${{")
 	c = strings.TrimSuffix(c, "}}")
 	return c
@@ -446,7 +448,7 @@ func checkBuildJob(j Job) []string {
 	if args == "" {
 		violations = append(violations, "build job must run the goreleaser-action (no goreleaser step found)")
 	} else {
-		if !strings.Contains(args, "release") {
+		if !runsGoreleaserRelease(args) {
 			violations = append(violations, fmt.Sprintf("build job must run `goreleaser release` (build+archive+checksum), got args %q", args))
 		}
 		if !strings.Contains(args, "--skip=publish") {
@@ -500,6 +502,15 @@ func checkPublishJob(j Job) []string {
 		}
 	}
 	return violations
+}
+
+// runsGoreleaserRelease reports whether the goreleaser-action args invoke the
+// `release` subcommand: the FIRST whitespace-separated token must be `release`,
+// not merely a string that mentions it (e.g. `build --release-notes` or
+// `--skip=release` would pass a substring check while doing something else).
+func runsGoreleaserRelease(args string) bool {
+	fields := strings.Fields(args)
+	return len(fields) > 0 && fields[0] == "release"
 }
 
 // goreleaserArgs returns the `args` input of the goreleaser-action step, or ""

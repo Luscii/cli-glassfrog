@@ -340,6 +340,15 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 			wantNamed: []string{"HOMEBREW_TAP_TOKEN"},
 		},
 		{
+			// 036 — args that merely MENTION "release" (not the subcommand) must be
+			// rejected: the check is on the first token, not a substring.
+			name: "a tap job whose args only mention release (build --release-notes) is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          args: release --clean\n", "          args: build --release-notes\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"goreleaser release"},
+		},
+		{
 			// 036 — --skip=publish in the tap job would skip the formula push (the job's purpose).
 			name: "a tap job that passes --skip=publish is rejected and named",
 			yaml: strings.Replace(validWorkflowYAML,
