@@ -323,6 +323,15 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 			wantNamed: []string{"non-prerelease flag"},
 		},
 		{
+			// 036 — a gate that MENTIONS the flag but augments it (|| true → always
+			// runs) must be rejected: the check is exact, not substring.
+			name: "a tap gate augmented with || true is rejected (exact-match, not substring)",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    if: ${{ !github.event.release.prerelease }}\n", "    if: ${{ !github.event.release.prerelease || true }}\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"non-prerelease flag"},
+		},
+		{
 			// 036 — the cross-repo token must be injected from a secret.
 			name: "a tap job without the HOMEBREW_TAP_TOKEN secret env is rejected",
 			yaml: strings.Replace(validWorkflowYAML,

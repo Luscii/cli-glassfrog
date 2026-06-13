@@ -287,9 +287,15 @@ func CheckTapJob(wf Workflow) []string {
 		violations = append(violations,
 			"tap job must `needs: [publish]` so the formula references the just-attached, verified assets")
 	}
-	if cond := strings.ReplaceAll(tap.If, " ", ""); !strings.Contains(cond, "!github.event.release.prerelease") {
+	// The gate must be EXACTLY the non-prerelease flag — not merely contain it.
+	// A substring check would accept an augmented condition like
+	// `${{ !github.event.release.prerelease || true }}` (always runs) or
+	// `&& github.event.release.draft`, which changes behavior while still
+	// "mentioning" the flag. Normalize away whitespace and the optional `${{ }}`
+	// wrapper, then require exact equality.
+	if normalizeIf(tap.If) != "!github.event.release.prerelease" {
 		violations = append(violations, fmt.Sprintf(
-			"tap job must gate on the non-prerelease flag (if: ${{ !github.event.release.prerelease }}) — the authoritative stable-only gate, got %q", tap.If))
+			"tap job must gate on exactly the non-prerelease flag (if: ${{ !github.event.release.prerelease }}) — the authoritative stable-only gate, got %q", tap.If))
 	}
 	if !strings.Contains(tap.Env[TapTokenEnv], "secrets.") {
 		violations = append(violations, fmt.Sprintf(
@@ -316,6 +322,18 @@ func CheckTapJob(wf Workflow) []string {
 		}
 	}
 	return violations
+}
+
+// normalizeIf canonicalizes a job `if:` expression for exact comparison: it
+// strips all whitespace and the optional `${{ }}` template wrapper, so
+// `${{ !github.event.release.prerelease }}` and `!github.event.release.prerelease`
+// both reduce to `!github.event.release.prerelease`, while an augmented
+// condition (`… || true`, `… && …`) does not.
+func normalizeIf(cond string) string {
+	c := strings.ReplaceAll(cond, " ", "")
+	c = strings.TrimPrefix(c, "${{")
+	c = strings.TrimSuffix(c, "}}")
+	return c
 }
 
 // checkVerifyMatrix asserts the matrix covers exactly the four supported targets
