@@ -79,6 +79,14 @@ Feature: Tension Capture
       Then the structured result will contain the created tension's "ten_" id
       And the command will exit with code 0
 
+    # Source: 042-tension-capture — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
+    Scenario: An invalid output format is rejected before any request
+      Given a complete connection context with a stored token
+      When an agent runs "glassfrog tension create role_0123 --body \"a tension\" -o xml"
+      Then stderr will report a usage error and name the rejected output value "xml"
+      And no request will be sent
+      And the command will exit with code 2
+
   Rule: Attach a label and meeting-type at capture
     # In order to give the tension a short handle and signal where it should be worked,
     # as a practitioner sensing an issue,

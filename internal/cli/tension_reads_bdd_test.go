@@ -91,6 +91,7 @@ func initializeTensionReadsScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^the tension's status, body, and sensing role will be printed$`, w.statusBodyRolePrinted)
 	sc.Step(`^stderr will report that the read failed and name the HTTP status$`, w.stderrNamesHTTPStatus)
 	sc.Step(`^stderr will report a usage error$`, w.stderrReportsUsageError)
+	sc.Step(`^stderr will report a usage error and name the rejected output value "([^"]*)"$`, w.stderrReportsRejectedOutput)
 	sc.Step(`^no request will be sent$`, w.noRequestSent)
 	sc.Step(`^the request will carry the "([^"]*)" parameter set to "([^"]*)"$`, w.requestCarriesParamSetTo)
 	sc.Step(`^only the unprocessed tensions will be printed$`, w.onlyUnprocessedTensionsPrinted)
@@ -281,6 +282,19 @@ func (w *tensionReadsWorld) stderrReportsUsageError() error {
 	}
 	if strings.TrimSpace(w.stderr) == "" {
 		return errors.New("a usage error should be reported on stderr")
+	}
+	return nil
+}
+
+func (w *tensionReadsWorld) stderrReportsRejectedOutput(value string) error {
+	// Reuse the shared usage-error contract (UsageError/exit-2 + non-empty stderr) so
+	// it has a single source — a change to that contract updates one place — then add
+	// the message assertion this step is about: the rejected value is named.
+	if err := w.stderrReportsUsageError(); err != nil {
+		return err
+	}
+	if !strings.Contains(w.stderr, value) {
+		return fmt.Errorf("stderr should name the rejected output value %q:\n%s", value, w.stderr)
 	}
 	return nil
 }

@@ -68,6 +68,14 @@ Feature: Tension Update
       And the update will not be retried
       And the command will exit with the rate-limit code
 
+    # Source: 044-tension-update — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
+    Scenario: An invalid output format is rejected before any request
+      Given a complete connection context with a stored token
+      When an agent runs "glassfrog tension update ten_0123 --body \"New wording.\" -o xml"
+      Then stderr will report a usage error and name the rejected output value "xml"
+      And no request will be sent
+      And the command will exit with code 2
+
   Rule: Retire a finished tension
     # In order to retire a tension I have finished working,
     # as a practitioner managing my governance backlog,

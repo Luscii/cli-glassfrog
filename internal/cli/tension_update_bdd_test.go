@@ -84,6 +84,7 @@ func initializeTensionUpdateScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^stderr will report "([^"]*)" and point to "([^"]*)"$`, w.stderrReportsAndPointsTo)
 	sc.Step(`^stderr will report the unsupported value and list the supported set$`, w.stderrReportsUnsupportedStatus)
 	sc.Step(`^stderr will report a usage error naming that at least one field is required$`, w.stderrReportsAtLeastOneField)
+	sc.Step(`^stderr will report a usage error and name the rejected output value "([^"]*)"$`, w.stderrReportsRejectedOutput)
 	sc.Step(`^no request will be sent$`, w.noRequestSent)
 	sc.Step(`^the value will be accepted as a supported status$`, w.statusAccepted)
 	sc.Step(`^the request will carry "([^"]*)" set to "([^"]*)"$`, w.requestCarriesFieldSetTo)
@@ -238,6 +239,16 @@ func (w *tensionUpdateWorld) stderrReportsUnsupportedStatus() error {
 func (w *tensionUpdateWorld) stderrReportsAtLeastOneField() error {
 	if !strings.Contains(w.stderr, "at least one") {
 		return fmt.Errorf("stderr should report the at-least-one-field precondition:\n%s", w.stderr)
+	}
+	return nil
+}
+
+func (w *tensionUpdateWorld) stderrReportsRejectedOutput(value string) error {
+	if w.outcome != UsageError || w.exitCode != 2 {
+		return fmt.Errorf("outcome=%v exit=%d, want UsageError/2\nstderr: %s", w.outcome, w.exitCode, w.stderr)
+	}
+	if !strings.Contains(w.stderr, value) {
+		return fmt.Errorf("stderr should name the rejected output value %q:\n%s", value, w.stderr)
 	}
 	return nil
 }
