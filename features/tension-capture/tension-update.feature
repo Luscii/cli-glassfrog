@@ -60,7 +60,6 @@ Feature: Tension Update
       And no create, list, get, or discard behavior will be advertised or implemented
 
     # Source: 044-tension-update — Proposed: plan Cross-cutting non-idempotent retry (§133 isSafeMethod)
-    @wip
     Scenario: A rate-limited update is surfaced, not silently retried
       Given a complete connection context with a stored token
       And the tensions endpoint answers the update with a rate-limit response
@@ -137,7 +136,6 @@ Feature: Tension Update
       And the command will exit with code 2
 
     # Source: 044-tension-update — Proposed: plan ADR-3 send-set precondition (presence + non-empty)
-    @wip
     Scenario: An update whose only flag is empty-valued is rejected as changing nothing
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension update ten_0123 --label \"\""

@@ -217,6 +217,164 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTension, rt.format, view)
 }
 
+// tensionUpdateConfig carries everything runTensionUpdate needs, gathered by the
+// update leaf's RunE. It is the tensionCreateConfig shape plus --status/--body
+// presence: each *Set is cmd.Flags().Changed(...). A field is sent only when set
+// AND non-empty; the four *Set flags also feed the at-least-one-field precondition
+// (presence + non-empty resolves the send-set). The id is the positional ten_ id.
+type tensionUpdateConfig struct {
+	seam           tensionSeam
+	baseURL        string // inherited persistent --base-url (may be empty)
+	baseURLPresent bool   // whether --base-url was supplied (cobra Changed())
+	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool   // whether --output was supplied (cobra Changed())
+	id             string // the required positional tension id (ExactArgs(1)), PATCH /tensions/{id}
+
+	body           string // --body, optional here; when supplied a blank value is rejected
+	bodySet        bool   // whether --body was provided (Changed)
+	label          string // --label, optional free text
+	labelSet       bool   // whether --label was provided (Changed); sent only when set AND non-empty
+	status         string // --status, validated against the tension status set before any request
+	statusSet      bool   // whether --status was provided (Changed)
+	meetingType    string // --meeting-type, validated against the closed set before any request
+	meetingTypeSet bool   // whether --meeting-type was provided (Changed)
+
+	reqCtx context.Context
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// runTensionUpdate is the pure orchestration the `update` leaf delegates to — the
+// edit verb of the tension family. It resolves the output format (020) FIRST, then
+// runs the pure input checks fail-fast in plan ADR-3 order — all BEFORE any
+// assembly, so a transport tripwire confirms NO request on every rejection: (1) if
+// --body was supplied, reject a whitespace-only value (the specific message first);
+// (2) validate --status (043's validateTensionStatus) and --meeting-type (042's
+// validateMeetingType) against their closed sets; (3) require the resolved send-set
+// (presence Changed AND non-empty value) to be non-empty, else a usage error naming
+// the four flags. Then it assembles the connection, builds the retrying executor,
+// marshals the partial {tension:{…}} body (only the supplied fields), and sends ONE
+// Execute to PATCH /tensions/{id} with Content-Type: application/json and NO If-Match
+// (Clobbered Changes deferred; last-write-wins — plan ADR-2). A PATCH is never
+// auto-retried on 429 (017's isSafeMethod gate), so a rate-limited update surfaces
+// once. A structured --output emits the raw {data: Tension} verbatim (018); the
+// human path decodes Document[Tension] and renders the singular `tension` template
+// over a TensionView (042's key). It adds no new Outcome/ExitCode and never reads
+// the token. The ten_ id is escaped as one path segment but passed through
+// unvalidated, so an unknown/malformed id surfaces as the API's 404/422.
+func runTensionUpdate(cfg tensionUpdateConfig) (Outcome, error) {
+	// 1. Resolve the render target FIRST (020 widened by 035), as the siblings do, so
+	//    error precedence is consistent — a bad --output is reported even when an input
+	//    flag is also bad.
+	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
+	if !ok {
+		return outcome, oerr
+	}
+
+	// 2. If --body was supplied, reject a whitespace-only value with the SPECIFIC
+	//    message — a body cannot be blanked (unlike capture, --body is optional here,
+	//    so the check fires only when the flag is present). Running it before the
+	//    generic precondition means `update <id> --body "   "` gets the precise
+	//    message, not "at least one field is required".
+	if cfg.bodySet && strings.TrimSpace(cfg.body) == "" {
+		err := errors.New("--body must not be empty (a tension body cannot be blanked)")
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+
+	// 3. Validate --status (043) and --meeting-type (042) against their closed sets
+	//    BEFORE any request — reusing the landed validators, not a copied set. An empty
+	//    (absent) value is valid: the field is simply omitted from the send-set.
+	if err := validateTensionStatus(cfg.status); err != nil {
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+	if err := validateMeetingType(cfg.meetingType); err != nil {
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+
+	// 4. Resolve the send-set: a field rides only when its flag was provided (Changed)
+	//    AND its value is non-empty. A present-but-empty flag (`--label ""`) resolves
+	//    to "no field sent" — not a no-op PATCH. The body is already guaranteed
+	//    non-blank by step 2 when bodySet.
+	sendBody := ""
+	if cfg.bodySet {
+		sendBody = cfg.body
+	}
+	sendLabel := ""
+	if cfg.labelSet {
+		sendLabel = cfg.label
+	}
+	sendStatus := ""
+	if cfg.statusSet {
+		sendStatus = cfg.status
+	}
+	sendMeetingType := ""
+	if cfg.meetingTypeSet {
+		sendMeetingType = cfg.meetingType
+	}
+
+	// 5. At-least-one-editable-field precondition: the resolved send-set must carry a
+	//    field, else reject with NO request (an update that changes nothing is
+	//    meaningless — plan ADR-3). omitempty would otherwise marshal an empty
+	//    {"tension":{}} body.
+	if sendBody == "" && sendLabel == "" && sendStatus == "" && sendMeetingType == "" {
+		err := errors.New("at least one of --body, --label, --status, --meeting-type is required")
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+
+	// 6. Resolve the connection and build the client + retrying executor. A base-URL
+	//    error surfaces here (no doomed send); classify + report it.
+	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
+	client, err := cfg.seam.newClient(ctx)
+	if err != nil {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+	}
+	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
+
+	// 7. Marshal {tension:{ … only the supplied fields … }} — omitempty drops the rest.
+	bodyBytes, merr := json.Marshal(glassfrog.NewTensionUpdateInput(sendBody, sendLabel, sendStatus, sendMeetingType))
+	if merr != nil {
+		fmt.Fprintln(cfg.stderr, merr.Error())
+		return RuntimeError, merr
+	}
+
+	// Escape the id as a single path segment: passed through unvalidated (ADR-2), but
+	// a raw `/` or `..` must not redirect the request. NO If-Match header is sent.
+	req := apiclient.Request{
+		Method:      http.MethodPatch,
+		Path:        "/tensions/" + url.PathEscape(cfg.id),
+		Body:        bytes.NewReader(bodyBytes),
+		ContentType: "application/json",
+	}
+
+	// 8. Dispatch on the resolved render target. A user template (035) is a human
+	//    render, so the structured branch is taken only for a built-in json/yaml
+	//    selection. On any failure route through the shared reportFailure (032).
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	var doc glassfrog.Document[glassfrog.Tension]
+	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+	}
+	view := render.TensionView{Tension: doc.Data}
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceTension, rt.format, view)
+}
+
 // newTensionCommand assembles the `tension` command group and its leaves,
 // registered through the guard (group-has-children, non-empty Short, no action).
 // The group is built with its children attached BEFORE being returned for
@@ -229,11 +387,12 @@ func runTensionCreate(cfg tensionCreateConfig) (Outcome, error) {
 func newTensionCommand(seam tensionSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "tension",
-		Short: "Work with tensions — capture one, or list and read a role's tensions",
+		Short: "Work with tensions — capture one, list and read a role's tensions, or edit one",
 	}
 	MustRegister(group, newTensionCreateCommand(seam))
 	MustRegister(group, newTensionListCommand(seam))
 	MustRegister(group, newTensionGetCommand(seam))
+	MustRegister(group, newTensionUpdateCommand(seam))
 	return group
 }
 
@@ -298,5 +457,77 @@ func newTensionCreateCommand(seam tensionSeam) *cobra.Command {
 	cmd.Flags().StringVar(&body, "body", "", "The tension text (required; rejected if empty or whitespace-only)")
 	cmd.Flags().StringVar(&label, "label", "", "Optional short label for the tension (omitted when empty)")
 	cmd.Flags().StringVar(&meetingType, "meeting-type", "", "Optional routing hint (one of: "+strings.Join(supportedMeetingTypeNames(), ", ")+")")
+	return cmd
+}
+
+// newTensionUpdateCommand builds the runnable `tension update <ten-id>` leaf
+// (ADR-2): the edit verb of the tension family, beside create (042) and list/get
+// (043). A guard-ready cobra command with a REQUIRED positional tension id
+// (Args: cobra.ExactArgs(1)), a non-empty Short, and SilenceErrors/SilenceUsage so
+// runTensionUpdate owns its messages. It declares the editable-field flags (--body,
+// --label, --status, --meeting-type, all optional) — these live only on `update`,
+// so passing one to `get`/`list` stays a cobra unknown-flag usage error (the
+// structural guard). It reads the inherited persistent --base-url/--output flags and
+// each editable flag's Changed() presence, then delegates to the pure
+// runTensionUpdate. The seam is injected so tests drive a fake one; production passes
+// productionSeam{}.
+func newTensionUpdateCommand(seam tensionSeam) *cobra.Command {
+	var (
+		body        string
+		label       string
+		status      string
+		meetingType string
+	)
+	cmd := &cobra.Command{
+		Use:   "update <ten-id>",
+		Short: "Edit an existing tension's body, label, status, or meeting-type",
+		Long: "update edits the fields of an existing tension by id through a single " +
+			"partial PATCH — only the supplied fields are sent, the rest are left " +
+			"untouched. At least one of --body, --label, --status, --meeting-type must " +
+			"be supplied. Unlike create, --status is editable here (including the " +
+			"archived transition), and --body is optional — but when supplied it must " +
+			"not be blank. An unsupported --status or --meeting-type, a blank supplied " +
+			"--body, or an update with no editable field is refused before any request. " +
+			"No If-Match precondition is sent (last-write-wins).",
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			baseURL, err := cmd.Flags().GetString(apiclient.FlagBaseURL)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --base-url flag: %v\n", err)
+				return err
+			}
+			outputFlag, err := cmd.Flags().GetString(output.FlagOutput)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
+				return err
+			}
+			outcome, oerr := runTensionUpdate(tensionUpdateConfig{
+				seam:           seam,
+				baseURL:        baseURL,
+				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
+				outputFlag:     outputFlag,
+				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				id:             args[0],
+				body:           body,
+				bodySet:        cmd.Flags().Changed("body"),
+				label:          label,
+				labelSet:       cmd.Flags().Changed("label"),
+				status:         status,
+				statusSet:      cmd.Flags().Changed("status"),
+				meetingType:    meetingType,
+				meetingTypeSet: cmd.Flags().Changed("meeting-type"),
+				reqCtx:         cmd.Context(),
+				stdout:         cmd.OutOrStdout(),
+				stderr:         cmd.ErrOrStderr(),
+			})
+			return outcomeToDispatchError(outcome, oerr)
+		},
+	}
+	cmd.Flags().StringVar(&body, "body", "", "New tension text (optional; rejected if supplied empty or whitespace-only)")
+	cmd.Flags().StringVar(&label, "label", "", "New short label (omitted when empty)")
+	cmd.Flags().StringVar(&status, "status", "", "New status (one of: "+strings.Join(supportedTensionStatusNames(), ", ")+")")
+	cmd.Flags().StringVar(&meetingType, "meeting-type", "", "New routing hint (one of: "+strings.Join(supportedMeetingTypeNames(), ", ")+")")
 	return cmd
 }
