@@ -29,6 +29,11 @@ const platform = require('./lib/platform.js');
 // rejection) while the main wrapper renders it to stderr + a non-zero exit.
 class InstallError extends Error {}
 
+// Bounded idle timeout for a single download request. A stalled connection (no
+// bytes for this long) is aborted so a hung release host can never hang
+// `npm install` indefinitely — the postinstall fails fast with a clear error.
+const DOWNLOAD_TIMEOUT_MS = 30000;
+
 // downloadToFile(url, dest) — fetch url to dest, following redirects, rejecting on
 // any non-2xx. http vs https is chosen by the URL scheme so the localhost fixture
 // server (http) works through the same path as a real https release download.
@@ -63,6 +68,11 @@ function downloadToFile(url, dest, redirectsLeft = 5) {
 			out.on('finish', () => out.close((err) => (err ? reject(err) : resolve())));
 		});
 		req.on('error', reject);
+		// Abort a stalled request so the install fails fast instead of hanging. The
+		// destroy(err) surfaces through req.on('error', reject) above.
+		req.setTimeout(DOWNLOAD_TIMEOUT_MS, () => {
+			req.destroy(new Error(`timed out after ${DOWNLOAD_TIMEOUT_MS}ms waiting for ${url}`));
+		});
 	});
 }
 
