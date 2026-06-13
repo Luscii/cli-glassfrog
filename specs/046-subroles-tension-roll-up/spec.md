@@ -144,7 +144,7 @@ And exits successfully.
 **Scenario: Unsupported status value is rejected before any request**
 Given a valid stored credential
 When the user runs `glassfrog tension subroles <role-id> --status open`
-Then the system rejects it as a usage error, naming the unsupported value and the supported set (`unprocessed`, `processed`, `archived`)
+Then the system rejects it as a usage error, naming the unsupported value and the supported set (`archived`, `processed`, `unprocessed`)
 And issues no request
 And exits with the usage-error code.
 
