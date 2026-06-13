@@ -64,6 +64,10 @@ const (
 	BrewFormulaName = "glassfrog"
 	BrewTapOwner    = "Luscii"
 	BrewTapRepo     = "homebrew-cli-glassfrog"
+	// BrewTapBranch is the tap repo branch the formula must be pushed to —
+	// Homebrew reads the formula from the tap's default branch, so a drift to a
+	// non-main branch would silently land updates where `brew` never looks.
+	BrewTapBranch = "main"
 )
 
 // CommitAnchoredMTime are the GoReleaser template sources that pin the archive
@@ -130,8 +134,9 @@ type Brew struct {
 // BrewRepository is the brews entry's tap-repository target (ADR-2): the
 // dedicated repo the rendered formula is pushed to.
 type BrewRepository struct {
-	Owner string `json:"owner"`
-	Name  string `json:"name"`
+	Owner  string `json:"owner"`
+	Name   string `json:"name"`
+	Branch string `json:"branch"`
 }
 
 // Checksum mirrors the GoReleaser checksum section. Disable is captured so the
@@ -450,10 +455,10 @@ func checkRelease(r Release) []string {
 
 // checkBrews enforces the 036 formula-publisher contract: exactly one brews
 // entry, the formula named glassfrog, targeting the dedicated tap repository
-// (Luscii/homebrew-cli-glassfrog). A blanked brews block (no entry) or a
-// retargeted one (wrong formula name or wrong tap owner/repo) fails as loudly as
-// a missing build target — otherwise a release would silently ship no formula,
-// or push it to the wrong repository. The rest of the formula DSL (install/test/
+// (Luscii/homebrew-cli-glassfrog, branch main). A blanked brews block (no entry)
+// or a retargeted one (wrong formula name, or wrong tap owner/repo/branch) fails
+// as loudly as a missing build target — otherwise a release would silently ship
+// no formula, or push it where Homebrew never looks. The rest of the formula DSL (install/test/
 // url_template/license) is the publisher's concern and is deliberately not
 // pinned here (the interface owns it).
 func checkBrews(brews []Brew) []string {
@@ -475,6 +480,10 @@ func checkBrews(brews []Brew) []string {
 	if b.Repository.Name != BrewTapRepo {
 		violations = append(violations, fmt.Sprintf(
 			"brews repository.name must be %q (the dedicated tap repo), got %q", BrewTapRepo, b.Repository.Name))
+	}
+	if b.Repository.Branch != BrewTapBranch {
+		violations = append(violations, fmt.Sprintf(
+			"brews repository.branch must be %q (Homebrew reads the formula from the tap's default branch), got %q", BrewTapBranch, b.Repository.Branch))
 	}
 	return violations
 }

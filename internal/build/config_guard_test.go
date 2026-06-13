@@ -49,6 +49,7 @@ brews:
     repository:
       owner: Luscii
       name: homebrew-cli-glassfrog
+      branch: main
 `
 
 // TestConfigGuard_RealConfig is the change-detector against the shipped
@@ -246,7 +247,7 @@ func TestConfigGuard_Drift(t *testing.T) {
 			// fails when the brews block is blanked or retargeted").
 			name: "a blanked brews block (no entry) is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"brews:\n  - name: glassfrog\n    repository:\n      owner: Luscii\n      name: homebrew-cli-glassfrog\n",
+				"brews:\n  - name: glassfrog\n    repository:\n      owner: Luscii\n      name: homebrew-cli-glassfrog\n      branch: main\n",
 				"", 1),
 			wantPass:  false,
 			wantNamed: []string{"brews section must declare exactly one"},
@@ -274,6 +275,15 @@ func TestConfigGuard_Drift(t *testing.T) {
 				"brews:\n  - name: glassfrog\n", "brews:\n  - name: notglassfrog\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"brews formula name", "glassfrog"},
+		},
+		{
+			// 036 — a tap branch other than main would push the formula where
+			// Homebrew never reads it; a missing branch (zero value) fails the same.
+			name: "a retargeted brews tap branch is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      branch: main\n", "      branch: develop\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"brews repository.branch", "main"},
 		},
 	}
 

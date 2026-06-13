@@ -69,7 +69,13 @@ func (w *homebrewWorld) register(sc *godog.ScenarioContext) {
 
 // givenBrewsBlanked loads the real config and removes its brews entry, modelling
 // "the .goreleaser.yaml no longer has a brews entry targeting the tap".
-func (w *homebrewWorld) givenBrewsBlanked(_ string) error {
+func (w *homebrewWorld) givenBrewsBlanked(tap string) error {
+	// The scenario names the tap the guard is meant to protect; assert it matches
+	// the guard's pinned target so feature-text drift to a different tap fails the
+	// test rather than silently passing.
+	if tap != BrewTapRepo {
+		return fmt.Errorf("scenario tap %q does not match the guard's pinned tap %q — feature text and code have drifted", tap, BrewTapRepo)
+	}
 	cfg, _, err := LoadConfig()
 	if err != nil {
 		return fmt.Errorf("loading the real config: %w", err)
@@ -116,9 +122,13 @@ func (w *homebrewWorld) givenFormulaRendered() error {
 	return nil
 }
 
-// whenChecksumsChecked pins the checksums filename from the scenario text and
+// whenChecksumsChecked validates the checksums filename named in the scenario
+// against the expected shape (so feature-text drift fails the test), then
 // confirms the formula recorded the four archive checksums to compare.
-func (w *homebrewWorld) whenChecksumsChecked(_ string) error {
+func (w *homebrewWorld) whenChecksumsChecked(checksumsFile string) error {
+	if !strings.HasPrefix(checksumsFile, "glassfrog_") || !strings.HasSuffix(checksumsFile, "checksums.txt") {
+		return fmt.Errorf("scenario checksums filename %q is not the expected glassfrog_<version>_checksums.txt shape", checksumsFile)
+	}
 	if len(w.formula.shas) != 4 {
 		return fmt.Errorf("expected the formula to record four archive checksums, got %d", len(w.formula.shas))
 	}

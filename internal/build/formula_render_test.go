@@ -105,9 +105,13 @@ func doRenderFormula(bin string) (renderedFormula, error) {
 
 	cmd := exec.Command(bin, "release", "--snapshot", "--clean", "--skip=publish", "-f", renderCfg)
 	cmd.Dir = root
-	// The brews repository.token templates {{ .Env.HOMEBREW_TAP_TOKEN }}; supply a
-	// dummy so the offline render (which never pushes) can evaluate the template.
-	cmd.Env = append(os.Environ(), "HOMEBREW_TAP_TOKEN=offline-render-dummy")
+	// Render WITHOUT HOMEBREW_TAP_TOKEN, and strip it from the inherited env so an
+	// ambient value can't mask a regression. The config templates the brew token
+	// via `{{ index .Env "HOMEBREW_TAP_TOKEN" }}` (empty when unset) and
+	// `--skip=publish` never pushes, so an offline render must succeed without the
+	// secret — if the config ever regresses to a form that requires it offline,
+	// this render fails loudly.
+	cmd.Env = envWithout(os.Environ(), "HOMEBREW_TAP_TOKEN")
 	if out, runErr := cmd.CombinedOutput(); runErr != nil {
 		return renderedFormula{}, fmt.Errorf("goreleaser snapshot render failed: %v\n%s", runErr, out)
 	}
@@ -235,6 +239,19 @@ func keysOf(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
+	}
+	return out
+}
+
+// envWithout returns env with any assignment of key (`key=...`) removed, so a
+// subprocess runs as if the variable were unset even when the parent has it set.
+func envWithout(env []string, key string) []string {
+	prefix := key + "="
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		if !strings.HasPrefix(e, prefix) {
+			out = append(out, e)
+		}
 	}
 	return out
 }
