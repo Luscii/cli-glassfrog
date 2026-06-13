@@ -39,7 +39,7 @@ Feature: Tension Update
     Scenario: A whitespace-only body is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog tension update ten_0123 --body \"   \""
-      Then stderr will report a usage error that a body cannot be blanked
+      Then stderr will report that "--body" must not be empty
       And no request will be sent
       And the command will exit with code 2
 
