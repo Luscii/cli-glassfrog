@@ -52,5 +52,3 @@ Not run — cross-reference checks derive from done-* accords, which are absent.
 - **No `accords/governance/done-*.md` accords deployed**: done-criteria and cross-reference checks could not be generated. Consider creating `done-specify.md`, `done-plan.md`, `done-interface.md`, `done-scenarios.md`, and `done-tasks.md` to enable artifact-level quality checks. (This is a project-wide infrastructure gap, not specific to 046 — every spec in this repo is checked constitution-only.)
 - **Constitution principle XI (Governance via Proposals)**: no applicable checks for this feature. 046 is a read-only roll-up over a `GET` endpoint and exposes no governance-structure mutation path, so there is nothing for the proposal-gating principle to constrain.
 - **guardian-agent.md not loaded**: the Guardian agent definition is not present in this deployment; checks were generated and evaluated per the checklist process directly.
-</content>
-</invoke>

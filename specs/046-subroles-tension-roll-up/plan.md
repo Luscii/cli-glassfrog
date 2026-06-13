@@ -98,5 +98,3 @@ Phase 2 depends on Phase 1. No render phase, no validator phase, no schema phase
 - **Task decomposition** — PR-sized units within the single phase are the **tasks** skill's output; the Implementation Strategy above is the input.
 - **The `tension` group, the `Tension` model, the `tensions` render path, and `validateTensionStatus`** — owned by 042/043 (landed); this plan reuses them unchanged (ADR-2) and only attaches the roll-up leaf.
 - **Transitive/recursive roll-up, the role's-own-tensions list, tension writes, and the proposal write-flow** — out of scope per the spec non-behaviors (043 owns `tension list`; 044/045 own edits/discard).
-</content>
-</invoke>

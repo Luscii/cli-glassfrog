@@ -152,5 +152,3 @@ Feature: Subroles Tension Roll-up
       Then the tensions retrieved so far will be printed
       And stderr will note the result is incomplete and name the cause
       And the command will exit with a non-zero code
-</content>
-</invoke>

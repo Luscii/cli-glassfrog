@@ -66,5 +66,3 @@ Phase 2: Executable acceptance (1 task, depends on Phase 1) [Shared]
   - **Interface references**: interface-cli.md — Surface, Interactions, Error Communication
   - **Scenario references**: subroles-tension-roll-up.feature: all behavioral Rule-block scenarios (the 4 `@validation` scenarios stay held for validate)
   - **Risk**: ⚠️ Suite scoping — point the suite at `subroles-tension-roll-up.feature` only (not the directory); verify it reports its own count. ⚠️ Reuse shared step phrasings before writing new bindings; step helpers return errors, never panic (LEARNINGS). ⚠️ Cover the leaf-`404`, empty-`200`, multi-page, mid-walk-error, status-filtered, and no-request (tripwire) fakes so the failure-vs-empty, completeness, filter, and rejection scenarios genuinely exercise their paths. ⚠️ Never hard-code the alphabetically-sorted supported-set order in any step assertion.
-</content>
-</invoke>

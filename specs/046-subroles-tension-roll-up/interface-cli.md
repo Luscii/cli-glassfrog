@@ -104,5 +104,3 @@ Codes `4`/`5` arrive via 015's landed split of `APIError`(3) at the shared class
 - **Completeness, errors, config reuse the shared seams unchanged** (plan Cross-cutting): `paging.All` + `--first-page` (016/025 ADR-3), the shared `classifyClientError`/frozen `Outcome`/`ExitCode` registry (011/015), 032's `reportFailure` chokepoint, the 035-widened render flow, the persistent `--base-url`/`--output` flags — all reused exactly as `runTensionList` uses them. Adds no new `Outcome`/`ExitCode`.
 - **Flag/command spellings** (`tension subroles`, `--status`/`--first-page`/`--per-page`) resolve the define-session-confirmed surface; they are conventional and adjustable at build time without changing behavior.
 - **Command conventions** follow 001/003: the leaf registers through the fail-loud guard, is explicitly wired in `main`/`Assemble`, declares its `Args` validator + a non-empty `Short`, sets `SilenceErrors`/`SilenceUsage`, and changes no package-global cobra toggles. No `accords/` directory exists, so there are no cross-spec accord patterns to align against.
-</content>
-</invoke>

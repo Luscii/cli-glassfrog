@@ -197,5 +197,3 @@ Then the command supplied structured tension data and defined no format flag of 
 ## Ambiguity Warnings
 
 _None — the feature follows the established 043 read pattern (status-validated list filter, full-walk pagination with first-page opt-out, structured output via 020) over a single new endpoint. The two design calls were settled in conversation: the grammar is a distinct `tension subroles <role-id>` verb (not a `--subroles` flag on `tension list`, preserving 043's one-verb-one-endpoint boundary), and the leaf-role `404` is surfaced as the shared read failure with no special-cased interpretation._
-</content>
-</invoke>

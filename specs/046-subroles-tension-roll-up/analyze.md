@@ -71,5 +71,3 @@ Checklist correlation: no overlapping findings — checklist reported 0 failures
 
 - **All 16 base relationship checks ran** — the full artifact set (spec, plan, 1 interface, 1 feature, tasks) was present; no checks were skipped for missing artifacts.
 - **Checklist context**: loaded — 13/13 constitution checks pass (no done-* accords deployed project-wide).
-</content>
-</invoke>
