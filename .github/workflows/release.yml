@@ -183,3 +183,56 @@ jobs:
           # formula. NO --skip=publish — that would skip the push, which is the
           # whole point. The GitHub release is left untouched (release.disable).
           args: release --clean
+
+  # --- 037 NPM Wrapper Package: publish the npm acquisition channel ------------
+  #
+  # Owned by spec 037 (additive to 022's release.yml, mirroring .goreleaser.yaml's
+  # per-spec sections). needs: [build, verify] means npm publishes ONLY after the
+  # build and EVERY self-containment leg pass — no npm release without a verified
+  # release. It reuses the SAME verified dist/ artifact (byte-parity: the bytes the
+  # matrix gated are the bytes npm publishes), runs the generator at the release
+  # version, and publishes platform packages FIRST, then the umbrella — so the
+  # umbrella's pinned optionalDependencies already exist on the registry.
+  #
+  # Auth is GitHub OIDC trusted publishing (id-token: write; no stored NPM_TOKEN):
+  # each of the five package names must be registered as a trusted publisher on
+  # npmjs.com once before the first release (a maintainer ops step — see the README
+  # npm Installation section / scripts/npm-trusted-publishers.md). Trusted
+  # publishing also attaches provenance automatically (--provenance is explicit).
+  npm-publish:
+    needs: [build, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC token for npm trusted publishing — the ONLY privilege this job adds
+      # over the workflow default, scoped to this job alone.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      # Trusted publishing (tokenless OIDC) needs npm >= 11.5.1; pin to a recent
+      # npm so the runner's bundled version cannot regress the publish path.
+      - name: Ensure a trusted-publishing-capable npm
+        run: npm install -g npm@^11.5.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      # Generate the umbrella + four platform package directories from the verified
+      # dist/ binaries at the release version (tag minus the leading v).
+      - name: Generate npm packages
+        run: node npm/build.mjs --version "${{ github.event.release.tag_name }}" --dist dist --out dist/npm
+      # Publish platform packages FIRST, then the umbrella. The glassfrog-* glob
+      # excludes the hyphen-less umbrella dir (dist/npm/glassfrog), which publishes
+      # last so its pinned optional deps already resolve.
+      - name: Publish platform packages, then the umbrella
+        run: |
+          for pkg in dist/npm/glassfrog-*; do
+            echo "Publishing $pkg"
+            npm publish "$pkg" --access public --provenance
+          done
+          echo "Publishing the umbrella"
+          npm publish dist/npm/glassfrog --access public --provenance
