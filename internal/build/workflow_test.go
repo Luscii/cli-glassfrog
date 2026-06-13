@@ -33,6 +33,29 @@ const verifyJobBlock = `  verify:
         run: go test -run '^TestSelfContainment_HostBinary$' -v ./internal/build
 `
 
+// tapJobBlock is the 036 Homebrew tap-publish job, factored out so a drift case
+// can excise it to test the fully-missing-tap path. It begins at `  tap:` and
+// ends with a trailing newline so it appends cleanly after the publish job.
+const tapJobBlock = `  tap:
+    needs: [publish]
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2.16"
+          args: release --clean
+`
+
 // validWorkflowYAML mirrors the shipped .github/workflows/release.yml
 // (build → verify matrix → publish, publish needs [build, verify]). The drift
 // cases mutate copies of this baseline so each test changes exactly one thing.
@@ -56,7 +79,7 @@ jobs:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v6
         with:
-          version: "~> v2"
+          version: "~> v2.16"
           args: release --clean --skip=publish
       - uses: actions/upload-artifact@v4
         with:
@@ -77,7 +100,7 @@ jobs:
           gh release upload "${{ github.event.release.tag_name }}" \
             dist/*.tar.gz dist/*checksums.txt \
             --clobber
-`
+` + tapJobBlock
 
 // TestReleaseWorkflow_RealWorkflow is the change-detector against the shipped
 // .github/workflows/release.yml: the guard must pass on the real file, so a
@@ -267,6 +290,98 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 				"      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist2/\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"verify job must download"},
+		},
+		{
+			// 036 — a fully missing tap job (no Homebrew publisher at all) is rejected.
+			name:      "a fully missing tap job is rejected and named",
+			yaml:      strings.Replace(validWorkflowYAML, tapJobBlock, "", 1),
+			wantPass:  false,
+			wantNamed: []string{"missing job: tap"},
+		},
+		{
+			// 036 — the tap job must run after publish (so it references attached, verified assets).
+			name: "a tap job not depending on publish is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"  tap:\n    needs: [publish]\n", "  tap:\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"tap job must `needs: [publish]`"},
+		},
+		{
+			// 036 — without the pre-release gate, a pre-release would move the tap.
+			name: "a tap job missing the non-prerelease gate is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    if: ${{ !github.event.release.prerelease }}\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"non-prerelease flag"},
+		},
+		{
+			// 036 — a gate keyed off something other than the pre-release flag is rejected.
+			name: "a tap gate that is not the pre-release flag is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    if: ${{ !github.event.release.prerelease }}\n", "    if: ${{ github.event.release.draft }}\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"non-prerelease flag"},
+		},
+		{
+			// 036 — a gate that MENTIONS the flag but augments it (|| true → always
+			// runs) must be rejected: the check is exact, not substring.
+			name: "a tap gate augmented with || true is rejected (exact-match, not substring)",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    if: ${{ !github.event.release.prerelease }}\n", "    if: ${{ !github.event.release.prerelease || true }}\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"non-prerelease flag"},
+		},
+		{
+			// 036 — the cross-repo token must be injected from a secret.
+			name: "a tap job without the HOMEBREW_TAP_TOKEN secret env is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"    env:\n      HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"HOMEBREW_TAP_TOKEN"},
+		},
+		{
+			// 036 — args that merely MENTION "release" (not the subcommand) must be
+			// rejected: the check is on the first token, not a substring.
+			name: "a tap job whose args only mention release (build --release-notes) is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          args: release --clean\n", "          args: build --release-notes\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"goreleaser release"},
+		},
+		{
+			// 036 — --skip=publish in the tap job would skip the formula push (the job's purpose).
+			name: "a tap job that passes --skip=publish is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          args: release --clean\n", "          args: release --clean --skip=publish\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"--skip=publish"},
+		},
+		{
+			// 036 — the tap job must not touch the GitHub release (that stays with publish).
+			name: "a tap job that runs gh release is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          args: release --clean\n",
+				"          args: release --clean\n      - name: tamper\n        run: gh release edit foo\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"must not touch the GitHub release"},
+		},
+		{
+			// 036 — an unpinned/bumped GoReleaser in the build job risks losing brews.
+			name: "a build job that unpins GoReleaser (~> v2) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          version: \"~> v2.16\"\n          args: release --clean --skip=publish\n",
+				"          version: \"~> v2\"\n          args: release --clean --skip=publish\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"build job", "pin version"},
+		},
+		{
+			// 036 — same for the tap job's GoReleaser pin.
+			name: "a tap job that unpins GoReleaser (~> v2) is rejected and named",
+			yaml: strings.Replace(validWorkflowYAML,
+				"          version: \"~> v2.16\"\n          args: release --clean\n",
+				"          version: \"~> v2\"\n          args: release --clean\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"tap job", "pin version"},
 		},
 	}
 

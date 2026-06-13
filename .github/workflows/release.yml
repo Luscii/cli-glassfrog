@@ -47,7 +47,12 @@ jobs:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v6
         with:
-          version: "~> v2"
+          # Pinned to the v2.16 line (spec 036): GoReleaser deprecated the `brews`
+          # (formula) publisher in favour of `homebrew_casks`, but casks are
+          # macOS-only and 036/ADR-1 needs a formula for Linux too. Stay on a
+          # `brews`-supporting v2 and DO NOT bump past a release that removes it
+          # without migrating the Homebrew channel (see .score/memory/DEPRECATION.md).
+          version: "~> v2.16"
           # release (not build) so archives + checksums are produced; --skip=publish
           # keeps GoReleaser from creating/uploading anything — publish is the
           # `gh release upload` step below, gated on verification.
@@ -137,3 +142,44 @@ jobs:
           gh release upload "${{ github.event.release.tag_name }}" \
             dist/*.tar.gz dist/*checksums.txt \
             --clobber
+
+  # Homebrew tap publisher (spec 036). Runs only after a STABLE release is fully
+  # published. It rebuilds the archives at the release tag — reproducibly, via
+  # the pinned archives.builds_info.mtime, so the rebuilt sha256 equal the
+  # published ones — and runs GoReleaser's brew publisher to push
+  # Formula/glassfrog.rb to the dedicated tap repo (Luscii/homebrew-cli-glassfrog).
+  # It must NOT create or modify the GitHub release: release.disable: true in
+  # .goreleaser.yaml keeps `goreleaser release` to the brew publisher only, so
+  # asset attachment and release status stay with the publish job above and #30.
+  tap:
+    needs: [publish]
+    # Authoritative stable-only gate (spec 036): key off GitHub's pre-release
+    # flag, NOT GoReleaser's skip_upload: auto (which keys off a semver suffix
+    # that can diverge from the flag). A pre-release skips this job entirely, so
+    # the tap formula keeps pointing at the latest stable release.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    # The cross-repo write token (ADR-4). The default GITHUB_TOKEN cannot push to
+    # another repository; the CI_GITHUB_TOKEN org secret carries contents: write
+    # on the tap repo. Injected ONLY here, under the exact name the
+    # brews.repository.token template reads ({{ index .Env "HOMEBREW_TAP_TOKEN" }}).
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history at the release tag so GoReleaser derives the same
+          # version the publish job built.
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          # Same brews-supporting pin as the build job (see its note).
+          version: "~> v2.16"
+          # Run the brew publisher: build + archive (reproducibly) + push the
+          # formula. NO --skip=publish — that would skip the push, which is the
+          # whole point. The GitHub release is left untouched (release.disable).
+          args: release --clean

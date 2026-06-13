@@ -24,6 +24,16 @@ const ReleaseTriggerType = "published"
 
 var RoutineTriggers = []string{"push", "pull_request", "workflow_dispatch", "schedule"}
 
+// GoReleaserVersion is the goreleaser-action `version:` the build and tap jobs
+// must pin (spec 036). GoReleaser deprecated the `brews` formula publisher in
+// favour of `homebrew_casks`; 036/ADR-1 needs the formula (casks are macOS-only,
+// the spec needs Linux), so the pipeline stays on this brews-supporting v2 line.
+// The guard pins it so an edit that bumps or unpins GoReleaser can't silently
+// reintroduce the risk of `brews` being removed upstream and the tap job
+// breaking. Bumping is a deliberate act: update this constant AND re-confirm the
+// target version still ships `brews` (see .score/memory/DEPRECATION.md).
+const GoReleaserVersion = "~> v2.16"
+
 // VerifyRunners is the required mapping from each build target to the GitHub
 // native-arch runner that must verify it (interface accord, ADR-3). The mapping
 // is load-bearing: TestSelfContainment_HostBinary selects its target binary by
@@ -197,6 +207,7 @@ func CheckReleaseWorkflow(wf Workflow) []string {
 	}
 
 	violations = append(violations, CheckVerifyGate(wf)...)
+	violations = append(violations, CheckTapJob(wf)...)
 
 	return violations
 }
@@ -249,6 +260,95 @@ func CheckVerifyGate(wf Workflow) []string {
 	}
 
 	return violations
+}
+
+// TapTokenEnv is the env var the tap job must expose the cross-repo token under
+// (036). The .goreleaser.yaml brews.repository.token templates
+// `{{ index .Env "HOMEBREW_TAP_TOKEN" }}`, so the job has to inject the secret
+// under exactly this name for the brew push to authenticate.
+const TapTokenEnv = "HOMEBREW_TAP_TOKEN"
+
+// CheckTapJob enforces the 036 Homebrew formula-publish job contract — the
+// CI-testable proxy for the tap scenarios that need a live tap to exercise
+// end-to-end:
+//
+//   - a tap job exists and `needs: [publish]`, so the formula is published only
+//     after the assets are attached and the cross-target verify gate passed;
+//   - it is gated on a non-prerelease (if: ${{ !github.event.release.prerelease }})
+//     — the authoritative stable-only gate (NOT skip_upload: auto, which keys
+//     off a semver suffix that can diverge from the GitHub pre-release flag);
+//   - it injects the cross-repo token under HOMEBREW_TAP_TOKEN from a secret;
+//   - it runs GoReleaser's brew publisher (`goreleaser release`, WITHOUT
+//     --skip=publish, which would skip the formula push — the job's purpose);
+//   - it does NOT create or modify the GitHub release (no `gh release` step;
+//     the release publisher is disabled in config via release.disable: true,
+//     which the config-guard pins separately).
+//
+// Split out so the tap contract is one cohesive, separately-testable unit;
+// CheckReleaseWorkflow calls it so the shipped workflow is checked as a whole.
+func CheckTapJob(wf Workflow) []string {
+	tap, ok := wf.Jobs["tap"]
+	if !ok {
+		return []string{"missing job: tap — the Homebrew formula publisher (036)"}
+	}
+	var violations []string
+
+	if !needsContains(tap.Needs, "publish") {
+		violations = append(violations,
+			"tap job must `needs: [publish]` so the formula references the just-attached, verified assets")
+	}
+	// The gate must be EXACTLY the non-prerelease flag — not merely contain it.
+	// A substring check would accept an augmented condition like
+	// `${{ !github.event.release.prerelease || true }}` (always runs) or
+	// `&& github.event.release.draft`, which changes behavior while still
+	// "mentioning" the flag. Normalize away whitespace and the optional `${{ }}`
+	// wrapper, then require exact equality.
+	if normalizeIf(tap.If) != "!github.event.release.prerelease" {
+		violations = append(violations, fmt.Sprintf(
+			"tap job must gate on exactly the non-prerelease flag (if: ${{ !github.event.release.prerelease }}) — the authoritative stable-only gate, got %q", tap.If))
+	}
+	if !strings.Contains(tap.Env[TapTokenEnv], "secrets.") {
+		violations = append(violations, fmt.Sprintf(
+			"tap job must inject the cross-repo token as env %s from a secret (${{ secrets.* }}), got %q", TapTokenEnv, tap.Env[TapTokenEnv]))
+	}
+	args := goreleaserArgs(tap)
+	switch {
+	case args == "":
+		violations = append(violations, "tap job must run the goreleaser-action (the brew publisher)")
+	case !runsGoreleaserRelease(args):
+		violations = append(violations, fmt.Sprintf(
+			"tap job must run `goreleaser release` (the brew publisher), got args %q", args))
+	case strings.Contains(args, "--skip=publish"):
+		violations = append(violations, fmt.Sprintf(
+			"tap job must NOT pass --skip=publish — that skips the brew formula push, which is the job's whole purpose (got args %q)", args))
+	}
+	if args != "" {
+		violations = append(violations, checkGoreleaserVersionPin(tap, "tap")...)
+	}
+	// Brew-publisher-only: the tap job must never create or modify the GitHub
+	// release (that boundary stays with the publish job's `gh release upload`).
+	for _, s := range tap.Steps {
+		if strings.Contains(s.Run, "gh release") {
+			violations = append(violations,
+				"tap job must not touch the GitHub release (found a `gh release` step) — asset attachment and release status stay with the publish job")
+			break
+		}
+	}
+	return violations
+}
+
+// normalizeIf canonicalizes a job `if:` expression for exact comparison: it
+// strips all whitespace and the optional `${{ }}` template wrapper, so
+// `${{ !github.event.release.prerelease }}` and `!github.event.release.prerelease`
+// both reduce to `!github.event.release.prerelease`, while an augmented
+// condition (`… || true`, `… && …`) does not.
+func normalizeIf(cond string) string {
+	// strings.Fields splits on ANY whitespace run (spaces, tabs, newlines), so
+	// joining with "" removes all of it — robust to a multi-line `if:`.
+	c := strings.Join(strings.Fields(cond), "")
+	c = strings.TrimPrefix(c, "${{")
+	c = strings.TrimSuffix(c, "}}")
+	return c
 }
 
 // checkVerifyMatrix asserts the matrix covers exactly the four supported targets
@@ -361,12 +461,13 @@ func checkBuildJob(j Job) []string {
 	if args == "" {
 		violations = append(violations, "build job must run the goreleaser-action (no goreleaser step found)")
 	} else {
-		if !strings.Contains(args, "release") {
+		if !runsGoreleaserRelease(args) {
 			violations = append(violations, fmt.Sprintf("build job must run `goreleaser release` (build+archive+checksum), got args %q", args))
 		}
 		if !strings.Contains(args, "--skip=publish") {
 			violations = append(violations, fmt.Sprintf("build job must pass --skip=publish (GoReleaser must not publish; gh does), got args %q", args))
 		}
+		violations = append(violations, checkGoreleaserVersionPin(j, "build")...)
 	}
 	if !uploadsDistArtifact(j) {
 		violations = append(violations, "build job must upload dist/ as a CI artifact (so verify/publish read the verified bytes)")
@@ -415,6 +516,42 @@ func checkPublishJob(j Job) []string {
 		}
 	}
 	return violations
+}
+
+// runsGoreleaserRelease reports whether the goreleaser-action args invoke the
+// `release` subcommand: the FIRST whitespace-separated token must be `release`,
+// not merely a string that mentions it (e.g. `build --release-notes` or
+// `--skip=release` would pass a substring check while doing something else).
+func runsGoreleaserRelease(args string) bool {
+	fields := strings.Fields(args)
+	return len(fields) > 0 && fields[0] == "release"
+}
+
+// goreleaserVersion returns the `version` input of the goreleaser-action step,
+// or "" if no such step exists (or it sets no version).
+func goreleaserVersion(j Job) string {
+	for _, s := range j.Steps {
+		if strings.Contains(s.Uses, "goreleaser/goreleaser-action") {
+			if v, ok := s.With["version"].(string); ok {
+				return v
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// checkGoreleaserVersionPin asserts a goreleaser-running job pins the action to
+// GoReleaserVersion exactly — so a bump/unpin that could drop the `brews`
+// publisher fails the guard rather than shipping silently. jobName names the job
+// in the violation message.
+func checkGoreleaserVersionPin(j Job, jobName string) []string {
+	if v := goreleaserVersion(j); v != GoReleaserVersion {
+		return []string{fmt.Sprintf(
+			"%s job's goreleaser-action must pin version: %q (the brews-supporting line — a bump/unpin risks losing the deprecated brews publisher), got %q",
+			jobName, GoReleaserVersion, v)}
+	}
+	return nil
 }
 
 // goreleaserArgs returns the `args` input of the goreleaser-action step, or ""

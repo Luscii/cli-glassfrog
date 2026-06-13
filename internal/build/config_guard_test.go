@@ -6,10 +6,11 @@ import (
 )
 
 // validConfigYAML is the exact-four-targets, cgo-disabled config plus the 022
-// release sections (archives/checksum/release) the guard must accept. The drift
-// cases below mutate copies of this baseline so each test changes exactly one
-// thing. It mirrors the shipped .goreleaser.yaml structurally; TestConfigGuard_RealConfig
-// pins the real file separately.
+// release sections (archives/checksum/release) and the 036 Homebrew additions
+// (archives.builds_info.mtime, release.disable, the brews entry) the guard must
+// accept. The drift cases below mutate copies of this baseline so each test
+// changes exactly one thing. It mirrors the shipped .goreleaser.yaml
+// structurally; TestConfigGuard_RealConfig pins the real file separately.
 const validConfigYAML = `
 version: 2
 project_name: glassfrog
@@ -36,12 +37,19 @@ archives:
     formats:
       - tar.gz
     name_template: "glassfrog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds_info:
+      mtime: "{{ .CommitDate }}"
 checksum:
   algorithm: sha256
   name_template: "glassfrog_{{ .Version }}_checksums.txt"
 release:
-  mode: keep-existing
-  draft: false
+  disable: true
+brews:
+  - name: glassfrog
+    repository:
+      owner: Luscii
+      name: homebrew-cli-glassfrog
+      branch: main
 `
 
 // TestConfigGuard_RealConfig is the change-detector against the shipped
@@ -152,25 +160,50 @@ func TestConfigGuard_Drift(t *testing.T) {
 			wantNamed: []string{"algorithm", "sha256"},
 		},
 		{
-			name: "a release mode other than keep-existing is rejected and named",
+			// 036 — the release must be disabled (strict form of keep-existing); a
+			// false disable fails as loudly as a missing section.
+			name: "release disable: false is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"  mode: keep-existing\n", "  mode: replace\n", 1),
+				"release:\n  disable: true\n", "release:\n  disable: false\n", 1),
 			wantPass:  false,
-			wantNamed: []string{"release mode", "keep-existing"},
+			wantNamed: []string{"disable: true"},
 		},
 		{
-			name: "a missing release section (no keep-existing mode) is rejected",
+			// 036 — a completely missing release section parses as the zero value
+			// (Disable false); it must fail as loudly as an explicit disable: false.
+			name: "a missing release section entirely is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"release:\n  mode: keep-existing\n  draft: false\n", "", 1),
+				"release:\n  disable: true\n", "", 1),
 			wantPass:  false,
-			wantNamed: []string{"release mode", "keep-existing"},
+			wantNamed: []string{"disable: true"},
 		},
 		{
-			name: "release draft: true is rejected and named",
+			// 036 reproducibility — an absent builds_info (no pinned mtime) must
+			// fail; an unpinned mtime makes the tap job's rebuilt archive's sha256
+			// diverge from the published asset's.
+			name: "an unpinned archive mtime (builds_info absent) is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"  draft: false\n", "  draft: true\n", 1),
+				"    builds_info:\n      mtime: \"{{ .CommitDate }}\"\n", "", 1),
 			wantPass:  false,
-			wantNamed: []string{"release draft"},
+			wantNamed: []string{"builds_info.mtime"},
+		},
+		{
+			// 036 — an empty mtime string is the same hole as an absent builds_info.
+			name: "an empty archive mtime is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      mtime: \"{{ .CommitDate }}\"\n", "      mtime: \"\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"builds_info.mtime"},
+		},
+		{
+			// 036 — a non-empty but NON-deterministic mtime (build-time {{ .Now }})
+			// passes a presence-only check yet breaks cross-job reproducibility; the
+			// guard must reject anything not commit-anchored.
+			name: "a non-deterministic build-time archive mtime ({{ .Now }}) is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      mtime: \"{{ .CommitDate }}\"\n", "      mtime: \"{{ .Now }}\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"builds_info.mtime", "commit-anchored"},
 		},
 		{
 			// #2 — a name_template rename silently breaks downstream consumers; pin it.
@@ -209,20 +242,48 @@ func TestConfigGuard_Drift(t *testing.T) {
 			wantNamed: []string{"checksum name_template"},
 		},
 		{
-			// #8/#9 — a prerelease override violates honor-not-decide.
-			name: "a release prerelease override is rejected and named",
+			// 036 — a blanked brews block ships no Homebrew formula; it must fail as
+			// loudly as a missing release section (feature scenario: "Config-guard
+			// fails when the brews block is blanked or retargeted").
+			name: "a blanked brews block (no entry) is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"  draft: false\n", "  draft: false\n  prerelease: auto\n", 1),
+				"brews:\n  - name: glassfrog\n    repository:\n      owner: Luscii\n      name: homebrew-cli-glassfrog\n      branch: main\n",
+				"", 1),
 			wantPass:  false,
-			wantNamed: []string{"prerelease"},
+			wantNamed: []string{"brews section must declare exactly one"},
 		},
 		{
-			// #8/#9 — a make_latest override flips the latest flag the publisher chose.
-			name: "a release make_latest override is rejected and named",
+			// 036 — a retargeted tap repo would push the formula to the wrong place.
+			name: "a retargeted brews tap repo name is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"  draft: false\n", "  draft: false\n  make_latest: \"false\"\n", 1),
+				"      name: homebrew-cli-glassfrog\n", "      name: homebrew-something-else\n", 1),
 			wantPass:  false,
-			wantNamed: []string{"make_latest"},
+			wantNamed: []string{"brews repository.name", "homebrew-cli-glassfrog"},
+		},
+		{
+			// 036 — a retargeted tap owner is the same hazard as a wrong repo name.
+			name: "a retargeted brews tap owner is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      owner: Luscii\n", "      owner: SomeoneElse\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"brews repository.owner", "Luscii"},
+		},
+		{
+			// 036 — a wrong formula name breaks `brew install glassfrog`.
+			name: "a wrong brews formula name is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"brews:\n  - name: glassfrog\n", "brews:\n  - name: notglassfrog\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"brews formula name", "glassfrog"},
+		},
+		{
+			// 036 — a tap branch other than main would push the formula where
+			// Homebrew never reads it; a missing branch (zero value) fails the same.
+			name: "a retargeted brews tap branch is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"      branch: main\n", "      branch: develop\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"brews repository.branch", "main"},
 		},
 	}
 
