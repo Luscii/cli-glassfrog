@@ -130,7 +130,12 @@ brews:
       # The cross-repo, least-privilege token (ADR-4). The default GITHUB_TOKEN
       # cannot push to another repository; this secret is injected ONLY in the
       # tap job's env (spec 036 Phase 3 / release.yml).
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      # Templated via `index` (not `.Env.HOMEBREW_TAP_TOKEN`) so a missing key
+      # renders as empty rather than erroring: the build job runs `goreleaser
+      # release --skip=publish` WITHOUT this secret, and it must not fail there.
+      # The token is only consumed by the brew push (the tap job), which still
+      # fails loud on a genuinely missing/invalid token.
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
     # The formula lands at Formula/glassfrog.rb in the tap repo.
     directory: Formula
     # With `release.disable: true` (above) GoReleaser cannot derive the formula's

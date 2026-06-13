@@ -95,8 +95,11 @@ func doRenderFormula(bin string) (renderedFormula, error) {
 	renderCfg := filepath.Join(workDir, "goreleaser-render.yaml")
 	// Single-quote the dist path so a temp path containing YAML-significant
 	// characters (a `:` in a Windows path, a `#`) can't make the render config
-	// invalid. MkdirTemp never produces a single quote, so no escaping is needed.
-	if err := os.WriteFile(renderCfg, []byte(string(realCfg)+"\ndist: '"+distDir+"'\n"), 0o644); err != nil {
+	// invalid. The random MkdirTemp suffix never contains a `'`, but the parent
+	// (e.g. a `$TMPDIR` set to a path with a quote) can, so escape `'` as `''`
+	// per YAML single-quote rules before embedding.
+	quotedDist := strings.ReplaceAll(distDir, "'", "''")
+	if err := os.WriteFile(renderCfg, []byte(string(realCfg)+"\ndist: '"+quotedDist+"'\n"), 0o644); err != nil {
 		return renderedFormula{}, err
 	}
 
