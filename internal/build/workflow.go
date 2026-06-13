@@ -197,6 +197,7 @@ func CheckReleaseWorkflow(wf Workflow) []string {
 	}
 
 	violations = append(violations, CheckVerifyGate(wf)...)
+	violations = append(violations, CheckTapJob(wf)...)
 
 	return violations
 }
@@ -248,6 +249,72 @@ func CheckVerifyGate(wf Workflow) []string {
 		}
 	}
 
+	return violations
+}
+
+// TapTokenEnv is the env var the tap job must expose the cross-repo token under
+// (036). The .goreleaser.yaml brews.repository.token templates
+// `{{ index .Env "HOMEBREW_TAP_TOKEN" }}`, so the job has to inject the secret
+// under exactly this name for the brew push to authenticate.
+const TapTokenEnv = "HOMEBREW_TAP_TOKEN"
+
+// CheckTapJob enforces the 036 Homebrew formula-publish job contract — the
+// CI-testable proxy for the tap scenarios that need a live tap to exercise
+// end-to-end:
+//
+//   - a tap job exists and `needs: [publish]`, so the formula is published only
+//     after the assets are attached and the cross-target verify gate passed;
+//   - it is gated on a non-prerelease (if: ${{ !github.event.release.prerelease }})
+//     — the authoritative stable-only gate (NOT skip_upload: auto, which keys
+//     off a semver suffix that can diverge from the GitHub pre-release flag);
+//   - it injects the cross-repo token under HOMEBREW_TAP_TOKEN from a secret;
+//   - it runs GoReleaser's brew publisher (`goreleaser release`, WITHOUT
+//     --skip=publish, which would skip the formula push — the job's purpose);
+//   - it does NOT create or modify the GitHub release (no `gh release` step;
+//     the release publisher is disabled in config via release.disable: true,
+//     which the config-guard pins separately).
+//
+// Split out so the tap contract is one cohesive, separately-testable unit;
+// CheckReleaseWorkflow calls it so the shipped workflow is checked as a whole.
+func CheckTapJob(wf Workflow) []string {
+	tap, ok := wf.Jobs["tap"]
+	if !ok {
+		return []string{"missing job: tap — the Homebrew formula publisher (036)"}
+	}
+	var violations []string
+
+	if !needsContains(tap.Needs, "publish") {
+		violations = append(violations,
+			"tap job must `needs: [publish]` so the formula references the just-attached, verified assets")
+	}
+	if cond := strings.ReplaceAll(tap.If, " ", ""); !strings.Contains(cond, "!github.event.release.prerelease") {
+		violations = append(violations, fmt.Sprintf(
+			"tap job must gate on the non-prerelease flag (if: ${{ !github.event.release.prerelease }}) — the authoritative stable-only gate, got %q", tap.If))
+	}
+	if !strings.Contains(tap.Env[TapTokenEnv], "secrets.") {
+		violations = append(violations, fmt.Sprintf(
+			"tap job must inject the cross-repo token as env %s from a secret (${{ secrets.* }}), got %q", TapTokenEnv, tap.Env[TapTokenEnv]))
+	}
+	args := goreleaserArgs(tap)
+	switch {
+	case args == "":
+		violations = append(violations, "tap job must run the goreleaser-action (the brew publisher)")
+	case !strings.Contains(args, "release"):
+		violations = append(violations, fmt.Sprintf(
+			"tap job must run `goreleaser release` (the brew publisher), got args %q", args))
+	case strings.Contains(args, "--skip=publish"):
+		violations = append(violations, fmt.Sprintf(
+			"tap job must NOT pass --skip=publish — that skips the brew formula push, which is the job's whole purpose (got args %q)", args))
+	}
+	// Brew-publisher-only: the tap job must never create or modify the GitHub
+	// release (that boundary stays with the publish job's `gh release upload`).
+	for _, s := range tap.Steps {
+		if strings.Contains(s.Run, "gh release") {
+			violations = append(violations,
+				"tap job must not touch the GitHub release (found a `gh release` step) — asset attachment and release status stay with the publish job")
+			break
+		}
+	}
 	return violations
 }
 
