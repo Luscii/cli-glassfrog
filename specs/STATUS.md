@@ -52,5 +52,5 @@
 | 048-actor-directory | Complete | validate | 2026-06-12T11:03:16 |
 | 049-actor-read | Complete | validate | 2026-06-14T12:59:11 |
 | 050-actor-assignments | Complete | validate | 2026-06-14T12:30:00 |
-| 051-subrole-filler-roll-up | Implemented | implement | 2026-06-14T14:30:00 |
+| 051-subrole-filler-roll-up | Complete | validate | 2026-06-14T15:00:00 |
 | 052-version-capture-on-read | Analyzed | analyze | 2026-06-14T16:00:00 |
