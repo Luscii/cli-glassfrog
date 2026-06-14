@@ -37,8 +37,10 @@ func TestStaleWriteSurfacingFeatures(t *testing.T) {
 
 // staleWorld is the per-scenario state. It holds the crafted error handed to the
 // classification seam and the produced Diagnostic / exit code. For the two-status
-// comparison scenario it holds a second error and its results. usedTransport stays
-// false for every scenario, pinning "no re-read, retry, or back-off is performed".
+// comparison scenario it holds a second error and its results. The suite drives
+// only the pure Diagnose + ExitCode seam — it wires no transport, clock, or retry,
+// so "no re-read, retry, or back-off is performed" holds by construction (see
+// thenNoRecovery).
 type staleWorld struct {
 	err  error
 	d    Diagnostic
@@ -49,8 +51,6 @@ type staleWorld struct {
 	err2  error
 	d2    Diagnostic
 	code2 int
-
-	usedTransport bool
 }
 
 func initializeStaleWriteSurfacingScenario(sc *godog.ScenarioContext) {
@@ -261,10 +261,14 @@ func (w *staleWorld) thenOnlyDiagnosticProduced() error {
 }
 
 func (w *staleWorld) thenNoRecovery() error {
-	// Diagnose + ExitCode are pure — surfacing never drives a transport, clock, or
-	// retry. usedTransport is never set by any scenario in this suite.
-	if w.usedTransport {
-		return errors.New("surfacing a 412 must not re-read, retry, or back off")
+	// No-recovery holds by construction: surfacing here is the pure Diagnose +
+	// ExitCode seam this suite drives (whenSurfaced), which has no transport, clock,
+	// retry, or back-off to invoke — there is no code path that could re-read or
+	// retry. The surfaced outcome is exactly the diagnostic and its mapped code,
+	// asserted by thenOnlyDiagnosticProduced; recovery is owned by the operator (or
+	// a future per-command flow), never this classifier.
+	if !w.dSet {
+		return errors.New("no failure was surfaced")
 	}
 	return nil
 }
