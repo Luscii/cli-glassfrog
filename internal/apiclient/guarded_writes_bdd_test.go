@@ -223,6 +223,12 @@ func (w *guardedWriteWorld) thenMethodAgnostic() error {
 	if err := patchWorld.execute(); err != nil {
 		return err
 	}
+	if patchWorld.execErr != nil {
+		// execute() stores the Execute outcome in execErr (it returns only build
+		// errors), so surface an unexpected replay error as the real cause rather
+		// than letting it fall through to a misleading header assertion.
+		return fmt.Errorf("the method-agnostic PATCH replay errored: %v", patchWorld.execErr)
+	}
 	if !patchWorld.base.ifMatchSet {
 		return errors.New("a PATCH with the same version set no If-Match header; the precondition must be method-agnostic")
 	}
