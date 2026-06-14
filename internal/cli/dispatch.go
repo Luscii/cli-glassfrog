@@ -58,6 +58,9 @@ func (e *outcomeError) Unwrap() error { return e.err }
 // reserved). The remaining reserved categories (permission/rate-limit, codes
 // 4/5) gain an Outcome value when their producer lands (API Error Extraction
 // 015 / Rate-Limit Handling 017), splitting APIError without renumbering.
+// Stale-Write Surfacing (054) adds StaleWrite (code 7) — the first category
+// beyond 004's originally-published 0–6 band — branching the 412 out of the
+// generic APIError bucket at the same status-driven classifier.
 type Outcome int
 
 const (
@@ -96,6 +99,15 @@ const (
 	// only classifies the 429 — Rate-Limit Handling (017) owns the retry/backoff
 	// above the Execute seam; 015 never sleeps or retries.
 	RateLimited
+	// StaleWrite means a guarded write was refused because the resource changed
+	// since it was read (HTTP 412 Precondition Failed). Produced by Stale-Write
+	// Surfacing (054) branching the 412 out of the generic APIError bucket at the
+	// same status-driven classifier 015 used for 401/403/429; Exit-Code Convention
+	// maps it to code 7 — the first code beyond 004's originally-published 0–6
+	// band. Classified by the 412 status alone, never by whether this CLI sent an
+	// If-Match header or which command produced it (the producer of the 412 is
+	// Guarded Writes, 053).
+	StaleWrite
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -115,6 +127,8 @@ func (o Outcome) String() string {
 		return "PermissionError"
 	case RateLimited:
 		return "RateLimited"
+	case StaleWrite:
+		return "StaleWrite"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs
