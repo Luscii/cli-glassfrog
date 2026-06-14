@@ -55,4 +55,4 @@
 | 051-subrole-filler-roll-up | Complete | validate | 2026-06-14T15:00:00 |
 | 052-version-capture-on-read | Complete | validate | 2026-06-14T18:00:00 |
 | 053-guarded-writes | Complete | validate | 2026-06-14T18:17:52 |
-| 054-stale-write-surfacing | Implemented | implement | 2026-06-14T23:55:00 |
+| 054-stale-write-surfacing | Complete | validate | 2026-06-15T00:10:00 |
