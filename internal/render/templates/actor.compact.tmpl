@@ -1,0 +1,1 @@
+{{.Detail.ID}}  [{{.Detail.Kind}}]  {{if eq (trimSpace .Detail.Name) ""}}—{{else}}{{.Detail.Name}}{{end}}{{if index .Requested "roles"}}  roles={{len .Detail.Roles}}{{end}}{{if index .Requested "assignments"}}  assignments={{len .Detail.Assignments}}{{end}}
