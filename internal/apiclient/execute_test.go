@@ -33,6 +33,8 @@ type respondingBase struct {
 	gotToken       string
 	gotContentType string
 	contentTypeSet bool
+	gotIfMatch     string
+	ifMatchSet     bool
 	status         int
 	header         http.Header
 	body           *trackingBody
@@ -45,6 +47,10 @@ func (b *respondingBase) RoundTrip(req *http.Request) (*http.Response, error) {
 	// (the bodyless reads) from "set to application/json" (the write, 042 ADR-1).
 	_, b.contentTypeSet = req.Header["Content-Type"]
 	b.gotContentType = req.Header.Get("Content-Type")
+	// Record presence-and-value so a test can distinguish "no If-Match header" (an
+	// unguarded write) from a guarded write carrying a captured version (053).
+	_, b.ifMatchSet = req.Header["If-Match"]
+	b.gotIfMatch = req.Header.Get("If-Match")
 	header := b.header
 	if header == nil {
 		header = make(http.Header)
@@ -503,5 +509,109 @@ func TestExecuteOmitsContentTypeWhenEmpty(t *testing.T) {
 	}
 	if base.contentTypeSet {
 		t.Fatalf("a bodyless read must set no Content-Type header, got %q", base.gotContentType)
+	}
+}
+
+// TestExecuteSetsIfMatchWhenPresent pins the 053 guarded-write seam: a Request
+// carrying a non-empty IfMatch produces an outbound request whose If-Match header
+// is exactly that value verbatim (so the server refuses a stale write with a 412
+// rather than clobbering it last-write-wins).
+func TestExecuteSetsIfMatchWhenPresent(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"data":{"id":"ten_1"}}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{
+		Method:      http.MethodPatch,
+		Path:        "/tensions/ten_1",
+		Body:        strings.NewReader(`{"tension":{"body":"x"}}`),
+		ContentType: "application/json",
+		IfMatch:     "a1b2c3",
+	}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if !base.ifMatchSet {
+		t.Fatal("If-Match header was not set for a non-empty IfMatch")
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q, want a1b2c3 (verbatim)", base.gotIfMatch)
+	}
+}
+
+// TestExecuteOmitsIfMatchWhenEmpty pins that the empty default (every landed read
+// and write) sets NO If-Match header — the request stays byte-identical to before
+// the field existed, and the write proceeds unconditionally (last-write-wins).
+func TestExecuteOmitsIfMatchWhenEmpty(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"id":"per_1"}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	if _, err := client.Execute(context.Background(), Request{Method: http.MethodGet, Path: "/me"}, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if base.ifMatchSet {
+		t.Fatalf("an unguarded request must set no If-Match header, got %q", base.gotIfMatch)
+	}
+}
+
+// TestExecuteForwardsWeakValidatorIfMatchVerbatim pins that a weak-validator /
+// quoted token is sent byte-for-byte — the W/ prefix and the surrounding quotes
+// are NOT stripped or normalized. Stripping would risk a spurious 412 (plan Risk 2).
+func TestExecuteForwardsWeakValidatorIfMatchVerbatim(t *testing.T) {
+	for _, token := range []string{`W/"abc123"`, `"abc123"`} {
+		base := &respondingBase{status: 200, body: bodyOf("{}")}
+		client := mustClient(t, completeContext(secretToken), base)
+
+		req := Request{Method: http.MethodPatch, Path: "/tensions/ten_1", IfMatch: token}
+		if _, err := client.Execute(context.Background(), req, nil); err != nil {
+			t.Fatalf("Execute errored: %v", err)
+		}
+		if base.gotIfMatch != token {
+			t.Fatalf("If-Match = %q, want %q byte-for-byte (no stripping or normalization)", base.gotIfMatch, token)
+		}
+	}
+}
+
+// TestExecuteSetsIfMatchOnDelete pins the method-agnostic contract: an IfMatch set
+// on a DELETE produces the header just as a PUT/PATCH does — the send depends only
+// on the field being non-empty, so a guarded Tension Discard behaves like a
+// guarded update.
+func TestExecuteSetsIfMatchOnDelete(t *testing.T) {
+	base := &respondingBase{status: 204, body: bodyOf("")}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{Method: http.MethodDelete, Path: "/tensions/ten_1", IfMatch: "a1b2c3"}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if !base.ifMatchSet {
+		t.Fatal("If-Match header was not set on a guarded DELETE")
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q on a DELETE, want a1b2c3", base.gotIfMatch)
+	}
+}
+
+// TestExecuteIfMatchAndContentTypeAreIndependent pins that If-Match and
+// Content-Type are separate fields set by separate blocks: a request with both set
+// produces both headers, neither displacing the other.
+func TestExecuteIfMatchAndContentTypeAreIndependent(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"data":{"id":"ten_1"}}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{
+		Method:      http.MethodPatch,
+		Path:        "/tensions/ten_1",
+		Body:        strings.NewReader(`{"tension":{"body":"x"}}`),
+		ContentType: "application/json",
+		IfMatch:     "a1b2c3",
+	}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if base.gotContentType != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json (not displaced by If-Match)", base.gotContentType)
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q, want a1b2c3 (not displaced by Content-Type)", base.gotIfMatch)
 	}
 }

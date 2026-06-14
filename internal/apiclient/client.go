@@ -39,9 +39,27 @@ type Request struct {
 	// Content-Type header and stays byte-identical; the first write sets it to
 	// "application/json" so the API parses the JSON body rather than ignoring it
 	// (a silent 422 the codebase designs against). A narrow field, not a general
-	// Header bag — generalize when a second header (If-Match, deferred) has a real
-	// consumer.
+	// Header bag — the second such header, IfMatch (below, 053), is its own narrow
+	// field too; generalize to a header bag only when a third header justifies it.
 	ContentType string
+	// IfMatch is the optional resource version sent as the request's If-Match
+	// precondition header by Execute, only when non-empty (mirrors ContentType,
+	// 042 ADR-1). Empty for every request that is not guarded — the landed reads
+	// and writes leave it "", so their outbound request carries no If-Match header
+	// and stays byte-identical; a guarded write sets it to the version a prior
+	// single-resource read captured (apiclient.Response.Version(), 052) so the
+	// server refuses a stale write (412 Precondition Failed) instead of overwriting
+	// it last-write-wins. The value is sent verbatim — no quoting, unquoting,
+	// weak-validator ("W/…") handling, or normalization — because the precondition
+	// must echo the server's token byte-for-byte or risk a spurious 412. The set is
+	// method-agnostic: a guarded DELETE (Tension Discard) is guarded like a
+	// PUT/PATCH; the caller populates IfMatch only on requests it intends to guard.
+	// A narrow field, not a general Header bag — this realizes the If-Match field
+	// 042 deferred (the second request header, after ContentType); generalize to a
+	// header bag only when a third header justifies it. The intended consumers are
+	// each write command's own read-then-write retrofit (Tension Update/Discard,
+	// Proposal write-flow); 053 wires none of them.
+	IfMatch string
 }
 
 // Client is the API-client request seam: a configured HTTP client built once from

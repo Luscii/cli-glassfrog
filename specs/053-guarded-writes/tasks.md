@@ -22,7 +22,7 @@ Phase 1: If-Match Send (1 task, no phase dependencies) — single-phase build
 
 ## Phase 1: If-Match Send [Shared]
 
-- [ ] **T001** [Shared] Add the `Request.IfMatch` field and its conditional `If-Match` send in `Execute`, with unit tests — 9 scenarios (2 @validation held @wip), 5 send unit tests; no LEARNINGS, no drift
+- [x] **T001** [Shared] Add the `Request.IfMatch` field and its conditional `If-Match` send in `Execute`, with unit tests — 9 scenarios (2 @validation held @wip), 5 send unit tests; no LEARNINGS, no drift — 7 @wip removed (7 BDD scenarios pass), 5 send unit tests added
   - **Scope**: One reviewable change in `internal/apiclient`: add a narrow `IfMatch string` field to the `Request` struct (`client.go`, beside `ContentType`), and in `Execute` (`execute.go`), immediately after the `ContentType` header block, set the `If-Match` header to `req.IfMatch` **only when non-empty**. Adds no new type; no change to `Response`, the `executor` interface, `RetryExecutor`, `NewClient`, or `buildURL`; wires no production write command and interprets no response. The field plus the send plus their unit tests ship together (the send must not merge without the tests that pin its contract).
   - **Acceptance criteria**:
     - A request with a non-empty `IfMatch` produces an outbound `If-Match` header equal to that value **verbatim** — no quoting, unquoting, weak-validator (`W/"…"`) handling, or normalization.
