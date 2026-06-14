@@ -39,8 +39,8 @@ type Request struct {
 	// Content-Type header and stays byte-identical; the first write sets it to
 	// "application/json" so the API parses the JSON body rather than ignoring it
 	// (a silent 422 the codebase designs against). A narrow field, not a general
-	// Header bag — generalize when a second header (If-Match, deferred) has a real
-	// consumer.
+	// Header bag — the second such header, IfMatch (below, 053), is its own narrow
+	// field too; generalize to a header bag only when a third header justifies it.
 	ContentType string
 	// IfMatch is the optional resource version sent as the request's If-Match
 	// precondition header by Execute, only when non-empty (mirrors ContentType,
@@ -55,7 +55,8 @@ type Request struct {
 	// method-agnostic: a guarded DELETE (Tension Discard) is guarded like a
 	// PUT/PATCH; the caller populates IfMatch only on requests it intends to guard.
 	// A narrow field, not a general Header bag — this is the deferred If-Match
-	// consumer 042 named; generalize only when a second request header lands. The
+	// consumer 042 named (the second request header, after ContentType); generalize
+	// to a header bag only when a third header justifies it. The
 	// intended consumers are each write command's own read-then-write retrofit
 	// (Tension Update/Discard, Proposal write-flow); 053 wires none of them.
 	IfMatch string
