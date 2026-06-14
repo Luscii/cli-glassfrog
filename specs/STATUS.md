@@ -51,3 +51,4 @@
 | 047-role-fillers | Complete | validate | 2026-06-13T19:18:00 |
 | 048-actor-directory | Ready | validate | 2026-06-12T00:00:00 |
 | 049-actor-read | Analyzed | analyze | 2026-06-13T17:55:00 |
+| 050-actor-assignments | Analyzed | analyze | 2026-06-13T18:20:00 |
