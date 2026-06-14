@@ -431,6 +431,66 @@ func TestExecuteSetsContentTypeWhenPresent(t *testing.T) {
 	}
 }
 
+// TestResponseVersionReturnsETagVerbatim pins the 052 capture contract: the
+// accessor hands back the ETag a read carried exactly as the server stated it —
+// no unquoting, no normalization — so a later If-Match (053) echoes it byte-for-
+// byte. A strong-validator quoted token keeps its quotes.
+func TestResponseVersionReturnsETagVerbatim(t *testing.T) {
+	header := make(http.Header)
+	header.Set("ETag", `"a1b2c3"`)
+	resp := &Response{StatusCode: 200, Header: header}
+
+	if got := resp.Version(); got != `"a1b2c3"` {
+		t.Fatalf("Version() = %q, want the ETag verbatim %q", got, `"a1b2c3"`)
+	}
+}
+
+// TestResponseVersionAbsentETagIsEmpty pins the "no version captured" sentinel:
+// a response carrying no ETag returns "", and an empty ETag is indistinguishable
+// from an absent one (both ""). Neither is a usable precondition.
+func TestResponseVersionAbsentETagIsEmpty(t *testing.T) {
+	absent := &Response{StatusCode: 200, Header: make(http.Header)}
+	if got := absent.Version(); got != "" {
+		t.Fatalf("Version() = %q on an absent ETag, want \"\"", got)
+	}
+
+	emptyHeader := make(http.Header)
+	emptyHeader.Set("ETag", "")
+	empty := &Response{StatusCode: 200, Header: emptyHeader}
+	if got := empty.Version(); got != "" {
+		t.Fatalf("Version() = %q on an empty ETag, want \"\" (indistinguishable from absent)", got)
+	}
+}
+
+// TestResponseVersionPreservesWeakValidator pins that a weak-validator token is
+// captured byte-for-byte — the W/ prefix and the surrounding quotes are NOT
+// stripped or normalized. Stripping would risk a spurious 412 when 053 forwards
+// the value as If-Match (plan Risk 2).
+func TestResponseVersionPreservesWeakValidator(t *testing.T) {
+	const weak = `W/"abc123"`
+	header := make(http.Header)
+	header.Set("ETag", weak)
+	resp := &Response{StatusCode: 200, Header: header}
+
+	if got := resp.Version(); got != weak {
+		t.Fatalf("Version() = %q, want the weak validator preserved verbatim %q", got, weak)
+	}
+}
+
+// TestResponseVersionHeaderLookupIsCaseInsensitive pins that the ETag is found
+// regardless of the header-name casing the server used — ETag/Etag/etag all
+// resolve to the same value via net/http header-name canonicalization.
+func TestResponseVersionHeaderLookupIsCaseInsensitive(t *testing.T) {
+	for _, name := range []string{"ETag", "Etag", "etag", "ETAG"} {
+		header := make(http.Header)
+		header.Set(name, "a1b2c3")
+		resp := &Response{StatusCode: 200, Header: header}
+		if got := resp.Version(); got != "a1b2c3" {
+			t.Fatalf("Version() = %q for header name %q, want a1b2c3 (case-insensitive lookup)", got, name)
+		}
+	}
+}
+
 // TestExecuteOmitsContentTypeWhenEmpty pins that the empty default (every landed
 // GET read) sets NO Content-Type header on the outbound request — the reads' wire
 // behavior is byte-identical to before the field existed (042 ADR-1).
