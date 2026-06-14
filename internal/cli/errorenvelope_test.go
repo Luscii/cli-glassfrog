@@ -32,6 +32,7 @@ func TestKind_Table(t *testing.T) {
 		{"api", APIError, "api"},
 		{"permission", PermissionError, "permission"},
 		{"rate-limit", RateLimited, "rate-limit"},
+		{"stale-write", StaleWrite, "stale-write"},
 	}
 
 	covered := map[Outcome]bool{}
@@ -49,7 +50,7 @@ func TestKind_Table(t *testing.T) {
 	// maintained, so adding a new Outcome constant to the enum without also adding it
 	// here will NOT fail this test — that new value would fall to kind()'s "runtime"
 	// default. Keep this list current with dispatch.go's Outcome constants.
-	allOutcomes := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited}
+	allOutcomes := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite}
 	if len(covered) != len(allOutcomes) {
 		t.Errorf("kind table covers %d distinct outcomes, want %d (a category lost or gained coverage)", len(covered), len(allOutcomes))
 	}
