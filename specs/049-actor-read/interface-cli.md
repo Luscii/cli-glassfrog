@@ -57,12 +57,16 @@ glassfrog actors <id> [--include LIST] [--base-url URL] [-o FORMAT]
   <per_… | agt_…>  [<kind>]
     Name:  <name>
     Roles:                       (present only with --include roles)
-      <role_…>  <role name>
-        Purpose:  <purpose | (no purpose set)>
-        Accountabilities:  <n> | (none)
-        Domains:  <n> | (none)
+      <role name> (<role_…>)
+        Purpose: <purpose | (no purpose set)>
+        Domains:
+          - <domain description>
+          (none)
+        Accountabilities:
+          - <accountability description>
+          (none)
     Assignments:                 (present only with --include assignments)
-      <role_…>  <role name>  <focus | —>
+      - <role name> (<role_…>)  <focus | —>
   ```
 - `compact` — the identity line, with embed counts when present: `<per_… | agt_…>  [<kind>]  <name>  roles=<n>  assignments=<n>`
 
