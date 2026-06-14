@@ -456,7 +456,7 @@ const actorRolesDetailBody = `{"data":{"id":"per_0123","name":"Alice Smith","kin
 const actorAssignmentsDetailBody = `{"data":{"id":"per_0123","name":"Alice Smith","kind":"human",
   "assignments":[{"id":"asgn_1","actor_id":"per_0123","role_id":"role_x","focus":"Campaigns"}]}}`
 
-func TestRunActorRead_ProjectsIdentity(t *testing.T) {
+func TestRunActorRead_RendersActorIdentity(t *testing.T) {
 	tr := &cannedTransport{status: 200, body: actorDetailBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
