@@ -47,7 +47,8 @@ type versionCaptureWorld struct {
 	out     map[string]any
 	execErr error
 
-	setETag string // the ETag value a Given installed, for cross-checks
+	setETag        string // the ETag value a Given installed, for cross-checks
+	rejectedStatus int    // the non-2xx status a rejected-read Given configured
 }
 
 // execute runs one GET read through a client built over the configured base and
@@ -122,6 +123,7 @@ func (w *versionCaptureWorld) givenRejectedRead(status string) error {
 	if _, err := fmt.Sscanf(status, "%d", &code); err != nil {
 		return fmt.Errorf("bad status %q: %w", status, err)
 	}
+	w.rejectedStatus = code
 	// Even if the server set an ETag, a non-2xx yields no *Response to capture on.
 	header := make(http.Header)
 	header.Set("ETag", "would-not-be-captured")
@@ -201,8 +203,8 @@ func (w *versionCaptureWorld) thenFailureContractUnchanged() error {
 	if !errors.As(w.execErr, &respErr) {
 		return fmt.Errorf("err = %v, want the existing *ResponseError unchanged", w.execErr)
 	}
-	if respErr.StatusCode != 404 {
-		return fmt.Errorf("status = %d, want 404 surfaced unchanged", respErr.StatusCode)
+	if respErr.StatusCode != w.rejectedStatus {
+		return fmt.Errorf("status = %d, want %d surfaced unchanged", respErr.StatusCode, w.rejectedStatus)
 	}
 	if w.resp != nil {
 		return errors.New("a failed read produced a *Response; capture must not synthesize one")
@@ -211,6 +213,12 @@ func (w *versionCaptureWorld) thenFailureContractUnchanged() error {
 }
 
 func (w *versionCaptureWorld) thenBehavesIdenticallyToTension() error {
+	if w.execErr != nil {
+		return fmt.Errorf("unexpected error: %v", w.execErr)
+	}
+	if w.resp == nil {
+		return errors.New("no *Response to compare a captured version from")
+	}
 	// The accessor takes no resource-type input — it reads only the header. Prove
 	// resource-agnosticism by replaying the SAME ETag as a tension read and
 	// confirming an identical capture.
@@ -298,6 +306,9 @@ func (w *versionCaptureWorld) thenWeakValidatorPreserved() error {
 }
 
 func (w *versionCaptureWorld) thenTokenNotNormalized() error {
+	if w.resp == nil {
+		return errors.New("no *Response to capture a version from")
+	}
 	// Verbatim: the captured value equals the raw ETag byte-for-byte — the W/
 	// prefix and the surrounding quotes are intact, nothing stripped.
 	got := w.resp.Version()
