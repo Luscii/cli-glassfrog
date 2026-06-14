@@ -35,6 +35,8 @@ func kind(o Outcome) string {
 		return "permission"
 	case RateLimited:
 		return "rate-limit"
+	case StaleWrite:
+		return "stale-write"
 	default:
 		return "runtime"
 	}

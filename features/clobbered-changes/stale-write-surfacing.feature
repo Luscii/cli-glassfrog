@@ -17,7 +17,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
     # I want a 412 Precondition Failed surfaced under its own exit code and with a next step that tells me to re-read and retry, so I can branch on $? without parsing text.
 
     # Source: 054-stale-write-surfacing — Scenario: A stale write surfaces under its own category and exit code
-    @wip
     Scenario: A stale write surfaces under its own exit code
       Given a guarded write the server refused with status 412
       When the failure is surfaced
@@ -25,7 +24,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
       And the code will be distinct from the generic API-error code 3
 
     # Source: 054-stale-write-surfacing — Scenario: The next step points to re-read and retry
-    @wip
     Scenario: The next step points the operator to re-read and retry
       Given a guarded write the server refused with status 412
       When the failure is surfaced
@@ -33,7 +31,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
       And it will not be the generic "check that the token has access" step
 
     # Source: 054-stale-write-surfacing — Scenario: Classification ignores whether this CLI sent a precondition
-    @wip
     Scenario: Classification ignores whether a precondition was sent
       Given a status 412 surfaced on a request that carried no If-Match header
       When the failure is surfaced
@@ -62,7 +59,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
     # I want the refusal explained as "the resource changed since you read it — re-read and retry" rather than a generic API error, so I know my change was protected, not broken.
 
     # Source: 054-stale-write-surfacing — Scenario: The cause names the stale write
-    @wip
     Scenario: The cause names the stale write
       Given a status 412 whose response body carried an error detail
       When the failure is surfaced
@@ -70,7 +66,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
       And the failure will be identified as a precondition failure from the resource changing since it was read
 
     # Source: 054-stale-write-surfacing — Scenario: A 412 with no readable detail derives its cause from the status
-    @wip
     Scenario: A 412 without readable detail derives its cause from the status
       Given a status 412 whose response carried no readable detail
       When the failure is surfaced
@@ -83,7 +78,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
     # I want the 412 that Guarded Writes (053) can produce surfaced distinctly through the one shared diagnostic pipeline, so capture → send → surface is whole.
 
     # Source: 054-stale-write-surfacing — Scenario: Another non-2xx is unaffected
-    @wip
     Scenario: Another non-2xx status is unaffected
       Given a status 404 outcome
       When the failure is surfaced
@@ -91,7 +85,6 @@ Feature: Clobbered Changes — Stale-Write Surfacing
       And only the 412 status will be branched out of the generic bucket
 
     # Source: 054-stale-write-surfacing — Scenario: Adding the stale-write code renumbers no existing code
-    @wip
     Scenario: Adding the stale-write code renumbers no existing code
       Given the published exit codes 0 through 6
       When the stale-write category is registered

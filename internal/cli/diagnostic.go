@@ -171,15 +171,20 @@ func Diagnose(err error) Diagnostic {
 }
 
 // categoryForStatus maps a non-2xx HTTP status to its code-free category: 401/403
-// → PermissionError (code 4), 429 → RateLimited (code 5), everything else →
-// APIError (the generic non-2xx, code 3). The default IS the generic bucket, so a
-// 401/403/429 can never fall through to it (API Error Extraction 015, ADR-3).
+// → PermissionError (code 4), 429 → RateLimited (code 5), 412 → StaleWrite (code
+// 7), everything else → APIError (the generic non-2xx, code 3). The default IS
+// the generic bucket, so a 401/403/412/429 can never fall through to it (API
+// Error Extraction 015, ADR-3; Stale-Write Surfacing 054, ADR-1). Classification
+// is status-driven only — the 412 maps to StaleWrite regardless of the command,
+// the resource, or whether an If-Match header was sent.
 func categoryForStatus(status int) Outcome {
 	switch status {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return PermissionError
 	case http.StatusTooManyRequests:
 		return RateLimited
+	case http.StatusPreconditionFailed:
+		return StaleWrite
 	default:
 		return APIError
 	}
@@ -204,6 +209,12 @@ func nextStepForStatus(status int) string {
 		return "check that the configured identity has the required role membership / permission"
 	case http.StatusTooManyRequests:
 		return "wait for the rate-limit window to reset (per the `Retry-After` / `X-RateLimit-Reset` headers) and retry"
+	case http.StatusPreconditionFailed:
+		// 412: a guarded write was refused because the resource changed since it was
+		// read. Point the operator at the recovery — re-read for the current version,
+		// then retry — not the generic "check that the token has access" step, which
+		// is wrong for a stale write (Stale-Write Surfacing 054, ADR-2).
+		return "re-read the resource for its current version, then retry the write"
 	default:
 		return "the API rejected the read; check that the token has access and retry, or consult the status code"
 	}
@@ -217,6 +228,15 @@ func nextStepForStatus(status int) string {
 // adds context). All text is response-side (status/detail/title), never the token.
 func problemCause(problemErr *apiclient.ProblemError) string {
 	if problemErr.DetailSynthesized {
+		if problemErr.StatusCode == http.StatusPreconditionFailed {
+			// 412 with no readable API detail: derive a stale-write cause from the
+			// status rather than the bare generic "status 412" line — name the
+			// precondition failure / changed-since-read the status defines. Status-
+			// derived, never invented (Stale-Write Surfacing 054, ADR-2; CONSTITUTION
+			// VIII). When the API DID supply a detail/title, the non-synthesized path
+			// below surfaces it verbatim — the API's own words win.
+			return fmt.Sprintf("the guarded write was refused: the resource changed since it was read (precondition failed, status %d)", problemErr.StatusCode)
+		}
 		return fmt.Sprintf("the API returned a non-2xx response: status %d", problemErr.StatusCode)
 	}
 	cause := problemErr.Detail

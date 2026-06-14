@@ -36,6 +36,8 @@ func TestDiagnose_Category_Table(t *testing.T) {
 		{"problem-403-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}), PermissionError},
 		{"problem-429-is-rate-limited", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}), RateLimited},
 		{"problem-404-is-api-error", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}), APIError},
+		{"response-412-is-stale-write", &apiclient.ResponseError{StatusCode: 412}, StaleWrite},
+		{"problem-412-is-stale-write", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412}), StaleWrite},
 		{"decode-is-api-error", &apiclient.DecodeError{StatusCode: 200}, APIError}, // 031 ADR-2: was RuntimeError
 		{"base-url-error-is-usage", &apiclient.BaseURLError{Source: "--base-url"}, UsageError},
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
@@ -61,7 +63,7 @@ func TestDiagnose_Category_Table(t *testing.T) {
 	// produce. If a future edit adds a category but no row, or drops a category's
 	// only row, this list and the produced set diverge and the test fails loud
 	// (the comma-ok half names a missing category explicitly).
-	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited}
+	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite}
 	if len(produced) != len(wantProduced) {
 		t.Errorf("Diagnose produced %d distinct categories across the table, want %d (a category lost or gained coverage)", len(produced), len(wantProduced))
 	}
@@ -184,6 +186,104 @@ func TestReportFailure_Delegates(t *testing.T) {
 	}
 }
 
+// Stale-Write Surfacing (054): a 412 is branched out of the generic APIError
+// bucket into its own StaleWrite category (→ code 7) with a re-read/retry next
+// step and a cause that names the precondition failure. This pins all four
+// observable fields of the diagnostic for both 412 shapes: the API supplied its
+// own detail (its words win, unchanged problemCause) and the API supplied none
+// (a status-derived precondition-failure cause, not the bare "status 412" line).
+func TestDiagnose_StaleWrite_412(t *testing.T) {
+	t.Run("api-supplied-detail", func(t *testing.T) {
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{
+			StatusCode: 412,
+			Body:       []byte(`{"detail":"version mismatch on tension ten_123"}`),
+		})
+		d := Diagnose(err)
+		if d.Category != StaleWrite {
+			t.Errorf("category = %v, want StaleWrite", d.Category)
+		}
+		if ExitCode(d.Category) != 7 {
+			t.Errorf("ExitCode(%v) = %d, want 7", d.Category, ExitCode(d.Category))
+		}
+		// The API's own words win — its detail is surfaced verbatim.
+		if !strings.Contains(d.Cause, "version mismatch on tension ten_123") {
+			t.Errorf("cause %q does not surface the API's own detail", d.Cause)
+		}
+		// The next step is the re-read/retry recovery, never the generic token step.
+		lower := strings.ToLower(d.NextStep)
+		if !strings.Contains(lower, "re-read") || !strings.Contains(lower, "retry") {
+			t.Errorf("next step %q does not tell the operator to re-read and retry", d.NextStep)
+		}
+		if strings.Contains(lower, "token has access") {
+			t.Errorf("next step %q must not be the generic check-token-access step", d.NextStep)
+		}
+	})
+
+	t.Run("no-readable-detail", func(t *testing.T) {
+		// An empty body forces ExtractProblem to synthesize (DetailSynthesized=true).
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412, Body: []byte("")})
+		d := Diagnose(err)
+		if d.Category != StaleWrite {
+			t.Errorf("category = %v, want StaleWrite", d.Category)
+		}
+		// The cause is derived from the 412 status (not invented): it names the
+		// precondition failure / changed-since-read, not the bare generic line.
+		if !strings.Contains(d.Cause, "412") {
+			t.Errorf("cause %q is not derived from the 412 status", d.Cause)
+		}
+		lower := strings.ToLower(d.Cause)
+		if !strings.Contains(lower, "precondition") && !strings.Contains(lower, "changed since it was read") {
+			t.Errorf("cause %q does not name the precondition failure / changed-since-read", d.Cause)
+		}
+		if strings.Contains(d.Cause, "the API returned a non-2xx response: status 412") && !strings.Contains(lower, "precondition") {
+			t.Errorf("cause %q is the bare generic status line — it must be 412-aware", d.Cause)
+		}
+		// The category, code, and re-read next step are still assigned for the
+		// synthesized shape.
+		if ExitCode(d.Category) != 7 {
+			t.Errorf("ExitCode(%v) = %d, want 7", d.Category, ExitCode(d.Category))
+		}
+		if !strings.Contains(strings.ToLower(d.NextStep), "re-read") {
+			t.Errorf("next step %q does not tell the operator to re-read", d.NextStep)
+		}
+	})
+}
+
+// No existing status's surfacing drifts when the 412 arm is added: 401/403/404/
+// 429/500 keep their exact category, exit code, cause, and next step. This pins
+// the no-drift guarantee the additive 412 case must preserve (the @validation
+// "No existing surfacing drifts" scenario's mechanism, held out at the BDD level).
+func TestDiagnose_412_DoesNotDriftOtherStatuses(t *testing.T) {
+	cases := []struct {
+		status   int
+		category Outcome
+		code     int
+	}{
+		{401, PermissionError, 4},
+		{403, PermissionError, 4},
+		{404, APIError, 3},
+		{429, RateLimited, 5},
+		{500, APIError, 3},
+	}
+	for _, tc := range cases {
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: tc.status})
+		d := Diagnose(err)
+		if d.Category != tc.category {
+			t.Errorf("status %d: category = %v, want %v (drifted)", tc.status, d.Category, tc.category)
+		}
+		if got := ExitCode(d.Category); got != tc.code {
+			t.Errorf("status %d: exit code = %d, want %d (drifted)", tc.status, got, tc.code)
+		}
+		// None of the unchanged statuses may inherit the stale-write surfacing.
+		if d.Category == StaleWrite {
+			t.Errorf("status %d must not be classified as a stale write", tc.status)
+		}
+		if strings.Contains(strings.ToLower(d.NextStep), "re-read") {
+			t.Errorf("status %d next step %q must not carry the 412 re-read hint", tc.status, d.NextStep)
+		}
+	}
+}
+
 // No Diagnose arm may emit the X-Auth-Token: every Cause, every NextStep, and the
 // rendered line is response/path/status only. The sentinel is the real token a
 // production seam would carry on the request header (meSecretToken) — it must
@@ -201,6 +301,7 @@ func TestDiagnose_NeverEmitsToken(t *testing.T) {
 		{"problem-403", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403})},
 		{"problem-429", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429})},
 		{"problem-404", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404})},
+		{"problem-412", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412})},
 		{"response-500", &apiclient.ResponseError{StatusCode: 500}},
 		{"decode", &apiclient.DecodeError{StatusCode: 200}},
 		{"baseurl", &apiclient.BaseURLError{Source: "--base-url"}},

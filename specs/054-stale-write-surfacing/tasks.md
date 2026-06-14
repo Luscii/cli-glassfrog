@@ -22,7 +22,7 @@ Phase 1: Stale-Write Classification (1 task, no phase dependencies) — single-p
 
 ## Phase 1: Stale-Write Classification [Shared]
 
-- [ ] **T001** [Shared] Add the `StaleWrite` Outcome + `codeStaleWrite = 7`, and classify `412` (category, cause, next step) in `internal/cli`, with unit tests — 10 scenarios (3 @validation held @wip), exit-code + diagnostic unit tests; no new command/flag/output
+- [x] **T001** [Shared] Add the `StaleWrite` Outcome + `codeStaleWrite = 7`, and classify `412` (category, cause, next step) in `internal/cli`, with unit tests — 10 scenarios (7 implemented & passing, 3 @validation held @wip), exit-code + diagnostic unit tests; no new command/flag/output. No drift, no findings.
   - **Scope**: One reviewable change across three sibling files in `internal/cli`, plus tests:
     - `dispatch.go` — add `StaleWrite` to the `Outcome` enum (a new `iota` value after `RateLimited`) with a doc comment naming `412` / Stale-Write Surfacing (054) as its producer, and add its `String()` case.
     - `exitcode.go` — add `codeStaleWrite = 7` with a doc comment, and the `case StaleWrite: return codeStaleWrite` arm in `ExitCode`.
