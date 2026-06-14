@@ -19,7 +19,6 @@ Feature: Actors Disconnected from Governance — Actor Read
     # I want to read one actor with their roles embedded.
 
     # Source: 049-actor-read — Scenario: Read an actor with their governance footprint embedded
-    @wip
     Scenario: A roles include embeds the actor's governance footprint
       Given a complete connection context with a stored token
       And an actor that exists in the organization
@@ -29,7 +28,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 0
 
     # Source: 049-actor-read — Scenario: Read an actor with their assignments embedded
-    @wip
     Scenario: An assignments include embeds the actor's assignments
       Given a complete connection context with a stored token
       And an actor who fills several roles
@@ -39,7 +37,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 0
 
     # Source: 049-actor-read — Scenario: Unsupported --include value is rejected before any request
-    @wip
     Scenario: An unsupported include is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog actors per_abc --include nonsense"
@@ -65,7 +62,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And no pagination cursor will be followed
 
     # Source: 049-actor-read — Proposed: interface CLI (mode separation — --include is single-only)
-    @wip
     Scenario: A footprint include with no id is rejected
       Given a complete connection context with a stored token
       When an agent runs "glassfrog actors --include roles"
@@ -79,7 +75,6 @@ Feature: Actors Disconnected from Governance — Actor Read
     # I want to read a single actor — person or agent — by their per_/agt_ id with one command.
 
     # Source: 049-actor-read — Scenario: Read a single actor by id
-    @wip
     Scenario: An id reads a single actor
       Given a complete connection context with a stored token
       And an actor that exists in the organization
@@ -89,7 +84,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 0
 
     # Source: 049-actor-read — Scenario: Read an agent by its agt_ id
-    @wip
     Scenario: An agt_ id reads an agent
       Given a complete connection context with a stored token
       And an agent that exists in the organization
@@ -99,7 +93,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 0
 
     # Source: 049-actor-read — Scenario: An agent read does not require the gated alias
-    @wip
     Scenario: An agent read reaches the ungated unified endpoint
       Given a token without the ai_integration feature
       When an agent runs "glassfrog actors agt_def"
@@ -116,7 +109,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And no request reached the ai_integration-gated "/agents" alias
 
     # Source: 049-actor-read — Proposed: interface CLI (mode separation — filters are list-only)
-    @wip
     Scenario: A list filter combined with an id is rejected
       Given a complete connection context with a stored token
       When an agent runs "glassfrog actors per_abc --kind human"
@@ -125,7 +117,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 2
 
     # Source: 049-actor-read — Proposed: plan ADR-1 (the grown command still lists with no id)
-    @wip
     Scenario: The command with no id still lists the directory
       Given a complete connection context with a stored token
       And the organization has several actors
@@ -139,7 +130,6 @@ Feature: Actors Disconnected from Governance — Actor Read
     # I want the command to surface the status-versus-transport distinction the shared seams already draw.
 
     # Source: 049-actor-read — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog actors per_abc"
@@ -148,7 +138,6 @@ Feature: Actors Disconnected from Governance — Actor Read
       And the command will exit with code 2
 
     # Source: 049-actor-read — Scenario: A single read for an unknown id
-    @wip
     Scenario: An unknown id fails with the API status
       Given a complete connection context with a stored token
       And the API answers the actor read with a 404
