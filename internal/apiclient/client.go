@@ -54,11 +54,11 @@ type Request struct {
 	// must echo the server's token byte-for-byte or risk a spurious 412. The set is
 	// method-agnostic: a guarded DELETE (Tension Discard) is guarded like a
 	// PUT/PATCH; the caller populates IfMatch only on requests it intends to guard.
-	// A narrow field, not a general Header bag — this is the deferred If-Match
-	// consumer 042 named (the second request header, after ContentType); generalize
-	// to a header bag only when a third header justifies it. The
-	// intended consumers are each write command's own read-then-write retrofit
-	// (Tension Update/Discard, Proposal write-flow); 053 wires none of them.
+	// A narrow field, not a general Header bag — this realizes the If-Match field
+	// 042 deferred (the second request header, after ContentType); generalize to a
+	// header bag only when a third header justifies it. The intended consumers are
+	// each write command's own read-then-write retrofit (Tension Update/Discard,
+	// Proposal write-flow); 053 wires none of them.
 	IfMatch string
 }
 
