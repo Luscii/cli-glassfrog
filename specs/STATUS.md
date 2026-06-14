@@ -56,3 +56,4 @@
 | 052-version-capture-on-read | Complete | validate | 2026-06-14T18:00:00 |
 | 053-guarded-writes | Complete | validate | 2026-06-14T18:17:52 |
 | 054-stale-write-surfacing | Complete | validate | 2026-06-15T00:10:00 |
+| 056-proposal-reads | Analyzed | analyze | 2026-06-15T00:45:00 |
