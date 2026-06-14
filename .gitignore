@@ -13,3 +13,7 @@
 # release-time generator (npm/build.mjs) emits the umbrella + four platform
 # package directories into dist/npm/, which are published, never committed.
 /dist/
+
+# npm auth token for local publish/testing — a secret, never commit it.
+# (Release publishing uses tokenless OIDC; no token is needed in CI.)
+.npmrc
