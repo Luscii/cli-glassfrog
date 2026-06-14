@@ -8,7 +8,7 @@
 
 ## System Overview
 
-Subrole Filler Roll-up is the **one-level cross-role read for fillers** — it rolls up the actors filling an anchor role's **direct sub-roles** in one read: `glassfrog actors subroles <role-id>` → `GET /roles/{id}/subroles/actors` → `listSubrolesActors`. It answers "who is staffing the circles inside this one?" — the view a circle lead or facilitator wants when a role is vacant, shared, or unfamiliar and they need to reach the surrounding circle, without fetching each child role's fillers one at a time.
+Subrole Filler Roll-up is the **one-level cross-role read for fillers** — it rolls up the actors filling an anchor role's **direct sub-roles** in one read: `glassfrog subrole-actors <role-id>` → `GET /roles/{id}/subroles/actors` → `listSubrolesActors`. It answers "who is staffing the circles inside this one?" — the view a circle lead or facilitator wants when a role is vacant, shared, or unfamiliar and they need to reach the surrounding circle, without fetching each child role's fillers one at a time.
 
 The roll-up is **one level only** — the anchor's direct children, not a transitive closure of the whole subtree. The anchor must be an expanded role (a circle, `has_subroles: true`); the API returns `404` for a leaf role, which the command surfaces as a plain read failure rather than interpreting. It returns **actor** records (people and agents) — the same shape `GET /actors` returns — not the assignment relationship: this is the roll-up counterpart of Actor Directory (048), where Role Fillers (047) is the assignment-shaped read for a single role. It continues the subroles roll-up grammar Subroles Tension Roll-up (046) grew (`<resource> subroles <role-id>`), and it carries the same locally-validated `--kind human|agent` filter Actor Directory (048) established over the shared actor shape.
 
@@ -20,7 +20,7 @@ It sits on the proven read chain rather than rebuilding it: it hands requests to
 
 ### Invocation
 
-- When the user runs `glassfrog actors subroles <role-id>`, the system reads the actors filling that anchor role's direct sub-roles and produces them as a list result.
+- When the user runs `glassfrog subrole-actors <role-id>`, the system reads the actors filling that anchor role's direct sub-roles and produces them as a list result.
 - When the user omits the required `<role-id>`, passes more than one positional id, or passes an unknown flag, the system rejects the invocation as a usage error and calls no API.
 
 ### Filter
@@ -100,21 +100,21 @@ It sits on the proven read chain rather than rebuilding it: it hands requests to
 
 **Scenario: Roll up the actors filling a circle's direct sub-roles**
 Given a valid stored credential and an anchor role whose direct sub-roles are filled by several actors
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then the system reads `GET /roles/{id}/subroles/actors`
 And produces the sub-roles' fillers as a list result, each carrying its id, name, and kind
 And exits successfully.
 
 **Scenario: Narrow the roll-up to agents**
 Given an anchor role whose sub-roles are filled by both people and agents
-When the user runs `glassfrog actors subroles <role-id> --kind agent`
+When the user runs `glassfrog subrole-actors <role-id> --kind agent`
 Then the value is accepted as a supported kind
 And the system sends `kind=agent` on `GET /roles/{id}/subroles/actors`
 And produces only the agents as a list result.
 
 **Scenario: Roll-up walks every page to completion**
 Given an anchor role whose sub-role fillers span more than one page
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then the system walks every page through Pagination (016)
 And produces the complete set of sub-role fillers
 And exits successfully.
@@ -123,7 +123,7 @@ And exits successfully.
 
 **Scenario: Anchor is a leaf role**
 Given a valid stored credential and a role that has no sub-roles
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then the API answers `404`
 And the system reports the read failed, naming the HTTP status
 And exits non-zero
@@ -131,7 +131,7 @@ And adds no "this role has no sub-roles" interpretation of its own.
 
 **Scenario: No usable credential**
 Given no stored credential and none in the environment
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then the system surfaces the not-authenticated refusal without calling the API
 And exits non-zero
 And the message points the operator at how to store a credential.
@@ -140,20 +140,20 @@ And the message points the operator at how to store a credential.
 
 **Scenario: Sub-roles exist but carry no fillers**
 Given a valid stored credential and an anchor whose sub-roles are unfilled
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then the system produces an empty list result
 And exits successfully.
 
 **Scenario: Unsupported kind value is rejected before any request**
 Given a valid stored credential
-When the user runs `glassfrog actors subroles <role-id> --kind robot`
+When the user runs `glassfrog subrole-actors <role-id> --kind robot`
 Then the system rejects it as a usage error, naming the unsupported value and the supported set (`agent`, `human`)
 And issues no request
 And exits with the usage-error code.
 
 **Scenario: Paginated roll-up with first-page opt-out**
 Given an anchor whose sub-role fillers span more than one page
-When the user runs `glassfrog actors subroles <role-id>` with the first-page opt-out flag
+When the user runs `glassfrog subrole-actors <role-id>` with the first-page opt-out flag
 Then the system makes a single page request
 And produces the first page flagged incomplete with a clear "more exist" signal.
 
@@ -165,7 +165,7 @@ And produces the first page flagged incomplete with a clear "more exist" signal.
 
 **Scenario: The roll-up is one level only**
 Given an anchor role with direct sub-roles that themselves contain grand-child roles staffed by actors
-When the user runs `glassfrog actors subroles <role-id>`
+When the user runs `glassfrog subrole-actors <role-id>`
 Then only the direct sub-roles' fillers are read through `GET /roles/{id}/subroles/actors`
 And the command makes no attempt to recurse into grand-child roles.
 
@@ -199,11 +199,11 @@ Then the command supplied structured actor data and defined no format flag of it
 - **`Actor` model is reused, not redefined**: the `glassfrog.Actor` type grown in Identity Read (011) and reused by Actor Directory (048) already carries `id`, `name`, `kind`, and timestamps — the same schema this endpoint returns in each `data` element (the spec notes "Same response shape as `GET /actors`") — so no new leaf model is needed. The list returns the shared `{data: [...], meta: {pagination}}` envelope. (Reflects the per-list reuse pattern of 048.)
 - **Kind vocabulary tracks the spec enum, validated locally**: `--kind` is validated against the actor kind set (`human`, `agent`) before any request — the same shape Actor Directory (048) validates `--kind` against, and the values `listSubrolesActors` accepts. The accepted set tracks the vendored spec (`spec/glassfrog-api-v5.yaml`); whether validation shares the 048 helper is a planning detail.
 - **First-page opt-out flag is the shared one**: the roll-up reuses the same first-page opt-out flag and "more exist" signal established by the earlier list reads (016 / 025 / 026 / 033 / 034 / 038 / 046 / 048), not a new per-command flag. (Consistency across every list surface in the CLI.)
-- **Command grammar mirrors the subroles roll-up sibling**: the command rolls up an actor-shaped result, so it lives under the actor surface and continues 046's `<resource> subroles <role-id>` grammar — read here as `actors subroles <role-id>`. ([ASSUMED] — the exact command spelling (a `subroles` verb under `actors`, vs. an alternative placement) is pinned at the interface stage; the behavior — one role-scoped, read-only, one-level roll-up of the actors filling an anchor's direct sub-roles, `--kind`-filterable — is fixed.)
+- **Command grammar is a distinct role-keyed leaf**: the command rolls up an actor-shaped result keyed on a role id. The exact spelling is pinned at the interface stage as the distinct top-level leaf `subrole-actors <role-id>` (plan ADR-1) — **not** an `actors subroles` subcommand, because `actors` is a runnable, positional-bearing command and hosting a subcommand under it would force a runnable-parent-with-children shape the codebase avoids. The behavior — one role-scoped, read-only, one-level roll-up of the actors filling an anchor's direct sub-roles, `--kind`-filterable — is fixed regardless of the surface spelling.
 - **[ASSUMED] Role-id format is not validated client-side**: the read requires exactly one positional id but lets the API reject an unknown or malformed id (typically `404`), rather than enforcing the `^role_…` pattern locally. (Mirrors how Subroles Tension Roll-up (046), Role Fillers (047), and Actor Directory (048) leave id-shape validation to the server.)
 
 ---
 
 ## Ambiguity Warnings
 
-_None — the feature is the actor-shaped twin of Subroles Tension Roll-up (046) over a single new endpoint (`listSubrolesActors`), and every design call has a settled sibling precedent: the one-level / leaf-`404`-as-read-failure / direct-children-only stance from 046, and the `glassfrog.Actor` reuse, the locally-validated `--kind human|agent` filter, and the no-separate-`people`-command decision from Actor Directory (048). The two boundary questions specific to this endpoint were resolved during specification: (1) it returns bare **actor** records (the `/subroles/actors` shape, cross-linked assignments excluded), not the assignment-shaped read of Role Fillers (047); and (2) the `/subroles/people` alias is reached through `--kind human`, not a forked command. The exact command spelling is the only open item, deferred to the interface stage as in 046/047/048._
+_None — the feature is the actor-shaped twin of Subroles Tension Roll-up (046) over a single new endpoint (`listSubrolesActors`), and every design call has a settled sibling precedent: the one-level / leaf-`404`-as-read-failure / direct-children-only stance from 046, and the `glassfrog.Actor` reuse, the locally-validated `--kind human|agent` filter, and the no-separate-`people`-command decision from Actor Directory (048). The two boundary questions specific to this endpoint were resolved during specification: (1) it returns bare **actor** records (the `/subroles/actors` shape, cross-linked assignments excluded), not the assignment-shaped read of Role Fillers (047); and (2) the `/subroles/people` alias is reached through `--kind human`, not a forked command. The exact command spelling is pinned at the interface stage (as in 046/047/048) — for this feature, the distinct top-level leaf `subrole-actors <role-id>` (plan ADR-1)._
