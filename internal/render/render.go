@@ -229,6 +229,26 @@ type FillersView struct {
 	Data []glassfrog.Assignment
 }
 
+// AssignmentsView is the data the actor-scoped `assignments` list templates (050)
+// render: the roles an actor fills, walked to completion — the answer to "which
+// roles does this actor fill?". It is the actor-end mirror of FillersView: the same
+// flat homogeneous .Data slice of glassfrog.Assignment, but each row leads with the
+// FILLED ROLE (the role id + name + its purpose/parent context the actor-end default
+// ?include=role embeds — plan ADR-2), then the assignment's governance context: the
+// nullable Focus and ElectedUntil. All four nullable fields — the role's Purpose and
+// ParentRoleID, plus the assignment's Focus and ElectedUntil — get an explicit-absence
+// marker (`(none)` for an absent focus/purpose, `(not an elected seat)` for a
+// non-elected one, `(top-level)` for a role with no parent, under `full`; the `—`
+// marker under `compact`) — never a fabricated value or an empty gap (CONSTITUTION
+// VIII). Focus and purpose are free text, rendered verbatim — never truncated or
+// reflowed (CONSTITUTION VI). The assignment's own id (asgn_…) and actor_id are not
+// projected here (not spec row fields); they stay in the structured output. An empty
+// Data set renders the explicit `no assignments` line (an actor who fills no role is
+// a valid empty answer, not an error).
+type AssignmentsView struct {
+	Data []glassfrog.Assignment
+}
+
 // SubrolesView is the data the `subroles` templates (026) render: the gathered
 // immediate-child RoleDetails plus the requested ?include set. It mirrors
 // RoleView's omit-unrequested / mark-empty guard, applied per child. An empty
@@ -415,6 +435,15 @@ const (
 	// directory of bare actor records): a filler row leads with the filling actor but
 	// adds the assignment's focus/election context (plan ADR-2).
 	ResourceFillers Resource = "fillers"
+	// ResourceAssignments is the actor-scoped assignment list read (050):
+	// GET /actors/{actor_id}/assignments rendered as an AssignmentsView (a flat
+	// homogeneous list of glassfrog.Assignment — the roles an actor fills). Plural
+	// only — there is no singular sibling because the API exposes no
+	// GET /assignments/{id} (plan ADR-1). The actor-end mirror of ResourceFillers
+	// (the role-end read of the same Assignment resource): a row leads with the
+	// FILLED ROLE (id/name + purpose/parent context) rather than the filling actor
+	// (plan ADR-2).
+	ResourceAssignments Resource = "assignments"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -425,7 +454,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceFillers, ResourceTension, ResourceTensions, ResourceTensionDiscard}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

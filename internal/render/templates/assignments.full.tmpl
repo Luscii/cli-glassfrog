@@ -1,0 +1,8 @@
+{{if not .Data}}no assignments
+{{else}}{{range .Data}}{{.Role.ID}}
+  Role:           {{if eq (trimSpace .Role.Name) ""}}—{{else}}{{.Role.Name}}{{end}}
+  Purpose:        {{if eq (trimSpace .Role.Purpose) ""}}(none){{else}}{{.Role.Purpose}}{{end}}
+  Parent role:    {{if eq (trimSpace .Role.ParentRoleID) ""}}(top-level){{else}}{{.Role.ParentRoleID}}{{end}}
+  Focus:          {{if eq (trimSpace .Focus) ""}}(none){{else}}{{.Focus}}{{end}}
+  Elected until:  {{if eq (trimSpace .ElectedUntil) ""}}(not an elected seat){{else}}{{.ElectedUntil}}{{end}}
+{{end}}{{end}}

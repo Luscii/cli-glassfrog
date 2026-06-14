@@ -1,0 +1,3 @@
+{{if not .Data}}no assignments
+{{else}}{{range .Data}}{{.Role.ID}}  {{if eq (trimSpace .Role.Name) ""}}—{{else}}{{.Role.Name}}{{end}}  — focus: {{if eq (trimSpace .Focus) ""}}—{{else}}{{.Focus}}{{end}}; elected until: {{if eq (trimSpace .ElectedUntil) ""}}—{{else}}{{.ElectedUntil}}{{end}}
+{{end}}{{end}}
