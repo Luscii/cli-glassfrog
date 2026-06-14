@@ -50,5 +50,5 @@
 | 046-subroles-tension-roll-up | Complete | validate | 2026-06-13T16:45:00 |
 | 047-role-fillers | Complete | validate | 2026-06-13T19:18:00 |
 | 048-actor-directory | Complete | validate | 2026-06-12T11:03:16 |
-| 049-actor-read | Implemented | implement | 2026-06-14T12:55:52 |
+| 049-actor-read | Complete | validate | 2026-06-14T12:59:11 |
 | 050-actor-assignments | Complete | validate | 2026-06-14T12:30:00 |
