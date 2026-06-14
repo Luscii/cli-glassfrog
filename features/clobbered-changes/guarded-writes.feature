@@ -15,14 +15,12 @@ Feature: Clobbered Changes — Guarded Writes
     # I want to have a write I make refused by the server when the resource changed since it was read, so my edit cannot quietly overwrite someone else's.
 
     # Source: 053-guarded-writes — Scenario: Captured version guards the write
-    @wip
     Scenario: A captured version guards the write
       Given a write request carrying a captured version of "a1b2c3"
       When the request is sent
       Then the outbound request will carry an If-Match header of "a1b2c3"
 
     # Source: 053-guarded-writes — Scenario: Server refuses a stale write
-    @wip
     Scenario: A stale guarded write is refused untouched
       Given a write request carrying a version that no longer matches the resource
       When the request is sent and the server responds with status 412
@@ -35,7 +33,6 @@ Feature: Clobbered Changes — Guarded Writes
     # I want to send a captured version as an If-Match precondition on a write, so the one shared mechanism turns a retained version into an enforced guard without each write command re-deriving how.
 
     # Source: 053-guarded-writes — Scenario: No version falls through to an unconditional write
-    @wip
     Scenario: A write without a version is sent unconditionally
       Given a write request that carries no captured version
       When the request is sent
@@ -43,7 +40,6 @@ Feature: Clobbered Changes — Guarded Writes
       And the write will proceed unconditionally, exactly as before this capability existed
 
     # Source: 053-guarded-writes — Scenario: A delete is guarded the same way
-    @wip
     Scenario: A delete is guarded the same way as an update
       Given a delete request carrying a captured version of "a1b2c3"
       When the request is sent
@@ -51,7 +47,6 @@ Feature: Clobbered Changes — Guarded Writes
       And the precondition will be attached identically regardless of the request method
 
     # Source: 053-guarded-writes — Scenario: Empty captured version is not sent as a precondition
-    @wip
     Scenario: An empty captured version sends no precondition
       Given a write request whose captured version is empty
       When the request is sent
@@ -59,7 +54,6 @@ Feature: Clobbered Changes — Guarded Writes
       And the write will not be refused for a malformed precondition
 
     # Source: 053-guarded-writes — Scenario: Weak-validator version is forwarded verbatim
-    @wip
     Scenario: A weak-validator version is forwarded verbatim
       Given a write request carrying a captured version that is a quoted weak validator
       When the request is sent
@@ -67,7 +61,6 @@ Feature: Clobbered Changes — Guarded Writes
       And no part of the token will be stripped or normalized
 
     # Source: 053-guarded-writes — Scenario: Precondition composes with an existing content type
-    @wip
     Scenario: An If-Match precondition composes with a content type
       Given a write request that carries both a body media type and a captured version
       When the request is sent

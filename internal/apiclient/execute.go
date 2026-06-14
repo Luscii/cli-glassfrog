@@ -134,6 +134,17 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 		httpReq.Header.Set("Content-Type", req.ContentType)
 	}
 
+	if req.IfMatch != "" {
+		// Set the precondition only when the caller supplied a version (mirrors the
+		// ContentType block above, 042 ADR-1). The value is sent verbatim — no
+		// quoting, unquoting, weak-validator ("W/…") handling, or normalization — so
+		// it echoes the server's token (captured by Response.Version(), 052)
+		// byte-for-byte or risks a spurious 412. Method-agnostic: depends only on the
+		// field, so a DELETE is guarded like a PUT/PATCH. 007's AuthTransport owns
+		// only X-Auth-Token, so If-Match is set here on the built request, before Do.
+		httpReq.Header.Set("If-Match", req.IfMatch)
+	}
+
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		// Discriminate 007's fail-safe BEFORE wrapping: a no-/broken-credential
