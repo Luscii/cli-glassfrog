@@ -72,21 +72,44 @@ type RoleDocument = Document[RoleDetail]
 // Assignment maps an actor to a role (the spec's Assignment). ID, ActorID, and
 // RoleID are always present; the focus/election/timestamp fields decode but the
 // Role Reads projection surfaces only the actor reference. Reused by
-// ?include=assignments here and the future standalone assignment reads.
+// ?include=assignments here, the role-end Role Fillers read (047, ?include=actor),
+// and the actor-end Actor Assignments read (050, ?include=role).
+//
+// The embed it carries depends on which end requested it: the role-end endpoint
+// defaults to ?include=actor (so Actor arrives), the actor-end endpoint defaults
+// to ?include=role (so Role arrives). Both embeds are present on the one shared
+// type, grown not forked (011 ADR-1 / 025 ADR-2 / 050 ADR-2); a path that does not
+// request a given embed simply leaves it zero-valued (the 012→025 forward-compatible
+// pattern — decoding tolerates the absent block without error).
 type Assignment struct {
 	ID           string `json:"id"`
 	ActorID      string `json:"actor_id"`
 	RoleID       string `json:"role_id"`
 	Focus        string `json:"focus"`
 	ElectedUntil string `json:"elected_until"`
-	// Actor is the embedded actor when the API includes it (it does by default on
-	// the assignments endpoints); on a role's ?include=assignments it may be
-	// absent, leaving Name empty.
+	// Actor is the embedded actor when the API includes it (the role-end
+	// /roles/{id}/assignments default, 047); on a role's ?include=assignments or the
+	// actor-end read it may be absent, leaving Name empty.
 	Actor struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 		Kind string `json:"kind"`
 	} `json:"actor"`
+	// Role is the embedded filled role when the API includes it (the actor-end
+	// /actors/{id}/assignments default, 050); on the role-end read or a role's
+	// ?include=assignments it is absent, leaving the block zero-valued. Mirrors the
+	// Actor block: an inline struct (not the full glassfrog.Role type) carrying only
+	// the actor-end default include's shape — {id, type, name, purpose,
+	// parent_role_id}. The nullable purpose/parent_role_id are modeled as plain
+	// strings (empty = null), the landed nullable-field convention (Policy.RoleID,
+	// Assignment.Focus), so the render guards explicit-absence on them.
+	Role struct {
+		ID           string `json:"id"`
+		Type         string `json:"type"`
+		Name         string `json:"name"`
+		Purpose      string `json:"purpose"`
+		ParentRoleID string `json:"parent_role_id"`
+	} `json:"role"`
 }
 
 // Policy is a governance rule on a role's interior (the spec's Policy). Title is
