@@ -210,6 +210,22 @@ type ActorsView struct {
 	Data []glassfrog.Actor
 }
 
+// ActorDetailView is the data the singular `actor` templates (049) render: the
+// single actor read by id (GET /actors/{id}) plus the set of ?include values the
+// operator requested. Like RoleView, Requested is the only signal that lets a
+// template omit an unrequested embed yet show an explicit-absence marker for a
+// requested-but-empty one — here the optional embeds are `roles` (the governance
+// footprint: each role's name/purpose/accountabilities/domains) and `assignments`
+// (the actor↔role assignments). It is the actor analogue of RoleView (025), over an
+// ActorDetail rather than a RoleDetail; the identity line shows the per_/agt_ id,
+// the kind badge, and the name (verbatim, never truncated/reflowed — CONSTITUTION
+// VI), with a trim-empty absence guard on the name. Distinct from ActorsView (the
+// 048 flat directory list) and the `me` document (ResourceMe).
+type ActorDetailView struct {
+	Detail    glassfrog.ActorDetail
+	Requested map[string]bool
+}
+
 // FillersView is the data the role-scoped `fillers` list templates (047) render:
 // the actors who fill a role, walked to completion — the answer to "whom do I
 // contact about this role?". It mirrors ProjectsView/ActorsView's shape (a single
@@ -427,6 +443,15 @@ const (
 	// from ResourceMe, which renders ONE actor inside the `me` document (actor + org
 	// + membership + roles) — a different projection, not reused (plan ADR-4).
 	ResourceActors Resource = "actors"
+	// ResourceActor is the single actor read (049): GET /actors/{id} rendered as an
+	// ActorDetailView (the ActorDetail plus the requested ?include set). Singular —
+	// the actor analogue of ResourceRole/ResourceDomain/ResourcePolicy and the
+	// natural sibling of the plural ResourceActors (048). Distinct from ResourceMe
+	// (one actor INSIDE the `me` document — actor + org + membership) and
+	// ResourceActors (the flat directory rows): this projection adds the actor's
+	// governance footprint (the embedded roles' purpose/accountabilities/domains and
+	// the assignments), each section guarded by an explicit-absence marker.
+	ResourceActor Resource = "actor"
 	// ResourceFillers is the role-scoped filler list read (047):
 	// GET /roles/{role_id}/assignments rendered as a FillersView (a flat
 	// homogeneous list of glassfrog.Assignment — the actors who fill a role). Plural
@@ -454,7 +479,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

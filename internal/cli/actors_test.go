@@ -37,8 +37,9 @@ func actorsPage(id, name, kind, nextCursor string) string {
 		`"meta":{"pagination":{"per_page":1,"has_next_page":` + hasNext + `,"next_cursor":"` + nextCursor + `"}}}`
 }
 
-// runActorsOver drives the pure runActorsList over a fake seam, returning the
-// outcome and captured stdout/stderr, and failing if the token leaks.
+// runActorsOver drives the pure runActors dispatcher over a fake seam, returning
+// the outcome and captured stdout/stderr, and failing if the token leaks. With no
+// cfg.args it exercises the directory list branch; with one arg, the single read.
 func runActorsOver(t *testing.T, seam actorsSeam, cfg actorsConfig) (Outcome, string, string) {
 	t.Helper()
 	var out, errb bytes.Buffer
@@ -46,7 +47,7 @@ func runActorsOver(t *testing.T, seam actorsSeam, cfg actorsConfig) (Outcome, st
 	cfg.reqCtx = context.Background()
 	cfg.stdout = &out
 	cfg.stderr = &errb
-	outcome, _ := runActorsList(cfg)
+	outcome, _ := runActors(cfg)
 	if strings.Contains(out.String()+errb.String(), meSecretToken) {
 		t.Fatalf("the token leaked into output: %q", out.String()+errb.String())
 	}
@@ -437,6 +438,285 @@ func TestRunActors_StructuredJSONEmitsAggregatedRawPayload(t *testing.T) {
 	}
 }
 
+// --- single-actor read (T003) ----------------------------------------------
+//
+// The {data: ActorDetail} document the single read decodes (one object — not the
+// Page[Actor] list envelope). actorDetailBody is the bare actor; the roles/
+// assignments variants carry the ?include embeds.
+
+const actorDetailBody = `{"data":{"id":"per_0123","name":"Alice Smith","kind":"human","created_at":"t","updated_at":"t"}}`
+
+const agentDetailBody = `{"data":{"id":"agt_def","name":"Claude","kind":"agent"}}`
+
+const actorRolesDetailBody = `{"data":{"id":"per_0123","name":"Alice Smith","kind":"human",
+  "roles":[{"id":"role_x","type":"role","name":"Marketing Lead","purpose":"A market that knows us",
+    "domains":[{"id":"dom_1","description":"The marketing budget"}],
+    "accountabilities":[{"id":"acc_1","description":"Defining the campaign"}]}]}}`
+
+const actorAssignmentsDetailBody = `{"data":{"id":"per_0123","name":"Alice Smith","kind":"human",
+  "assignments":[{"id":"asgn_1","actor_id":"per_0123","role_id":"role_x","focus":"Campaigns"}]}}`
+
+func TestRunActorRead_RendersActorIdentity(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	for _, want := range []string{"per_0123", "[human]", "Alice Smith"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the single actor should show %q:\n%s", want, stdout)
+		}
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/actors/per_0123") {
+		t.Errorf("path = %q, want it to target /actors/{id}", got)
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single read should issue exactly one request (no walk), got %d", tr.calls)
+	}
+	// No --include: the footprint sections are omitted entirely.
+	if strings.Contains(stdout, "Roles:") || strings.Contains(stdout, "Assignments:") {
+		t.Errorf("unrequested embed sections must be omitted:\n%s", stdout)
+	}
+}
+
+// An agt_ id reads the ungated unified /actors/{id} endpoint — never the
+// ai_integration-gated /agents alias — even though the fake token lacks the
+// feature (the seam carries the same context regardless).
+func TestRunActorRead_AgentReadsUngatedUnifiedEndpoint(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: agentDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runActorsOver(t, seam, actorsConfig{args: []string{"agt_def"}})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if got := tr.lastPath; !strings.HasSuffix(got, "/actors/agt_def") {
+		t.Errorf("an agt_ id must read the unified /actors/{id}, got %q", got)
+	}
+	if strings.Contains(tr.lastPath, "/agents") {
+		t.Errorf("an agent read must NOT route through the /agents alias, got %q", tr.lastPath)
+	}
+	if !strings.Contains(stdout, "agt_def") || !strings.Contains(stdout, "[agent]") {
+		t.Errorf("the agent should print as a single actor:\n%s", stdout)
+	}
+}
+
+func TestRunActorRead_IncludeRolesSendsParamAndEmbedsFootprint(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorRolesDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, include: []string{"roles"}})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	if got := tr.lastQuery.Get("include"); got != "roles" {
+		t.Errorf("include = %q, want \"roles\"", got)
+	}
+	for _, want := range []string{"Roles:", "Marketing Lead (role_x)", "A market that knows us", "The marketing budget", "Defining the campaign"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the roles footprint should render inline; missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestRunActorRead_IncludeAssignmentsEmbeds(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorAssignmentsDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, include: []string{"assignments"}})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if got := tr.lastQuery.Get("include"); got != "assignments" {
+		t.Errorf("include = %q, want \"assignments\"", got)
+	}
+	for _, want := range []string{"Assignments:", "role_x", "Campaigns"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the assignments should embed; missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestRunActorRead_IncludeBothSendsBoth(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorRolesDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	_, _, _ = runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, include: []string{"roles", "assignments"}})
+	if got := tr.lastQuery.Get("include"); got != "roles,assignments" {
+		t.Errorf("include = %q, want comma-joined \"roles,assignments\"", got)
+	}
+}
+
+// An unsupported --include is a usage error naming the value + the supported set,
+// with NO request sent and assembly never reached (transport tripwire).
+func TestRunActorRead_UnsupportedIncludeRejectedBeforeAnyRequest(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, include: []string{"nonsense"}})
+	if outcome != UsageError || ExitCode(outcome) != 2 {
+		t.Fatalf("outcome=%v exit=%d, want UsageError/2", outcome, ExitCode(outcome))
+	}
+	if !strings.Contains(stderr, "nonsense") {
+		t.Errorf("stderr should name the unsupported value:\n%s", stderr)
+	}
+	for _, want := range []string{"assignments", "roles"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr should list the supported set (%q):\n%s", want, stderr)
+		}
+	}
+	if tr.calls != 0 {
+		t.Errorf("an unsupported --include must send nothing (tripwire), got %d calls", tr.calls)
+	}
+	if seam.assembleCalled {
+		t.Errorf("include validation must run before assembly, assembled=%v", seam.assembleCalled)
+	}
+}
+
+// A list filter combined with an id is a usage error before any request — filters
+// are directory-list-only (mode separation).
+func TestRunActorRead_ListFilterWithIdRejected(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, kind: "human", kindSet: true})
+	if outcome != UsageError || ExitCode(outcome) != 2 {
+		t.Fatalf("outcome=%v exit=%d, want UsageError/2", outcome, ExitCode(outcome))
+	}
+	if !strings.Contains(stderr, "--kind") {
+		t.Errorf("stderr should name the misplaced filter:\n%s", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("a list-filter-with-id must send nothing (tripwire), got %d calls", tr.calls)
+	}
+	if seam.assembleCalled {
+		t.Errorf("the mode-separation guard must run before assembly, assembled=%v", seam.assembleCalled)
+	}
+}
+
+// --include with no id is a usage error before any request — --include is
+// single-read-only (mode separation).
+func TestRunActors_IncludeWithoutIdRejected(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorsPageComplete}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{include: []string{"roles"}})
+	if outcome != UsageError || ExitCode(outcome) != 2 {
+		t.Fatalf("outcome=%v exit=%d, want UsageError/2", outcome, ExitCode(outcome))
+	}
+	if !strings.Contains(stderr, "--include") {
+		t.Errorf("stderr should report that --include applies only to a single actor read:\n%s", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("--include with no id must send nothing (tripwire), got %d calls", tr.calls)
+	}
+}
+
+// An unknown id is passed through to the API and surfaces as its status — the id
+// is NOT validated locally (049 ADR-3).
+func TestRunActorRead_UnknownIdSurfacesAPIStatus(t *testing.T) {
+	tr := &cannedTransport{status: 404, body: `{"detail":"Actor not found"}`}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_missing"}})
+	if outcome != APIError || ExitCode(outcome) != 3 {
+		t.Fatalf("outcome=%v exit=%d, want APIError/3", outcome, ExitCode(outcome))
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("no projection should print on an unknown id, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "404") {
+		t.Errorf("stderr should name the 404 status:\n%s", stderr)
+	}
+	if tr.calls != 1 {
+		t.Errorf("the id should be passed through (one request), got %d calls", tr.calls)
+	}
+}
+
+// The actor id is escaped as a single path segment: a `/` must not create extra
+// path segments (endpoint redirection) though the id is passed through unvalidated.
+func TestRunActorRead_EscapesIdInPath(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	_, _, _ = runActorsOver(t, seam, actorsConfig{args: []string{"per_x/roles"}})
+	if strings.Contains(tr.lastPath, "actors/per_x/roles") {
+		t.Errorf("a `/` in the id must not create extra path segments: %q", tr.lastPath)
+	}
+	if !strings.Contains(tr.lastPath, "per_x%2Froles") {
+		t.Errorf("the id should be escaped as a single path segment, got %q", tr.lastPath)
+	}
+}
+
+// Structured json emits the single {data: …} document (raw bytes) — NOT the walked
+// list's aggregated {data:[…]} envelope, and no page is walked.
+func TestRunActorRead_StructuredEmitsSingleRawDocument(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, stdout, _ := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, outputFlag: "json", outputPresent: true})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{`"data"`, "per_0123", `"kind"`} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("structured json should carry the raw document, missing %q:\n%s", want, stdout)
+		}
+	}
+	// The single document is an object, not a list: no array-wrapped data, and the
+	// human badge never appears.
+	if strings.Contains(stdout, `"data":[`) {
+		t.Errorf("the single read must emit a {data: object}, not the aggregated {data:[…]} list:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "[human]") {
+		t.Errorf("structured json must not render the human projection:\n%s", stdout)
+	}
+	if tr.calls != 1 {
+		t.Errorf("the single read must issue exactly one request, got %d", tr.calls)
+	}
+}
+
+// TestRunActorRead_OutputResolvedBeforeInclude pins the output-first precedence:
+// when BOTH --output and --include are invalid, the --output error is reported, and
+// neither costs a request.
+func TestRunActorRead_OutputResolvedBeforeInclude(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	outcome, _, stderr := runActorsOver(t, seam, actorsConfig{args: []string{"per_0123"}, outputFlag: "xml", outputPresent: true, include: []string{"nonsense"}})
+	if outcome != UsageError {
+		t.Fatalf("outcome = %v, want UsageError", outcome)
+	}
+	if strings.Contains(stderr, "nonsense") {
+		t.Errorf("the --output error should be reported first, not the --include error:\n%s", stderr)
+	}
+	if tr.calls != 0 {
+		t.Errorf("both checks are pre-assembly; no request must be sent, got %d calls", tr.calls)
+	}
+}
+
+// --- validateActorInclude unit (the per-read SOT validator) -----------------
+
+func TestValidateActorInclude(t *testing.T) {
+	for _, ok := range [][]string{nil, {"roles"}, {"assignments"}, {"roles", "assignments"}} {
+		if err := validateActorInclude(ok); err != nil {
+			t.Errorf("validateActorInclude(%v) should be valid, got %v", ok, err)
+		}
+	}
+	// A role-only value the actor endpoint drops must be rejected (per-read set).
+	err := validateActorInclude([]string{"subroles"})
+	if err == nil {
+		t.Fatal("validateActorInclude([subroles]) should reject — not in the actor set")
+	}
+	for _, want := range []string{"--include", "subroles", "assignments", "roles"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("validateActorInclude error should name %q, got %q", want, err.Error())
+		}
+	}
+}
+
 // --- validateKind unit (the SOT validator) ---------------------------------
 
 func TestValidateKind(t *testing.T) {
@@ -521,21 +801,49 @@ func TestActorsCommand_UnsupportedKindNoRequest(t *testing.T) {
 	}
 }
 
-// TestActorsCommand_PositionalIsUsageErrorNoRequest pins cobra.NoArgs: a positional
-// is a usage error before any request (no hand-rolled guard).
-func TestActorsCommand_PositionalIsUsageErrorNoRequest(t *testing.T) {
-	tr := &cannedTransport{status: 200, body: actorsPageComplete}
+// TestActorsCommand_SecondPositionalIsUsageErrorNoRequest pins
+// cobra.MaximumNArgs(1): one positional is the single read (covered elsewhere), but
+// a SECOND positional is a usage error before any request (no hand-rolled guard).
+func TestActorsCommand_SecondPositionalIsUsageErrorNoRequest(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
 	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
 
 	root := NewRootCommand()
 	MustRegister(root, newActorsCommand(seam))
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
-	outcome, _ := Run(root, []string{"actors", "per_0123"})
+	outcome, _ := Run(root, []string{"actors", "per_0123", "extra"})
 	if outcome != UsageError {
-		t.Errorf("a positional should be a UsageError via NoArgs, got %v", outcome)
+		t.Errorf("a second positional should be a UsageError via MaximumNArgs(1), got %v", outcome)
 	}
 	if tr.calls != 0 {
-		t.Errorf("a positional must send no request, got %d calls", tr.calls)
+		t.Errorf("a second positional must send no request, got %d calls", tr.calls)
+	}
+}
+
+// TestActorsCommand_OneIdReadsSingleActor pins that one positional now reaches the
+// single read (049 ADR-1's growth from 048's cobra.NoArgs): a real `actors per_0123`
+// invocation issues one GET /actors/{id} and prints the actor.
+func TestActorsCommand_OneIdReadsSingleActor(t *testing.T) {
+	tr := &cannedTransport{status: 200, body: actorDetailBody}
+	seam := &fakeMeSeam{ctx: validMeContext(), transport: tr}
+
+	root := NewRootCommand()
+	MustRegister(root, newActorsCommand(seam))
+	var out, errb bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errb)
+	outcome, _ := Run(root, []string{"actors", "per_0123"})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, errb.String())
+	}
+	if !strings.HasSuffix(tr.lastPath, "/actors/per_0123") {
+		t.Errorf("path = %q, want /actors/per_0123", tr.lastPath)
+	}
+	if tr.calls != 1 {
+		t.Errorf("a single read should issue exactly one request, got %d", tr.calls)
+	}
+	if !strings.Contains(out.String(), "per_0123") {
+		t.Errorf("the actor should be printed:\n%s", out.String())
 	}
 }

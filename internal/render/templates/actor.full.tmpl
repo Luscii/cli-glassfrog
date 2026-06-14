@@ -1,0 +1,16 @@
+{{.Detail.ID}}  [{{.Detail.Kind}}]
+  Name:  {{if eq (trimSpace .Detail.Name) ""}}—{{else}}{{.Detail.Name}}{{end}}
+{{if index .Requested "roles"}}  Roles:
+{{range .Detail.Roles}}    {{.Name}} ({{.ID}})
+      Purpose: {{$p := trimSpace .Purpose}}{{if eq $p ""}}(no purpose set){{else}}{{$p}}{{end}}
+      Domains:
+{{range .Domains}}        - {{.Description}}
+{{else}}        (none)
+{{end}}      Accountabilities:
+{{range .Accountabilities}}        - {{.Description}}
+{{else}}        (none)
+{{end}}{{else}}    (none)
+{{end}}{{end}}{{if index .Requested "assignments"}}  Assignments:
+{{range .Detail.Assignments}}    - {{.RoleID}}  {{if eq (trimSpace .Focus) ""}}—{{else}}{{.Focus}}{{end}}
+{{else}}    (none)
+{{end}}{{end}}

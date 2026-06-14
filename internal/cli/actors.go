@@ -59,19 +59,22 @@ type actorsSeam interface {
 	readTemplateSource(ref output.TemplateRef) (string, error)
 }
 
-// actorsConfig carries everything runActorsList needs, gathered by the command's
+// actorsConfig carries everything runActors needs, gathered by the command's
 // RunE. Keeping the read a function of injected values makes the whole flow —
-// resolve, validate, assemble, build, walk, render/classify — testable over a fake
-// transport with no real network or ~/.glassfrogrc. `actors` takes NO positional
-// (cobra.NoArgs) — its subject is the whole organization, narrowed only by the
-// three optional, combinable filters.
+// resolve, validate, assemble, build, walk/send, render/classify — testable over a
+// fake transport with no real network or ~/.glassfrogrc. `actors` takes an OPTIONAL
+// positional id (cobra.MaximumNArgs(1), 049 ADR-1): 0 args → the directory list
+// (its subject is the whole organization, narrowed only by the three optional,
+// combinable filters), 1 arg → the single-actor read.
 type actorsConfig struct {
 	seam           actorsSeam
-	baseURL        string // inherited persistent --base-url (may be empty)
-	baseURLPresent bool   // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
-	outputFlag     string // inherited persistent --output (may be empty), resolved before any request
-	outputPresent  bool   // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	baseURL        string   // inherited persistent --base-url (may be empty)
+	baseURLPresent bool     // whether --base-url was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	outputFlag     string   // inherited persistent --output (may be empty), resolved before any request
+	outputPresent  bool     // whether --output was supplied (cobra Changed()); the flag rung's presence (040 ADR-2)
+	args           []string // 0 → directory list, 1 → single read by id (049 ADR-1)
 
+	// list filters (the single-read branch forbids them; validateActorsFlags guards)
 	kind     string // --kind filter, validated against {human, agent} before any request
 	kindSet  bool   // whether --kind was provided (Changed); kind is sent only when set AND non-empty
 	roleID   string // --role-id filter, sent verbatim as role_id (free identifier, passed through)
@@ -83,45 +86,72 @@ type actorsConfig struct {
 	perPage    int
 	perPageSet bool // whether --per-page was provided (Changed); presence, not value
 
+	// single-read flag (the list branch forbids it; validateActorsFlags guards)
+	include []string // --include, validated against {roles, assignments} before any request (049 ADR-3)
+
 	reqCtx context.Context
 	stdout io.Writer
 	stderr io.Writer
 }
 
-// runActorsList is the pure orchestration the `actors` leaf delegates to: resolve
-// the output format (020) FIRST, then validate the one closed-enum input (--kind)
-// fail-fast (an unsupported value is a usage error with NO request issued) — both
-// pure checks run before any assembly, output-first so error precedence is
-// consistent with the sibling reads (an invalid --output is reported even when
-// --kind is also invalid; interface § Interactions). Then assemble the connection,
-// build the retrying executor, and walk GET /actors to completion. --role-id and
-// --query are free values passed through (plan ADR-3). It adds no new
-// Outcome/ExitCode and never reads the token.
-func runActorsList(cfg actorsConfig) (Outcome, error) {
+// runActors is the pure orchestration the `actors` leaf delegates to: resolve the
+// output format (020) FIRST, then run the mode-separation guards and validate the
+// branch's closed-enum input fail-fast — all pure, pre-assembly checks, output-first
+// so error precedence is consistent with the sibling reads (an invalid --output is
+// reported even when a misplaced flag or a bad --include is also present; interface
+// § Interactions). Then assemble the connection, build the retrying executor once,
+// and dispatch on whether a positional id was given (049 ADR-1): 0 args → the
+// org-wide directory walk (048, preserved), 1 arg → the single-actor read. It adds
+// no new Outcome/ExitCode and never reads the token.
+func runActors(cfg actorsConfig) (Outcome, error) {
 	// 1. Resolve the render target FIRST (020 widened by 035): a present-but-invalid
 	//    selector — or, for a user template, a missing/unparseable source or empty
-	//    stdin — fails fast as a usage error before any assembly or request.
-	//    Resolving --output ahead of --kind keeps error precedence consistent with the
-	//    sibling reads — an invalid --output is reported even when --kind is also
-	//    invalid.
+	//    stdin — fails fast as a usage error before any assembly or request. Resolving
+	//    --output ahead of the mode-separation / --include / --kind checks keeps error
+	//    precedence consistent with the sibling reads (interface § Interactions).
 	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {
 		return outcome, oerr
 	}
 
-	// 2. Validate --kind against the closed 2-value set BEFORE any request (a bad
-	//    value would be silently ignored at the API — plan ADR-3). --role-id and
-	//    --query are NOT validated locally: the API resolves a free identifier (a
-	//    malformed role_id → 400) and matches free text, reporting cleanly. Both
-	//    checks are pure and pre-assembly, so the no-request-on-rejection tripwire
-	//    holds regardless of their relative order.
-	if err := validateKind(cfg.kind); err != nil {
+	hasID := len(cfg.args) == 1
+
+	// 2. Mode-separation guards BEFORE any assembly or request (049 ADR-1): the list
+	//    filters (--kind/--role-id/--query/--first-page/--per-page) apply only to the
+	//    directory, so passing any of them with an id is a usage error; --include
+	//    applies only to a single actor, so passing it without an id is a usage error.
+	//    cobra's MaximumNArgs(1) already rejects a second positional.
+	if err := validateActorsFlags(hasID, actorsFlagState{
+		kindSet:    cfg.kindSet,
+		roleIDSet:  cfg.roleSet,
+		querySet:   cfg.querySet,
+		firstPage:  cfg.firstPage,
+		perPageSet: cfg.perPageSet,
+		includeSet: len(cfg.include) > 0,
+	}); err != nil {
 		fmt.Fprintln(cfg.stderr, err.Error())
 		return UsageError, err
 	}
 
-	// 3. Resolve the connection and build the client + retrying executor. A base-URL
-	//    error surfaces here (no doomed send); classify + report it.
+	// 3. Validate the branch's one closed-enum input BEFORE any request (a bad value
+	//    would be silently ignored at the API, returning a result indistinguishable
+	//    from a real empty answer — plan ADR-3). On the single branch that is
+	//    --include over {roles, assignments}; on the list branch it is --kind over
+	//    {human, agent}. --role-id/--query and the actor id itself are free values
+	//    passed through (the API reports a bad one cleanly). All checks are pure and
+	//    pre-assembly, so the no-request-on-rejection tripwire holds.
+	if hasID {
+		if err := validateActorInclude(cfg.include); err != nil {
+			fmt.Fprintln(cfg.stderr, err.Error())
+			return UsageError, err
+		}
+	} else if err := validateKind(cfg.kind); err != nil {
+		fmt.Fprintln(cfg.stderr, err.Error())
+		return UsageError, err
+	}
+
+	// 4. Resolve the connection and build the client + retrying executor once. A
+	//    base-URL error surfaces here (no doomed send); classify + report it.
 	ctx := cfg.seam.assemble(cfg.baseURL, cfg.baseURLPresent)
 	client, err := cfg.seam.newClient(ctx)
 	if err != nil {
@@ -129,7 +159,51 @@ func runActorsList(cfg actorsConfig) (Outcome, error) {
 	}
 	exec := apiclient.NewRetryExecutor(client, apiclient.DefaultRetryPolicy, cfg.seam.sleep(), cfg.stderr)
 
+	if hasID {
+		return runActorRead(cfg, exec, rt, cfg.args[0])
+	}
 	return runActorsListWalk(cfg, exec, rt)
+}
+
+// runActorRead reads a single actor by id (GET /actors/{id}). It sends one Execute
+// (no walk, no Page[T] — a single resource) with ?include= built from the
+// already-validated --include values (comma-joined), passing the id through
+// unvalidated (049 ADR-3) so an unknown/malformed id surfaces as the API's clean
+// 404/4xx via the shared classifier. The id is PathEscaped to one opaque segment so
+// a raw `/` cannot redirect the request to a different endpoint (the 025 runRoleGet
+// discipline). A structured --output emits the raw {data: ActorDetail} document
+// verbatim via output.RenderSuccess (the single-resource raw-bytes path, 018 ADR-2 —
+// NOT aggregateRawData, and never a decode-and-re-encode); the human path decodes
+// the ActorDetail and renders the `actor` template over an ActorDetailView carrying
+// the requested-include set, so each footprint section is omitted when unrequested
+// and shows an explicit-absence marker when requested-but-empty (049 ADR-4).
+func runActorRead(cfg actorsConfig, exec executor, rt renderTarget, id string) (Outcome, error) {
+	var q url.Values
+	if len(cfg.include) > 0 {
+		q = url.Values{"include": {strings.Join(cfg.include, ",")}}
+	}
+	req := apiclient.Request{Method: http.MethodGet, Path: "/actors/" + url.PathEscape(id), Query: q}
+
+	if machineFmt, ok := rt.format.MachineFormat(); ok {
+		var raw json.RawMessage
+		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		if rerr != nil {
+			fmt.Fprintln(cfg.stderr, rerr.Error())
+			return RuntimeError, rerr
+		}
+		_, _ = cfg.stdout.Write(doc)
+		return Success, nil
+	}
+
+	var doc glassfrog.ActorDocument
+	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
+	}
+	view := render.ActorDetailView{Detail: doc.Data, Requested: includeSet(cfg.include)}
+	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceActor, rt.format, view)
 }
 
 // runActorsListWalk walks GET /actors. The output format changes ONLY how the
@@ -292,17 +366,90 @@ func validateKind(kind string) error {
 	return validateClosedFlagSet("--kind", []string{kind}, supportedActorKinds)
 }
 
-// newActorsCommand builds the runnable `actors` leaf (ADR-1): a guard-ready cobra
-// command taking NO positional (Args: cobra.NoArgs — a positional is a fail-fast
-// usage error via cobra's own arg validator, no hand-rolled guard), a non-empty
-// Short, and SilenceErrors/SilenceUsage so runActorsList owns its messages. It is
-// the first read keyed purely on flags — its subject is the whole organization,
-// narrowed only by the three optional, combinable filters (--kind, --role-id,
-// --query/-q). It declares the local --kind/--role-id/--query/--first-page/--per-page
-// flags, reads the inherited persistent --base-url/--output flags, then delegates to
-// the pure runActorsList. The seam is injected so tests drive a fake one; production
-// passes productionSeam{}. No `people`/`agents` command is created — --kind selects
-// either through the one ungated /actors endpoint (ADR-1).
+// supportedActorIncludes is the closed 2-value set the single read's --include
+// accepts — the related resources getActor embeds (`roles`, `assignments`). It is a
+// PER-READ set, distinct from the role --include set (026's two-validator
+// precedent): a shared set would accept role-only values (subroles/policies/notes/…)
+// the actor endpoint silently drops, returning the actor with no embed —
+// indistinguishable from "this actor has none" (the silent-wrong-results hazard 049
+// ADR-3 guards against). This guards INPUT only; the API owns the response.
+var supportedActorIncludes = map[string]bool{
+	"roles":       true,
+	"assignments": true,
+}
+
+// validateActorInclude rejects any unsupported --include value outside the closed
+// {roles, assignments} set, before any request (the reject-unknown fail-fast shape,
+// pinned by a transport tripwire — 049 ADR-3). It delegates to the shared
+// validateIncludeSet so the message names --include and lists the supported set in
+// stable (sorted) order — "assignments, roles" — reusing the landed include.go
+// formatting without disturbing the role read's own validateRolesInclude.
+func validateActorInclude(targets []string) error {
+	return validateIncludeSet(targets, supportedActorIncludes)
+}
+
+// actorsFlagState carries which list/single flags were supplied, so
+// validateActorsFlags can reject a cross-branch misuse without re-reading cobra.
+type actorsFlagState struct {
+	kindSet    bool
+	roleIDSet  bool
+	querySet   bool
+	firstPage  bool
+	perPageSet bool
+	includeSet bool
+}
+
+// validateActorsFlags rejects the cross-branch flag misuses fail-fast, before any
+// request (049 ADR-1's mode-separation, pinned by a transport tripwire): the list
+// filters (--kind/--role-id/--query) and the walk controls (--first-page/--per-page)
+// apply only to the directory list, so passing any of them with an actor id is a
+// usage error; --include applies only to a single actor read, so passing it without
+// an id is a usage error. cobra's MaximumNArgs(1) already rejects more than one
+// positional. The message names the misuse and the fix.
+func validateActorsFlags(hasID bool, fs actorsFlagState) error {
+	if hasID {
+		var offending []string
+		if fs.kindSet {
+			offending = append(offending, "--kind")
+		}
+		if fs.roleIDSet {
+			offending = append(offending, "--role-id")
+		}
+		if fs.querySet {
+			offending = append(offending, "--query")
+		}
+		if fs.firstPage {
+			offending = append(offending, "--first-page")
+		}
+		if fs.perPageSet {
+			offending = append(offending, "--per-page")
+		}
+		if len(offending) > 0 {
+			return fmt.Errorf(
+				"%s %s the actor directory list, not a single actor read — remove %s or omit the actor id",
+				joinFlags(offending), pluralVerb(len(offending)), pluralThem(len(offending)),
+			)
+		}
+		return nil
+	}
+	if fs.includeSet {
+		return fmt.Errorf("--include applies to a single actor read; pass an actor id (e.g. `glassfrog actors per_...`)")
+	}
+	return nil
+}
+
+// newActorsCommand builds the runnable `actors` leaf (049 ADR-1): a guard-ready
+// cobra command with an OPTIONAL positional id (Args: cobra.MaximumNArgs(1) — a
+// second positional is a fail-fast usage error via cobra's own arg validator, no
+// hand-rolled guard), a non-empty Short, and SilenceErrors/SilenceUsage so runActors
+// owns its messages. With no positional it lists the whole-organization directory
+// (048), narrowed by the optional, combinable filters (--kind, --role-id, --query/-q,
+// --first-page/--per-page); with one positional it reads that single actor and, on
+// --include, embeds their governance footprint. It reads the inherited persistent
+// --base-url/--output flags, then delegates to the pure runActors. The seam is
+// injected so tests drive a fake one; production passes productionSeam{}. No
+// `people`/`agents` command is created — --kind selects either, and an agt_ id reads
+// the one ungated /actors endpoint (never the ai_integration-gated /agents alias).
 func newActorsCommand(seam actorsSeam) *cobra.Command {
 	var (
 		kind      string
@@ -310,18 +457,20 @@ func newActorsCommand(seam actorsSeam) *cobra.Command {
 		query     string
 		firstPage bool
 		perPage   int
+		include   []string
 	)
 	cmd := &cobra.Command{
-		Use:   "actors",
-		Short: "List and find the actors (people and agents) in the organization",
-		Long: "actors lists the people and agents in the organization, walking every page " +
-			"to completion by default so the directory is complete or plainly flagged " +
-			"incomplete. It takes no positional argument — its subject is the whole " +
-			"organization, narrowed by the optional, combinable filters: --kind (human or " +
-			"agent), --role-id (the actors filling a role), and a free-text --query/-q. The " +
-			"per_/agt_ id and kind badge in each row are the bridge into the per-actor reads. " +
-			"Stop at one page with --first-page.",
-		Args:          cobra.NoArgs,
+		Use:   "actors [id]",
+		Short: "List the actors in the organization, or read one actor by id",
+		Long: "actors lists the people and agents in the organization (walking every page " +
+			"to completion by default), or reads a single actor by id when a positional " +
+			"per_/agt_ id is given. With no id its subject is the whole organization, " +
+			"narrowed by the optional, combinable filters: --kind (human or agent), " +
+			"--role-id (the actors filling a role), and a free-text --query/-q; stop at one " +
+			"page with --first-page. With an id it reads that one actor and can embed their " +
+			"governance footprint with --include (roles, assignments). The directory's " +
+			"per_/agt_ id and kind badge are the bridge into the single read.",
+		Args:          cobra.MaximumNArgs(1),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -335,15 +484,18 @@ func newActorsCommand(seam actorsSeam) *cobra.Command {
 				fmt.Fprintf(cmd.ErrOrStderr(), "could not read the --output flag: %v\n", err)
 				return err
 			}
-			outcome, oerr := runActorsList(actorsConfig{
+			outcome, oerr := runActors(actorsConfig{
 				seam:           seam,
 				baseURL:        baseURL,
 				baseURLPresent: cmd.Flags().Changed(apiclient.FlagBaseURL),
 				outputFlag:     outputFlag,
 				outputPresent:  cmd.Flags().Changed(output.FlagOutput),
+				args:           args,
 				kind:           kind,
 				// Presence, not value: each filter is sent only when its flag is Changed
-				// AND non-empty, so `--flag ""` behaves as no filter (ADR-3).
+				// AND non-empty, so `--flag ""` behaves as no filter (ADR-3); the
+				// mode-separation guard also keys on presence (a list flag with an id is
+				// rejected whatever its value).
 				kindSet:   cmd.Flags().Changed("kind"),
 				roleID:    roleID,
 				roleSet:   cmd.Flags().Changed("role-id"),
@@ -354,6 +506,7 @@ func newActorsCommand(seam actorsSeam) *cobra.Command {
 				// Presence, not value: a provided 0/negative --per-page must reach the
 				// API rather than be silently ignored (paging's no-clamp contract).
 				perPageSet: cmd.Flags().Changed("per-page"),
+				include:    include,
 				reqCtx:     cmd.Context(),
 				stdout:     cmd.OutOrStdout(),
 				stderr:     cmd.ErrOrStderr(),
@@ -361,11 +514,12 @@ func newActorsCommand(seam actorsSeam) *cobra.Command {
 			return outcomeToDispatchError(outcome, oerr)
 		},
 	}
-	cmd.Flags().StringVar(&kind, "kind", "", "Filter by actor type (one of: "+strings.Join(supportedKindNames(), ", ")+"), sent as the kind parameter")
-	cmd.Flags().StringVar(&roleID, "role-id", "", "Filter to the actors filling a role by its id, sent as the role_id parameter (omitted when empty)")
-	cmd.Flags().StringVarP(&query, "query", "q", "", "Free-text search over actor names, sent as the endpoint's q parameter (omitted when empty)")
-	cmd.Flags().BoolVar(&firstPage, "first-page", false, "Fetch only the first page and signal if more actors exist")
-	cmd.Flags().IntVar(&perPage, "per-page", 0, "Page size for the walk (the API owns the valid range)")
+	cmd.Flags().StringVar(&kind, "kind", "", "Filter by actor type (one of: "+strings.Join(supportedKindNames(), ", ")+"), sent as the kind parameter (directory list only)")
+	cmd.Flags().StringVar(&roleID, "role-id", "", "Filter to the actors filling a role by its id, sent as the role_id parameter (directory list only; omitted when empty)")
+	cmd.Flags().StringVarP(&query, "query", "q", "", "Free-text search over actor names, sent as the endpoint's q parameter (directory list only; omitted when empty)")
+	cmd.Flags().BoolVar(&firstPage, "first-page", false, "Fetch only the first page and signal if more actors exist (directory list only)")
+	cmd.Flags().IntVar(&perPage, "per-page", 0, "Page size for the walk (directory list only; the API owns the valid range)")
+	cmd.Flags().StringSliceVar(&include, "include", nil, "Related resources to embed on a single actor read (roles,assignments)")
 	return cmd
 }
 
