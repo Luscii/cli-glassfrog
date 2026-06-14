@@ -26,6 +26,24 @@ type Response struct {
 	Header http.Header
 }
 
+// Version returns the resource version captured from this read response — the
+// ETag header, verbatim — for a later guarded write (Guarded Writes, 053) to
+// send back as If-Match. The value is returned exactly as the server stated it:
+// no unquoting, no weak-validator ("W/…") prefix stripping, no normalization,
+// because an If-Match precondition must echo the server's token byte-for-byte or
+// risk a spurious 412. When the response carries no ETag, it returns "" — the
+// "no version captured" sentinel, indistinguishable from an empty ETag (neither
+// is a usable precondition). Header lookup is case-insensitive (net/http
+// canonicalizes header names), so ETag/Etag/etag all match.
+//
+// Version is purely derived from the Header the Response already holds: it stores
+// nothing, mutates nothing, sends nothing, and renders nothing. It is the
+// read-side capture seam Guarded Writes (053) — the intended consumer — will call
+// on its in-process pre-write read; no existing call site invokes it yet (ADR-2).
+func (r *Response) Version() string {
+	return r.Header.Get("ETag")
+}
+
 // TransportError is the typed, code-free failure for a request that could not
 // reach the API or complete at the wire — connection refused, DNS failure, TLS
 // failure, or the request timeout elapsing. It wraps the underlying network
