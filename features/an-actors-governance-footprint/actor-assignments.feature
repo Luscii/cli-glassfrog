@@ -17,7 +17,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
     # I want to list every role an actor fills by its id with one command.
 
     # Source: 050-actor-assignments — Scenario: List the roles an actor fills
-    @wip
     Scenario: An actor's assignments are listed
       Given a complete connection context with a stored token
       And the actor "per_0123" fills two roles
@@ -27,7 +26,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with code 0
 
     # Source: 050-actor-assignments — Scenario: Assignments read for either a person or an agent
-    @wip
     Scenario: A person and an agent are read from the same endpoint
       Given a complete connection context with a stored token
       And the person "per_0123" and the agent "agt_0456" each fill a role
@@ -37,7 +35,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with code 0
 
     # Source: 050-actor-assignments — Scenario: Actor id does not exist
-    @wip
     Scenario: An unknown actor id fails with the API status
       Given a complete connection context with a stored token
       And no actor "per_ffff" exists
@@ -46,7 +43,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with a non-zero API-error code
 
     # Source: 050-actor-assignments — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog assignments per_0123"
@@ -55,7 +51,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with code 2
 
     # Source: 050-actor-assignments — Scenario: Actor fills no roles
-    @wip
     Scenario: An actor with no assignments is a clean success
       Given a complete connection context with a stored token
       And the actor "per_0123" fills no roles
@@ -64,7 +59,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with code 0
 
     # Source: 050-actor-assignments — Scenario: Missing actor-id is rejected before any request
-    @wip
     Scenario: A missing actor-id is a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog assignments"
@@ -97,7 +91,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
     # I want each assignment shown with its focus and, for elected seats, its election expiry.
 
     # Source: 050-actor-assignments — Scenario: An assignment row shows its focus and election expiry
-    @wip
     Scenario: An assignment shows its focus and election expiry
       Given a complete connection context with a stored token
       And the actor "per_0123" fills a role through an assignment with a focus and an election date
@@ -120,7 +113,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 050-actor-assignments — Scenario: Paginated list with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the actor "per_0123" has assignments spanning more than one page
@@ -130,7 +122,6 @@ Feature: An Actor's Governance Footprint — Actor Assignments
       And the command will exit with code 0
 
     # Source: 050-actor-assignments — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the assignment list walk fails after retrieving the first page
