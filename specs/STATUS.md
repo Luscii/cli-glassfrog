@@ -53,3 +53,4 @@
 | 049-actor-read | Analyzed | analyze | 2026-06-13T17:55:00 |
 | 050-actor-assignments | Complete | validate | 2026-06-14T12:30:00 |
 | 051-subrole-filler-roll-up | Analyzed | analyze | 2026-06-14T13:20:00 |
+| 052-version-capture-on-read | Analyzed | analyze | 2026-06-14T16:00:00 |
