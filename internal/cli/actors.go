@@ -94,6 +94,36 @@ type actorsConfig struct {
 	stderr io.Writer
 }
 
+// actorsWalkConfig is the minimal context the actors list-walk needs once the
+// request (path + query) is built by the caller. It single-sources the walk over
+// the `actors` directory (runActors, path /actors) and the subrole roll-up
+// (runSubroleActors, path /roles/{role_id}/subroles/actors): the page loop, the
+// structured/human render branch, the completeness note, and the errors.As
+// classification chain are identical (plan ADR-3 — reuse, do not copy). Only the
+// request differs, so it is the parameter, not these fields.
+type actorsWalkConfig struct {
+	firstPage  bool
+	perPage    int
+	perPageSet bool // whether --per-page was provided (Changed); presence, not value
+
+	reqCtx context.Context
+	stdout io.Writer
+	stderr io.Writer
+}
+
+// walk projects the directory config down to the shared walk context, so both the
+// `actors` directory and the subrole roll-up drive the same list-walk helpers.
+func (cfg actorsConfig) walk() actorsWalkConfig {
+	return actorsWalkConfig{
+		firstPage:  cfg.firstPage,
+		perPage:    cfg.perPage,
+		perPageSet: cfg.perPageSet,
+		reqCtx:     cfg.reqCtx,
+		stdout:     cfg.stdout,
+		stderr:     cfg.stderr,
+	}
+}
+
 // runActors is the pure orchestration the `actors` leaf delegates to: resolve the
 // output format (020) FIRST, then run the mode-separation guards and validate the
 // branch's closed-enum input fail-fast — all pure, pre-assembly checks, output-first
@@ -162,7 +192,8 @@ func runActors(cfg actorsConfig) (Outcome, error) {
 	if hasID {
 		return runActorRead(cfg, exec, rt, cfg.args[0])
 	}
-	return runActorsListWalk(cfg, exec, rt)
+	req := apiclient.Request{Method: http.MethodGet, Path: "/actors", Query: actorsQuery(cfg)}
+	return runActorsListWalk(cfg.walk(), exec, rt, req)
 }
 
 // runActorRead reads a single actor by id (GET /actors/{id}). It sends one Execute
@@ -206,16 +237,16 @@ func runActorRead(cfg actorsConfig, exec executor, rt renderTarget, id string) (
 	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceActor, rt.format, view)
 }
 
-// runActorsListWalk walks GET /actors. The output format changes ONLY how the
-// gathered set is rendered — never how much is fetched: every format walks to
-// completion by default and signals incompleteness the same way (a stderr note,
-// never a silently short list). --first-page opts out to a single page. This is the
-// 038/041 roles/projects/search walked-list shape with Actor items. The filters
-// (kind/role_id/q) ride EVERY page of the walk — paging.All clones and preserves
-// the base request's query across pages (plan Risk).
-func runActorsListWalk(cfg actorsConfig, exec executor, rt renderTarget) (Outcome, error) {
-	req := apiclient.Request{Method: http.MethodGet, Path: "/actors", Query: actorsQuery(cfg)}
-
+// runActorsListWalk walks the supplied actors-list request to completion. The
+// output format changes ONLY how the gathered set is rendered — never how much is
+// fetched: every format walks to completion by default and signals incompleteness
+// the same way (a stderr note, never a silently short list). --first-page opts out
+// to a single page. This is the 038/041 roles/projects/search walked-list shape with
+// Actor items, shared by the `actors` directory (path /actors) and the subrole
+// roll-up (path /roles/{role_id}/subroles/actors) — only the request differs (plan
+// ADR-3). The request's query filter rides EVERY page of the walk — paging.All
+// clones and preserves the base request's query across pages (plan Risk).
+func runActorsListWalk(cfg actorsWalkConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.firstPage {
 		return runActorsFirstPage(cfg, exec, rt, req)
 	}
@@ -264,7 +295,7 @@ func runActorsListWalk(cfg actorsConfig, exec executor, rt renderTarget) (Outcom
 // the same {data:[…]} envelope the default walk does; the human path renders the
 // projection. --per-page (if set) sizes the single request; the walker is not
 // involved.
-func runActorsFirstPage(cfg actorsConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
+func runActorsFirstPage(cfg actorsWalkConfig, exec executor, rt renderTarget, req apiclient.Request) (Outcome, error) {
 	if cfg.perPageSet {
 		// Pass the value through as-is — no client-side clamp (paging's contract): an
 		// out-of-range value surfaces the API's rejection rather than being ignored.
@@ -345,7 +376,7 @@ func actorsQuery(cfg actorsConfig) url.Values {
 // value is passed through as-is — no client-side clamp (paging's contract). Unlike
 // /search, /actors has no endpoint-specific maximum to override, so an absent
 // --per-page uses paging.All's generic default.
-func actorsWalkOptions(cfg actorsConfig) []paging.Option {
+func actorsWalkOptions(cfg actorsWalkConfig) []paging.Option {
 	if cfg.perPageSet {
 		return []paging.Option{paging.WithPageSize(cfg.perPage)}
 	}
