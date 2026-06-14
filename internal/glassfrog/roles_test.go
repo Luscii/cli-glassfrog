@@ -368,3 +368,100 @@ func TestRoleDocumentOmittedIncludesStayEmpty(t *testing.T) {
 		t.Errorf("a null parent_role should decode to nil, got %+v", d.ParentRole)
 	}
 }
+
+// actorAssignmentsPageFixture is a representative GET /actors/{actor_id}/assignments
+// body (050): the paginated {data: [Assignment], meta} envelope the actor-end read
+// returns under its default ?include=role. The first assignment carries a full
+// embedded role (id/type/name/purpose/parent_role_id) plus a focus and an election
+// date; the second carries a role with a null purpose and a null parent_role_id (a
+// top-level role) and no focus/election — exercising the nullable-as-empty-string
+// convention for all four nullable fields. Snake_case names throughout so a missing
+// JSON tag fails loud here.
+const actorAssignmentsPageFixture = `{
+  "data": [
+    {
+      "id": "asgn_1", "actor_id": "per_0123", "role_id": "role_a",
+      "focus": "Keep the lights on", "elected_until": "2026-12-31",
+      "role": {"id": "role_a", "type": "role", "name": "Marketing Lead", "purpose": "A market that knows us", "parent_role_id": "role_parent"}
+    },
+    {
+      "id": "asgn_2", "actor_id": "per_0123", "role_id": "role_b",
+      "focus": null, "elected_until": null,
+      "role": {"id": "role_b", "type": "circle", "name": "General Company Circle", "purpose": null, "parent_role_id": null}
+    }
+  ],
+  "meta": {"pagination": {"per_page": 100, "has_next_page": false, "next_cursor": ""}}
+}`
+
+// TestActorAssignmentsPageDecodesEmbeddedRole pins the actor-end shape (050 ADR-2):
+// a ?include=role body decodes Page[Assignment] with the embedded Role populated
+// (id/type/name plus the nullable purpose/parent_role_id), and an assignment whose
+// role has a null purpose / null parent_role_id (a top-level role) decodes those as
+// empty strings without error — the landed nullable-as-empty-string convention.
+func TestActorAssignmentsPageDecodesEmbeddedRole(t *testing.T) {
+	var page Page[Assignment]
+	if err := json.Unmarshal([]byte(actorAssignmentsPageFixture), &page); err != nil {
+		t.Fatalf("decoding the /actors/{id}/assignments fixture failed: %v", err)
+	}
+	if len(page.Data) != 2 {
+		t.Fatalf("assignments data = %d, want 2", len(page.Data))
+	}
+
+	first := page.Data[0]
+	if first.Role.ID != "role_a" || first.Role.Type != "role" || first.Role.Name != "Marketing Lead" {
+		t.Errorf("embedded role not bound: %+v", first.Role)
+	}
+	if first.Role.Purpose != "A market that knows us" || first.Role.ParentRoleID != "role_parent" {
+		t.Errorf("embedded role purpose/parent not bound: purpose=%q parent=%q", first.Role.Purpose, first.Role.ParentRoleID)
+	}
+	if first.Focus != "Keep the lights on" || first.ElectedUntil != "2026-12-31" {
+		t.Errorf("focus/election not bound: focus=%q elected=%q", first.Focus, first.ElectedUntil)
+	}
+
+	// The second assignment's role has null purpose/parent_role_id — the nullable
+	// fields decode to empty strings (top-level role), never a panic or a pointer.
+	second := page.Data[1]
+	if second.Role.Name != "General Company Circle" {
+		t.Errorf("second embedded role name = %q, want General Company Circle", second.Role.Name)
+	}
+	if second.Role.Purpose != "" || second.Role.ParentRoleID != "" {
+		t.Errorf("null purpose/parent_role_id should decode to empty strings: purpose=%q parent=%q", second.Role.Purpose, second.Role.ParentRoleID)
+	}
+	if second.Focus != "" || second.ElectedUntil != "" {
+		t.Errorf("null focus/elected_until should decode to empty strings: focus=%q elected=%q", second.Focus, second.ElectedUntil)
+	}
+}
+
+// TestAssignmentRoleEndLeavesEmbeddedRoleZero pins the forward-compatibility the
+// additive growth exists to protect (050 ADR-2): a role-end (?include=actor) body
+// and a 025 ?include=assignments body decode with the new embedded Role left
+// zero-valued and NO error — the Actor block binds, the Role block stays empty (the
+// 012→025 forward-compatible pattern).
+func TestAssignmentRoleEndLeavesEmbeddedRoleZero(t *testing.T) {
+	// Role-end /roles/{id}/assignments (047): ?include=actor, no role block.
+	roleEndBody := `{"id": "asgn_3", "actor_id": "per_9", "role_id": "role_z", "focus": "Ship it", "elected_until": "", "actor": {"id": "per_9", "name": "Alice", "kind": "human"}}`
+	var a Assignment
+	if err := json.Unmarshal([]byte(roleEndBody), &a); err != nil {
+		t.Fatalf("decoding a role-end assignment body failed: %v", err)
+	}
+	if a.Actor.Name != "Alice" {
+		t.Errorf("role-end actor block must bind: %+v", a.Actor)
+	}
+	if a.Role.ID != "" || a.Role.Name != "" || a.Role.Type != "" || a.Role.Purpose != "" || a.Role.ParentRoleID != "" {
+		t.Errorf("role-end body must leave the embedded role zero-valued, got %+v", a.Role)
+	}
+
+	// A 025 ?include=assignments embed (inside a RoleDetail) also omits the role
+	// block — it decodes unused, zero-valued, without error.
+	detailBody := `{"data": {"id": "role_z", "type": "role", "name": "Z", "assignments": [{"id": "asgn_4", "actor_id": "per_8", "role_id": "role_z", "actor": {"id": "per_8", "name": "Bob", "kind": "human"}}]}}`
+	var doc RoleDocument
+	if err := json.Unmarshal([]byte(detailBody), &doc); err != nil {
+		t.Fatalf("decoding a 025 include=assignments body failed: %v", err)
+	}
+	if len(doc.Data.Assignments) != 1 {
+		t.Fatalf("assignments not bound: %+v", doc.Data.Assignments)
+	}
+	if doc.Data.Assignments[0].Role.ID != "" || doc.Data.Assignments[0].Role.Name != "" {
+		t.Errorf("025 embed must leave the assignment's role zero-valued, got %+v", doc.Data.Assignments[0].Role)
+	}
+}

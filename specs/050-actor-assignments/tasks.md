@@ -33,7 +33,7 @@ Phase 4: Executable acceptance (1 task, depends on Phase 3) [Shared]
 
 ## Phase 1: `internal/glassfrog.Assignment` embedded-`role` growth [Shared]
 
-- [ ] **T001** [Shared] Grow `glassfrog.Assignment` with an embedded `role` object — additive, forward-compatible decode tests
+- [x] **T001** [Shared] Grow `glassfrog.Assignment` with an embedded `role` object — additive, forward-compatible decode tests — 2 decode tests (actor-end populated + role-end/025 zero-valued); no scenarios at this layer
   - **Scope**: In `internal/glassfrog/roles.go`, add an embedded `Role` struct field to `Assignment` tagged `json:"role"`, mirroring the existing embedded `actor` block — fields `id`, `type`, `name`, and the nullable `purpose`/`parent_role_id` modeled as plain strings (the existing nullable `focus`/`elected_until` pattern). This is the actor-end default-include shape (`{id, type, name, purpose, parent_role_id}`) `listActorAssignments` returns. Growth is **additive** — change no existing field, tag, or the embedded `actor` block (plan ADR-2; 011 ADR-1 / 025 ADR-2 grow-not-duplicate, **not** a new `AssignmentDetail` type). Schema only — no transport, cobra, or exit codes; the package stays a leaf imported by `cli`/`apiclient` without a cycle.
   - **Acceptance criteria**:
     - A `GET /actors/{actor_id}/assignments` body with `?include=role` decodes into `Assignment` with the embedded `role` (`id`, `type`, `name`, `purpose`, `parent_role_id`) populated
