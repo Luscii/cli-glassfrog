@@ -58,6 +58,10 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Proposal Write-Flow — the multi-step governance write path: create → propose → respond → accepted
     + affects: Practitioner
     + related-to: Unsignalled Plan Limits
+    * Unguided Change Construction — building a proposal means hand-writing each governance change command (`CreateRole`, `UpdateAccountability`, …) as free-form JSON, because the CLI offers no per-type structure or guidance for the change set, so constructing a valid `changes[]` is error-prone and demands prior knowledge of each command's shape
+      + affects: Practitioner
+      + affects: AI agent
+      + candidate: Typed Change Builders — a CLI command (or flag set) per change type that shapes the proposal `changes[]` payload so each command's fields are explicit rather than hand-written free-form JSON
   * Undiscoverable Governance — when working a tension, the operator can't find which roles, policies, or role-fillers are relevant without already knowing where to look; nothing lets them search the record by topic or relevance
     + affects: Practitioner
     + affects: AI agent
