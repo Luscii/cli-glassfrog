@@ -59,7 +59,7 @@ Feature: Actors Disconnected from Governance — Actor Read
     @validation @wip
     Scenario: A single read issues exactly one request and no page walk
       Given a transport tripwire that records every request that is sent
-      And an actor who fills many roles returned with assignments embedded
+      And an actor who fills many roles is returned with assignments embedded
       When an agent runs "glassfrog actors per_abc --include assignments"
       Then exactly one request will be issued to "/actors/per_abc"
       And no pagination cursor will be followed
