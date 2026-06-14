@@ -153,7 +153,7 @@ func newSubroleActorsCommand(seam actorsSeam) *cobra.Command {
 			"default. It is the cross-role counterpart of `actors --role-id` (which lists " +
 			"the actors filling one role) and the actor-shaped twin of `tension subroles`. " +
 			"Each row is a bare actor (id, name, kind) — not an assignment, so no focus or " +
-			"election is shown. Narrow the roll-up to people or agents with --kind; stop at " +
+			"election is shown. Narrow the roll-up to humans or agents with --kind; stop at " +
 			"one page with --first-page. A leaf anchor (no sub-roles) is surfaced as the API's " +
 			"404 read failure, distinct from a sub-role set that simply carries no fillers.",
 		Args:          cobra.ExactArgs(1),
