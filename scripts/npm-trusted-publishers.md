@@ -6,11 +6,20 @@ publishing** — no long-lived `NPM_TOKEN` is stored anywhere. For that to work,
 each of the five published package names must be registered **once** on
 npmjs.com as trusting this repository's release workflow. This is a one-time
 maintainer ops step, in the spirit of
-[`setup-branch-protection.sh`](./setup-branch-protection.sh) — until it is done,
-the first `npm publish` for a name fails with an authentication error.
+[`setup-branch-protection.sh`](./setup-branch-protection.sh).
 
-There is no npm CLI for configuring trusted publishers; it is done through the
-npmjs.com web UI, so this is documentation rather than a script.
+**Order matters — the package must exist first.** Unlike PyPI, npm does **not**
+let you configure a trusted publisher for a name that does not yet exist, and it
+will **not** create the package on a first OIDC publish. So the very first
+publish of each name is a manual, token-authenticated **bootstrap** (see below);
+only after the names exist can the trusted publishers be registered, after which
+every release publishes tokenlessly. Until a name's trusted publisher is
+registered, the OIDC `npm-publish` job fails for it with a `403` auth error.
+
+Registration is done through the npmjs.com web UI. (npm ≥ 11.10 also offers an
+`npm trust` CLI, but it requires **account-level 2FA** and rejects granular
+automation tokens — so the web UI is the path when only a CI/automation token is
+on hand.)
 
 ## Packages
 
@@ -23,6 +32,27 @@ version (the tag without its leading `v`):
 - `@luscii-healthtech/glassfrog-linux-arm64`
 - `@luscii-healthtech/glassfrog-linux-x64`
 
+## Bootstrap: create the package names (one-time, with a token)
+
+Because npm requires each name to exist before its trusted publisher can be
+configured, create all five with a manual publish, authenticated by an
+`@luscii-healthtech` member's npm token in a (gitignored) `.npmrc`:
+
+1. Build the four platform binaries: `goreleaser release --clean --skip=publish`
+   (for a local build off a throwaway `vX.Y.Z` tag on a dirty tree, add
+   `--skip=validate`).
+2. Generate the five packages:
+   `node npm/build.mjs --version vX.Y.Z --dist dist --out dist/npm`.
+3. Publish the **four platform packages first, the umbrella last** (the
+   umbrella's `optionalDependencies` pin `=X.Y.Z`, so its deps must already be on
+   the registry): `npm publish dist/npm/glassfrog-<os>-<cpu> --access public` for
+   each, then `npm publish dist/npm/glassfrog --access public`.
+
+A first publish always claims the `latest` dist-tag, so the **first OIDC release
+must use a version greater than the bootstrap version** — that release becomes
+the provenance-attested `latest`. The bootstrap token is needed only here; once
+the trusted publishers are registered, delete or rotate it.
+
 ## One-time setup (per package name)
 
 Prerequisite: you are a member of the `@luscii-healthtech` npm org with publish
@@ -31,9 +61,8 @@ rights, and the org allows public scoped packages.
 For **each** of the five package names above:
 
 1. Sign in to <https://www.npmjs.com> as an org member.
-2. Open the package's **Settings → Publishing access** (for a name that does not
-   exist yet, configure the trusted publisher first — npm creates the package on
-   the first trusted-publishing publish).
+2. Open the package's **Settings → Trusted Publisher** (the package already
+   exists from the bootstrap above).
 3. Add a **GitHub Actions** trusted publisher with:
    - **Organization / repository**: `Luscii/cli-glassfrog`
    - **Workflow filename**: `release.yml`
