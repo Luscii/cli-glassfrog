@@ -19,7 +19,6 @@ Feature: Proposal Creation
     # I want to create a draft proposal anchored to that tension in one command.
 
     # Source: 055-proposal-creation — Scenario: Create a proposal with an inline change set
-    @wip
     Scenario: A draft proposal is created from an inline change set
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
@@ -30,7 +29,6 @@ Feature: Proposal Creation
       And the command will exit with code 0
 
     # Source: 055-proposal-creation — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]'"
@@ -39,7 +37,6 @@ Feature: Proposal Creation
       And the command will exit with code 2
 
     # Source: 055-proposal-creation — Scenario: Unknown anchor tension
-    @wip
     Scenario: An unknown anchor tension fails with the API status
       Given a complete connection context with a stored token
       And no tension "ten_ffff" exists
@@ -48,7 +45,6 @@ Feature: Proposal Creation
       And the command will exit with a non-zero API-error code
 
     # Source: 055-proposal-creation — Scenario: Premium async proposals not enabled
-    @wip
     Scenario: A create on an organization without async proposals is refused
       Given a complete connection context with a stored token
       And the proposals endpoint answers the create with a permission-denied response
@@ -57,7 +53,6 @@ Feature: Proposal Creation
       And the command will exit with the permission code
 
     # Source: 055-proposal-creation — Proposed: plan Risk + §133 (POST is non-idempotent, never auto-retried on 429)
-    @wip
     Scenario: A rate-limited create is surfaced, not silently re-sent
       Given a complete connection context with a stored token
       And the proposals endpoint answers the create with a rate-limit response
@@ -96,7 +91,6 @@ Feature: Proposal Creation
     # I want the create to return the proposal's prp_ id and draft status.
 
     # Source: 055-proposal-creation — Scenario: The created proposal's id and status are visible in JSON output
-    @wip
     Scenario: The created proposal's id and status are present in structured output
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
@@ -105,7 +99,6 @@ Feature: Proposal Creation
       And the command will exit with code 0
 
     # Source: 055-proposal-creation — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
-    @wip
     Scenario: An invalid output format is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]' -o xml"
@@ -119,7 +112,6 @@ Feature: Proposal Creation
     # I want to read the --changes array from a file or from piped stdin.
 
     # Source: 055-proposal-creation — Scenario: Read the change set from a file
-    @wip
     Scenario: The change set is read from a file
       Given a complete connection context with a stored token
       And a file "changes.json" holding a JSON array of changes
@@ -129,7 +121,6 @@ Feature: Proposal Creation
       And the command will exit with code 0
 
     # Source: 055-proposal-creation — Scenario: Read the change set from piped stdin
-    @wip
     Scenario: The change set is read from piped stdin
       Given a complete connection context with a stored token
       And a JSON array of changes piped on standard input
@@ -143,7 +134,6 @@ Feature: Proposal Creation
     # I want a missing or empty change set rejected before any request is made.
 
     # Source: 055-proposal-creation — Scenario: Missing change set is rejected before any request
-    @wip
     Scenario: A missing change set is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal create ten_0123"
@@ -152,7 +142,6 @@ Feature: Proposal Creation
       And the command will exit with code 2
 
     # Source: 055-proposal-creation — Scenario: Empty change set is rejected before any request
-    @wip
     Scenario: An empty change set is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal create ten_0123 --changes '[]'"
@@ -161,7 +150,6 @@ Feature: Proposal Creation
       And the command will exit with code 2
 
     # Source: 055-proposal-creation — Scenario: Unparseable change set is rejected before any request
-    @wip
     Scenario: An unparseable change set is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal create ten_0123 --changes 'not json'"
@@ -170,7 +158,6 @@ Feature: Proposal Creation
       And the command will exit with code 2
 
     # Source: 055-proposal-creation — Scenario: A change without a type is rejected before any request
-    @wip
     Scenario: A change lacking a type is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"name\":\"Scribe\"}]'"
