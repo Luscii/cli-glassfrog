@@ -16,7 +16,6 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
     # I want plan-gated 403s recognized as distinct from ordinary permission denials.
 
     # Source: 060-feature-gate-recognition — Scenario: Advancing a draft on a non-Premium org is recognized as a plan limit
-    @wip
     Scenario: A 403 from advancing a draft is recognized as a possible plan limit
       Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       When the failure is checked for a feature gate
@@ -24,21 +23,18 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
       And the suspected gate will be named as Premium async proposals
 
     # Source: 060-feature-gate-recognition — Scenario: Creating a proposal on a non-Premium org is recognized as a plan limit
-    @wip
     Scenario: A 403 from creating a proposal is recognized as a possible plan limit
       Given the create-proposal operation POST /proposals had been rejected with HTTP status 403
       When the failure is checked for a feature gate
       Then it will be recognized as a possible plan-limit rejection naming Premium async proposals
 
     # Source: 060-feature-gate-recognition — Scenario: Recording a response on a non-Premium org is recognized as a plan limit
-    @wip
     Scenario: A 403 from recording a response is recognized as a possible plan limit
       Given the record-response operation POST /proposals/prp_0123/responses had been rejected with HTTP status 403
       When the failure is checked for a feature gate
       Then it will be recognized as a possible plan-limit rejection naming Premium async proposals
 
     # Source: 060-feature-gate-recognition — Scenario: A 403 from a non-gated read is not a plan limit
-    @wip
     Scenario: A 403 from a non-gated operation is not recognized as a plan limit
       Given the role-read operation GET /roles/role_0123 had been rejected with HTTP status 403
       When the failure is checked for a feature gate
@@ -46,14 +42,12 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
       And it will remain a generic permission denial
 
     # Source: 060-feature-gate-recognition — Scenario: A non-403 failure from a gated operation is not a plan limit
-    @wip
     Scenario: A non-403 failure from a gated operation is not recognized as a plan limit
       Given the create-proposal operation POST /proposals had been rejected with HTTP status 422 for an invalid change
       When the failure is checked for a feature gate
       Then it will not be recognized as a plan-limit rejection
 
     # Source: 060-feature-gate-recognition — Scenario: Recognition ignores body content when identifying the gate
-    @wip
     Scenario: Recognition keys on the operation and status, not the response body
       Given the create-proposal operation POST /proposals had been rejected with HTTP status 403
       And the response body described an unrelated cause
@@ -67,7 +61,6 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
     # I want to receive a recognized rejection tagged as a possible plan limit with the suspected gate named.
 
     # Source: 060-feature-gate-recognition — Scenario: A genuine permission denial on a gated operation is still flagged as possible
-    @wip
     Scenario: A permission denial on a gated operation is flagged as possible, not confirmed
       Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       And the rejection was a genuine permission denial unrelated to the plan
@@ -76,7 +69,6 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
       And recognition will make no claim of certainty about the cause
 
     # Source: 060-feature-gate-recognition — Scenario: A modeled ai_integration gate has no reachable command today
-    @wip
     Scenario: The ai_integration gate is modeled but no operation triggers it today
       Given the ai_integration gate kind is modeled
       And no operation in the recognized set carries the ai_integration gate
