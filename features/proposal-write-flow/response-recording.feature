@@ -20,7 +20,6 @@ Feature: Response Recording
     # I want to record a no_objection response with one command.
 
     # Source: 058-response-recording — Scenario: Record a no-objection response
-    @wip
     Scenario: A no-objection response is recorded against the proposal
       Given a complete connection context with a stored token
       And the proposal "prp_0123" is circulating for acceptance
@@ -31,7 +30,6 @@ Feature: Response Recording
       And the command will exit with code 0
 
     # Source: 058-response-recording — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog proposal respond prp_0123 --response no_objection"
@@ -40,7 +38,6 @@ Feature: Response Recording
       And the command will exit with code 2
 
     # Source: 058-response-recording — Scenario: A second response by the same person is rejected by the server
-    @wip
     Scenario: A second response by the same person is surfaced, not retried
       Given a complete connection context with a stored token
       And the responses endpoint answers that this person has already responded
@@ -50,7 +47,6 @@ Feature: Response Recording
       And the command will exit with a non-zero API-error code
 
     # Source: 058-response-recording — Scenario: Premium plan-gate is surfaced as a permission failure
-    @wip
     Scenario: A Premium plan-gate is surfaced as a permission failure
       Given a complete connection context with a stored token
       And the responses endpoint answers that async proposals are not enabled
@@ -60,7 +56,6 @@ Feature: Response Recording
       And the command will exit with the permission code
 
     # Source: 058-response-recording — Scenario: Unknown or invisible proposal
-    @wip
     Scenario: An unknown proposal fails with the API status
       Given a complete connection context with a stored token
       And no proposal "prp_ffff" is visible to the caller
@@ -69,7 +64,6 @@ Feature: Response Recording
       And the command will exit with a non-zero API-error code
 
     # Source: 058-response-recording — Proposed: §133 (POST is non-idempotent, never auto-retried on 429)
-    @wip
     Scenario: A rate-limited recording is surfaced, not silently re-sent
       Given a complete connection context with a stored token
       And the responses endpoint answers the recording with a rate-limit response
@@ -79,7 +73,6 @@ Feature: Response Recording
       And the command will exit with the rate-limit code
 
     # Source: 058-response-recording — Proposed: plan ADR-3 (reuse ContentType seam; send no If-Match)
-    @wip
     Scenario: The write carries a JSON content type and no precondition
       Given a complete connection context with a stored token
       When an agent records a response with "glassfrog proposal respond prp_0123 --response no_objection"
@@ -117,7 +110,6 @@ Feature: Response Recording
     # I want to record a bring_to_meeting response that blocks auto-acceptance.
 
     # Source: 058-response-recording — Scenario: Record a bring-to-meeting response
-    @wip
     Scenario: A bring-to-meeting response is recorded against the proposal
       Given a complete connection context with a stored token
       And the proposal "prp_0123" is circulating for acceptance
@@ -132,7 +124,6 @@ Feature: Response Recording
     # I want the recorded response to carry the parent proposal's status.
 
     # Source: 058-response-recording — Scenario: A response that triggers auto-acceptance shows the accepted status
-    @wip
     Scenario: A response that triggers auto-acceptance shows the accepted status
       Given a complete connection context with a stored token
       And the proposal "prp_0123" is awaiting only this member's response
@@ -146,7 +137,6 @@ Feature: Response Recording
     # I want a missing or unsupported response value rejected before any request is made.
 
     # Source: 058-response-recording — Scenario: Missing response value is rejected before any request
-    @wip
     Scenario: A missing response value is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal respond prp_0123"
@@ -155,7 +145,6 @@ Feature: Response Recording
       And the command will exit with code 2
 
     # Source: 058-response-recording — Scenario: Unsupported response value is rejected before any request
-    @wip
     Scenario: An unsupported response value is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal respond prp_0123 --response maybe"
@@ -164,7 +153,6 @@ Feature: Response Recording
       And the command will exit with code 2
 
     # Source: 058-response-recording — Proposed: interface dispatch (resolve --output before validating --response)
-    @wip
     Scenario: An invalid output format is rejected before any request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal respond prp_0123 --response no_objection -o xml"
