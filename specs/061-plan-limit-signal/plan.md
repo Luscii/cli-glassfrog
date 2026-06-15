@@ -68,7 +68,7 @@ Because the diagnostic is shaped *inside* `Diagnose`, 032's existing renderer ca
 
 ### ADR-4: Surface the gate as an `omitempty` distinct element of 018's error envelope
 
-**Context**: Under `json`/`yaml`, the spec requires the gating feature as its **own distinct, parseable element** — not folded into the prose `message` — so an agent reads it programmatically. 018's `ErrorDetail` carries `message`/`next_step`/`kind`/`status`/`body`; 032 already extended it once (the `next_step` key) following exactly this pattern.
+**Context**: Under `json`/`yaml`, the spec requires the gating feature as its **own distinct, parseable element** — not folded *only* into the prose `message` (which also names the gate) — so an agent reads it programmatically. 018's `ErrorDetail` carries `message`/`next_step`/`kind`/`status`/`body`; 032 already extended it once (the `next_step` key) following exactly this pattern.
 
 **Options considered**:
 1. **Fold the gate into `message`** — no schema change. Disadvantage: violates the spec's distinct-element requirement; an agent would have to parse the gate back out of prose.

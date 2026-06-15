@@ -34,7 +34,7 @@ It turns 060's recognized classification into an **actionable diagnostic**: a ca
 ### Rendering across the selected output format
 
 - When the resolved output format is a human format (`full`/`compact`), the recognized plan-limit diagnostic appears as the cause-plus-next-step line, on the same channel and in the same form as every other rendered failure.
-- When the resolved output format is a structured format (`json`/`yaml`), the diagnostic is carried in the unified error envelope, and the **named gate appears as its own distinct, parseable element** — not folded into the prose cause — so an agent can read which feature is gated programmatically.
+- When the resolved output format is a structured format (`json`/`yaml`), the diagnostic is carried in the unified error envelope, and the **named gate appears as its own distinct, parseable element** — not folded *only* into the prose cause (which also names the gate) — so an agent can read which feature is gated programmatically without parsing prose.
 - The plan-limit diagnostic carries the same facts in every format (the plan-limit cause, the named gate, the next step). Selection changes only how the failure is presented, never which facts it contains.
 
 ### Staying in its lane
@@ -105,7 +105,7 @@ And it frames the plan limit as possible, noting the same `403` may instead be a
 Given a recognized plan-limit rejection naming Premium async proposals
 When the diagnostic is rendered with `--output json`
 Then the unified error envelope carries the named gate as its own distinct, parseable element
-And the gate name is not folded into the prose cause text.
+And the gate name is not folded only into the prose cause text (an agent can read it without parsing prose).
 
 ### Error scenarios
 

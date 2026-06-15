@@ -25,7 +25,7 @@ When a command-execution failure is a **recognized plan-limit `403`** (a `403` f
 |---|---|---|---|
 | `message` | string | always | the diagnostic's **cause** — now the possibility-framed plan-limit cause naming the gate |
 | `next_step` | string | when present | the recovery action — now "verify the plan includes <feature>" wording |
-| `feature` | string | **only for a recognized plan-limit `403`** | the gating feature's display name (e.g. `Premium async proposals`) — the recognized `Gate`'s display name (ADR-3); a distinct, parseable element, **not** folded into `message` (ADR-4) |
+| `feature` | string | **only for a recognized plan-limit `403`** | the gating feature's display name (e.g. `Premium async proposals`) — the recognized `Gate`'s display name (ADR-3); a distinct, parseable element, **not** folded *only* into `message` (so an agent reads it without parsing prose; `message` also names the gate, ADR-4) |
 | `kind` | string | always | the category token — **`permission`**, unchanged (the `403` stays `PermissionError`) |
 | `status` | integer | non-2xx | `403` |
 | `body` | object/array | when the API returned a valid-JSON body | the raw `403` body verbatim |
@@ -37,7 +37,7 @@ Field declaration order: `message` → `next_step` → `feature` → `kind` → 
 ```json
 {
   "error": {
-    "message": "the operation may not be available on your organization's plan — it requires Premium async proposals; a 403 may instead mean your identity lacks permission",
+    "message": "this operation requires the Premium async proposals feature, which your organization's plan may not include; a 403 may instead mean your identity lacks permission",
     "next_step": "verify your organization's plan includes Premium async proposals, or that your identity has permission for this operation",
     "feature": "Premium async proposals",
     "kind": "permission",
@@ -52,7 +52,7 @@ Field declaration order: `message` → `next_step` → `feature` → `kind` → 
 Unchanged channel and shape from 032: stderr carries `renderDiagnostic(d)` — `"<cause> — <next step>"`. For a recognized plan-limit `403`, the cause and next step are the gate-aware ones, so the line **names the gating feature and frames it as a possibility** rather than the generic "check the identity's role/permission" hint:
 
 ```
-the operation may not be available on your organization's plan — it requires Premium async proposals; a 403 may instead mean your identity lacks permission — verify your organization's plan includes Premium async proposals, or that your identity has permission for this operation
+this operation requires the Premium async proposals feature, which your organization's plan may not include; a 403 may instead mean your identity lacks permission — verify your organization's plan includes Premium async proposals, or that your identity has permission for this operation
 ```
 
 The gate name lives in the cause prose here (the human line has no distinct field); the distinct `feature` element exists only in the structured envelope. stdout stays empty under the human formats.
