@@ -238,3 +238,45 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): the `403` 
 - Plan-Limit Signal — surface a recognized plan-limit rejection as a clear, actionable "not available on your plan" diagnostic that names the gating feature (e.g. Premium async proposals) and the next step, rendered in the selected output format
   + depends-on: Feature-Gate Recognition
   + depends-on: Diagnostic Normalization
+
+## Agent Operating Surface
+> Problem: Unequipped Agent Operators — the AI agent driving the CLI has no packaged operating knowledge, so it rediscovers how to operate the CLI each session and can mis-drive it or run ungated writes (affects: AI agent, Practitioner)
+
+A thin operator layer over the CLI — packaged operating knowledge, operator paths for governance work, and a write-safety guardrail — delivered as a repo-shipped plugin (its own marketplace). It adds no API capability of its own: every path is a guided composition of CLI capabilities that already exist, so its capabilities reach across solutions via `depends-on`. Reflects PROJECT scope "Agent operating surface" and honors VISION Exclusion 2 plus the "knowledge + guardrails, never capability" constraint. Holacracy-practice fluency was deliberately excluded (a separate plugin's concern).
+
+- Operator Orientation — packaged knowledge of how to drive the CLI: command surface, output formats for parsing, pagination, exit-code reactions, and credential setup, so the agent operates it correctly without rediscovery
+- Write-Safety Guardrail — enforce governance integrity at the operator layer: gate every command that writes to the governance record (tension capture, proposals, responses) behind explicit confirmation, and handle a stale-write refusal (412) by re-reading and re-confirming, never blind retry (VISION principle 2)
+  + depends-on: Operator Orientation
+  + depends-on: Stale-Write Surfacing
+- Tension Processing Path — a guided path from a sensed tension to a captured one: articulate it, locate the sensing role, choose tactical vs governance, and capture it
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Tension Capture
+  + depends-on: Cross-Model Search
+- Governance Navigation Path — a read-only traversal to work a tension: find the relevant roles, policies, domains, and who fills them, returning a synthesized picture rather than raw dumps
+  + depends-on: Operator Orientation
+  + depends-on: Cross-Model Search
+  + depends-on: Role Fillers
+  + depends-on: Role Reads
+- Constraint Discovery Path — given something the operator wants to do, surface the domains and policies that govern it (whether it falls under another role's domain or is shaped by a policy) so they know if it's within their authority or needs permission or a proposal; surfaces the governing governance, never reimplements permission rules locally
+  + depends-on: Operator Orientation
+  + depends-on: Cross-Model Search
+  + depends-on: Role Domains
+  + depends-on: Role Policies
+- Proposal Drafting Path — from a tension, assemble the governance changes and create the draft proposal
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Proposal Creation
+- Proposal Circulation Path — advance a draft into circulation, track the consent window's responses to acceptance, and withdraw to re-edit when needed
+  + depends-on: Proposal Drafting Path
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Advance to Circulation
+  + depends-on: Proposal Reads
+- Proposal Impact Review Path — given proposals others are circulating, find the ones touching the roles the practitioner fills, assess how their changes affect those roles, and record a response
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Proposal Reads
+  + depends-on: Response Recording
+  + depends-on: My Roles
+- Operating-Surface Packaging — package and distribute the surface so an agent environment installs and runs it (repo-shipped, its own marketplace), leaning on existing credential setup
+  + depends-on: Operator Orientation

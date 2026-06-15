@@ -34,6 +34,7 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 | Assignment | The mapping of an actor to a role. | — |
 | Context | A hypermedia document with everything needed to fill a role. | — |
 | Spec | The published Glassfrog API v5 OpenAPI specification (`spec.yaml`); the authoritative contract for every CLI action. | spec.yaml |
+| Agent operating surface | A packaged, agent-facing layer that equips an AI agent to drive the CLI correctly and safely — command surface, credential setup, output parsing, failure handling, and write-safety gating — riding on top of the CLI without adding API capability. | Operating layer |
 
 ---
 
@@ -55,6 +56,7 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 - **Actor governance reads**: resolving which actor fills a role (whom to contact about it) and an actor's governance footprint — the roles, accountabilities, domains, and purposes they hold. Reading actors through the governance lens, not actor administration.
 - **Governance proposals (the write path)**: creating a proposal from a tension, viewing proposals and their `changes`/response summary, advancing a draft into circulation (`propose`), withdrawing, and recording a response (`no_objection` / `bring_to_meeting`).
 - **Capturing tensions** as the entry point to a proposal.
+- **Agent operating surface**: a packaged, agent-facing layer that equips an AI agent to drive the CLI correctly and safely — covering the command surface, credential setup, output parsing, failure/exit-code handling, and write-safety gating — so the agent need not rediscover how to operate the CLI each session. This layer rides on top of the CLI and adds no API capability of its own.
 
 ### Out of Scope
 - **Actor administration** — inviting, updating, or deleting people, and managing assignments. Administrative, not part of the practitioner-facing surface.
@@ -83,3 +85,5 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 **Premium-gated async proposals**: Creating and circulating proposals out of meeting requires the async-proposals (Premium) capability and returns 403 when not enabled. Availability of the proposal write path depends on the organization's plan.
 
 **Rate limits**: The API enforces a per-organization rolling 1-hour rate limit that varies by plan. The CLI must operate within these limits.
+
+**Operating layer is knowledge + guardrails, never capability**: The agent operating surface packages how to drive existing commands and enforces write-safety; it never adds behavior beyond what the CLI (and thus the v5 API) already exposes, and never reimplements governance logic locally. This keeps "Bounded by the API surface" and VISION Exclusion 2 (Local governance logic) intact — the layer is a guide and a guardrail, not a new surface.
