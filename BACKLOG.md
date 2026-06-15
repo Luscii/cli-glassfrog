@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-12T20:59:00 | Enriched: 2026-06-14 | Framework: MoSCoW | Items: 61
+> Generated: 2026-06-12T20:59:00 | Enriched: 2026-06-15 | Framework: MoSCoW | Items: 70
 
 ### 1. Command Registration
 
@@ -420,7 +420,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Reports a refused write (`412 Precondition Failed`) distinctly so the operator knows the resource changed under them and can re-read before retrying; completes Optimistic Concurrency, only reachable once Guarded Writes can be refused.
 - **Dependencies**: → requires: Guarded Writes
-- **Status**: pending
+- **Status**: specified:054-stale-write-surfacing
 
 ### 55. Proposal Creation
 
@@ -436,7 +436,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Operating the write flow requires reading proposals with their changes, response summary, and available transitions; pairs with Proposal Creation as the core read/write pair, no inter-dependency.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:056-proposal-reads
 
 ### 57. Advance to Circulation
 
@@ -476,4 +476,75 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Renders the recognized plan-limit rejection as an actionable "not available on your plan" diagnostic; legibility polish atop Feature-Gate Recognition, so it follows it.
 - **Dependencies**: → requires: Feature-Gate Recognition; → requires: Diagnostic Normalization
+- **Status**: pending
+
+### 62. Operator Orientation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Root of the Agent Operating Surface — every path and the guardrail build on it, so it leads the surface; buildable now atop the shipped CLI. Should rather than Must — the CLI ships without the operating layer.
+- **Status**: pending
+
+### 63. Write-Safety Guardrail
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The governance-integrity gate (VISION principle 2) every write path depends on; builds on Operator Orientation and the just-specified Stale-Write Surfacing, so it follows the root before any write path.
+- **Dependencies**: → requires: Operator Orientation; → requires: Stale-Write Surfacing
+- **Status**: pending
+
+### 64. Governance Navigation Path
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Core read traversal for working a tension; highest-value path and all its read deps are shipped, so it's buildable right after Operator Orientation.
+- **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Fillers; → requires: Role Reads
+- **Status**: pending
+
+### 65. Constraint Discovery Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The "am I limited by a domain or policy?" read path; deps shipped, but narrower in use than general navigation, so it sits a tier below.
+- **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Domains; → requires: Role Policies
+- **Status**: pending
+
+### 66. Tension Processing Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: First write path — capture a tension end-to-end; gated on the Write-Safety Guardrail, with Tension Capture and Cross-Model Search already shipped, so buildable once the guardrail exists.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Tension Capture; → requires: Cross-Model Search
+- **Status**: pending
+
+### 67. Proposal Drafting Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Drafts a proposal from a tension; gated behind Proposal Creation (#55, still pending), so it follows the Now-tier proposal write-flow landing.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Creation
+- **Status**: pending
+
+### 68. Proposal Circulation Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Advances and tracks a proposal to acceptance; builds on Proposal Drafting Path and the still-pending circulation/read capabilities, so it sequences after them.
+- **Dependencies**: → requires: Proposal Drafting Path; → requires: Write-Safety Guardrail; → requires: Advance to Circulation; → requires: Proposal Reads
+- **Status**: pending
+
+### 69. Proposal Impact Review Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The consume/respond side — assess others' circulating proposals against the roles I fill and respond; gated on Response Recording (#58, pending), with My Roles already shipped.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Reads; → requires: Response Recording; → requires: My Roles
+- **Status**: pending
+
+### 70. Operating-Surface Packaging
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The delivery vehicle (repo-shipped plugin + its own marketplace) that makes the surface installable; needs at least Operator Orientation to have content to ship, so it trails the surface but is required for any of it to reach an agent environment.
+- **Dependencies**: → requires: Operator Orientation
 - **Status**: pending
