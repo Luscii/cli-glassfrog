@@ -176,20 +176,21 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 
 // newProposalCommand assembles the `proposal` command group and its leaves, registered
 // through the guard (group-has-children, non-empty Short, no action). The group is
-// built with its child attached BEFORE being returned for registration under root, so
+// built with its children attached BEFORE being returned for registration under root, so
 // the guard's ">=1 child" rule holds at attach time (the tension/auth shape, plan
 // ADR-1). The `proposal` namespace reserves room for the rest of the write-flow and the
-// reads (propose/withdraw/respond, and 056's list/get); 055 attaches only `create`. The
-// group is SHARED with Proposal Reads (056) under first-to-land-creates: created here
-// (056 not landed); if 056 lands first, 055 attaches its create leaf to the existing
-// group instead. The seam is injected so tests drive a fake one; production passes
-// productionSeam{} from Assemble.
+// reads (withdraw/respond, and 056's list/get); 055 attached `create`, and 057 attaches
+// the `propose` transition. The group is SHARED across the proposal family under
+// first-to-land-creates: 055 created it; siblings (056 reads, 057 propose) attach their
+// leaves to the existing group rather than redefining it. The seam is injected so tests
+// drive a fake one; production passes productionSeam{} from Assemble.
 func newProposalCommand(seam proposalSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "proposal",
-		Short: "Work with proposals — create a draft proposal against a tension",
+		Short: "Work with proposals — create a draft against a tension and advance it into circulation",
 	}
 	MustRegister(group, newProposalCreateCommand(seam))
+	MustRegister(group, newProposalProposeCommand(seam))
 	return group
 }
 
