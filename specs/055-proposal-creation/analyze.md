@@ -74,7 +74,7 @@ None.
 
 Checklist correlation: no overlapping findings between checklist and analyze results. Checklist reported 24/24 pass (all constitution P0/P1, no failures); analyze reports 22/22 pass. The two assessments are mutually reinforcing — checklist's vertical constitution checks and analyze's horizontal cross-artifact checks both find the artifact set clean.
 
-Observation (informational, not an analyze finding): checklist.md § Principle IV and § Cross-Reference Checks state the feature file holds "17 scenarios"; the feature file actually declares 16 `Scenario:` blocks (13 behavioral + 3 `@validation`). This is a count inside a sibling artifact and falls under checklist's vertical domain, not an analyze cross-artifact relationship — noted here only for correlation. The tasks↔feature scenario reference relationship is exact: T004 names all 13 behavioral scenarios by their precise titles, and all 13 exist in the feature file.
+Scenario-count consistency: checklist.md and the feature file agree — the feature file declares 16 `Scenario:` blocks (13 behavioral + 3 `@validation`), which checklist.md § Principle IV and § Cross-Reference Checks both state as 16. The tasks↔feature scenario reference relationship is exact: T004 names all 13 behavioral scenarios by their precise titles, and all 13 exist in the feature file.
 
 ---
 
