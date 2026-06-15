@@ -180,7 +180,7 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 // so the guard's ">=1 child" rule holds at attach time (the tension/auth shape, plan
 // ADR-1). The `proposal` namespace parents the write `create` (055), the `propose`
 // transition (057), the `respond` consume/respond write (058), and the reads `list` /
-// `get` (056); it reserves room for the rest of the write-flow (withdraw). The group, the
+// `get` (056), and the `withdraw` transition (059). The group, the
 // glassfrog.Proposal model, and the
 // singular `proposal` render key are SHARED across the proposal family under
 // first-to-land-creates: 055 created the group here; siblings (056 reads, 057 propose)
@@ -191,10 +191,11 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 func newProposalCommand(seam proposalSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "proposal",
-		Short: "Work with proposals — create, advance, list, and read governance proposals",
+		Short: "Work with proposals — create, advance, withdraw, list, and read governance proposals",
 	}
 	MustRegister(group, newProposalCreateCommand(seam))
 	MustRegister(group, newProposalProposeCommand(seam))
+	MustRegister(group, newProposalWithdrawCommand(seam))
 	MustRegister(group, newProposalRespondCommand(seam))
 	MustRegister(group, newProposalListCommand(seam))
 	MustRegister(group, newProposalGetCommand(seam))
