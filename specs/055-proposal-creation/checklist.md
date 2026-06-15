@@ -62,7 +62,7 @@ Calibrated assertions for a pre-implementation artifact set:
 Calibrated for pre-implementation: user-facing behavior must have an executable acceptance scenario authored before implementation, and tasks must be RED-first.
 
 *Assertion 1*: User-facing behavior has executable acceptance scenarios.
-→ **Pass**. features/proposal-write-flow/proposal-creation.feature exists with 17 scenarios across four Rule blocks, mapped to the spec's driving scenarios; T005 makes the behavioral scenarios executable acceptance.
+→ **Pass**. features/proposal-write-flow/proposal-creation.feature exists with 16 scenarios across four Rule blocks, mapped to the spec's driving scenarios; T005 makes the behavioral scenarios executable acceptance.
 
 *Assertion 2*: Tasks specify test-first (RED before GREEN).
 → **Pass**. tasks.md T004 states "RED-first unit tests for every branch"; T001/T002/T003 each carry test counts and acceptance criteria ahead of implementation; T005 is the executable-acceptance step.
@@ -129,7 +129,7 @@ These link-presence checks (severity P1) are reported informationally — no `do
 
 - **P1** | tasks.md → spec.md / interface artifacts: every task carries a "Plan reference" and "Interface references" field → **Pass** (T001–T005 all present).
 - **P1** | tasks.md T004/T005 → feature file: scenario-reference fields name `proposal-creation.feature` scenarios → **Pass** (T004 lists 13 scenarios; T005 references the behavioral Rule-block scenarios).
-- **P1** | feature file → spec.md: each scenario carries a `# Source: 055-proposal-creation — Scenario: …` provenance comment → **Pass** (all 17 scenarios traced; 5 marked `Proposed:`/architecture-informed with their rationale).
+- **P1** | feature file → spec.md: each scenario carries a `# Source: 055-proposal-creation — Scenario: …` provenance comment → **Pass** (all 16 scenarios traced; 2 marked `Proposed:`/architecture-informed with their rationale).
 - **P1** | spec/plan/interface → API contract: `createProposal` / `POST /proposals` / `CreateProposalRequest` / `ProposalChange` references resolve in `spec/glassfrog-api-v5.yaml` → **Pass** (all four resolve at the cited shapes).
 
 ---
