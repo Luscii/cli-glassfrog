@@ -196,3 +196,102 @@ func TestCreateProposalRequest_MarshalsVerbatim(t *testing.T) {
 		}
 	}
 }
+
+// proposalVoteBody is a representative createProposalResponse 201 body: the single-object
+// {data: ProposalVote} envelope carrying the prr_ id, the proposal_response type, the
+// anchoring proposal_id, the parent proposal_status, the recorded value, and timestamps.
+const proposalVoteBody = `{"data":{
+  "id":"prr_0123","type":"proposal_response",
+  "proposal_id":"prp_0123","proposal_status":"proposed_outside_meeting",
+  "value":"no_objection",
+  "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z"
+}}`
+
+// TestProposalVote_Decode_BindsEveryField pins that a {data: ProposalVote} body decodes
+// through the generic Document[ProposalVote] and every snake_case field binds — proving
+// Document[ProposalVote] instantiates and the recorded-response decode is complete.
+func TestProposalVote_Decode_BindsEveryField(t *testing.T) {
+	var doc Document[ProposalVote]
+	if err := json.Unmarshal([]byte(proposalVoteBody), &doc); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	v := doc.Data
+	if v.ID != "prr_0123" || v.Type != "proposal_response" {
+		t.Errorf("id/type mis-bound: %+v", v)
+	}
+	if v.ProposalID != "prp_0123" || v.ProposalStatus != "proposed_outside_meeting" {
+		t.Errorf("proposal_id/proposal_status mis-bound: %+v", v)
+	}
+	if v.Value != "no_objection" {
+		t.Errorf("value mis-bound: %+v", v)
+	}
+	if v.CreatedAt != "2026-01-01T00:00:00Z" || v.UpdatedAt != "2026-01-02T00:00:00Z" {
+		t.Errorf("timestamps mis-bound: %+v", v)
+	}
+}
+
+// TestProposalVote_Decode_NullProposalIDIsEmpty pins that a null OR absent proposal_id
+// decodes to the empty string (the nullable-as-empty-string convention), never the
+// literal "null" and never a panic — the render guards explicit-absence on it.
+func TestProposalVote_Decode_NullProposalIDIsEmpty(t *testing.T) {
+	for name, body := range map[string]string{
+		"explicit null": `{"data":{"id":"prr_1","type":"proposal_response","proposal_id":null,"proposal_status":"draft","value":"no_objection","created_at":"t","updated_at":"t"}}`,
+		"absent key":    `{"data":{"id":"prr_1","type":"proposal_response","proposal_status":"draft","value":"no_objection","created_at":"t","updated_at":"t"}}`,
+	} {
+		var doc Document[ProposalVote]
+		if err := json.Unmarshal([]byte(body), &doc); err != nil {
+			t.Fatalf("%s: decode: %v", name, err)
+		}
+		if doc.Data.ProposalID != "" {
+			t.Errorf("%s: proposal_id should decode to empty string, got %q", name, doc.Data.ProposalID)
+		}
+	}
+}
+
+// TestProposalVote_Decode_AcceptedStatus pins the load-bearing auto-acceptance signal:
+// proposal_status decodes faithfully, including the `accepted` value the parent proposal
+// carries when this response closed the consent window.
+func TestProposalVote_Decode_AcceptedStatus(t *testing.T) {
+	body := `{"data":{"id":"prr_1","type":"proposal_response","proposal_id":"prp_1","proposal_status":"accepted","value":"no_objection","created_at":"t","updated_at":"t"}}`
+	var doc Document[ProposalVote]
+	if err := json.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if doc.Data.ProposalStatus != "accepted" {
+		t.Errorf("accepted proposal_status mis-bound: %q", doc.Data.ProposalStatus)
+	}
+}
+
+// TestProposalVote_Decode_UnknownFieldsTolerated pins forward-compatible decoding: an
+// unknown/extra field decodes cleanly without error.
+func TestProposalVote_Decode_UnknownFieldsTolerated(t *testing.T) {
+	body := `{"data":{"id":"prr_1","type":"proposal_response","proposal_status":"draft","value":"no_objection","future_field":{"x":1},"created_at":"t","updated_at":"t"}}`
+	var doc Document[ProposalVote]
+	if err := json.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("unknown fields should decode cleanly, got %v", err)
+	}
+	if doc.Data.ID != "prr_1" {
+		t.Errorf("id mis-bound with extra field present: %+v", doc.Data)
+	}
+}
+
+// TestNewProposalResponseInput_MarshalShape pins the request body: the nested
+// {"response":{"value":…}} envelope with NO person field and NO extra keys. The value
+// is always serialized (non-omitempty) — the command guarantees it non-empty.
+func TestNewProposalResponseInput_MarshalShape(t *testing.T) {
+	out, err := json.Marshal(NewProposalResponseInput("no_objection"))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	want := `{"response":{"value":"no_objection"}}`
+	if string(out) != want {
+		t.Errorf("request body mismatch:\n got: %s\nwant: %s", out, want)
+	}
+	// No person/responder/status keys leak into the request — the server derives the
+	// responding person from the token.
+	for _, forbidden := range []string{`"person"`, `"responder"`, `"actor"`, `"status"`} {
+		if strings.Contains(string(out), forbidden) {
+			t.Errorf("request body must not carry %s: %s", forbidden, out)
+		}
+	}
+}
