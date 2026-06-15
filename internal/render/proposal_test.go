@@ -22,6 +22,7 @@ func fullProposal() glassfrog.Proposal {
 		},
 		ResponseSummary:      glassfrog.ResponseSummary{Total: 3, NoObjection: 2, BringToMeeting: 1},
 		AvailableTransitions: []string{"propose", "withdraw"},
+		ResponseDeadline:     "2026-06-22T12:00:00Z",
 		CreatedAt:            "2026-01-01T00:00:00Z",
 		UpdatedAt:            "2026-01-02T00:00:00Z",
 	}
@@ -38,6 +39,7 @@ func TestRender_ProposalFull_Golden(t *testing.T) {
 		"  Changes:        2\n" +
 		"  Responses:      2/3 no-objection, 1 bring-to-meeting\n" +
 		"  Transitions:    propose, withdraw\n" +
+		"  Deadline:       2026-06-22T12:00:00Z\n" +
 		"  Created:        2026-01-01T00:00:00Z\n" +
 		"  Updated:        2026-01-02T00:00:00Z\n"
 	assertRender(t, ResourceProposal, FormatFull, ProposalView{Proposal: fullProposal()}, want)
@@ -56,6 +58,7 @@ func TestRender_ProposalFull_NullFieldsShowMarkers(t *testing.T) {
 		"  Changes:        0\n" +
 		"  Responses:      0/0 no-objection, 0 bring-to-meeting\n" +
 		"  Transitions:    (none)\n" +
+		"  Deadline:       (none)\n" +
 		"  Created:        (unknown)\n" +
 		"  Updated:        (unknown)\n"
 	assertRender(t, ResourceProposal, FormatFull, ProposalView{Proposal: p}, want)

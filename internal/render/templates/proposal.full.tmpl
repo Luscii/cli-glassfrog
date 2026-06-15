@@ -5,5 +5,6 @@
   Changes:        {{len $p.Changes}}
   Responses:      {{$p.ResponseSummary.NoObjection}}/{{$p.ResponseSummary.Total}} no-objection, {{$p.ResponseSummary.BringToMeeting}} bring-to-meeting
   Transitions:    {{if $p.AvailableTransitions}}{{join $p.AvailableTransitions ", "}}{{else}}(none){{end}}
+  Deadline:       {{if eq (trimSpace $p.ResponseDeadline) ""}}(none){{else}}{{$p.ResponseDeadline}}{{end}}
   Created:        {{if eq (trimSpace $p.CreatedAt) ""}}(unknown){{else}}{{$p.CreatedAt}}{{end}}
   Updated:        {{if eq (trimSpace $p.UpdatedAt) ""}}(unknown){{else}}{{$p.UpdatedAt}}{{end}}
