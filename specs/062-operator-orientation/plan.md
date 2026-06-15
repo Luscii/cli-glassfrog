@@ -62,7 +62,7 @@ Data flow: there is no runtime flow inside this feature. The agent (the consumer
 
 ### ADR-4: Guard drift with a best-effort `internal/build` config-drift test over the stable anchors
 
-**Context**: The developer wanted a drift check "if feasible," accepting partial or none. The CLI exposes stable anchors the skill references: the `supportedFormats` constant (`internal/output/format.go` — `full, compact, json, yaml`), the `Outcome`→`ExitCode` mapping (`internal/cli/exitcode.go`, 0–6), the `auth login` command (`internal/cli/authcmd.go`), and `internal/paging`. The repo already guards config drift this way (§175 `.goreleaser` matrix, §203/§309 label catalog, §316 brews target).
+**Context**: The developer wanted a drift check "if feasible," accepting partial or none. The CLI exposes stable anchors the skill references: the `supportedFormats` constant (`internal/output/format.go` — `full, compact, json, yaml`), the `Outcome`→`ExitCode` mapping (`internal/cli/exitcode.go`, 0–7 — including `codeStaleWrite=7`, the 412 anchor the orientation references), the `auth login` command (`internal/cli/authcmd.go`), and `internal/paging`. The repo already guards config drift this way (§175 `.goreleaser` matrix, §203/§309 label catalog, §316 brews target).
 
 **Options considered**:
 1. **No automated guard** — rely on review. Cheapest; but the spec calls drift a defect, and review misses it.

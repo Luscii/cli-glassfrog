@@ -3,7 +3,7 @@
 **Feature**: 062-operator-orientation
 **Role**: Crafter
 **Touchpoint**: Specification
-**Inputs**: spec.md, plan.md, PROJECT.md; grounded against real plugin manifests in `~/.claude/plugins/cache` (score, prelude, learning-opportunities) and the existing `marketplaces/Luscii/.claude-plugin/marketplace.json`
+**Inputs**: spec.md, plan.md, PROJECT.md; the plugin/manifest contracts are grounded against real installed Claude plugins under the developer's `~/.claude/plugins/` (e.g. score, prelude, learning-opportunities) and a Luscii marketplace manifest found there — external reference examples, **not** files present in this repository
 
 > The artifact *is* the interface: a Claude plugin (manifest + one skill) consumed by reading and on-demand loading, not by a runtime call. Protocol-level contracts are the `plugin.json` field set, the `SKILL.md` frontmatter, and the orientation content's required sections.
 
@@ -69,7 +69,7 @@ The body packages cross-cutting operating knowledge only. Required topic section
 |---|---|
 | Output for parsing | How to select a structured format and the shape to expect. Format tokens are exactly `full, compact, json, yaml` (source: `internal/output` `supportedFormats`); `json`/`yaml` are the machine-parseable pair |
 | Pagination | How to detect that more pages exist and fetch them (source: `internal/paging`) |
-| Exit-code reactions | What each code in the **0–6** convention means and the reaction (source: `internal/cli` `Outcome`→`ExitCode`) |
+| Exit-code reactions | What each code in the **0–7** convention means and the reaction — incl. `StaleWrite`=7 for `412` (source: `internal/cli` `Outcome`→`ExitCode`) |
 | Credentials | How the CLI discovers/accepts the `X-Auth-Token` key; points at the existing `glassfrog auth login` — introduces no new credential mechanism |
 | Write-safety expectation | Confirm before writing; on a `412` stale-write, re-read and re-confirm rather than blind-retry — stated as **guidance**, with an explicit "this skill does not enforce it" note |
 | Driving the command surface | Points the agent at `glassfrog help` / `--help` for per-command and per-flag detail — does **not** catalogue commands |
@@ -110,6 +110,6 @@ Runtime error shapes (request/response bodies, HTTP status rendering, rate-limit
 
 - **Sibling interface files**: none — this feature has only a specification touchpoint (no API/CLI/UI/events surface; it adds no `glassfrog` subcommand).
 - **Follows plugin conventions** observed in `score`/`prelude`: `author` as an object, `keywords` array, and **skill auto-discovery** (no `skills` array in the manifest). Version starts at `0.1.0` per the spec's pre-1.0 surface.
-- **Distribution deferred to #70** (plan ADR-5): when #70 lands it adds a `{ name, version, description, source }` entry for this plugin to the existing `marketplaces/Luscii/.claude-plugin/marketplace.json` (or ships the plugin's own marketplace). The shape is known; producing it here is out of scope and is asserted absent by a validation scenario.
+- **Distribution deferred to #70** (plan ADR-5): when #70 lands it adds a `{ name, version, description, source }` entry for this plugin to a marketplace manifest (e.g. the Luscii marketplace seen in installed plugins under `~/.claude/plugins/` — no such file exists in this repo today) or ships the plugin's own marketplace. The shape is known; producing it here is out of scope and is asserted absent by a validation scenario.
 - **Deviation from sibling acquisition channels** (npm §318 / homebrew §316): those are CI-*generated/published* binary channels; this plugin is **committed, hand-authored content** (plan ADR-3). Same "repo-shipped acquisition channel" family, different production mode — flagged so #70 doesn't assume a generated path.
 - **Naming `[ASSUMED]`**: plugin id and skill name `glassfrog-operator` are working names; reversible (consumers trigger by `description`, not a fixed file path). Adjust freely before implementation.

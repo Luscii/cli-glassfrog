@@ -50,7 +50,7 @@ The knowledge is defined as a **Claude plugin** composed of one or more **skills
 
 **In order to** have a single installable unit that carries the operating knowledge,
 **as a** practitioner (or whoever provisions the agent),
-**I want to** the operating surface defined as a Claude plugin I can later install into the agent's environment.
+**I want to** have the operating surface defined as a Claude plugin I can later install into the agent's environment.
 
 **In order to** avoid mis-driving governance writes before the enforcing guardrail exists,
 **as an** AI agent,

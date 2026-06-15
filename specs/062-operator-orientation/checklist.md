@@ -3,7 +3,7 @@
 **Feature**: 062-operator-orientation
 **Inputs**: CONSTITUTION.md (12 principles); spec.md, plan.md, interface-spec.md, features/unequipped-agent-operators/operator-orientation.feature, tasks.md
 **Check sources**: Constitution only — no `accords/governance/done-*.md` present
-**Checks**: 11 generated, 11 pass, 0 fail (2 principles N/A — no applicable checks)
+**Checks**: 11 generated, 11 pass, 0 fail (1 principle — VIII — N/A, no applicable checks)
 **Generated**: 2026-06-15
 
 ---
@@ -17,7 +17,7 @@
 | P2 | 0 | 0 | 0 |
 | **Total** | **11** | **0** | **11** |
 
-Calibration note: this feature adds **no CLI code** — it is a Claude plugin packaging operating knowledge. Runtime-behavior principles (II, VI, VIII, IX, X) were calibrated to their *translated* form: the orientation must not **describe** a violation, or it **teaches** the safe behavior the principle protects. Principles VIII and IX produced no directly-applicable checks and are noted under Governance Infrastructure.
+Calibration note: this feature adds **no CLI code** — it is a Claude plugin packaging operating knowledge. Runtime-behavior principles (II, VI, VIII, IX, X) were calibrated to their *translated* form: the orientation must not **describe** a violation, or it **teaches** the safe behavior the principle protects. Principle VIII produced no directly-applicable check (its concern is covered by C-I) and is noted under Governance Infrastructure; principle IX yielded a trivially-satisfied check (C-IX — no mutating path introduced).
 
 ---
 
@@ -29,7 +29,7 @@ Calibration note: this feature adds **no CLI code** — it is a Claude plugin pa
 
 ### C-II — Action Transparency → teaches parseable output + traceable reactions (P1) — PASS
 **Principle II** (NON-NEGOTIABLE). The principle's direct subject — the CLI's own action output — is **N/A** (the plugin performs no action). Calibrated supporting check: the orientation directs the agent to structured output and exit-code reactions so the agent can act traceably.
-**Evidence**: interface-spec required sections (output-for-parsing names `json`/`yaml`; exit-code reactions, 0–6); feature scenarios "Select a parseable output format", "React to a non-zero exit code".
+**Evidence**: interface-spec required sections (output-for-parsing names `json`/`yaml`; exit-code reactions, 0–7); feature scenarios "Select a parseable output format", "React to a non-zero exit code".
 
 ### C-III — Fail Safe, Not Silent → drift guard fails loudly (P0) — PASS
 **Principle III** (errors obvious, never hidden). Calibrated: the drift guard fails loudly naming the offending anchor; any reduced coverage is stated, never silent.
@@ -60,7 +60,7 @@ Calibration note: this feature adds **no CLI code** — it is a Claude plugin pa
 
 ### C-X — Respect API Limits → teaches concurrency + rate-limit reaction (P0) — PASS
 **Principle X** (`If-Match`/`ETag` concurrency; `429` backoff). Calibrated: the orientation describes the 412 stale-write re-read+re-confirm (optimistic concurrency) and the rate-limit exit-code reaction.
-**Evidence**: spec/interface write-safety (412 → re-read, not blind retry); exit-code section covers the 0–6 convention including rate-limit; feature scenario "Surface the write-safety expectation without gating".
+**Evidence**: spec/interface write-safety (412 → re-read, not blind retry); exit-code section covers the 0–7 convention including rate-limit (5) and stale-write (7); feature scenario "Surface the write-safety expectation without gating".
 
 ### C-XI — Governance via Proposals → no default mutating path (P0) — PASS
 **Principle XI**. The plugin introduces no governance-mutating command path and does not bypass the proposal flow; write-safety is described as guidance only.
