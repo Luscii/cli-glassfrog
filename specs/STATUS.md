@@ -58,5 +58,5 @@
 | 054-stale-write-surfacing | Complete | validate | 2026-06-15T00:10:00 |
 | 055-proposal-creation | Complete | validate | 2026-06-15T12:30:00 |
 | 056-proposal-reads | Analyzed | analyze | 2026-06-15T00:45:00 |
-| 057-advance-to-circulation | Analyzed | risk | 2026-06-15T13:25:00 |
+| 057-advance-to-circulation | Complete | validate | 2026-06-15T15:00:00 |
 | 058-response-recording | Analyzed | risk | 2026-06-15T13:10:00 |
