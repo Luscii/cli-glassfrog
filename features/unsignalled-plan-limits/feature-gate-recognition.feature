@@ -18,7 +18,7 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
     # Source: 060-feature-gate-recognition — Scenario: Advancing a draft on a non-Premium org is recognized as a plan limit
     @wip
     Scenario: A 403 from advancing a draft is recognized as a possible plan limit
-      Given the advance-to-circulation operation POST /proposals/{proposal_id}/propose had been rejected with HTTP status 403
+      Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       When the failure is checked for a feature gate
       Then it will be recognized as a possible plan-limit rejection
       And the suspected gate will be named as Premium async proposals
@@ -33,14 +33,14 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
     # Source: 060-feature-gate-recognition — Scenario: Recording a response on a non-Premium org is recognized as a plan limit
     @wip
     Scenario: A 403 from recording a response is recognized as a possible plan limit
-      Given the record-response operation POST /proposals/{proposal_id}/responses had been rejected with HTTP status 403
+      Given the record-response operation POST /proposals/prp_0123/responses had been rejected with HTTP status 403
       When the failure is checked for a feature gate
       Then it will be recognized as a possible plan-limit rejection naming Premium async proposals
 
     # Source: 060-feature-gate-recognition — Scenario: A 403 from a non-gated read is not a plan limit
     @wip
     Scenario: A 403 from a non-gated operation is not recognized as a plan limit
-      Given the role-read operation GET /roles/{role_id} had been rejected with HTTP status 403
+      Given the role-read operation GET /roles/role_0123 had been rejected with HTTP status 403
       When the failure is checked for a feature gate
       Then it will not be recognized as a plan-limit rejection
       And it will remain a generic permission denial
@@ -69,7 +69,7 @@ Feature: Unsignalled Plan Limits — Feature-Gate Recognition
     # Source: 060-feature-gate-recognition — Scenario: A genuine permission denial on a gated operation is still flagged as possible
     @wip
     Scenario: A permission denial on a gated operation is flagged as possible, not confirmed
-      Given the advance-to-circulation operation POST /proposals/{proposal_id}/propose had been rejected with HTTP status 403
+      Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       And the rejection was a genuine permission denial unrelated to the plan
       When the failure is checked for a feature gate
       Then it will be recognized as a possible plan-limit rejection, not a confirmed one
