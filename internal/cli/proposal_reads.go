@@ -101,8 +101,10 @@ type proposalsConfig struct {
 
 	// The five optional server-side filters. --status is validated locally against the
 	// proposal status set (plan ADR-3); the other four are free values passed through.
-	// Each is sent as its query parameter only when non-empty (a no-default string flag,
-	// so non-empty is equivalent to Changed-and-non-empty).
+	// Each is sent as its query parameter only when its value is non-empty; an
+	// explicitly-empty flag (e.g. --status "", where Changed() is true but the value is
+	// "") is treated as no filter and omitted — the omit decision keys on the value, not
+	// on Changed().
 	status        string
 	roleID        string
 	proposerID    string
@@ -266,10 +268,11 @@ func reportIncompleteProposalsWalk(stderr io.Writer, stop error) (Outcome, error
 }
 
 // proposalsQuery builds the GET /proposals query from the five optional filters. Each
-// is sent only when non-empty (a no-default string flag, so non-empty is equivalent to
-// Changed-and-non-empty). --status was already validated by runProposalList against the
-// proposal status set; the four others are free values passed through (plan ADR-3) for
-// the server to validate. A nil return leaves the request unparameterised.
+// is sent only when its value is non-empty; an explicitly-empty flag (e.g. --status "")
+// is treated as no filter and omitted — the omit decision keys on the value, not on
+// Changed(). --status was already validated by runProposalList against the proposal
+// status set; the four others are free values passed through (plan ADR-3) for the server
+// to validate. A nil return leaves the request unparameterised.
 func proposalsQuery(cfg proposalsConfig) url.Values {
 	q := url.Values{}
 	if cfg.status != "" {

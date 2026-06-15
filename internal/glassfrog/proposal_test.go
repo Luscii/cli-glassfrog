@@ -144,6 +144,11 @@ func TestProposal_Decode_PageOfProposals(t *testing.T) {
 	if p := page.Data[1]; p.TensionID != "" || p.CircleID != "" || p.ProposerID != "" {
 		t.Errorf("null anchors on a list element should decode to empty strings: %+v", p)
 	}
+	// The {meta:{pagination}} block binds too — the walker reads HasNextPage/NextCursor
+	// to decide whether to fetch another page, so Page[Proposal] must surface them.
+	if pg := page.Meta.Pagination; pg.PerPage != 100 || pg.HasNextPage || pg.NextCursor != "" {
+		t.Errorf("pagination meta mis-bound: %+v", pg)
+	}
 }
 
 // TestResponseSummary_AggregateOnly pins the anti-attribution non-behavior at the
