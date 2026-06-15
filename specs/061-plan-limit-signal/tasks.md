@@ -1,0 +1,72 @@
+# Tasks: Plan-Limit Signal
+
+**Feature**: 061-plan-limit-signal
+**Concretization**: Full context (plan + spec + interface + scenarios)
+**Inputs**: plan.md, spec.md, interface-cli.md, interface-spec.md, features/unsignalled-plan-limits/plan-limit-signal.feature
+
+---
+
+## Dependency Graph
+
+Phase 1: Wire the plan-limit signal into the failure path (3 tasks, single-phase build) [Shared]
+
+3 tasks total | 1 phase | T001 startable from the base; T002 depends on T001 + 060 (landed, #142); T003 depends on T002 | Builder: pipeline
+
+> Plan-faithful: the plan defines a **single phase** of surgical edits along the one existing failure chain — it adds **no new component, no command, no flag, no new `Outcome`/`ExitCode`** (plan System Architecture). The field flows **source → classifier → envelope**: (T001) enrich the typed error at its source with the request's method/path; (T002) recognize a gated `403` centrally in `Diagnose` and shape the possibility-framed plan-limit diagnostic, carrying the gate on the `Diagnostic` and surfacing it as a distinct envelope element; (T003) make the driving scenarios pass as executable acceptance. The plan groups the classifier and envelope work as shippable together and splits the source-enrichment from them (plan Implementation Strategy) — T001 is the split-off source change, T002 the grouped signal behavior, T003 the BDD acceptance (mirroring 060's code-then-BDD shape).
+>
+> All three user scenarios — US1 (an actionable diagnostic naming the gating feature), US2 (the gating feature as a distinct parseable envelope element), US3 (possibility, never a certain insufficiency) — are realized **together** by the one central refinement in `Diagnose` plus the one envelope mapping, not by separable code paths, so every task is `[Shared]`.
+>
+> **Cross-spec dependency — 060 has landed.** T002 consumes `apiclient.RecognizeFeatureGate` + the `Gate` kinds from **Feature-Gate Recognition (060)**, now **merged to `main`** (#142) — the recognizer, the `Gate` kinds, and `Gate.String()` (kebab-case) are in `internal/apiclient`. T001 (the source enrichment of `ResponseError`) depends **only** on the `internal/apiclient` package and is independent of 060. **061 adds no new `Outcome`, `ExitCode`, command, or root flag** — only additive struct fields (`ResponseError.Method/Path`, `Diagnostic.Feature`, `output.ErrorDetail.Feature`), the central `Diagnose` branch, and the gate→display-name mapping (the human-prose form, distinct from 060's kebab-case `Gate.String()`); every non-plan-limit failure renders byte-identically.
+
+---
+
+## Branching Guidance
+
+**Pipeline mode**: `spec/061-plan-limit-signal/base` → `spec/061-plan-limit-signal/task-1`, `…/task-2`, `…/task-3` (one task branch per T-id, merged back into the spec base).
+
+**Base branch**: cut from `main` — 060 has merged (#142), so `RecognizeFeatureGate` is importable. T001 touches only the `internal/apiclient` package and is independent of 060.
+
+**Role-based awareness**: 061 modifies shared diagnostic-chain files (`execute.go`, `diagnostic.go`, `errorenvelope.go`, `internal/output/error.go`) — coordinate so it does not race a concurrent edit to those files in a parallel workspace.
+
+---
+
+## Phase 1: Wire the plan-limit signal into the failure path [Shared]
+
+- [ ] **T001** [Shared] Thread operation identity — add `Method`/`Path` to `apiclient.ResponseError`, set in `Execute`
+  - **Scope**: In `internal/apiclient/execute.go`, add two additive fields `Method string` and `Path string` to `ResponseError`, and set them (`req.Method`, `req.Path`) where `Execute` constructs the non-2xx `*ResponseError` (the one site). Leave `ResponseError.Error()` unchanged (status only). No other type, call site, or behavior changes — the fields zero-value to `""` and ride the error through `refineClientError`'s `*ProblemError` wrap (which `Unwrap`s to the `ResponseError`) to `Diagnose`. Add/extend unit tests in `execute_test.go` asserting a non-2xx `*ResponseError` now carries the request's method and path.
+  - **Acceptance criteria**:
+    - A non-2xx response from `Execute` yields a `*ResponseError` whose `Method` and `Path` equal the request's method and path (e.g. `POST`, `/proposals/prp_0123/propose`)
+    - `ResponseError.Error()` output is unchanged (status only); existing `execute`/`apiclient` tests and goldens stay byte-stable
+    - The fields are reachable from a refined `*ProblemError` via `errors.As(err, &ResponseError)` (the unwrap path)
+    - `go build ./...` and `go vet ./...` are clean; all tests run offline
+  - **Dependencies**: None (the base carries the `internal/apiclient` package from `main`; independent of 060)
+  - **Plan reference**: System Architecture (threading input); ADR-1 (enrich the typed error at its source, not the failure-site signature)
+  - **Interface references**: interface-spec.md: `ResponseError.Method` / `ResponseError.Path` (NEW fields, set in `Execute`)
+  - **Risk**: ⚠️ Keep the change purely additive — do not alter `Error()`, the non-2xx branch's other fields, or any sibling consumer (015/017 read the same value); every non-plan-limit failure must stay byte-identical. ⚠️ Set the path **as given** (`req.Path`, the segment-templated form the 060 registry matches), not a rebuilt absolute URL.
+
+- [ ] **T002** [Shared] Render a recognized plan-gate `403` as a possibility-framed plan-limit diagnostic — central `Diagnose` recognition + `Diagnostic.Feature` + gate→display-name/wording mapping + the distinct `feature` envelope element
+  - **Scope**: (1) In `internal/cli/diagnostic.go`, add a `Feature string` field to `Diagnostic` (the recognized gating feature's display name, `""` when none). In `Diagnose`'s existing `*ProblemError` arm, when `problemErr.StatusCode == 403`, reach the wrapped `*apiclient.ResponseError` (`var re *apiclient.ResponseError; errors.As(err, &re)`) and call `apiclient.RecognizeFeatureGate(re.Method, re.Path, problemErr.StatusCode)`; on a non-`GateNone` gate, set `Cause`/`NextStep` to the **possibility-framed** plan-limit wording and `Feature` to the gate's display name, **keeping `Category = PermissionError`** (do not touch `categoryForStatus`/`nextStepForStatus`; on `GateNone` or `re` absent, behave exactly as today). (2) Add a total `featureGateDisplayName(apiclient.Gate) string` mapping (`GatePremiumAsyncProposals → "Premium async proposals"`, `GateAIIntegration → its display name`, `GateNone → ""`) with an exhaustiveness guard test (LEARNINGS PR #10 — a new `Gate` kind without a display name fails loud); compose the plan-limit cause/next-step wording from this name (061 owns the wording; 060 stays code-free). (3) In `internal/output/error.go`, add `Feature string` with tag `json:"feature,omitempty"` to `ErrorDetail`, in declaration order `Message, NextStep, Feature, Kind, Status, Body`. (4) In `internal/cli/errorenvelope.go`, map `detail.Feature = d.Feature` in `errorEnvelopeFor`. Add unit tests across `diagnostic_test.go`, `errorenvelope_test.go`, and `internal/output` for the recognized/not-recognized/non-403 cases, the possibility framing, the unchanged category/exit code, and the `omitempty` envelope key.
+  - **Acceptance criteria**:
+    - A `403` from each gated operation (`POST /proposals`, `…/{id}/propose`, `…/{id}/withdraw`, `…/{id}/responses`) yields a `Diagnostic` whose `Cause` names **Premium async proposals**, frames the limit as a possibility (notes it may instead be a permission issue), whose `NextStep` is to verify the plan includes the feature (never "upgrade"), whose `Feature` is "Premium async proposals", and whose `Category` is `PermissionError` (exit code unchanged)
+    - A non-gated `403` (e.g. `GET /roles/role_0123`) and a non-`403` on a gated op (e.g. `422` on `POST /proposals`) produce today's diagnostic unchanged, with `Feature == ""`
+    - The structured envelope carries a distinct `feature` key (`json:"feature,omitempty"`) naming the gate for a recognized plan-limit `403`, and **omits** it for every other failure (existing envelope snapshots byte-stable); declaration order is `message, next_step, feature, kind, status, body`
+    - `featureGateDisplayName` is total; the exhaustiveness guard fails if a `Gate` kind lacks a display name; the rendered diagnostic invents no plan name, price, or upgrade URL beyond the gate display name
+    - No token or auth header appears in the cause, next step, or envelope; `go build ./...` / `go vet ./...` clean; tests run offline
+  - **Dependencies**: T001 (the wrapped `ResponseError` must carry method/path); **060** (`apiclient.RecognizeFeatureGate`, the `Gate` kinds) — landed on `main` (#142)
+  - **Plan reference**: System Architecture; ADR-2 (central `Diagnose` refinement, category/exit-code unchanged), ADR-3 (`Feature` on `Diagnostic`, classified once; 061 owns the gate→display-name + possibility wording), ADR-4 (distinct `omitempty` `feature` envelope element)
+  - **Interface references**: interface-spec.md: `Diagnostic.Feature`, `ErrorDetail.Feature`, evolved `Diagnose` + `featureGateDisplayName` + `errorEnvelopeFor`; interface-cli.md: the `feature` envelope key, gate-aware human line, unchanged exit code
+  - **Scenario references**: plan-limit-signal.feature: "A recognized 403 from advancing a draft names the gating feature and a next step", "A recognized 403 from creating a proposal names the gate as a possibility", "A non-recognized 403 keeps the generic permission diagnostic", "A non-403 failure on a gated operation gets no plan-limit wording", "A recognized plan-limit 403 keeps the permission exit code across formats", "The ai_integration gate produces no plan-limit message today", "The gating feature is a distinct feature element under json", "A genuine permission denial on a gated operation is hedged, never asserted"
+  - **Risk**: ⚠️ Do **not** touch `categoryForStatus`/`nextStepForStatus` or remap the `403` — the category stays `PermissionError` and the exit code is unchanged (plan ADR-2); refine only `Cause`/`NextStep`/`Feature`. ⚠️ Word the diagnostic as a **possibility**, never certainty — never instruct the caller to upgrade as the sole remedy (spec 1A / 060 ADR-4; CONSTITUTION VIII). ⚠️ `feature` must be `omitempty` so non-plan-limit envelopes are byte-stable; place it in the pinned declaration order. ⚠️ Reach the `ResponseError` via a second `errors.As` on the same refined error (the unwrap path `errorEnvelopeFor` already uses) — do not re-recognize in `errorEnvelopeFor` (read `d.Feature`); one classification site (plan ADR-3). ⚠️ Guard the display-name map with the exhaustiveness test (LEARNINGS PR #10).
+
+- [ ] **T003** [Shared] Make the driving scenarios pass as executable acceptance — godog steps over `plan-limit-signal.feature`; un-`@wip` the behavioral scenarios, hold `@validation`
+  - **Scope**: Add godog step definitions for `features/unsignalled-plan-limits/plan-limit-signal.feature` in the appropriate `internal/cli` suite (the diagnostic/failure-rendering boundary, alongside the `diagnostic-normalization` / `output-aware-failure-rendering` suites), whose `Paths` names **only** that feature file (LEARNINGS: a suite points at its own file, never the `features/` directory). Steps drive the failure path at the `Diagnose`/render boundary: a Given names the failed operation (method + path) and the HTTP status (and, where relevant, that it is a known plan-gated operation or a genuine permission denial); the When renders the failure under the relevant output format(s); the Then asserts the gate-aware cause/next-step, the distinct `feature` envelope element under `json`, the unchanged exit code `4` across formats, the possibility framing, and the no-fabricated-remedy property. Remove `@wip` from the spec-derived **behavioral** scenarios; keep the two `@validation` scenarios `@wip` (held for validate). Grep existing `sc.Step(` registrations and reuse shared phrasing from the sibling diagnostic/rendering suites before writing new bindings; step helpers return errors, never panic.
+  - **Acceptance criteria**:
+    - Every non-`@validation` scenario in `plan-limit-signal.feature` has an executable, passing path; `@wip` removed from them
+    - The two `@validation` scenarios ("Every rendered plan-limit failure frames the limit as a possibility", "A rendered plan-limit failure invents no remedy detail") keep `@wip` (held for validate)
+    - The suite's `Paths` names only `plan-limit-signal.feature`; all `internal/cli` godog suites run and report their own independent scenario counts
+    - The Then-steps assert: the gate is named (Premium async proposals) for recognized `403`s; no `feature`/plan-limit wording for the non-gated `403` and the non-`403` gated op; the distinct `feature` key under `json`; exit code `4` across formats; possibility framing (never a certain insufficiency, never "upgrade")
+    - No real network, no filesystem, no token access; `go build ./...`, `go vet ./...`, and the feature suites run clean offline
+  - **Dependencies**: T002 (the behavior all scenarios assert)
+  - **Plan reference**: System Architecture; Cross-cutting (testing — BDD over the driving scenarios at the `Diagnose`/render boundary)
+  - **Scenario references**: plan-limit-signal.feature: all behavioral Rule-block scenarios (all three Rules); the two `@validation` scenarios stay held for validate
+  - **Risk**: ⚠️ Suite scoping — point the suite at `plan-limit-signal.feature` only (not the `features/` directory); verify it reports its own count (LEARNINGS). ⚠️ Reuse shared step phrasings from the sibling diagnostic/rendering suites before writing new bindings; step helpers return errors, never panic (LEARNINGS). ⚠️ Keep the `@validation` scenarios `@wip` — they assert the possibility-framing and the no-fabricated-remedy boundary, held for validate.
