@@ -67,7 +67,7 @@ Matching compares the method, then path segments pairwise, where a `{…}` templ
 
 ### ADR-3: Model both gate kinds, register only the reachable Premium async-proposal family
 
-**Context**: The spec carries two in-relevant gate kinds: the Premium async-proposal write path (in scope — its commands exist or are in pipeline) and the `x-feature-gate: ai_integration` extension on 7 agent/skill operations (deferred per PROJECT scope — no CLI command reaches them). The spec settled this as "model the gate kind generally, but only the proposal writes are reachable today" (define decision A; spec edge-case scenario "a modeled ai_integration gate has no reachable command today").
+**Context**: The spec carries two relevant gate kinds: the Premium async-proposal write path (in scope — its commands exist or are in pipeline) and the `x-feature-gate: ai_integration` extension on 7 agent/skill operations (deferred per PROJECT scope — no CLI command reaches them). The spec settled this as "model the gate kind generally, but only the proposal writes are reachable today" (define decision A; spec edge-case scenario "a modeled ai_integration gate has no reachable command today").
 
 **Options considered**:
 1. **Premium-only** — omit `ai_integration` entirely until those endpoints land. Disadvantage: the recognizer can't name the `ai_integration` gate even in principle; a later command would force a type change, not just a registry edit.

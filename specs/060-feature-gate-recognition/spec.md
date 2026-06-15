@@ -43,7 +43,7 @@ It is deliberately narrow — it *recognizes* a suspected plan-gate, nothing mor
 **I want to** have plan-gated `403`s recognized as distinct from ordinary permission denials.
 
 **In order to** word a plan-limit diagnostic that names the right gate and never falsely tells someone to upgrade,
-**as a** the downstream Plan-Limit Signal capability,
+**as** the downstream Plan-Limit Signal capability,
 **I want to** receive a recognized rejection tagged as a *possible* plan limit with the suspected gate named.
 
 ---
@@ -147,7 +147,7 @@ And nowhere claims a `403` is certainly a plan limit.
 ## Assumptions
 
 - **The call site knows its operation identity**: recognition can associate a failing call with the spec operation that produced it. ([ASSUMED] — informed by the CLI's structure where each command maps to one spec operation; if operation identity is not reachable at the recognition point, the mechanism for supplying it is an architecture concern for the plan.)
-- **The gated set is the Premium async-proposal write family, identified generically**: recognition treats the Premium async-proposal write operations as a family rather than an enumerated list, so a sibling operation in that family is covered when its command lands. ([ASSUMED] — Withdraw Proposal is a Premium async-proposal operation not yet specified or built (BACKLOG #59); family-level recognition covers it on arrival without a later edit to this capability.)
+- **The gated set explicitly enumerates the Premium async-proposal write operations, including those not yet built**: recognition registers each Premium async-proposal write operation by identity, and that registry already includes the operations whose commands have not yet landed, so each is covered the moment its command issues the request — without a later edit to this capability. ([ASSUMED] — Withdraw Proposal is a Premium async-proposal operation not yet specified or built (BACKLOG #59); because recognition keys on the operation rather than the command, its pre-registered entry covers it on arrival. This is the per-operation registry the plan settles in ADR-2 — not generic family matching, which would wrongly imply a brand-new, unregistered operation is auto-covered.)
 - **Gate metadata is static, not fetched**: the plan-gated set is derived from the published spec at build time, not by querying plan status at runtime. (Technical default — consistent with "Spec is the contract" and avoids a live capability probe.)
 
 ---
