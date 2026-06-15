@@ -70,7 +70,7 @@ req := apiclient.Request{
     Body:        bytes.NewReader(body),
     ContentType: "application/json",                      // 042: header set by Execute; no IfMatch
 }
-if machineFmt, ok := selection.MachineFormat(); ok {     // structured
+if machineFmt, ok := selection.Format.MachineFormat(); ok {  // structured (MachineFormat is on OutputFormat)
     var rawResp json.RawMessage
     if _, err := ex.Execute(cfg.reqCtx, req, &rawResp); err != nil { return reportFailure(...) }
     doc, _ := output.RenderSuccess(machineFmt, rawResp); stdout.Write(doc)   // raw {data: Proposal} verbatim
