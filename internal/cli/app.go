@@ -127,6 +127,14 @@ func Assemble() *cobra.Command {
 	// holds. productionSeam binds the real transport + clock; the leaf reads the
 	// inherited persistent --base-url/--output.
 	MustRegister(root, newTensionCommand(productionSeam{}))
+	// Proposal Creation (055): the `proposal` group + `create` leaf — the CLI's second
+	// write and the anchor of the governance write path. `proposal create <tension-id>
+	// --changes <src>` POSTs a draft proposal carrying a caller-supplied governance
+	// change set (inline / file / piped stdin) and prints the created proposal with its
+	// prp_ id. A non-runnable group parenting one leaf (the tension shape, ADR-1), built
+	// with its child before registration so the guard's ">=1 child" rule holds. The
+	// group is shared with Proposal Reads (056) under first-to-land-creates.
+	MustRegister(root, newProposalCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))
