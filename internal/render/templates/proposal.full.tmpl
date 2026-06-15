@@ -1,0 +1,9 @@
+{{$p := .Proposal}}{{$p.ID}}  [{{$p.Status}}]
+  Tension:        {{if eq (trimSpace $p.TensionID) ""}}(none){{else}}{{$p.TensionID}}{{end}}
+  Circle:         {{if eq (trimSpace $p.CircleID) ""}}(none){{else}}{{$p.CircleID}}{{end}}
+  Proposer:       {{if eq (trimSpace $p.ProposerID) ""}}(none){{else}}{{$p.ProposerID}}{{end}}
+  Changes:        {{len $p.Changes}}
+  Responses:      {{$p.ResponseSummary.NoObjection}}/{{$p.ResponseSummary.Total}} no-objection, {{$p.ResponseSummary.BringToMeeting}} bring-to-meeting
+  Transitions:    {{if $p.AvailableTransitions}}{{join $p.AvailableTransitions ", "}}{{else}}(none){{end}}
+  Created:        {{if eq (trimSpace $p.CreatedAt) ""}}(unknown){{else}}{{$p.CreatedAt}}{{end}}
+  Updated:        {{if eq (trimSpace $p.UpdatedAt) ""}}(unknown){{else}}{{$p.UpdatedAt}}{{end}}
