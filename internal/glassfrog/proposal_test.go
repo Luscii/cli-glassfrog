@@ -2,6 +2,7 @@ package glassfrog
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -116,6 +117,54 @@ func TestProposal_Decode_UnknownFieldsTolerated(t *testing.T) {
 	}
 	if doc.Data.ID != "prp_1" {
 		t.Errorf("id mis-bound with extra field present: %+v", doc.Data)
+	}
+}
+
+// TestProposal_Decode_PageOfProposals pins that a {data:[…]} list body decodes
+// through the generic Page[Proposal] — the shape the global `proposal list` walk
+// (056) reads — binding each element's fields and the pagination meta. The same
+// Proposal model the single read (Document[Proposal]) uses serves the list element.
+func TestProposal_Decode_PageOfProposals(t *testing.T) {
+	body := `{"data":[
+	  {"id":"prp_1","type":"proposal","status":"draft","tension_id":"ten_1","circle_id":"role_1","proposer_id":"per_1","changes":[{"id":"chg_1","type":"CreateRole"}],"response_summary":{"total":1,"no_objection":1,"bring_to_meeting":0},"available_transitions":["propose"],"created_at":"t","updated_at":"t"},
+	  {"id":"prp_2","type":"proposal","status":"proposed_outside_meeting","tension_id":null,"circle_id":null,"proposer_id":null,"changes":[],"response_summary":{"total":0,"no_objection":0,"bring_to_meeting":0},"created_at":"t","updated_at":"t"}
+	],"meta":{"pagination":{"per_page":100,"has_next_page":false,"next_cursor":""}}}`
+	var page Page[Proposal]
+	if err := json.Unmarshal([]byte(body), &page); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(page.Data) != 2 {
+		t.Fatalf("want 2 proposals, got %d", len(page.Data))
+	}
+	if page.Data[0].ID != "prp_1" || page.Data[0].Status != "draft" {
+		t.Errorf("first proposal mis-bound: %+v", page.Data[0])
+	}
+	// The second element's null anchors decode to empty strings (the nullable-as-empty
+	// convention), proving the list element shares the single-read decode posture.
+	if p := page.Data[1]; p.TensionID != "" || p.CircleID != "" || p.ProposerID != "" {
+		t.Errorf("null anchors on a list element should decode to empty strings: %+v", p)
+	}
+}
+
+// TestResponseSummary_AggregateOnly pins the anti-attribution non-behavior at the
+// type level (spec 056 non-behavior): ResponseSummary exposes ONLY the three
+// aggregate counts — there is no field that could carry a per-person attribution
+// (no actor/person id, no per-responder breakdown). A reflect-over-the-fields guard
+// fails loud if a future edit adds an attribution-shaped field.
+func TestResponseSummary_AggregateOnly(t *testing.T) {
+	rt := reflect.TypeOf(ResponseSummary{})
+	if rt.NumField() != 3 {
+		t.Fatalf("ResponseSummary must expose exactly the three aggregate counts, got %d fields", rt.NumField())
+	}
+	want := map[string]bool{"Total": true, "NoObjection": true, "BringToMeeting": true}
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		if !want[f.Name] {
+			t.Errorf("ResponseSummary carries an unexpected field %q — no per-person attribution may be added", f.Name)
+		}
+		if f.Type.Kind() != reflect.Int {
+			t.Errorf("aggregate count %q must be an int, got %s", f.Name, f.Type)
+		}
 	}
 }
 
