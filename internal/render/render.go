@@ -166,6 +166,20 @@ type TensionView struct {
 	Tension glassfrog.Tension
 }
 
+// ProposalView is the data the singular `proposal` templates (055) render: a single
+// created proposal — the createProposal 201 {data: Proposal} — surfacing the
+// load-bearing prp_ id and the server-set status badge, the anchor tension, circle,
+// and proposer (each nullable, behind an explicit-absence guard), the change COUNT
+// (the command does not project individual change bodies — a richer 056 view renders
+// them by type), the aggregate response counts, and the available transitions. It
+// mirrors TensionView{Tension} / PolicyView{Policy}. Shared with Proposal Reads (056)
+// under first-to-land-creates / follower-reuses-or-grows (plan ADR-4): created here
+// since 056 has not landed; 056 then grows the template to render changes by type,
+// keeping the single shared key.
+type ProposalView struct {
+	Proposal glassfrog.Proposal
+}
+
 // TensionsView is the data the role-scoped `tensions` list templates (043) render:
 // the tensions a role carries, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — the plural list sibling
@@ -418,6 +432,14 @@ const (
 	// first added on 042's write path and reused unchanged by 043's `tension get`
 	// read; its plural list sibling is ResourceTensions, below.
 	ResourceTension Resource = "tension"
+	// ResourceProposal is the single-proposal projection (055): the createProposal 201
+	// {data: Proposal} rendered as a ProposalView (one glassfrog.Proposal). Singular —
+	// the anchor of the governance write path; its prp_ id is the load-bearing handle a
+	// later step references to advance the proposal. Shared with Proposal Reads (056)
+	// under first-to-land-creates / follower-reuses-or-grows (plan ADR-4): created here
+	// (056 not landed), grown by 056 to render changes by type. No plural sibling in 055
+	// (the proposals list is 056's concern).
+	ResourceProposal Resource = "proposal"
 	// ResourceTensions is the role-scoped tension list read (043):
 	// GET /roles/{id}/tensions rendered as a TensionsView ([]glassfrog.Tension).
 	// Plural — the list sibling of the landed singular ResourceTension (042); the
@@ -479,7 +501,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
