@@ -195,6 +195,20 @@ type ProposalsView struct {
 	Data []glassfrog.Proposal
 }
 
+// ProposalVoteView is the data the singular `proposal-response` templates (058)
+// render: a single recorded consent-window response — the createProposalResponse 201
+// {data: ProposalVote} — surfacing the load-bearing prr_ id, the recorded value, the
+// anchoring proposal_id (nullable, behind an explicit-absence guard), and — the
+// load-bearing field — the parent proposal's status at response time, rendered so
+// `accepted` is legible as "this response closed the consent window" (the
+// auto-acceptance signal). It is a DISTINCT view from ProposalView (it renders a
+// ProposalVote, not a Proposal — no changes/response_summary). There is no per-person
+// attribution to render (the vote carries none — type-level non-behavior). It mirrors
+// the singular ProjectView/TensionView shape.
+type ProposalVoteView struct {
+	ProposalVote glassfrog.ProposalVote
+}
+
 // TensionsView is the data the role-scoped `tensions` list templates (043) render:
 // the tensions a role carries, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — the plural list sibling
@@ -461,6 +475,14 @@ const (
 	// create-only 055 needed no list. The CLI's first global (non-role-scoped) list
 	// render key alongside the `me`-family reads.
 	ResourceProposals Resource = "proposals"
+	// ResourceProposalResponse is the single recorded-response projection (058): the
+	// createProposalResponse 201 {data: ProposalVote} rendered as a ProposalVoteView
+	// (one glassfrog.ProposalVote). Singular — recording always yields exactly one vote,
+	// never a list. Distinct from ResourceProposal/ResourceProposals (which render the
+	// Proposal resource): the recorded vote is its own schema (prr_ id, recorded value,
+	// the parent proposal_status). The `proposal-response.full` template surfaces the
+	// parent proposal_status explicitly — the load-bearing auto-acceptance signal.
+	ResourceProposalResponse Resource = "proposal-response"
 	// ResourceTensions is the role-scoped tension list read (043):
 	// GET /roles/{id}/tensions rendered as a TensionsView ([]glassfrog.Tension).
 	// Plural — the list sibling of the landed singular ResourceTension (042); the
@@ -522,7 +544,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposals}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposals, ResourceProposalResponse}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

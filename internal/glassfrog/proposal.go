@@ -120,3 +120,62 @@ func NewCreateProposalRequest(tensionID string, changes []json.RawMessage) Creat
 		Changes:   changes,
 	}}
 }
+
+// ProposalVote is the v5 ProposalVote schema: a single consent-window response
+// recorded against a circulating proposal — the response shape the
+// createProposalResponse 201 returns inside a {data: ProposalVote} envelope,
+// decoded via the generic Document[ProposalVote] (no per-resource envelope). It is
+// a DISTINCT schema from Proposal (058 ADR-2): it carries no changes/response_summary
+// and is never a grow of it. The recorded vote leads with its prr_ id and surfaces
+// the parent proposal's status at response time — ProposalStatus reads `accepted`
+// when this very response triggered auto-acceptance (the agent-visible signal that
+// the consent window closed), which the CLI surfaces without computing acceptance.
+//
+// Every field carries an explicit snake_case JSON tag — encoding/json is
+// case-insensitive but does NOT bridge underscores, so an untagged ProposalID would
+// silently never bind to the API's proposal_id. Decoding is tolerant of unknown/extra
+// fields (forward-compatible — the Tension/Proposal shape).
+//
+// ProposalID is nullable: a JSON null (or absent key) decodes to the empty string,
+// the nullable-as-empty-string convention the landed models use (Proposal.TensionID,
+// Tension.RoleID); the render guards explicit-absence rather than printing a blank.
+//
+// There is NO per-person attribution on the vote — no actor/person field — matching
+// the API ("summary stats only on the proposal resource") and 056's ResponseSummary
+// anti-attribution non-behavior. The responding person is derived from the token and
+// is never a field here; the token itself rides 007's X-Auth-Token request header, so
+// secret hygiene holds by construction (CONSTITUTION II).
+type ProposalVote struct {
+	ID             string `json:"id"`
+	Type           string `json:"type"`
+	ProposalID     string `json:"proposal_id"`
+	ProposalStatus string `json:"proposal_status"`
+	Value          string `json:"value"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+// ProposalResponseInput is the createProposalResponse request body: the nested
+// {"response": {"value": …}} envelope (CreateProposalResponseRequest). This is 058's
+// EXCLUSIVE net-new request surface — neither 055 (create) nor 056 (reads) needs it.
+// There is NO person field (the server derives the responding person from the token —
+// the recording carries no identity claim) and NO status field (the parent proposal's
+// status is server-owned). The token is never a field here.
+type ProposalResponseInput struct {
+	Response ProposalResponseBody `json:"response"`
+}
+
+// ProposalResponseBody is the inner object of ProposalResponseInput. Value is always
+// serialized (no omitempty): the command guarantees a non-empty, validated consent
+// value before marshalling (an omitted/unsupported --response is rejected pre-request),
+// so the body always carries response.value — the 042 TensionInputBody shape.
+type ProposalResponseBody struct {
+	Value string `json:"value"`
+}
+
+// NewProposalResponseInput builds the response body from the validated consent value
+// (already checked against the closed response vocabulary by the command). It marshals
+// to {"response":{"value":…}} with no added keys — no person, no status.
+func NewProposalResponseInput(value string) ProposalResponseInput {
+	return ProposalResponseInput{Response: ProposalResponseBody{Value: value}}
+}
