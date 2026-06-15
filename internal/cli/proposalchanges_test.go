@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"strings"
@@ -30,6 +31,17 @@ func statNotFound(string) (os.FileInfo, error) { return nil, fs.ErrNotExist }
 // statRegular reports an existing regular file; statDir reports a directory.
 func statRegular(string) (os.FileInfo, error) { return fakeFileInfo{mode: 0}, nil }
 func statDir(string) (os.FileInfo, error)     { return fakeFileInfo{mode: os.ModeDir}, nil }
+
+// statPermission stands in for a value that names a path the process cannot reach
+// (e.g. a parent directory lacks traversal permission) — a non-not-exist stat error.
+func statPermission(string) (os.FileInfo, error) { return nil, fs.ErrPermission }
+
+// statNameTooLong stands in for a value too long to be a path name — a large inline
+// JSON array overflows NAME_MAX and stats as ENAMETOOLONG, which is NOT a permission
+// error and must fall through to the inline branch.
+func statNameTooLong(string) (os.FileInfo, error) {
+	return nil, &fs.PathError{Op: "stat", Err: fmt.Errorf("file name too long")}
+}
 
 // readFails always errors, standing in for an unreadable file.
 func readFails(string) ([]byte, error) { return nil, errors.New("permission denied") }
@@ -116,6 +128,23 @@ func TestResolveChangesSource_UnreadableFile(t *testing.T) {
 	}
 }
 
+// TestResolveChangesSource_PermissionErrorSurfaced pins that a permission error on
+// stat (a path the operator likely meant but the process cannot reach) is surfaced as
+// a named source error, NOT silently treated as inline JSON (which would mislead with
+// a "must be a JSON array" parse error downstream).
+func TestResolveChangesSource_PermissionErrorSurfaced(t *testing.T) {
+	_, err := resolveChangesSource("/root/secret.json", statPermission, readFails, false, nil)
+	if err == nil {
+		t.Fatal("a permission error on stat should be surfaced, not treated as inline")
+	}
+	if !strings.Contains(err.Error(), "/root/secret.json") {
+		t.Errorf("the error should name the source: %v", err)
+	}
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Errorf("the error should wrap the underlying permission error: %v", err)
+	}
+}
+
 // --- resolveChangesSource: inline arm --------------------------------------
 
 func TestResolveChangesSource_InlineWhenNotAFile(t *testing.T) {
@@ -126,6 +155,27 @@ func TestResolveChangesSource_InlineWhenNotAFile(t *testing.T) {
 	}
 	if string(got) != inline {
 		t.Errorf("inline bytes should pass through, got %q", got)
+	}
+}
+
+// TestResolveChangesSource_LongInlineNotMisclassified pins that a non-permission stat
+// error (here ENAMETOOLONG — a long inline JSON array overflows NAME_MAX) falls through
+// to the inline branch rather than erroring. Guards against a regression where surfacing
+// "any non-not-exist stat error" would break the primary inline case for large arrays.
+func TestResolveChangesSource_LongInlineNotMisclassified(t *testing.T) {
+	// A JSON array well over NAME_MAX (255) bytes — the realistic inline case that
+	// stats as ENAMETOOLONG rather than not-exist.
+	inline := "[" + strings.Repeat(`{"type":"CreateRole","name":"a very long role name to pad the bytes"},`, 10)
+	inline = strings.TrimSuffix(inline, ",") + "]"
+	if len(inline) <= 255 {
+		t.Fatalf("test fixture should exceed NAME_MAX, got %d bytes", len(inline))
+	}
+	got, err := resolveChangesSource(inline, statNameTooLong, readFails, false, nil)
+	if err != nil {
+		t.Fatalf("a long inline value (ENAMETOOLONG on stat) should be treated as inline, got %v", err)
+	}
+	if string(got) != inline {
+		t.Errorf("long inline bytes should pass through verbatim, got %q", got)
 	}
 }
 
@@ -160,6 +210,22 @@ func TestValidateChanges_RejectsNonJSON(t *testing.T) {
 func TestValidateChanges_RejectsNonArray(t *testing.T) {
 	if _, err := validateChanges([]byte(`{"type":"CreateRole"}`)); err == nil {
 		t.Fatal("a JSON object (not an array) should be rejected")
+	}
+}
+
+// TestValidateChanges_RejectsNull pins that JSON null — which unmarshals into a nil
+// slice WITHOUT error — is rejected as "must be a JSON array", not the misleading "at
+// least one change is required" (null is not an empty array).
+func TestValidateChanges_RejectsNull(t *testing.T) {
+	_, err := validateChanges([]byte(`null`))
+	if err == nil {
+		t.Fatal("JSON null should be rejected")
+	}
+	if !strings.Contains(err.Error(), "JSON array") {
+		t.Errorf("null should be rejected as a non-array, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "at least one change") {
+		t.Errorf("null should NOT report the empty-array message, got: %v", err)
 	}
 }
 

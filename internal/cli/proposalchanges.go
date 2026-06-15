@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 )
@@ -47,9 +48,9 @@ func resolveChangesSource(value string, stat func(string) (os.FileInfo, error), 
 
 	// A value that stats to an existing regular file is read from disk; a directory or
 	// any non-regular entry is not a source (a path-traversal/symlink-target guard, the
-	// existing-regular-file shape). A stat error (the path does not exist) falls through
-	// to the inline branch — the common case, a JSON array on argv.
-	if info, err := stat(value); err == nil {
+	// existing-regular-file shape).
+	info, statErr := stat(value)
+	if statErr == nil {
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("--changes %q is not a regular file (a change set must be inline JSON, a file path, or the reserved keyword stdin)", value)
 		}
@@ -58,6 +59,17 @@ func resolveChangesSource(value string, stat func(string) (os.FileInfo, error), 
 			return nil, fmt.Errorf("could not read the change set file %q: %w", value, rerr)
 		}
 		return b, nil
+	}
+
+	// A permission error on stat means the value names a path the operator likely meant
+	// but the process cannot reach (e.g. a parent directory lacks traversal permission).
+	// Surface it as a named source error rather than silently treating the path as
+	// inline JSON, which would mislead with a "must be a JSON array" parse error. Any
+	// OTHER stat error — the path does not exist (the common inline case), or the value
+	// is too long to be a path name (a large inline JSON array overflows NAME_MAX and
+	// stats as ENAMETOOLONG) — falls through to the inline branch.
+	if errors.Is(statErr, fs.ErrPermission) {
+		return nil, fmt.Errorf("could not access the change set source %q: %w", value, statErr)
 	}
 
 	// Anything else is the inline JSON array itself.
@@ -76,6 +88,12 @@ func resolveChangesSource(value string, stat func(string) (os.FileInfo, error), 
 func validateChanges(raw []byte) ([]json.RawMessage, error) {
 	var changes []json.RawMessage
 	if err := json.Unmarshal(raw, &changes); err != nil {
+		return nil, errors.New("--changes must be a JSON array of change objects")
+	}
+	// JSON null unmarshals into a nil slice WITHOUT error — but null is not an array, so
+	// reject it with the array message rather than the empty-array one. An empty array
+	// (`[]`) unmarshals into a non-nil empty slice, so a nil slice here means null.
+	if changes == nil {
 		return nil, errors.New("--changes must be a JSON array of change objects")
 	}
 	if len(changes) == 0 {
