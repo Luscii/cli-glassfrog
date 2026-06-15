@@ -18,7 +18,7 @@ This accord pins the Go contracts 061 adds along the existing failure chain: the
 | Symbol | Signature (shape) | Description |
 |---|---|---|
 | `ResponseError.Method` | `string` | NEW. The failed request's HTTP method, set in `Execute` where `req.Method` is in scope (ADR-1). Zero-values to `""`. |
-| `ResponseError.Path` | `string` | NEW. The failed request's path (`req.Path`, as given — the segment-templated path the 060 registry matches). Zero-values to `""`. |
+| `ResponseError.Path` | `string` | NEW. The failed request's path (`req.Path`, as given — the **concrete** path, e.g. `/proposals/prp_0123/propose`, which 060's recognizer matches against its `{…}` path templates; never store a template here). Zero-values to `""`. |
 
 `Execute` sets both when it constructs the non-2xx `*ResponseError` (the one site, `execute.go`). `ResponseError.Error()` is **unchanged** (status only), so every existing message and golden test is byte-stable. The fields ride the error through `refineClientError`'s `*ProblemError` wrap (which `Unwrap`s to the `ResponseError`), so they reach `Diagnose` with no call-site changes.
 
