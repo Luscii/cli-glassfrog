@@ -1,0 +1,3 @@
+{{if not .Data}}no proposals
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]  {{len .Changes}} change(s)
+{{end}}{{end}}

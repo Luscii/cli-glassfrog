@@ -176,21 +176,26 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 
 // newProposalCommand assembles the `proposal` command group and its leaves, registered
 // through the guard (group-has-children, non-empty Short, no action). The group is
-// built with its children attached BEFORE being returned for registration under root, so
-// the guard's ">=1 child" rule holds at attach time (the tension/auth shape, plan
-// ADR-1). The `proposal` namespace reserves room for the rest of the write-flow and the
-// reads (withdraw/respond, and 056's list/get); 055 attached `create`, and 057 attaches
-// the `propose` transition. The group is SHARED across the proposal family under
-// first-to-land-creates: 055 created it; siblings (056 reads, 057 propose) attach their
-// leaves to the existing group rather than redefining it. The seam is injected so tests
-// drive a fake one; production passes productionSeam{} from Assemble.
+// built with its children attached BEFORE being returned for registration under root,
+// so the guard's ">=1 child" rule holds at attach time (the tension/auth shape, plan
+// ADR-1). The `proposal` namespace parents the write `create` (055), the `propose`
+// transition (057), and the reads `list` / `get` (056); it reserves room for the rest of
+// the write-flow (withdraw/respond). The group, the glassfrog.Proposal model, and the
+// singular `proposal` render key are SHARED across the proposal family under
+// first-to-land-creates: 055 created the group here; siblings (056 reads, 057 propose)
+// attach their leaves to the existing group and grow the shared model/render rather than
+// duplicating them. The seam is injected so tests drive a fake one; production passes
+// productionSeam{} from Assemble. All leaves share the one proposalSeam — the reads touch
+// only the embedded tensionSeam half.
 func newProposalCommand(seam proposalSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "proposal",
-		Short: "Work with proposals — create a draft against a tension and advance it into circulation",
+		Short: "Work with proposals — create, advance, list, and read governance proposals",
 	}
 	MustRegister(group, newProposalCreateCommand(seam))
 	MustRegister(group, newProposalProposeCommand(seam))
+	MustRegister(group, newProposalListCommand(seam))
+	MustRegister(group, newProposalGetCommand(seam))
 	return group
 }
 

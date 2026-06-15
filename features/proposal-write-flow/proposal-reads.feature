@@ -20,7 +20,6 @@ Feature: Proposal Reads
     # I want to list proposals, narrowed to a circle or status, with one command.
 
     # Source: 056-proposal-reads — Scenario: List the proposals visible to the caller
-    @wip
     Scenario: The visible proposals are listed
       Given a complete connection context with a stored token
       And several proposals are visible to the caller
@@ -30,7 +29,6 @@ Feature: Proposal Reads
       And the command will exit with code 0
 
     # Source: 056-proposal-reads — Scenario: Narrow the list to a circle and a status
-    @wip
     Scenario: A circle-and-status narrowed list is requested
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal list --role-id role_0123 --status proposed_outside_meeting"
@@ -39,7 +37,6 @@ Feature: Proposal Reads
       And the command will exit with code 0
 
     # Source: 056-proposal-reads — Scenario: No proposals are visible
-    @wip
     Scenario: An empty visible set is a clean success
       Given a complete connection context with a stored token
       And no proposals are visible to the caller
@@ -48,7 +45,6 @@ Feature: Proposal Reads
       And the command will exit with code 0
 
     # Source: 056-proposal-reads — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog proposal list"
@@ -65,7 +61,6 @@ Feature: Proposal Reads
       And it will not contain the raw "data" or "meta" JSON envelope
 
     # Source: 056-proposal-reads — Proposed: an invalid --output is rejected before any request (resolve-first ordering)
-    @wip
     Scenario: An invalid output format is rejected before any list request
       Given a complete connection context with a stored token
       When an agent runs "glassfrog proposal list -o xml"
@@ -80,7 +75,6 @@ Feature: Proposal Reads
     # I want to fetch a single proposal by its prp_ id.
 
     # Source: 056-proposal-reads — Scenario: Read a single proposal with full detail
-    @wip
     Scenario: A single proposal is read with full detail
       Given a complete connection context with a stored token
       And a proposal "prp_0123" exists
@@ -89,7 +83,6 @@ Feature: Proposal Reads
       And the command will exit with code 0
 
     # Source: 056-proposal-reads — Scenario: Proposal id does not exist
-    @wip
     Scenario: An unknown proposal id fails with the API status
       Given a complete connection context with a stored token
       And no proposal "prp_ffff" exists
@@ -98,7 +91,6 @@ Feature: Proposal Reads
       And the command will exit with a non-zero API-error code
 
     # Source: 056-proposal-reads — Scenario: List filter on the single read is rejected
-    @wip
     Scenario: A list filter on the single read is a usage error
       Given a complete connection context with a stored token
       When a practitioner runs "glassfrog proposal get prp_0123 --status draft"
@@ -128,7 +120,6 @@ Feature: Proposal Reads
     # I want to filter the list to proposals I created, or to a status, or to recently-proposed ones.
 
     # Source: 056-proposal-reads — Proposed: proposer-id filter (Behavioral Accord: Filters (list))
-    @wip
     Scenario: The list is narrowed to the caller's own proposals
       Given a complete connection context with a stored token
       When a proposer runs "glassfrog proposal list --proposer-id per_0123"
@@ -137,7 +128,6 @@ Feature: Proposal Reads
       And the command will exit with code 0
 
     # Source: 056-proposal-reads — Scenario: Unsupported status value is rejected before any request
-    @wip
     Scenario: An unsupported status value is rejected before any request
       Given a complete connection context with a stored token
       When a proposer runs "glassfrog proposal list --status open"
@@ -159,7 +149,6 @@ Feature: Proposal Reads
     # I want the list to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 056-proposal-reads — Scenario: Paginated list with first-page opt-out
-    @wip
     Scenario: The first-page opt-out signals more proposals exist
       Given a complete connection context with a stored token
       And the visible proposals span more than one page

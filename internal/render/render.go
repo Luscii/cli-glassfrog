@@ -21,6 +21,7 @@ package render
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"text/template"
@@ -178,6 +179,20 @@ type TensionView struct {
 // keeping the single shared key.
 type ProposalView struct {
 	Proposal glassfrog.Proposal
+}
+
+// ProposalsView is the data the global `proposals` list templates (056) render: the
+// proposals visible to the caller (GET /proposals), walked to completion. It mirrors
+// ProjectsView/TensionsView's shape (a single .Data slice the templates range over) —
+// the plural list sibling of the singular `proposal` key (055/056), added by Proposal
+// Reads (056) since the create-only 055 needed no list. Each row projects the prp_ id,
+// the status badge, the nullable proposer (explicit-absence marker when blank), the
+// change count, and the aggregate response summary — never any per-person attribution
+// (only ResponseSummary's three counts exist). An empty Data set renders the explicit
+// `no proposals` line (no proposals visible, or a filter that matched none, is a valid
+// empty answer, not an error).
+type ProposalsView struct {
+	Data []glassfrog.Proposal
 }
 
 // TensionsView is the data the role-scoped `tensions` list templates (043) render:
@@ -440,6 +455,12 @@ const (
 	// (056 not landed), grown by 056 to render changes by type. No plural sibling in 055
 	// (the proposals list is 056's concern).
 	ResourceProposal Resource = "proposal"
+	// ResourceProposals is the global proposal list read (056): GET /proposals
+	// rendered as a ProposalsView ([]glassfrog.Proposal). Plural — the list sibling of
+	// the singular ResourceProposal (055), added by Proposal Reads (056) since the
+	// create-only 055 needed no list. The CLI's first global (non-role-scoped) list
+	// render key alongside the `me`-family reads.
+	ResourceProposals Resource = "proposals"
 	// ResourceTensions is the role-scoped tension list read (043):
 	// GET /roles/{id}/tensions rendered as a TensionsView ([]glassfrog.Tension).
 	// Plural — the list sibling of the landed singular ResourceTension (042); the
@@ -501,7 +522,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposals}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
@@ -531,6 +552,34 @@ var funcMap = template.FuncMap{
 			depth = 0
 		}
 		return strings.Repeat("  ", depth)
+	},
+	// changeProps renders a proposal change's command-specific properties (the
+	// free-form keys beyond id/type) as compact JSON, so `proposal.full` can show
+	// each change BY TYPE with its body rendered verbatim — never truncated or
+	// reflowed (CONSTITUTION VI; the structured json/yaml output carries the true
+	// byte-for-byte payload). id/type are dropped (the type is already shown in the
+	// `[<type>]` badge); an empty remainder returns "" so the template omits the
+	// trailing properties. Marshalling a map sorts keys, so the output is
+	// deterministic (the golden tests pin it). The CLI never interprets the keys.
+	"changeProps": func(c glassfrog.ProposalChange) string {
+		if len(c.Fields) == 0 {
+			return ""
+		}
+		rest := make(map[string]any, len(c.Fields))
+		for k, v := range c.Fields {
+			if k == "id" || k == "type" {
+				continue
+			}
+			rest[k] = v
+		}
+		if len(rest) == 0 {
+			return ""
+		}
+		b, err := json.Marshal(rest)
+		if err != nil {
+			return ""
+		}
+		return string(b)
 	},
 }
 

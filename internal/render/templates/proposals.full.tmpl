@@ -1,0 +1,6 @@
+{{if not .Data}}no proposals
+{{else}}{{range .Data}}{{.ID}}  [{{.Status}}]
+  proposer: {{if eq (trimSpace .ProposerID) ""}}—{{else}}{{.ProposerID}}{{end}}
+  changes: {{len .Changes}}
+  responses: {{.ResponseSummary.Total}} total ({{.ResponseSummary.NoObjection}} no-objection, {{.ResponseSummary.BringToMeeting}} bring-to-meeting)
+{{end}}{{end}}

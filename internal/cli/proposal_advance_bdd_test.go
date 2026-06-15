@@ -250,10 +250,12 @@ func (w *proposalProposeWorld) carriesResponseDeadline() error {
 }
 
 func (w *proposalProposeWorld) reflectsImplicitNoObjection() error {
-	// proposalAdvancedBody records the proposer's implicit no_objection (1/1), surfaced
-	// by the full render's Responses line.
-	if !strings.Contains(w.stdout, "1/1 no-objection") {
-		return fmt.Errorf("the response summary should reflect the proposer's implicit no-objection (1/1):\n%s", w.stdout)
+	// proposalAdvancedBody records the proposer's implicit no_objection (1 of 1),
+	// surfaced by the full render's Responses line. The shared `proposal.full` template
+	// was grown to the 056 detail-block format (`<total> total — <no_objection>
+	// no-objection, …`) when Proposal Reads merged, so assert against that format.
+	if !strings.Contains(w.stdout, "1 total — 1 no-objection") {
+		return fmt.Errorf("the response summary should reflect the proposer's implicit no-objection (1 total — 1 no-objection):\n%s", w.stdout)
 	}
 	return nil
 }
