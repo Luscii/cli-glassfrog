@@ -46,7 +46,7 @@ No findings. This feature has **no external-facing or specification boundary** (
 
 ### Passed (4/4)
 
-- **H1** Terminology (all artifacts): the load-bearing concepts — "recognition / recognize", "(suspected) gate", "possible plan-limit", "Premium async-proposals", "`GateAIIntegration` modeled-but-unregistered", "possibility not certainty" — are used consistently across spec, plan, tasks, and the feature file, with no concept renamed without an alias.
+- **H1** Terminology (all artifacts): the load-bearing concepts — "recognition / recognize", "(suspected) gate", "possible plan-limit", "Premium async proposals", "`GateAIIntegration` modeled-but-unregistered", "possibility not certainty" — are used consistently across spec, plan, tasks, and the feature file, with no concept renamed without an alias.
 - **H2** Detail symmetry (spec↔plan, plan↔tasks): detail is proportionate — the plan elaborates the spec's recognition behavior into ADRs, and tasks elaborate the plan's single phase into two units. No artifact carries 3x+ the detail of its pair on a shared topic.
 - **H3** Scope alignment (spec + tasks; interface N/A): the capability set is identical across spec and tasks — a recognition-only classifier that renders nothing and changes no exit code. Nothing is added or dropped silently. (The interface leg is absent by design.)
 - **H4** Phase coverage (plan ↔ tasks): tasks reference exactly the plan's single phase ("The feature-gate recognizer"); no task references a phase the plan lacks, and the plan's one phase has corresponding tasks.

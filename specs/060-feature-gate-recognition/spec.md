@@ -18,7 +18,7 @@ It is deliberately narrow — it *recognizes* a suspected plan-gate, nothing mor
 
 ### Recognizing a plan-gated rejection
 
-- When the typed API error came from an operation the spec marks as plan/feature-gated **and** carries a `403` status, the system recognizes it as a *possible* plan-limit rejection and names the suspected gate (Premium async-proposals, or `ai_integration`).
+- When the typed API error came from an operation the spec marks as plan/feature-gated **and** carries a `403` status, the system recognizes it as a *possible* plan-limit rejection and names the suspected gate (Premium async proposals, or `ai_integration`).
 - When recognition fires, it expresses possibility, not certainty — it marks the rejection as one that *may be* a plan limit, never as a confirmed one, because the `403` body cannot distinguish a plan gate from a genuine permission denial.
 
 ### Declining to recognize
@@ -76,17 +76,17 @@ It is deliberately narrow — it *recognizes* a suspected plan-gate, nothing mor
 Given the CLI advances a draft proposal into circulation (a Premium async-proposal operation)
 When the API rejects it with `403`
 Then the failure is recognized as a *possible* plan-limit rejection
-And the suspected gate is named as Premium async-proposals.
+And the suspected gate is named as Premium async proposals.
 
 **Scenario: Creating a proposal on a non-Premium org is recognized as a plan limit**
 Given the CLI creates a proposal from a tension (a Premium async-proposal operation)
 When the API rejects it with `403`
-Then the failure is recognized as a *possible* plan-limit rejection naming Premium async-proposals.
+Then the failure is recognized as a *possible* plan-limit rejection naming Premium async proposals.
 
 **Scenario: Recording a response on a non-Premium org is recognized as a plan limit**
 Given the CLI records a circle member's response (a Premium async-proposal operation)
 When the API rejects it with `403`
-Then the failure is recognized as a *possible* plan-limit rejection naming Premium async-proposals.
+Then the failure is recognized as a *possible* plan-limit rejection naming Premium async proposals.
 
 ### Error scenarios
 

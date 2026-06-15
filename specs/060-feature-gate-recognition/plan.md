@@ -56,10 +56,10 @@ This conforms to established precedent. The 057 and 058 decisions explicitly res
 
 | Method | Path template | Gate |
 |---|---|---|
-| POST | `/proposals` | Premium async-proposals |
-| POST | `/proposals/{proposal_id}/propose` | Premium async-proposals |
-| POST | `/proposals/{proposal_id}/withdraw` | Premium async-proposals |
-| POST | `/proposals/{proposal_id}/responses` | Premium async-proposals |
+| POST | `/proposals` | Premium async proposals |
+| POST | `/proposals/{proposal_id}/propose` | Premium async proposals |
+| POST | `/proposals/{proposal_id}/withdraw` | Premium async proposals |
+| POST | `/proposals/{proposal_id}/responses` | Premium async proposals |
 
 Matching compares the method, then path segments pairwise, where a `{…}` template segment matches any one concrete segment and a literal segment must match exactly; segment count must be equal. Query strings are ignored.
 
