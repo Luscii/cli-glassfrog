@@ -47,8 +47,10 @@ func resolveChangesSource(value string, stat func(string) (os.FileInfo, error), 
 	}
 
 	// A value that stats to an existing regular file is read from disk; a directory or
-	// any non-regular entry is not a source (a path-traversal/symlink-target guard, the
-	// existing-regular-file shape).
+	// any other non-regular entry is not a change set, so it is rejected rather than
+	// read as JSON (the existing-regular-file shape). stat follows symlinks, so a
+	// symlink to a regular file is read like any other file — this is not a
+	// symlink/path-traversal guard, only a "don't read a directory as a change set" one.
 	info, statErr := stat(value)
 	if statErr == nil {
 		if !info.Mode().IsRegular() {
