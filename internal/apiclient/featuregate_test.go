@@ -108,6 +108,25 @@ func TestGatedRegistry_ChangeDetector(t *testing.T) {
 	}
 }
 
+// Gate.String renders each kind as a stable kebab-case name (matching the
+// package's sibling enums), and an out-of-range value degrades to "unknown".
+func TestGate_String(t *testing.T) {
+	cases := []struct {
+		gate Gate
+		want string
+	}{
+		{GateNone, "none"},
+		{GatePremiumAsyncProposals, "premium-async-proposals"},
+		{GateAIIntegration, "ai-integration"},
+		{Gate(99), "unknown"},
+	}
+	for _, tc := range cases {
+		if got := tc.gate.String(); got != tc.want {
+			t.Errorf("Gate(%d).String() = %q, want %q", int(tc.gate), got, tc.want)
+		}
+	}
+}
+
 // pathMatchesTemplate's edge cases, pinned directly (060 ADR-2, Risks):
 // segment-count equality, wildcard substitution, literal exactness, query
 // stripping, and surrounding-slash tolerance.

@@ -37,6 +37,23 @@ const (
 	GateAIIntegration
 )
 
+// String renders the gate as a stable, legible name (kebab-case, matching the
+// package's sibling enums AuthErrorKind and BaseURLSource), so %v in test
+// failures, logs, and the downstream #61 diagnostic reads a name rather than a
+// bare integer.
+func (g Gate) String() string {
+	switch g {
+	case GateNone:
+		return "none"
+	case GatePremiumAsyncProposals:
+		return "premium-async-proposals"
+	case GateAIIntegration:
+		return "ai-integration"
+	default:
+		return "unknown"
+	}
+}
+
 // gatedOperation is one row of the static gated-operation registry: an HTTP
 // method, a path template (where a {…} segment is a single-segment wildcard),
 // and the gate that operation sits behind.
