@@ -60,4 +60,5 @@
 | 056-proposal-reads | Complete | validate | 2026-06-15T14:30:00 |
 | 057-advance-to-circulation | Complete | validate | 2026-06-15T15:00:00 |
 | 058-response-recording | Complete | validate | 2026-06-15T16:30:00 |
+| 059-withdraw-proposal | Analyzed | risk | 2026-06-15T18:45:00 |
 | 060-feature-gate-recognition | Analyzed | analyze | 2026-06-15T17:20:00 |
