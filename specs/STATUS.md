@@ -62,3 +62,4 @@
 | 058-response-recording | Complete | validate | 2026-06-15T16:30:00 |
 | 059-withdraw-proposal | Complete | validate | 2026-06-15T21:30:00 |
 | 060-feature-gate-recognition | Ready | validate | 2026-06-15T21:30:00 |
+| 062-operator-orientation | Analyzed | analyze | 2026-06-15T23:45:00 |

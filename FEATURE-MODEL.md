@@ -244,7 +244,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): the `403` 
 
 A thin operator layer over the CLI — packaged operating knowledge, operator paths for governance work, and a write-safety guardrail — delivered as a repo-shipped plugin (its own marketplace). It adds no API capability of its own: every path is a guided composition of CLI capabilities that already exist, so its capabilities reach across solutions via `depends-on`. Reflects PROJECT scope "Agent operating surface" and honors VISION Exclusion 2 plus the "knowledge + guardrails, never capability" constraint. Holacracy-practice fluency was deliberately excluded (a separate plugin's concern).
 
-- Operator Orientation — packaged knowledge of how to drive the CLI: command surface, output formats for parsing, pagination, exit-code reactions, and credential setup, so the agent operates it correctly without rediscovery
+- Operator Orientation — the Claude plugin definition (manifest + orientation skill content) plus packaged knowledge of how to drive the CLI: output formats for parsing, pagination, exit-code reactions, credential setup, and write-safety guidance, pointing at the CLI's own help for per-command detail, so the agent operates it correctly without rediscovery
 - Write-Safety Guardrail — enforce governance integrity at the operator layer: gate every command that writes to the governance record (tension capture, proposals, responses) behind explicit confirmation, and handle a stale-write refusal (412) by re-reading and re-confirming, never blind retry (VISION principle 2)
   + depends-on: Operator Orientation
   + depends-on: Stale-Write Surfacing
@@ -278,5 +278,5 @@ A thin operator layer over the CLI — packaged operating knowledge, operator pa
   + depends-on: Proposal Reads
   + depends-on: Response Recording
   + depends-on: My Roles
-- Operating-Surface Packaging — package and distribute the surface so an agent environment installs and runs it (repo-shipped, its own marketplace), leaning on existing credential setup
+- Operating-Surface Packaging — distribute the plugin Operator Orientation defines so an agent environment discovers, installs, and runs it (repo-shipped, its own marketplace), leaning on existing credential setup; the plugin definition itself lives in Operator Orientation, so this is distribution only
   + depends-on: Operator Orientation
