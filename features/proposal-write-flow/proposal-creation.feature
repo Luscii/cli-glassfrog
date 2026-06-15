@@ -23,7 +23,7 @@ Feature: Proposal Creation
     Scenario: A draft proposal is created from an inline change set
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\",\\\"name\\\":\\\"Scribe\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\",\"name\":\"Scribe\"}]'"
       Then the request will post the proposal to the proposals endpoint
       And the request body will carry the anchor "tension_id" and the changes array verbatim
       And the created proposal will be printed with its "prp_" id and "draft" status
@@ -33,7 +33,7 @@ Feature: Proposal Creation
     @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]'"
       Then stderr will report "not authenticated" and point to "glassfrog auth login"
       And no request will be sent
       And the command will exit with code 2
@@ -43,7 +43,7 @@ Feature: Proposal Creation
     Scenario: An unknown anchor tension fails with the API status
       Given a complete connection context with a stored token
       And no tension "ten_ffff" exists
-      When an agent runs "glassfrog proposal create ten_ffff --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_ffff --changes '[{\"type\":\"CreateRole\"}]'"
       Then stderr will report that the create failed and name the HTTP status
       And the command will exit with a non-zero API-error code
 
@@ -52,7 +52,7 @@ Feature: Proposal Creation
     Scenario: A create on an organization without async proposals is refused
       Given a complete connection context with a stored token
       And the proposals endpoint answers the create with a permission-denied response
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]'"
       Then stderr will report that the create failed and name the HTTP status
       And the command will exit with the permission code
 
@@ -61,7 +61,7 @@ Feature: Proposal Creation
     Scenario: A rate-limited create is surfaced, not silently re-sent
       Given a complete connection context with a stored token
       And the proposals endpoint answers the create with a rate-limit response
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]'"
       Then the rate-limit will be surfaced on the first occurrence
       And the create will not be retried, so no duplicate proposal is created
       And the command will exit with the rate-limit code
@@ -100,7 +100,7 @@ Feature: Proposal Creation
     Scenario: The created proposal's id and status are present in structured output
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\" --output json"
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]' --output json"
       Then the structured result will contain the created proposal's "prp_" id and a "draft" status
       And the command will exit with code 0
 
@@ -108,7 +108,7 @@ Feature: Proposal Creation
     @wip
     Scenario: An invalid output format is rejected before any request
       Given a complete connection context with a stored token
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"type\\\":\\\"CreateRole\\\"}]\" -o xml"
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"type\":\"CreateRole\"}]' -o xml"
       Then stderr will report a usage error and name the rejected output value "xml"
       And no request will be sent
       And the command will exit with code 2
@@ -155,7 +155,7 @@ Feature: Proposal Creation
     @wip
     Scenario: An empty change set is rejected as a usage error
       Given a complete connection context with a stored token
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[]'"
       Then stderr will report that at least one change is required
       And no request will be sent
       And the command will exit with code 2
@@ -164,7 +164,7 @@ Feature: Proposal Creation
     @wip
     Scenario: An unparseable change set is rejected as a usage error
       Given a complete connection context with a stored token
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"not json\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes 'not json'"
       Then stderr will report a usage error naming the change source
       And no request will be sent
       And the command will exit with code 2
@@ -173,7 +173,7 @@ Feature: Proposal Creation
     @wip
     Scenario: A change lacking a type is rejected as a usage error
       Given a complete connection context with a stored token
-      When an agent runs "glassfrog proposal create ten_0123 --changes \"[{\\\"name\\\":\\\"Scribe\\\"}]\""
+      When an agent runs "glassfrog proposal create ten_0123 --changes '[{\"name\":\"Scribe\"}]'"
       Then stderr will report that every change must carry a "type"
       And no request will be sent
       And the command will exit with code 2
