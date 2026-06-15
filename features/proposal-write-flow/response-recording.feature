@@ -57,7 +57,7 @@ Feature: Response Recording
       When an agent runs "glassfrog proposal respond prp_0123 --response no_objection"
       Then stderr will report that the recording failed and name the HTTP status
       And no plan-limit-specific interpretation will be added
-      And the command will exit with the permission-denied code
+      And the command will exit with the permission code
 
     # Source: 058-response-recording — Scenario: Unknown or invisible proposal
     @wip
