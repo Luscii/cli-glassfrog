@@ -813,3 +813,13 @@ Operational patterns discovered during implementation. Each entry records a non-
 - **Severity**: trivial — a misnamed table row; the assertion was correct.
 - **Description**: under a `// --- path-template matching is exact on shape ---` block, a row named `literal-segment-mismatch` fed `POST /proposals/x/propose` and expected `GatePremiumAsyncProposals` — i.e. it MATCHES (the `{proposal_id}` wildcard matches `x`, `propose` is the gated literal). The name asserted a *mismatch* while the row proved a *match*; the real literal-mismatch case was the adjacent `literal-segment-wrong-tail` row (`/proposals/x/promote` → `GateNone`). An inline `// propose IS a gated literal` comment even contradicted the name.
 - **Suggested action**: name a table row for what it actually proves (the expected outcome), not for the section heading it lives under. Here: rename to `wildcard-matches-arbitrary-id`. When a block groups "negative" cases (mismatch/reject/None), double-check any row whose `want` is the *positive* value — its name likely describes the group, not the row. Cheap self-check before pushing a matcher/recognizer table: read each case name against its `want` column and confirm they agree.
+
+
+### 2026-06-15 — a new enum-like type in internal/apiclient should implement String() (kebab-case), matching sibling enums
+(Found during PR #142 triage — 060 Feature-Gate Recognition review by Copilot, 1 thread)
+
+- **Type**: project convention (enum legibility) — caught at review, no behavioral defect.
+- **Location**: `internal/apiclient/featuregate.go` `Gate`; precedents `AuthErrorKind` (`auth.go`), `BaseURLSource` (`baseurl.go`).
+- **Severity**: trivial — debug/log legibility only.
+- **Description**: `Gate` shipped as an `int`-based enum with no `String()` method, so `%v` in test-failure messages, logs, and the future #61 diagnostic printed gates as bare integers (`0`, `1`, `2`). The package's existing enum-like types all implement a kebab-case `String()` (`AuthErrorKind` → `no-credentials`/`credential-error`; `BaseURLSource` → `flag`/`environment`/`file`/`default`), so the omission was inconsistent.
+- **Suggested action**: when adding a new `int`-based enum-like type in `internal/apiclient` (or any package that already has this convention), give it a `String()` method returning stable kebab-case names with a `default: "unknown"` arm, and pin the mapping with a small table test (include an out-of-range value → `unknown`). Grep the package for sibling `func (x T) String() string` before deciding the style. This keeps `%v` failure output and downstream logs legible — especially when the value will be consumed/logged by a later spec.
