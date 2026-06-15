@@ -37,7 +37,7 @@ func TestRecognizeFeatureGate_Table(t *testing.T) {
 
 		// --- path-template matching is exact on shape ---
 		{"segment-count-too-many", http.MethodPost, "/proposals/a/b/propose", 403, GateNone},
-		{"literal-segment-mismatch", http.MethodPost, "/proposals/x/propose", 403, GatePremiumAsyncProposals}, // propose IS a gated literal
+		{"wildcard-matches-arbitrary-id", http.MethodPost, "/proposals/x/propose", 403, GatePremiumAsyncProposals}, // {proposal_id} matches any id; propose is a gated literal
 		{"literal-segment-wrong-tail", http.MethodPost, "/proposals/x/promote", 403, GateNone},
 		{"wrong-method-on-gated-path", http.MethodGet, "/proposals", 403, GateNone},
 		{"trailing-query-ignored", http.MethodPost, "/proposals?dry_run=true", 403, GatePremiumAsyncProposals},

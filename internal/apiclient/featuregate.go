@@ -6,7 +6,7 @@ import (
 )
 
 // Gate is a code-free classification naming a plan/feature gate that a known
-// operation is known to sit behind. It models the gate *kinds* the spec carries,
+// gated operation sits behind. It models the gate *kinds* the spec carries,
 // independent of how many operations carry each one (060 ADR-3).
 //
 // A non-None Gate returned by RecognizeFeatureGate is a SUSPICION, never a
