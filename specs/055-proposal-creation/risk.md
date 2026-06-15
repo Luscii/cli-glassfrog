@@ -51,7 +51,7 @@ The dominant *new* hazard relative to 042 is the **free-form `changes` pass-thro
 **Probability**: Low — the agent typically resolves the `ten_` id from a prior capture/read; an unknown id 404s cleanly rather than silently mis-anchoring, and a typo'd-but-valid id is uncommon.
 **Risk Level**: Green (Medium × Low).
 **Controls**:
-- **RC-3**: The created proposal renders its anchor `tension_id` on both the human (`full`) and structured paths, so the operator can verify attribution immediately; an unknown/malformed id surfaces the API's `404`/`422` (H-9 chain) rather than a silent wrong anchor. Exactly one positional is required (`MaximumNArgs(1)` + required-arg check), so a missing or extra anchor is a pre-request usage error.
+- **RC-3**: The created proposal renders its anchor `tension_id` on both the human (`full`) and structured paths, so the operator can verify attribution immediately; an unknown/malformed id surfaces the API's `404`/`422` (H-9 chain) rather than a silent wrong anchor. Exactly one positional is required (`ExactArgs(1)`), so a missing or extra anchor is a pre-request usage error.
 **Residual Risk**: Green — verification-on-output plus clean not-found make a silent mis-anchor unlikely; consistent with how 042/044/038 treat their ids (server owns id-shape validation).
 
 ### H-3: Source-resolver misclassification
@@ -184,7 +184,7 @@ The dominant *new* hazard relative to 042 is the **free-form `changes` pass-thro
 |---|---|---|
 | RC-1 | H-1 | API Error Extraction (015) `422` surfacing — server owns per-change validation (plan ADR-3) |
 | RC-2 | H-1 | Verbatim `[]json.RawMessage` byte-for-byte body (interface-spec § Surface; plan ADR-3) |
-| RC-3 | H-2 | Created proposal echoes anchor `tension_id` (interface-cli § Output); `MaximumNArgs(1)` + required-arg check; API `404`/`422` on bad id |
+| RC-3 | H-2 | Created proposal echoes anchor `tension_id` (interface-cli § Output); `ExactArgs(1)`; API `404`/`422` on bad id |
 | RC-4 | H-3 | `resolveChangesSource` fixed order + regular-file guard (plan ADR-2; interface-cli § Change-set sourcing) |
 | RC-5 | H-4 | Pre-request `type` floor + transport tripwire (plan ADR-3; interface § Interactions); server `422` backstop |
 | RC-6 | H-5 | `isSafeMethod` POST-no-retry (§133; plan Cross-cutting; interface-cli § Non-idempotent retry); exit-code outcome (004) |

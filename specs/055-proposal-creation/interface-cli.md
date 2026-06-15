@@ -19,7 +19,7 @@ A guard-registered (001), non-runnable group: it carries **no action** and paren
 
 ### `glassfrog proposal create <tension-id>` — create a draft proposal
 
-A guard-registered, explicitly-wired runnable leaf with `Args: cobra.MaximumNArgs(1)` plus a required-arg check (a missing positional is a usage error naming `<tension-id>`; more than one fails at `MaximumNArgs`), a non-empty `Short`, and `SilenceErrors`/`SilenceUsage` (the leaf owns its messages). Sends `POST /proposals` (`createProposal`) and produces the created proposal as a single-resource result.
+A guard-registered, explicitly-wired runnable leaf with `Args: cobra.ExactArgs(1)` (zero or more than one positional is a usage error, no API call), a non-empty `Short`, and `SilenceErrors`/`SilenceUsage` (the leaf owns its messages). Sends `POST /proposals` (`createProposal`) and produces the created proposal as a single-resource result.
 
 **Synopsis**:
 ```
@@ -28,7 +28,7 @@ glassfrog proposal create <TENSION_ID> --changes <SOURCE> [--base-url URL] [-o F
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
-| `TENSION_ID` | string | yes | The **anchor** tension the proposal is raised against (`ten_…`), sent as `proposal.tension_id`. Exactly one required; zero is a usage error naming `<tension-id>`, more than one fails `MaximumNArgs(1)` — no API call either way. The id is **not** validated locally; the API resolves it (an unknown/malformed id → `404`/`422`). |
+| `TENSION_ID` | string | yes | The **anchor** tension the proposal is raised against (`ten_…`), sent as `proposal.tension_id`. Exactly one required; zero or more than one is a usage error (cobra `ExactArgs(1)`), no API call. The id is **not** validated locally; the API resolves it (an unknown/malformed id → `404`/`422`). |
 
 **Write flags** (declared only on `create`):
 
@@ -86,7 +86,7 @@ The process exit code is the category from Exit-Code Convention (004), produced 
 | Condition | Source error (010) | Outcome (via `classifyClientError`) | Exit | Diagnostic — cause + next step (`full`/`compact` → stderr; `json`/`yaml` → 018 envelope on stdout) |
 |---|---|---|---|---|
 | Proposal created | — | `Success` | 0 | — (created proposal on stdout) |
-| Missing `<tension-id>` positional | — (local) | `UsageError` | 2 | "`<tension-id>` is required"; **no request sent** |
+| Missing or extra `<tension-id>` positional (0 or >1) | — (cobra `ExactArgs(1)`) | `UsageError` | 2 | cobra's arg-count message; **no request sent** |
 | Missing `--changes` | — (local) | `UsageError` | 2 | "`--changes` is required"; **no request sent** |
 | `--changes` not valid JSON, or not a JSON array | — (local parse) | `UsageError` | 2 | names the source (inline / file path / stdin) and that a JSON array is expected; **no request sent** |
 | `--changes` is an empty array | — (local) | `UsageError` | 2 | "at least one change is required"; **no request sent** |
@@ -101,7 +101,7 @@ The process exit code is the category from Exit-Code Convention (004), produced 
 | 2xx body did not match the expected shape | `*DecodeError` | `APIError` | 3 | cause "the API response did not match the expected shape"; next step "this may be an API change; report it" |
 | Base-URL configuration error | base-URL error from `NewClient` | `UsageError` | 2 | names the malformed base URL + source |
 | Invalid `--output` selector (env/file rung) | `*output.FormatError` (020) | `UsageError` | 2 | names the bad format value + the valid names |
-| Unknown flag, or >1 positional | — (cobra) | `UsageError` | 2 | cobra's unknown-flag / arg-count message; no request sent |
+| Unknown flag | — (cobra) | `UsageError` | 2 | cobra's unknown-flag message; no request sent |
 
 Codes `4`/`5` arrive via 015's landed split of `APIError`(3) at the shared classifier; this command benefits with no edit. A `403` (Premium) classifies as `PermissionError`(4) with the server's detail surfaced — the command adds no interpretation. The token value never appears in any message.
 
