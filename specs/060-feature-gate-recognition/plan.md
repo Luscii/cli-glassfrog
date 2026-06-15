@@ -2,7 +2,7 @@
 
 **Feature**: 060-feature-gate-recognition
 **Role**: Shaper
-**Inputs**: spec.md (060), PROJECT.md, FEATURE-MODEL.md (Plan-Limit Signalling), DECISIONS.md (24 entries), DEPRECATION.md, LEARNINGS.md; grounded against `internal/apiclient/problem.go` (015), `internal/apiclient/execute.go` (010), `internal/cli/diagnostic.go` (031), `internal/cli/me.go` `reportFailure` (032), `internal/cli/exitcode.go` (004), and the spec's gate metadata in `spec/glassfrog-api-v5.yaml`.
+**Inputs**: spec.md (060), PROJECT.md, FEATURE-MODEL.md (Plan-Limit Signalling), DECISIONS.md, DEPRECATION.md, LEARNINGS.md; grounded against `internal/apiclient/problem.go` (015), `internal/apiclient/execute.go` (010), `internal/cli/diagnostic.go` (031), `internal/cli/me.go` `reportFailure` (032), `internal/cli/exitcode.go` (004), and the spec's gate metadata in `spec/glassfrog-api-v5.yaml`.
 
 ---
 
