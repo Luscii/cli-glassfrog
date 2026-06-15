@@ -489,7 +489,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: The governance-integrity gate (VISION principle 2) every write path depends on; builds on Operator Orientation and the just-specified Stale-Write Surfacing, so it follows the root before any write path.
+- **Rationale**: The governance-integrity gate (VISION principle 2) every write path depends on; builds on Operator Orientation and Stale-Write Surfacing, so it follows the root before any write path.
 - **Dependencies**: → requires: Operator Orientation; → requires: Stale-Write Surfacing
 - **Status**: pending
 
