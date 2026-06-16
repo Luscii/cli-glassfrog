@@ -1,0 +1,13 @@
+{{$p := .Proposal}}{{$p.ID}}  [{{$p.Status}}]
+  Tension:        {{if eq (trimSpace $p.TensionID) ""}}(none){{else}}{{$p.TensionID}}{{end}}
+  Circle:         {{if eq (trimSpace $p.CircleID) ""}}(none){{else}}{{$p.CircleID}}{{end}}
+  Proposer:       {{if eq (trimSpace $p.ProposerID) ""}}(none){{else}}{{$p.ProposerID}}{{end}}
+  Proposed:       {{if eq (trimSpace $p.ProposedAt) ""}}(none){{else}}{{$p.ProposedAt}}{{end}}
+  Deadline:       {{if eq (trimSpace $p.ResponseDeadline) ""}}(none){{else}}{{$p.ResponseDeadline}}{{end}}
+  Accepted:       {{if eq (trimSpace $p.AcceptedAt) ""}}(none){{else}}{{$p.AcceptedAt}}{{end}}
+  Responses:      {{$p.ResponseSummary.Total}} total — {{$p.ResponseSummary.NoObjection}} no-objection, {{$p.ResponseSummary.BringToMeeting}} bring-to-meeting
+  Expected/recv:  {{$p.ExpectedResponseCount}} / {{$p.ReceivedResponseCount}}
+  Transitions:    {{if $p.AvailableTransitions}}{{join $p.AvailableTransitions ", "}}{{else}}(none){{end}}
+  Changes ({{len $p.Changes}}):
+{{range $p.Changes}}    - [{{.Type}}]{{$props := changeProps .}}{{if $props}} {{$props}}{{end}}
+{{end}}

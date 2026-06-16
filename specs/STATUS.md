@@ -52,5 +52,15 @@
 | 048-actor-directory | Complete | validate | 2026-06-12T11:03:16 |
 | 049-actor-read | Complete | validate | 2026-06-14T12:59:11 |
 | 050-actor-assignments | Complete | validate | 2026-06-14T12:30:00 |
-| 051-subrole-filler-roll-up | Analyzed | analyze | 2026-06-14T13:20:00 |
-| 052-version-capture-on-read | Analyzed | analyze | 2026-06-14T16:00:00 |
+| 051-subrole-filler-roll-up | Complete | validate | 2026-06-14T15:00:00 |
+| 052-version-capture-on-read | Complete | validate | 2026-06-14T18:00:00 |
+| 053-guarded-writes | Complete | validate | 2026-06-14T18:17:52 |
+| 054-stale-write-surfacing | Complete | validate | 2026-06-15T00:10:00 |
+| 055-proposal-creation | Complete | validate | 2026-06-15T12:30:00 |
+| 056-proposal-reads | Complete | validate | 2026-06-15T14:30:00 |
+| 057-advance-to-circulation | Complete | validate | 2026-06-15T15:00:00 |
+| 058-response-recording | Complete | validate | 2026-06-15T16:30:00 |
+| 059-withdraw-proposal | Complete | validate | 2026-06-15T21:30:00 |
+| 060-feature-gate-recognition | Ready | validate | 2026-06-15T21:30:00 |
+| 061-plan-limit-signal | Complete | validate | 2026-06-16T12:30:00 |
+| 062-operator-orientation | Analyzed | analyze | 2026-06-15T23:45:00 |

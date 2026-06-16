@@ -1,0 +1,5 @@
+{{$v := .ProposalVote}}{{$v.ID}}  recorded
+  Response:        {{$v.Value}}
+  Proposal:        {{if eq (trimSpace $v.ProposalID) ""}}(none){{else}}{{$v.ProposalID}}{{end}}
+  Proposal status: {{$v.ProposalStatus}}
+  Recorded:        {{if eq (trimSpace $v.CreatedAt) ""}}(unknown){{else}}{{$v.CreatedAt}}{{end}}

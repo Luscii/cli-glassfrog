@@ -58,6 +58,10 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Proposal Write-Flow — the multi-step governance write path: create → propose → respond → accepted
     + affects: Practitioner
     + related-to: Unsignalled Plan Limits
+    * Unguided Change Construction — building a proposal means hand-writing each governance change command (`CreateRole`, `UpdateAccountability`, …) as free-form JSON, because the CLI offers no per-type structure or guidance for the change set, so constructing a valid `changes[]` is error-prone and demands prior knowledge of each command's shape
+      + affects: Practitioner
+      + affects: AI agent
+      + candidate: Typed Change Builders — a CLI command (or flag set) per change type that shapes the proposal `changes[]` payload so each command's fields are explicit rather than hand-written free-form JSON
   * Undiscoverable Governance — when working a tension, the operator can't find which roles, policies, or role-fillers are relevant without already knowing where to look; nothing lets them search the record by topic or relevance
     + affects: Practitioner
     + affects: AI agent
@@ -70,3 +74,8 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + related-to: Undiscoverable Governance
     * Who to Contact for a Role — given a role relevant to a tension, the operator can't tell which actor fills it, so they don't know whom to reach out to
     * An Actor's Governance Footprint — given an actor, the operator can't see what they do: the roles they fill and the accountabilities, domains, and purposes those carry
+* Unequipped Agent Operators — the AI agent driving the CLI has no packaged operating knowledge (command surface, auth setup, output parsing, exit-code handling, write-safety), so it rediscovers how to drive the CLI each session and can mis-drive it or run ungated writes
+  + affects: AI agent
+  + affects: Practitioner
+  + related-to: Runtime-Dependent Distribution
+  + candidate: Claude Code Plugin — repo-shipped plugin (its own marketplace) bundling a glassfrog-cli operator skill, a read-only governance-navigator agent, and a PreToolUse hook that gates writes; leans on existing `glassfrog auth login` for credentials

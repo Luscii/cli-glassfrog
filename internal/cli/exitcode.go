@@ -15,6 +15,12 @@ package cli
 // code, without renumbering existing codes (interface-cli.md "Extension").
 // Rate-Limit Handling (017) owns the 429 retry/backoff above the Execute seam;
 // 015 only classifies the 429 into RateLimited(5).
+//
+// Stale-Write Surfacing (054) adds codeStaleWrite(7) — the first code beyond the
+// originally-published 0–6 band — by branching the 412 out of the generic
+// APIError bucket at the same status-driven classifier. It is exactly the
+// extension mechanism 004 designed (new category → single registry site → new
+// previously-unused code → never renumber), so no existing code changes meaning.
 const (
 	codeSuccess            = 0 // a command completed, or help/listing/--version resolved
 	codeInternalError      = 1 // safety net: a resolved action failed, a panic, or any unmapped/future category
@@ -23,6 +29,7 @@ const (
 	codePermissionError    = 4 // an API auth/membership rejection: 401/403 (API Error Extraction 015 onward)
 	codeRateLimited        = 5 // the API rate limit was exceeded: 429 (API Error Extraction 015 onward)
 	codeNetworkUnavailable = 6 // the API could not be reached at the wire (Identity Read 011 onward)
+	codeStaleWrite         = 7 // a guarded write was refused: the resource changed since it was read, 412 (Stale-Write Surfacing 054 onward)
 )
 
 // ExitCode maps a code-free Outcome category (dispatch.go) to its process exit
@@ -50,6 +57,8 @@ func ExitCode(o Outcome) int {
 		return codeRateLimited
 	case NetworkUnavailable:
 		return codeNetworkUnavailable
+	case StaleWrite:
+		return codeStaleWrite
 	default:
 		return codeInternalError
 	}

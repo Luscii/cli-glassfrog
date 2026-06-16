@@ -2,10 +2,11 @@ package cli
 
 import "testing"
 
-// publishedCodes names the seven frozen exit codes for the change-detector,
+// publishedCodes names the eight frozen exit codes for the change-detector,
 // uniqueness, and shell-reserved checks below. The constants themselves live in
 // exitcode.go and are the single source of truth; this map mirrors them by name
-// so a renumber is caught against the exact-value expectations.
+// so a renumber is caught against the exact-value expectations. Stale-Write
+// Surfacing (054) added stale-write→7, the first code beyond the original 0–6.
 var publishedCodes = map[string]int{
 	"success":             codeSuccess,
 	"internal":            codeInternalError,
@@ -14,13 +15,16 @@ var publishedCodes = map[string]int{
 	"permission":          codePermissionError,
 	"rate-limited":        codeRateLimited,
 	"network-unavailable": codeNetworkUnavailable,
+	"stale-write":         codeStaleWrite,
 }
 
 // ExitCode maps the categories that have producers today: the original three
 // (Success→0, UsageError→2, RuntimeError→1), the two Identity Read (011) added as
-// the first consuming command (NetworkUnavailable→6, APIError→3), and the two
+// the first consuming command (NetworkUnavailable→6, APIError→3), the two
 // API Error Extraction (015) added by splitting APIError on the status
-// (PermissionError→4, RateLimited→5 — codes 004 reserved, now live).
+// (PermissionError→4, RateLimited→5 — codes 004 reserved, now live), and the one
+// Stale-Write Surfacing (054) added by branching the 412 out of APIError
+// (StaleWrite→7 — the first code beyond the original 0–6 band).
 //
 // outcomeCodes mirrors the producer-backed category→code arms by name; the
 // length check plus the comma-ok lookup catch an arm being dropped or added
@@ -35,6 +39,7 @@ var outcomeCodes = map[Outcome]int{
 	PermissionError:    4,
 	RateLimited:        5,
 	NetworkUnavailable: 6,
+	StaleWrite:         7,
 }
 
 func TestExitCode_ProducerBackedCategories(t *testing.T) {
@@ -46,6 +51,7 @@ func TestExitCode_ProducerBackedCategories(t *testing.T) {
 		PermissionError:    4,
 		RateLimited:        5,
 		NetworkUnavailable: 6,
+		StaleWrite:         7,
 	}
 	if len(outcomeCodes) != len(want) {
 		t.Errorf("outcomeCodes has %d entries, want %d — a producer-backed category was added or removed without updating this test", len(outcomeCodes), len(want))
@@ -82,6 +88,7 @@ func TestExitCodeConstants_ExactValues(t *testing.T) {
 	want := map[string]int{
 		"success": 0, "internal": 1, "usage": 2, "api": 3,
 		"permission": 4, "rate-limited": 5, "network-unavailable": 6,
+		"stale-write": 7,
 	}
 	if len(publishedCodes) != len(want) {
 		t.Errorf("publishedCodes has %d entries, want %d — a code was added or removed without updating this test", len(publishedCodes), len(want))

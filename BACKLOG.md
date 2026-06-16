@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-12T20:59:00 | Framework: MoSCoW | Items: 54
+> Generated: 2026-06-12T20:59:00 | Enriched: 2026-06-15 | Framework: MoSCoW | Items: 70
 
 ### 1. Command Registration
 
@@ -278,7 +278,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: An additional acquisition channel beyond the primary install script; consumes published release artifacts. Could Have — convenient but not blocking the tool's reach.
 - **Dependencies**: → requires: Automated Release Pipeline
-- **Status**: pending
+- **Status**: specified:036-homebrew-tap
 
 ### 37. NPM Wrapper Package
 
@@ -286,7 +286,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: An additional channel for Node-based agent environments (`npx` / `npm i -g`); consumes published release artifacts. Could Have — extends reach but not core to shipping.
 - **Dependencies**: → requires: Automated Release Pipeline
-- **Status**: pending
+- **Status**: specified:037-npm-wrapper-package
 
 ### 38. Role Projects
 
@@ -349,7 +349,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Soft-deletes a tension (`DELETE /tensions/{id}`, 404-after-204 as success); a Later-tier write op, independent of the other tension capabilities.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:045-tension-discard
 
 ### 46. Subroles Tension Roll-up
 
@@ -357,7 +357,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: One-level roll-up of tensions across a role's direct subroles (`GET /roles/{role_id}/subroles/tensions`); the most peripheral tension read, so it sits last.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:046-subroles-tension-roll-up
 
 ### 47. Role Fillers
 
@@ -365,7 +365,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Angle-1 anchor of the Who to Contact for a Role problem (`GET /roles/{role_id}/assignments`) — reads which actors fill a role so the operator knows whom to reach out to about a tension. Highest-value of the actor-reads wave; buildable now (deps shipped: 007, 010). Peer to Cross-Model Search (#41) at the Should tier.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:047-role-fillers
 
 ### 48. Actor Directory
 
@@ -381,7 +381,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Angle-2 anchor of An Actor's Governance Footprint (`GET /actors/{id}` with `?include=roles`) — read one actor (person or agent) and the roles they fill. Completes the Should-tier core of the actor reads.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:049-actor-read
 
 ### 50. Actor Assignments
 
@@ -389,7 +389,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Lists the roles an actor fills as assignments (`GET /actors/{actor_id}/assignments`) — the inverse of Role Fillers, completing the footprint, but overlapping Actor Read's `?include=roles`, so it sits at the Could tier like the more operational governance reads (#38).
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:050-actor-assignments
 
 ### 51. Subrole Filler Roll-up
 
@@ -397,14 +397,14 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: One-level roll-up of actors filling a role's direct subroles (`GET /roles/{id}/subroles/actors` / `subroles/people`) — an escalation aid for reaching the surrounding circle; requires an expanded role (leaf roles 404). The most peripheral of the wave, mirroring Subroles Tension Roll-up (#46).
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:051-subrole-filler-roll-up
 
 ### 52. Version Capture on Read
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Foundation of the Optimistic Concurrency solution (Clobbered Changes problem) — surfaces the `ETag` from a read so a later edit can be guarded; a Later/Client-Foundation safety mechanism that, per the roadmap, only becomes relevant once writes exist, so it ranks at the Could tier alongside the write wave it protects.
-- **Status**: pending
+- **Status**: specified:052-version-capture-on-read
 
 ### 53. Guarded Writes
 
@@ -412,7 +412,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Sends the captured version via `If-Match` so the server refuses a stale write instead of silently overwriting (last-write-wins today); the core of Optimistic Concurrency, built once Version Capture exists.
 - **Dependencies**: → requires: Version Capture on Read
-- **Status**: pending
+- **Status**: specified:053-guarded-writes
 
 ### 54. Stale-Write Surfacing
 
@@ -420,4 +420,131 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Reports a refused write (`412 Precondition Failed`) distinctly so the operator knows the resource changed under them and can re-read before retrying; completes Optimistic Concurrency, only reachable once Guarded Writes can be refused.
 - **Dependencies**: → requires: Guarded Writes
+- **Status**: specified:054-stale-write-surfacing
+
+### 55. Proposal Creation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Anchor of the Governance Proposals solution and the fulfilment of VISION success criterion #2 (submit a valid proposal); highest-value new capability, buildable now. Should rather than Must — the CLI ships and functions on reads without it.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 56. Proposal Reads
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Operating the write flow requires reading proposals with their changes, response summary, and available transitions; pairs with Proposal Creation as the core read/write pair, no inter-dependency.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: specified:056-proposal-reads
+
+### 57. Advance to Circulation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The `propose` transition that moves a draft into circulation; without it a created proposal never reaches acceptance, so it ranks with the core write path. Premium-gated.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 58. Response Recording
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Records a circle member's consent-window response (`no_objection` / `bring_to_meeting`), completing the path to auto-acceptance; core to VISION success #2. Premium-gated.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 59. Withdraw Proposal
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Returns a circulating proposal to draft for re-editing; a recovery path off the happy path to accepted, so it sits below the core write-path capabilities. Premium-gated.
+- **Dependencies**: → requires: Request Authentication; → requires: Request Execution
+- **Status**: pending
+
+### 60. Feature-Gate Recognition
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Distinguishes a plan/feature-gated 403 from a generic permission denial using static spec gate metadata; the foundation of Plan-Limit Signalling, buildable now (dep API Error Extraction shipped).
+- **Dependencies**: → requires: API Error Extraction
+- **Status**: pending
+
+### 61. Plan-Limit Signal
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Renders the recognized plan-limit rejection as an actionable "not available on your plan" diagnostic; legibility polish atop Feature-Gate Recognition, so it follows it.
+- **Dependencies**: → requires: Feature-Gate Recognition; → requires: Diagnostic Normalization
+- **Status**: pending
+
+### 62. Operator Orientation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Root of the Agent Operating Surface — every path and the guardrail build on it, so it leads the surface; buildable now atop the shipped CLI. Should rather than Must — the CLI ships without the operating layer. Now also lands the Claude plugin definition (manifest + orientation skill content); its marketplace distribution stays with #70.
+- **Status**: pending
+
+### 63. Write-Safety Guardrail
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The governance-integrity gate (VISION principle 2) every write path depends on; builds on Operator Orientation and Stale-Write Surfacing, so it follows the root before any write path.
+- **Dependencies**: → requires: Operator Orientation; → requires: Stale-Write Surfacing
+- **Status**: pending
+
+### 64. Governance Navigation Path
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Core read traversal for working a tension; highest-value path and all its read deps are shipped, so it's buildable right after Operator Orientation.
+- **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Fillers; → requires: Role Reads
+- **Status**: pending
+
+### 65. Constraint Discovery Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The "am I limited by a domain or policy?" read path; deps shipped, but narrower in use than general navigation, so it sits a tier below.
+- **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Domains; → requires: Role Policies
+- **Status**: pending
+
+### 66. Tension Processing Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: First write path — capture a tension end-to-end; gated on the Write-Safety Guardrail, with Tension Capture and Cross-Model Search already shipped, so buildable once the guardrail exists.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Tension Capture; → requires: Cross-Model Search
+- **Status**: pending
+
+### 67. Proposal Drafting Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Drafts a proposal from a tension; gated behind Proposal Creation (#55, still pending), so it follows the Now-tier proposal write-flow landing.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Creation
+- **Status**: pending
+
+### 68. Proposal Circulation Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Advances and tracks a proposal to acceptance; builds on Proposal Drafting Path and the still-pending circulation/read capabilities, so it sequences after them.
+- **Dependencies**: → requires: Proposal Drafting Path; → requires: Write-Safety Guardrail; → requires: Advance to Circulation; → requires: Proposal Reads
+- **Status**: pending
+
+### 69. Proposal Impact Review Path
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The consume/respond side — assess others' circulating proposals against the roles I fill and respond; gated on Response Recording (#58, pending), with My Roles already shipped.
+- **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Reads; → requires: Response Recording; → requires: My Roles
+- **Status**: pending
+
+### 70. Operating-Surface Packaging
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: The distribution vehicle — its own repo-shipped marketplace that publishes and installs the plugin Operator Orientation defines; the plugin definition itself moved to #62, so this is distribution only. Still needs the surface to have content to ship, so it trails it but is required for any of it to reach an agent environment.
+- **Dependencies**: → requires: Operator Orientation
 - **Status**: pending

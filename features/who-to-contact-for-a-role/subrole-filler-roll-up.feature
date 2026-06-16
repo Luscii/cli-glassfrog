@@ -19,7 +19,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
     # I want to roll up the actors filling a circle's direct sub-roles with one command.
 
     # Source: 051-subrole-filler-roll-up — Scenario: Roll up the actors filling a circle's direct sub-roles
-    @wip
     Scenario: A circle's direct sub-roles' fillers are rolled up
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles filled by several actors
@@ -29,7 +28,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with code 0
 
     # Source: 051-subrole-filler-roll-up — Scenario: Anchor is a leaf role
-    @wip
     Scenario: A leaf anchor fails with the API status
       Given a complete connection context with a stored token
       And the role "role_0123" has no sub-roles
@@ -39,7 +37,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with a non-zero API-error code
 
     # Source: 051-subrole-filler-roll-up — Scenario: No usable credential
-    @wip
     Scenario: A missing token fails as a not-authenticated usage error
       Given no usable token is available to the CLI
       When an agent runs "glassfrog subrole-actors role_0123"
@@ -48,7 +45,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with code 2
 
     # Source: 051-subrole-filler-roll-up — Scenario: Sub-roles exist but carry no fillers
-    @wip
     Scenario: Sub-roles with no fillers are a clean success
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles filled by no actors
@@ -101,7 +97,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
     # I want to narrow the roll-up to just humans or just agents.
 
     # Source: 051-subrole-filler-roll-up — Scenario: Narrow the roll-up to agents
-    @wip
     Scenario: A kind filter narrows the roll-up to agents
       Given a complete connection context with a stored token
       And the role "role_0123" has direct sub-roles filled by both people and agents
@@ -111,7 +106,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with code 0
 
     # Source: 051-subrole-filler-roll-up — Scenario: Unsupported kind value is rejected before any request
-    @wip
     Scenario: An unsupported kind is rejected as a usage error
       Given a complete connection context with a stored token
       When an agent runs "glassfrog subrole-actors role_0123 --kind robot"
@@ -133,7 +127,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
     # I want the roll-up to walk to completion, or to tell me plainly when it is incomplete.
 
     # Source: 051-subrole-filler-roll-up — Scenario: Roll-up walks every page to completion
-    @wip
     Scenario: The roll-up walks every page to completion
       Given a complete connection context with a stored token
       And the role "role_0123" has sub-role fillers spanning more than one page
@@ -143,7 +136,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with code 0
 
     # Source: 051-subrole-filler-roll-up — Scenario: Paginated roll-up with first-page opt-out
-    @wip
     Scenario: The first-page opt-out stops at one page and signals more
       Given a complete connection context with a stored token
       And the role "role_0123" has sub-role fillers spanning more than one page
@@ -153,7 +145,6 @@ Feature: Who to Contact for a Role — Subrole Filler Roll-up
       And the command will exit with code 0
 
     # Source: 051-subrole-filler-roll-up — Proposed: plan Cross-cutting mid-walk failure exit semantics (025 ADR-3)
-    @wip
     Scenario: A mid-walk failure yields a partial set flagged incomplete
       Given a complete connection context with a stored token
       And the subrole filler roll-up walk fails after retrieving the first page

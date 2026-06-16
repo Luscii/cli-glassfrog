@@ -33,6 +33,8 @@ type respondingBase struct {
 	gotToken       string
 	gotContentType string
 	contentTypeSet bool
+	gotIfMatch     string
+	ifMatchSet     bool
 	status         int
 	header         http.Header
 	body           *trackingBody
@@ -45,6 +47,10 @@ func (b *respondingBase) RoundTrip(req *http.Request) (*http.Response, error) {
 	// (the bodyless reads) from "set to application/json" (the write, 042 ADR-1).
 	_, b.contentTypeSet = req.Header["Content-Type"]
 	b.gotContentType = req.Header.Get("Content-Type")
+	// Record presence-and-value so a test can distinguish "no If-Match header" (an
+	// unguarded write) from a guarded write carrying a captured version (053).
+	_, b.ifMatchSet = req.Header["If-Match"]
+	b.gotIfMatch = req.Header.Get("If-Match")
 	header := b.header
 	if header == nil {
 		header = make(http.Header)
@@ -185,6 +191,34 @@ func TestExecuteNon2xxIsGenericResponseError(t *testing.T) {
 	}
 	if !base.body.closed {
 		t.Fatal("response body was not closed on the non-2xx branch")
+	}
+}
+
+// TestExecuteNon2xxCarriesRequestIdentity pins 061 ADR-1: the non-2xx
+// *ResponseError carries the failed request's method and path (the concrete path
+// as given, not a template), so Feature-Gate Recognition can match the operation
+// when this error reaches Diagnose via the unwrap path — while Error() stays
+// status-only so existing goldens are byte-stable.
+func TestExecuteNon2xxCarriesRequestIdentity(t *testing.T) {
+	base := &respondingBase{status: 403, header: make(http.Header), body: bodyOf(`{"error":"forbidden"}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	resp, err := client.Execute(context.Background(), Request{Method: http.MethodPost, Path: "/proposals/prp_0123/propose"}, nil)
+	if resp != nil {
+		t.Fatalf("response = %v, want nil on a non-2xx", resp)
+	}
+	var respErr *ResponseError
+	if !errors.As(err, &respErr) {
+		t.Fatalf("err = %v, want *ResponseError", err)
+	}
+	if respErr.Method != http.MethodPost {
+		t.Fatalf("ResponseError.Method = %q, want %q", respErr.Method, http.MethodPost)
+	}
+	if respErr.Path != "/proposals/prp_0123/propose" {
+		t.Fatalf("ResponseError.Path = %q, want %q", respErr.Path, "/proposals/prp_0123/propose")
+	}
+	if got := respErr.Error(); got != "the API returned a non-2xx response: status 403" {
+		t.Fatalf("ResponseError.Error() = %q, want status-only wording (unchanged by 061)", got)
 	}
 }
 
@@ -431,6 +465,66 @@ func TestExecuteSetsContentTypeWhenPresent(t *testing.T) {
 	}
 }
 
+// TestResponseVersionReturnsETagVerbatim pins the 052 capture contract: the
+// accessor hands back the ETag a read carried exactly as the server stated it —
+// no unquoting, no normalization — so a later If-Match (053) echoes it byte-for-
+// byte. A strong-validator quoted token keeps its quotes.
+func TestResponseVersionReturnsETagVerbatim(t *testing.T) {
+	header := make(http.Header)
+	header.Set("ETag", `"a1b2c3"`)
+	resp := &Response{StatusCode: 200, Header: header}
+
+	if got := resp.Version(); got != `"a1b2c3"` {
+		t.Fatalf("Version() = %q, want the ETag verbatim %q", got, `"a1b2c3"`)
+	}
+}
+
+// TestResponseVersionAbsentETagIsEmpty pins the "no version captured" sentinel:
+// a response carrying no ETag returns "", and an empty ETag is indistinguishable
+// from an absent one (both ""). Neither is a usable precondition.
+func TestResponseVersionAbsentETagIsEmpty(t *testing.T) {
+	absent := &Response{StatusCode: 200, Header: make(http.Header)}
+	if got := absent.Version(); got != "" {
+		t.Fatalf("Version() = %q on an absent ETag, want \"\"", got)
+	}
+
+	emptyHeader := make(http.Header)
+	emptyHeader.Set("ETag", "")
+	empty := &Response{StatusCode: 200, Header: emptyHeader}
+	if got := empty.Version(); got != "" {
+		t.Fatalf("Version() = %q on an empty ETag, want \"\" (indistinguishable from absent)", got)
+	}
+}
+
+// TestResponseVersionPreservesWeakValidator pins that a weak-validator token is
+// captured byte-for-byte — the W/ prefix and the surrounding quotes are NOT
+// stripped or normalized. Stripping would risk a spurious 412 when 053 forwards
+// the value as If-Match (plan Risk 2).
+func TestResponseVersionPreservesWeakValidator(t *testing.T) {
+	const weak = `W/"abc123"`
+	header := make(http.Header)
+	header.Set("ETag", weak)
+	resp := &Response{StatusCode: 200, Header: header}
+
+	if got := resp.Version(); got != weak {
+		t.Fatalf("Version() = %q, want the weak validator preserved verbatim %q", got, weak)
+	}
+}
+
+// TestResponseVersionHeaderLookupIsCaseInsensitive pins that the ETag is found
+// regardless of the header-name casing the server used — ETag/Etag/etag all
+// resolve to the same value via net/http header-name canonicalization.
+func TestResponseVersionHeaderLookupIsCaseInsensitive(t *testing.T) {
+	for _, name := range []string{"ETag", "Etag", "etag", "ETAG"} {
+		header := make(http.Header)
+		header.Set(name, "a1b2c3")
+		resp := &Response{StatusCode: 200, Header: header}
+		if got := resp.Version(); got != "a1b2c3" {
+			t.Fatalf("Version() = %q for header name %q, want a1b2c3 (case-insensitive lookup)", got, name)
+		}
+	}
+}
+
 // TestExecuteOmitsContentTypeWhenEmpty pins that the empty default (every landed
 // GET read) sets NO Content-Type header on the outbound request — the reads' wire
 // behavior is byte-identical to before the field existed (042 ADR-1).
@@ -443,5 +537,109 @@ func TestExecuteOmitsContentTypeWhenEmpty(t *testing.T) {
 	}
 	if base.contentTypeSet {
 		t.Fatalf("a bodyless read must set no Content-Type header, got %q", base.gotContentType)
+	}
+}
+
+// TestExecuteSetsIfMatchWhenPresent pins the 053 guarded-write seam: a Request
+// carrying a non-empty IfMatch produces an outbound request whose If-Match header
+// is exactly that value verbatim (so the server refuses a stale write with a 412
+// rather than clobbering it last-write-wins).
+func TestExecuteSetsIfMatchWhenPresent(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"data":{"id":"ten_1"}}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{
+		Method:      http.MethodPatch,
+		Path:        "/tensions/ten_1",
+		Body:        strings.NewReader(`{"tension":{"body":"x"}}`),
+		ContentType: "application/json",
+		IfMatch:     "a1b2c3",
+	}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if !base.ifMatchSet {
+		t.Fatal("If-Match header was not set for a non-empty IfMatch")
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q, want a1b2c3 (verbatim)", base.gotIfMatch)
+	}
+}
+
+// TestExecuteOmitsIfMatchWhenEmpty pins that the empty default (every landed read
+// and write) sets NO If-Match header — the request stays byte-identical to before
+// the field existed, and the write proceeds unconditionally (last-write-wins).
+func TestExecuteOmitsIfMatchWhenEmpty(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"id":"per_1"}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	if _, err := client.Execute(context.Background(), Request{Method: http.MethodGet, Path: "/me"}, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if base.ifMatchSet {
+		t.Fatalf("an unguarded request must set no If-Match header, got %q", base.gotIfMatch)
+	}
+}
+
+// TestExecuteForwardsWeakValidatorIfMatchVerbatim pins that a weak-validator /
+// quoted token is sent byte-for-byte — the W/ prefix and the surrounding quotes
+// are NOT stripped or normalized. Stripping would risk a spurious 412 (plan Risk 2).
+func TestExecuteForwardsWeakValidatorIfMatchVerbatim(t *testing.T) {
+	for _, token := range []string{`W/"abc123"`, `"abc123"`} {
+		base := &respondingBase{status: 200, body: bodyOf("{}")}
+		client := mustClient(t, completeContext(secretToken), base)
+
+		req := Request{Method: http.MethodPatch, Path: "/tensions/ten_1", IfMatch: token}
+		if _, err := client.Execute(context.Background(), req, nil); err != nil {
+			t.Fatalf("Execute errored: %v", err)
+		}
+		if base.gotIfMatch != token {
+			t.Fatalf("If-Match = %q, want %q byte-for-byte (no stripping or normalization)", base.gotIfMatch, token)
+		}
+	}
+}
+
+// TestExecuteSetsIfMatchOnDelete pins the method-agnostic contract: an IfMatch set
+// on a DELETE produces the header just as a PUT/PATCH does — the send depends only
+// on the field being non-empty, so a guarded Tension Discard behaves like a
+// guarded update.
+func TestExecuteSetsIfMatchOnDelete(t *testing.T) {
+	base := &respondingBase{status: 204, body: bodyOf("")}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{Method: http.MethodDelete, Path: "/tensions/ten_1", IfMatch: "a1b2c3"}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if !base.ifMatchSet {
+		t.Fatal("If-Match header was not set on a guarded DELETE")
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q on a DELETE, want a1b2c3", base.gotIfMatch)
+	}
+}
+
+// TestExecuteIfMatchAndContentTypeAreIndependent pins that If-Match and
+// Content-Type are separate fields set by separate blocks: a request with both set
+// produces both headers, neither displacing the other.
+func TestExecuteIfMatchAndContentTypeAreIndependent(t *testing.T) {
+	base := &respondingBase{status: 200, body: bodyOf(`{"data":{"id":"ten_1"}}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	req := Request{
+		Method:      http.MethodPatch,
+		Path:        "/tensions/ten_1",
+		Body:        strings.NewReader(`{"tension":{"body":"x"}}`),
+		ContentType: "application/json",
+		IfMatch:     "a1b2c3",
+	}
+	if _, err := client.Execute(context.Background(), req, nil); err != nil {
+		t.Fatalf("Execute errored: %v", err)
+	}
+	if base.gotContentType != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json (not displaced by If-Match)", base.gotContentType)
+	}
+	if base.gotIfMatch != "a1b2c3" {
+		t.Fatalf("If-Match = %q, want a1b2c3 (not displaced by Content-Type)", base.gotIfMatch)
 	}
 }

@@ -106,6 +106,19 @@ func Assemble() *cobra.Command {
 	// productionSeam binds the real transport + clock; it reads the inherited persistent
 	// --base-url/--output.
 	MustRegister(root, newAssignmentsCommand(productionSeam{}))
+	// Subrole Filler Roll-up (051): the `subrole-actors <role-id>` command — the
+	// cross-role roll-up of the actors filling the anchor role's DIRECT sub-roles
+	// (GET /roles/{role_id}/subroles/actors), one level not transitive, walked to
+	// completion by default (reusing 025's walk + --first-page opt-out). The actor-shaped
+	// twin of `tension subroles` (046) and the cross-role counterpart of `actors
+	// --role-id` (048): rows are bare actors (id/name/kind), rendered through the landed
+	// `actors` key. A required positional anchor role id (cobra.ExactArgs(1)); only
+	// --kind among the list filters (the endpoint offers no role_id/q — ADR-2). Its OWN
+	// top-level read leaf, NOT a subcommand of the positional-bearing `actors` (ADR-1).
+	// A leaf anchor's 404 is surfaced verbatim, distinct from an empty-200 success
+	// (ADR-3). productionSeam binds the real transport + clock; it reads the inherited
+	// persistent --base-url/--output.
+	MustRegister(root, newSubroleActorsCommand(productionSeam{}))
 	// Tension Capture (042): the `tension` group + `create` leaf — the CLI's first
 	// write. `tension create <role-id>` POSTs a captured tension (the seed of a
 	// governance proposal) and prints the created tension with its ten_ id. A
@@ -114,6 +127,14 @@ func Assemble() *cobra.Command {
 	// holds. productionSeam binds the real transport + clock; the leaf reads the
 	// inherited persistent --base-url/--output.
 	MustRegister(root, newTensionCommand(productionSeam{}))
+	// Proposal Creation (055): the `proposal` group + `create` leaf — the CLI's second
+	// write and the anchor of the governance write path. `proposal create <tension-id>
+	// --changes <src>` POSTs a draft proposal carrying a caller-supplied governance
+	// change set (inline / file / piped stdin) and prints the created proposal with its
+	// prp_ id. A non-runnable group parenting one leaf (the tension shape, ADR-1), built
+	// with its child before registration so the guard's ">=1 child" rule holds. The
+	// group is shared with Proposal Reads (056) under first-to-land-creates.
+	MustRegister(root, newProposalCommand(productionSeam{}))
 	// Credential Storage (006): the auth group + login leaf, delegating the file
 	// write to internal/auth through the production input seam.
 	MustRegister(root, newAuthCommand(productionSeam{}))

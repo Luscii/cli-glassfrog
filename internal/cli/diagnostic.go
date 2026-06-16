@@ -30,6 +30,13 @@ type Diagnostic struct {
 	// step exists. "" is the single, unambiguous "no next step" signal — there is
 	// no separate presence flag (interface-spec).
 	NextStep string
+	// Feature is the recognized gating feature's display name (e.g. "Premium
+	// async proposals") when this failure is a recognized plan-limit 403, or ""
+	// otherwise (061 ADR-3). Set once here by Diagnose; both renderers read it —
+	// the human line carries it inside Cause prose, the structured envelope
+	// surfaces it as its own parseable element (errorEnvelopeFor). It never
+	// changes the Category or the exit code.
+	Feature string
 }
 
 // Diagnose is the single, total normalizer for an API-client error: one
@@ -94,11 +101,37 @@ func Diagnose(err error) Diagnostic {
 	// the X-Auth-Token.
 	var problemErr *apiclient.ProblemError
 	if errors.As(err, &problemErr) {
-		return Diagnostic{
+		diag := Diagnostic{
 			Category: categoryForStatus(problemErr.StatusCode),
 			Cause:    problemCause(problemErr),
 			NextStep: nextStepForStatus(problemErr.StatusCode),
 		}
+		// Plan-Limit Signal (061): a 403 from a known plan-gated operation is
+		// refined to possibility-framed plan-limit wording naming the gate. Reach
+		// the wrapped *ResponseError (the same unwrap path errorEnvelopeFor uses)
+		// for the request's method/path and let Feature-Gate Recognition (060)
+		// classify the operation. The Category stays PermissionError and the exit
+		// code is unchanged (ADR-2); a GateNone result — a non-gated 403, or no
+		// reachable *ResponseError — leaves the generic permission diagnostic
+		// above exactly as it is today. categoryForStatus/nextStepForStatus are
+		// untouched: this refines only Cause/NextStep/Feature. A recognized gate
+		// with an empty display name (a future gate registered without a
+		// featureGateDisplayName entry — which TestFeatureGateDisplayName_Exhaustive
+		// guards against) also falls back to the generic diagnostic rather than
+		// rendering broken "requires the  feature" prose (defense-in-depth).
+		if problemErr.StatusCode == http.StatusForbidden {
+			var re *apiclient.ResponseError
+			if errors.As(err, &re) {
+				if gate := apiclient.RecognizeFeatureGate(re.Method, re.Path, problemErr.StatusCode); gate != apiclient.GateNone {
+					if name := featureGateDisplayName(gate); name != "" {
+						diag.Feature = name
+						diag.Cause = planLimitCause(name)
+						diag.NextStep = planLimitNextStep(name)
+					}
+				}
+			}
+		}
+		return diag
 	}
 	var responseErr *apiclient.ResponseError
 	if errors.As(err, &responseErr) {
@@ -171,15 +204,20 @@ func Diagnose(err error) Diagnostic {
 }
 
 // categoryForStatus maps a non-2xx HTTP status to its code-free category: 401/403
-// → PermissionError (code 4), 429 → RateLimited (code 5), everything else →
-// APIError (the generic non-2xx, code 3). The default IS the generic bucket, so a
-// 401/403/429 can never fall through to it (API Error Extraction 015, ADR-3).
+// → PermissionError (code 4), 429 → RateLimited (code 5), 412 → StaleWrite (code
+// 7), everything else → APIError (the generic non-2xx, code 3). The default IS
+// the generic bucket, so a 401/403/412/429 can never fall through to it (API
+// Error Extraction 015, ADR-3; Stale-Write Surfacing 054, ADR-1). Classification
+// is status-driven only — the 412 maps to StaleWrite regardless of the command,
+// the resource, or whether an If-Match header was sent.
 func categoryForStatus(status int) Outcome {
 	switch status {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return PermissionError
 	case http.StatusTooManyRequests:
 		return RateLimited
+	case http.StatusPreconditionFailed:
+		return StaleWrite
 	default:
 		return APIError
 	}
@@ -204,9 +242,56 @@ func nextStepForStatus(status int) string {
 		return "check that the configured identity has the required role membership / permission"
 	case http.StatusTooManyRequests:
 		return "wait for the rate-limit window to reset (per the `Retry-After` / `X-RateLimit-Reset` headers) and retry"
+	case http.StatusPreconditionFailed:
+		// 412: a guarded write was refused because the resource changed since it was
+		// read. Point the operator at the recovery — re-read for the current version,
+		// then retry — not the generic "check that the token has access" step, which
+		// is wrong for a stale write (Stale-Write Surfacing 054, ADR-2).
+		return "re-read the resource for its current version, then retry the write"
 	default:
 		return "the API rejected the read; check that the token has access and retry, or consult the status code"
 	}
+}
+
+// featureGateDisplayName maps a recognized apiclient.Gate kind to its
+// human-prose display name for the operator-facing plan-limit diagnostic (061
+// ADR-3). It is total: every Gate kind has a case. This is DISTINCT from 060's
+// Gate.String() (kebab-case, for logs/%v) — the operator diagnostic uses the
+// human-prose form. GateAIIntegration is mapped for readiness even though no
+// command reaches it today (060 ADR-3); GateNone maps to "" (no gate). 061 owns
+// this name and the wording composed from it; 060 stays a code-free classifier.
+//
+// The exhaustiveness guard test (diagnostic_test.go, LEARNINGS PR #10 shape)
+// fails loud if a new non-None Gate kind is added without a display name here,
+// rather than letting it silently fall through to "".
+func featureGateDisplayName(g apiclient.Gate) string {
+	switch g {
+	case apiclient.GateNone:
+		return ""
+	case apiclient.GatePremiumAsyncProposals:
+		return "Premium async proposals"
+	case apiclient.GateAIIntegration:
+		return "AI Integration"
+	default:
+		return ""
+	}
+}
+
+// planLimitCause composes the possibility-framed plan-limit cause naming the
+// gating feature (061 ADR-3 / spec decision 1A). It states the operation *may
+// not be* available on the organization's plan and notes the same 403 may
+// instead be a permission issue — never asserting the plan is certainly
+// insufficient. It invents no plan name, price, or upgrade URL; the display name
+// (from the recognized gate) is the only added specific (CONSTITUTION VIII).
+func planLimitCause(feature string) string {
+	return fmt.Sprintf("this operation requires the %s feature, which your organization's plan may not include; a 403 may instead mean your identity lacks permission", feature)
+}
+
+// planLimitNextStep composes the possibility-framed next step: a verifiable
+// action, never an instruction to upgrade as the sole remedy (061 ADR-3 / 060
+// ADR-4 / CONSTITUTION VIII).
+func planLimitNextStep(feature string) string {
+	return fmt.Sprintf("verify your organization's plan includes %s, or that your identity has permission for this operation", feature)
 }
 
 // problemCause renders the token-free cause for a refined non-2xx *ProblemError.
@@ -217,6 +302,15 @@ func nextStepForStatus(status int) string {
 // adds context). All text is response-side (status/detail/title), never the token.
 func problemCause(problemErr *apiclient.ProblemError) string {
 	if problemErr.DetailSynthesized {
+		if problemErr.StatusCode == http.StatusPreconditionFailed {
+			// 412 with no readable API detail: derive a stale-write cause from the
+			// status rather than the bare generic "status 412" line — name the
+			// precondition failure / changed-since-read the status defines. Status-
+			// derived, never invented (Stale-Write Surfacing 054, ADR-2; CONSTITUTION
+			// VIII). When the API DID supply a detail/title, the non-synthesized path
+			// below surfaces it verbatim — the API's own words win.
+			return fmt.Sprintf("the guarded write was refused: the resource changed since it was read (precondition failed, status %d)", problemErr.StatusCode)
+		}
 		return fmt.Sprintf("the API returned a non-2xx response: status %d", problemErr.StatusCode)
 	}
 	cause := problemErr.Detail

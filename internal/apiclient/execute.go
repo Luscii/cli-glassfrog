@@ -26,6 +26,24 @@ type Response struct {
 	Header http.Header
 }
 
+// Version returns the resource version captured from this read response — the
+// ETag header, verbatim — for a later guarded write (Guarded Writes, 053) to
+// send back as If-Match. The value is returned exactly as the server stated it:
+// no unquoting, no weak-validator ("W/…") prefix stripping, no normalization,
+// because an If-Match precondition must echo the server's token byte-for-byte or
+// risk a spurious 412. When the response carries no ETag, it returns "" — the
+// "no version captured" sentinel, indistinguishable from an empty ETag (neither
+// is a usable precondition). Header lookup is case-insensitive (net/http
+// canonicalizes header names), so ETag/Etag/etag all match.
+//
+// Version is purely derived from the Header the Response already holds: it stores
+// nothing, mutates nothing, sends nothing, and renders nothing. It is the
+// read-side capture seam Guarded Writes (053) — the intended consumer — will call
+// on its in-process pre-write read; no existing call site invokes it yet (ADR-2).
+func (r *Response) Version() string {
+	return r.Header.Get("ETag")
+}
+
 // TransportError is the typed, code-free failure for a request that could not
 // reach the API or complete at the wire — connection refused, DNS failure, TLS
 // failure, or the request timeout elapsing. It wraps the underlying network
@@ -53,6 +71,17 @@ type ResponseError struct {
 	StatusCode int
 	Header     http.Header
 	Body       []byte
+	// Method and Path are the failed request's HTTP method and path, set in
+	// Execute where req.Method/req.Path are in scope (061 ADR-1). They describe
+	// *which operation* failed (the request-side complement to the status/headers/
+	// body it already carries for 015/017), so Feature-Gate Recognition (060) can
+	// match the operation when this error reaches Diagnose via the unwrap path.
+	// Path is the CONCRETE request path as given (e.g. /proposals/prp_0123/propose),
+	// never a template or rebuilt absolute URL. Both zero-value to "" and ride the
+	// error through refineClientError's *ProblemError wrap unchanged; Error() does
+	// not surface them (status only), so every existing message stays byte-stable.
+	Method string
+	Path   string
 }
 
 func (e *ResponseError) Error() string {
@@ -87,8 +116,10 @@ func (e *DecodeError) Unwrap() error { return e.cause }
 //   - a 2xx response: a *Response{StatusCode, Header}; when out != nil the body is
 //     decoded into out (a decode failure → *DecodeError), when out == nil the body
 //     is drained without decoding;
-//   - a non-2xx response: a generic *ResponseError{StatusCode, Header, Body} — the
-//     body is never decoded into out and the error is never classified.
+//   - a non-2xx response: a generic *ResponseError{StatusCode, Header, Body,
+//     Method, Path} — the body is never decoded into out and the error is never
+//     classified; Method/Path carry the request identity for downstream
+//     operation-aware recognition (061).
 //
 // The response body is always closed on every branch (no fd/connection leak). 010
 // never reads the token — identity rides 007's AuthTransport, wired at NewClient.
@@ -116,6 +147,17 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 		httpReq.Header.Set("Content-Type", req.ContentType)
 	}
 
+	if req.IfMatch != "" {
+		// Set the precondition only when the caller supplied a version (mirrors the
+		// ContentType block above, 042 ADR-1). The value is sent verbatim — no
+		// quoting, unquoting, weak-validator ("W/…") handling, or normalization — so
+		// it echoes the server's token (captured by Response.Version(), 052)
+		// byte-for-byte or risks a spurious 412. Method-agnostic: depends only on the
+		// field, so a DELETE is guarded like a PUT/PATCH. 007's AuthTransport owns
+		// only X-Auth-Token, so If-Match is set here on the built request, before Do.
+		httpReq.Header.Set("If-Match", req.IfMatch)
+	}
+
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		// Discriminate 007's fail-safe BEFORE wrapping: a no-/broken-credential
@@ -134,7 +176,7 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 		// Non-2xx: carry the status, headers, and raw body generically. Never
 		// decoded into out, never classified by kind (015/017 refine it).
 		body, _ := io.ReadAll(resp.Body)
-		return nil, &ResponseError{StatusCode: resp.StatusCode, Header: resp.Header, Body: body}
+		return nil, &ResponseError{StatusCode: resp.StatusCode, Header: resp.Header, Body: body, Method: req.Method, Path: req.Path}
 	}
 
 	response := &Response{StatusCode: resp.StatusCode, Header: resp.Header}

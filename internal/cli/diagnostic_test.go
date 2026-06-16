@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -36,6 +37,8 @@ func TestDiagnose_Category_Table(t *testing.T) {
 		{"problem-403-is-permission", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403}), PermissionError},
 		{"problem-429-is-rate-limited", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429}), RateLimited},
 		{"problem-404-is-api-error", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}), APIError},
+		{"response-412-is-stale-write", &apiclient.ResponseError{StatusCode: 412}, StaleWrite},
+		{"problem-412-is-stale-write", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412}), StaleWrite},
 		{"decode-is-api-error", &apiclient.DecodeError{StatusCode: 200}, APIError}, // 031 ADR-2: was RuntimeError
 		{"base-url-error-is-usage", &apiclient.BaseURLError{Source: "--base-url"}, UsageError},
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
@@ -61,7 +64,7 @@ func TestDiagnose_Category_Table(t *testing.T) {
 	// produce. If a future edit adds a category but no row, or drops a category's
 	// only row, this list and the produced set diverge and the test fails loud
 	// (the comma-ok half names a missing category explicitly).
-	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited}
+	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite}
 	if len(produced) != len(wantProduced) {
 		t.Errorf("Diagnose produced %d distinct categories across the table, want %d (a category lost or gained coverage)", len(produced), len(wantProduced))
 	}
@@ -184,6 +187,104 @@ func TestReportFailure_Delegates(t *testing.T) {
 	}
 }
 
+// Stale-Write Surfacing (054): a 412 is branched out of the generic APIError
+// bucket into its own StaleWrite category (→ code 7) with a re-read/retry next
+// step and a cause that names the precondition failure. This pins all four
+// observable fields of the diagnostic for both 412 shapes: the API supplied its
+// own detail (its words win, unchanged problemCause) and the API supplied none
+// (a status-derived precondition-failure cause, not the bare "status 412" line).
+func TestDiagnose_StaleWrite_412(t *testing.T) {
+	t.Run("api-supplied-detail", func(t *testing.T) {
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{
+			StatusCode: 412,
+			Body:       []byte(`{"detail":"version mismatch on tension ten_123"}`),
+		})
+		d := Diagnose(err)
+		if d.Category != StaleWrite {
+			t.Errorf("category = %v, want StaleWrite", d.Category)
+		}
+		if ExitCode(d.Category) != 7 {
+			t.Errorf("ExitCode(%v) = %d, want 7", d.Category, ExitCode(d.Category))
+		}
+		// The API's own words win — its detail is surfaced verbatim.
+		if !strings.Contains(d.Cause, "version mismatch on tension ten_123") {
+			t.Errorf("cause %q does not surface the API's own detail", d.Cause)
+		}
+		// The next step is the re-read/retry recovery, never the generic token step.
+		lower := strings.ToLower(d.NextStep)
+		if !strings.Contains(lower, "re-read") || !strings.Contains(lower, "retry") {
+			t.Errorf("next step %q does not tell the operator to re-read and retry", d.NextStep)
+		}
+		if strings.Contains(lower, "token has access") {
+			t.Errorf("next step %q must not be the generic check-token-access step", d.NextStep)
+		}
+	})
+
+	t.Run("no-readable-detail", func(t *testing.T) {
+		// An empty body forces ExtractProblem to synthesize (DetailSynthesized=true).
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412, Body: []byte("")})
+		d := Diagnose(err)
+		if d.Category != StaleWrite {
+			t.Errorf("category = %v, want StaleWrite", d.Category)
+		}
+		// The cause is derived from the 412 status (not invented): it names the
+		// precondition failure / changed-since-read, not the bare generic line.
+		if !strings.Contains(d.Cause, "412") {
+			t.Errorf("cause %q is not derived from the 412 status", d.Cause)
+		}
+		lower := strings.ToLower(d.Cause)
+		if !strings.Contains(lower, "precondition") && !strings.Contains(lower, "changed since it was read") {
+			t.Errorf("cause %q does not name the precondition failure / changed-since-read", d.Cause)
+		}
+		if strings.Contains(d.Cause, "the API returned a non-2xx response: status 412") && !strings.Contains(lower, "precondition") {
+			t.Errorf("cause %q is the bare generic status line — it must be 412-aware", d.Cause)
+		}
+		// The category, code, and re-read next step are still assigned for the
+		// synthesized shape.
+		if ExitCode(d.Category) != 7 {
+			t.Errorf("ExitCode(%v) = %d, want 7", d.Category, ExitCode(d.Category))
+		}
+		if !strings.Contains(strings.ToLower(d.NextStep), "re-read") {
+			t.Errorf("next step %q does not tell the operator to re-read", d.NextStep)
+		}
+	})
+}
+
+// No existing status's surfacing drifts when the 412 arm is added: 401/403/404/
+// 429/500 keep their exact category, exit code, cause, and next step. This pins
+// the no-drift guarantee the additive 412 case must preserve (the @validation
+// "No existing surfacing drifts" scenario's mechanism, held out at the BDD level).
+func TestDiagnose_412_DoesNotDriftOtherStatuses(t *testing.T) {
+	cases := []struct {
+		status   int
+		category Outcome
+		code     int
+	}{
+		{401, PermissionError, 4},
+		{403, PermissionError, 4},
+		{404, APIError, 3},
+		{429, RateLimited, 5},
+		{500, APIError, 3},
+	}
+	for _, tc := range cases {
+		err := apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: tc.status})
+		d := Diagnose(err)
+		if d.Category != tc.category {
+			t.Errorf("status %d: category = %v, want %v (drifted)", tc.status, d.Category, tc.category)
+		}
+		if got := ExitCode(d.Category); got != tc.code {
+			t.Errorf("status %d: exit code = %d, want %d (drifted)", tc.status, got, tc.code)
+		}
+		// None of the unchanged statuses may inherit the stale-write surfacing.
+		if d.Category == StaleWrite {
+			t.Errorf("status %d must not be classified as a stale write", tc.status)
+		}
+		if strings.Contains(strings.ToLower(d.NextStep), "re-read") {
+			t.Errorf("status %d next step %q must not carry the 412 re-read hint", tc.status, d.NextStep)
+		}
+	}
+}
+
 // No Diagnose arm may emit the X-Auth-Token: every Cause, every NextStep, and the
 // rendered line is response/path/status only. The sentinel is the real token a
 // production seam would carry on the request header (meSecretToken) — it must
@@ -201,6 +302,7 @@ func TestDiagnose_NeverEmitsToken(t *testing.T) {
 		{"problem-403", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403})},
 		{"problem-429", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 429})},
 		{"problem-404", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404})},
+		{"problem-412", apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 412})},
 		{"response-500", &apiclient.ResponseError{StatusCode: 500}},
 		{"decode", &apiclient.DecodeError{StatusCode: 200}},
 		{"baseurl", &apiclient.BaseURLError{Source: "--base-url"}},
@@ -220,5 +322,121 @@ func TestDiagnose_NeverEmitsToken(t *testing.T) {
 				t.Errorf("Diagnose(%s).%s leaked the token: %q", a.name, field, val)
 			}
 		}
+	}
+}
+
+// planLimitProblem builds the refined error reportFailure hands Diagnose for a
+// non-2xx from a given operation: a *ProblemError wrapping a *ResponseError that
+// carries the request method/path (061 T001). Recognition runs in the
+// *ProblemError arm and reaches the method/path via the unwrap path.
+func planLimitProblem(method, path string, status int) error {
+	return apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: status, Method: method, Path: path})
+}
+
+// A recognized plan-gate 403 from every gated Premium async-proposal write is
+// refined to the possibility-framed plan-limit diagnostic: the cause names the
+// gating feature and frames the limit as a possibility (never a certainty, never
+// "upgrade"), the next step is to verify the plan, Feature carries the display
+// name, and the category stays PermissionError so the exit code is unchanged
+// (061 ADR-2/ADR-3). Recognition keys on the operation, not the command, so the
+// withdraw/responses rows hold even though no test issues a real request.
+func TestDiagnose_PlanLimit_403_NamesGateAcrossGatedOps(t *testing.T) {
+	gatedOps := []string{
+		"/proposals",
+		"/proposals/prp_0123/propose",
+		"/proposals/prp_0123/withdraw",
+		"/proposals/prp_0123/responses",
+	}
+	for _, path := range gatedOps {
+		d := Diagnose(planLimitProblem(http.MethodPost, path, http.StatusForbidden))
+
+		if d.Category != PermissionError {
+			t.Errorf("POST %s: Category = %v, want PermissionError (exit code unchanged)", path, d.Category)
+		}
+		if d.Feature != "Premium async proposals" {
+			t.Errorf("POST %s: Feature = %q, want %q", path, d.Feature, "Premium async proposals")
+		}
+		if !strings.Contains(d.Cause, "Premium async proposals") {
+			t.Errorf("POST %s: Cause does not name the gate: %q", path, d.Cause)
+		}
+		// Possibility, never certainty: the cause hedges ("may not") and notes the
+		// 403 may instead be a permission issue (a genuine permission denial on a
+		// gated op is indistinguishable from a plan gate — 060 ADR-4).
+		if !strings.Contains(d.Cause, "may not") {
+			t.Errorf("POST %s: Cause does not frame the limit as a possibility: %q", path, d.Cause)
+		}
+		if !strings.Contains(strings.ToLower(d.Cause), "permission") {
+			t.Errorf("POST %s: Cause does not note the rejection may be a permission issue: %q", path, d.Cause)
+		}
+		// Next step is to verify, never to upgrade as the sole remedy.
+		if !strings.Contains(d.NextStep, "verify") {
+			t.Errorf("POST %s: NextStep is not a verify action: %q", path, d.NextStep)
+		}
+		if strings.Contains(strings.ToLower(d.Cause+" "+d.NextStep), "upgrade") {
+			t.Errorf("POST %s: diagnostic instructs an upgrade — forbidden framing: cause=%q nextStep=%q", path, d.Cause, d.NextStep)
+		}
+	}
+}
+
+// A non-gated 403 (a read) and a non-403 on a gated operation both keep today's
+// generic diagnostic untouched, with no Feature — recognition returns GateNone,
+// so the plan-limit wording can never leak onto a failure it does not describe
+// (061 ADR-2).
+func TestDiagnose_PlanLimit_LeavesOtherFailuresUntouched(t *testing.T) {
+	t.Run("non-gated 403 keeps the generic permission diagnostic", func(t *testing.T) {
+		d := Diagnose(planLimitProblem(http.MethodGet, "/roles/role_0123", http.StatusForbidden))
+		if d.Feature != "" {
+			t.Errorf("Feature = %q, want empty for a non-gated 403", d.Feature)
+		}
+		if d.NextStep != "check that the configured identity has the required role membership / permission" {
+			t.Errorf("NextStep = %q, want the generic 403 next step", d.NextStep)
+		}
+		if strings.Contains(d.Cause, "Premium") {
+			t.Errorf("Cause leaked plan-limit wording onto a non-gated 403: %q", d.Cause)
+		}
+	})
+
+	t.Run("non-403 on a gated operation carries no plan-limit wording", func(t *testing.T) {
+		d := Diagnose(planLimitProblem(http.MethodPost, "/proposals", http.StatusUnprocessableEntity))
+		if d.Feature != "" {
+			t.Errorf("Feature = %q, want empty for a 422 on a gated op", d.Feature)
+		}
+		if strings.Contains(d.Cause, "Premium") || strings.Contains(d.Cause, "may not be available") {
+			t.Errorf("Cause leaked plan-limit wording onto a 422: %q", d.Cause)
+		}
+	})
+}
+
+// featureGateDisplayName is total: every Gate kind 060 models has a human-prose
+// display name (distinct from String()'s kebab-case). The guard walks the gate
+// space using String()'s "unknown" sentinel as the upper bound; this terminator
+// is sound only because apiclient's TestGate_StringExhaustive enforces that
+// String() names every DEFINED gate (so "unknown" reliably marks the first
+// undefined value). Given that, a newly added Gate kind WITH its String() case
+// but WITHOUT a display name here is reached by the loop and fails loud rather
+// than silently returning "" (LEARNINGS PR #10). The residual case — a gate added
+// without a String() case at all — is caught upstream by TestGate_StringExhaustive,
+// not here (Go cannot enumerate enum constants at runtime, so the loud-fail is
+// split across the two guards).
+func TestFeatureGateDisplayName_Exhaustive(t *testing.T) {
+	for g := apiclient.GateNone; g.String() != "unknown"; g++ {
+		name := featureGateDisplayName(g)
+		if g == apiclient.GateNone {
+			if name != "" {
+				t.Errorf("featureGateDisplayName(GateNone) = %q, want empty (no gate)", name)
+			}
+			continue
+		}
+		if name == "" {
+			t.Errorf("featureGateDisplayName(%v) is empty — every non-None gate kind needs a human display name", g)
+		}
+	}
+	// Pin the human-prose names; these are the operator-facing form, NOT the
+	// kebab-case String() used for logs.
+	if got := featureGateDisplayName(apiclient.GatePremiumAsyncProposals); got != "Premium async proposals" {
+		t.Errorf("featureGateDisplayName(GatePremiumAsyncProposals) = %q, want %q", got, "Premium async proposals")
+	}
+	if got := featureGateDisplayName(apiclient.GateAIIntegration); got != "AI Integration" {
+		t.Errorf("featureGateDisplayName(GateAIIntegration) = %q, want %q", got, "AI Integration")
 	}
 }

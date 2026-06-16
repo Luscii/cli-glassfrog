@@ -22,7 +22,7 @@ Phase 1: Capture Accessor (1 task, no phase dependencies) — single-phase build
 
 ## Phase 1: Capture Accessor [Shared]
 
-- [ ] **T001** [Shared] Add the `Response.Version()` version-capture accessor with its unit tests
+- [x] **T001** [Shared] Add the `Response.Version()` version-capture accessor with its unit tests — 7 scenarios (2 @validation held @wip), 4 accessor unit tests; no LEARNINGS, no drift
   - **Scope**: One reviewable change in `internal/apiclient` (alongside the `Response` type in `execute.go`): add a derived accessor that returns the resource version carried by a read response — the `ETag` header, verbatim, with `""` as the "no version captured" sentinel. Adds no stored field, no `Execute` change, no change to `Request`, the `executor` interface, or `RetryExecutor`; wires no existing read call site and sends no header. The accessor plus its unit tests ship together (the accessor must not merge without the tests that pin its contract).
   - **Acceptance criteria**:
     - A read response carrying an `ETag` returns that value **verbatim** from the accessor — no unquoting, no weak-validator (`W/"…"`) prefix stripping, no normalization.

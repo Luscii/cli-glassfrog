@@ -206,3 +206,77 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`) "Optimistic
   + depends-on: Version Capture on Read
 - Stale-Write Surfacing — when a guarded write is refused (`412 Precondition Failed`), report the clobber distinctly so the operator knows the resource changed under them and can re-read before retrying
   + depends-on: Guarded Writes
+
+## Governance Proposals
+> Problem: Proposal Write-Flow — the multi-step governance write path: create → propose → respond → accepted (affects: Practitioner)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): proposals are the only sanctioned path to alter governance structure, and the whole write surface is **Premium-gated** (async proposals — every write returns `403` when not enabled). A proposal is anchored to a tension and carries `changes[]` — free-form governance commands (`ProposalChange` is `type` plus open properties, with no per-type schema in the spec), so the CLI passes them through as supplied and lets the server validate; typed per-type change builders are deferred as a separate problem (a future `/prelude:capture` candidate). The lifecycle is `draft → proposed_outside_meeting / escalated → accepted`, with `propose`/`withdraw` offered only when they appear in the proposal's `available_transitions`; responses are `no_objection` | `bring_to_meeting`, and `response_summary` is aggregate-only (no per-person attribution). Line numbers are a navigation hint against the current spec revision — confirm by `operationId`.
+
+- Proposal Creation — create a draft proposal anchored to a tension, carrying caller-supplied governance `changes`: `POST /proposals` → `createProposal` (`spec/glassfrog-api-v5.yaml:3699`; Premium — 403 when async proposals disabled; body `CreateProposalRequest` — required `tension_id`, free-form `changes[]` passed through as supplied and server-validated)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Proposal Reads — list proposals and read one by id with its `changes`, aggregate `response_summary`, and the caller's `available_transitions`: `GET /proposals` → `listProposals` (`spec/glassfrog-api-v5.yaml:3622`; paginated, `?status`/`role_id`/`proposer_id`/`proposed_after`/`accepted_after`) and `GET /proposals/{id}` → `getProposal` (`spec/glassfrog-api-v5.yaml:3739`; no per-person response attribution)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Advance to Circulation — move a draft into circulation (`draft → proposed_outside_meeting`), auto-recording the proposer's implicit `no_objection` and setting the response deadline: `POST /proposals/{proposal_id}/propose` → `proposeProposal` (`spec/glassfrog-api-v5.yaml:3773`; Premium; allowed only when `propose` is in `available_transitions`)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Withdraw Proposal — return a circulating (`proposed_outside_meeting`/`escalated`) proposal to `draft` for re-editing, clearing existing responses and the proposed timestamps: `POST /proposals/{proposal_id}/withdraw` → `withdrawProposal` (`spec/glassfrog-api-v5.yaml:3829`; Premium; allowed only when `withdraw` is in `available_transitions`)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+- Response Recording — record a circle member's consent-window response: `POST /proposals/{proposal_id}/responses` → `createProposalResponse` (`spec/glassfrog-api-v5.yaml:3874`; Premium; body `CreateProposalResponseRequest` — `no_objection` | `bring_to_meeting`; one per person, 422 on a second)
+  + depends-on: Request Authentication
+  + depends-on: Request Execution
+
+## Plan-Limit Signalling
+> Problem: Unsignalled Plan Limits — plan/flag-gated endpoints (ai_integration, Premium) reject with 403 and no clear "not available on your plan" signal (affects: Practitioner)
+
+Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): the `403` `Forbidden` response is a generic RFC 9457 `ProblemDetails` with no structured field marking it as a plan-gate, so gate-awareness comes from static spec metadata — the `x-feature-gate: ai_integration` vendor extension and the Premium-documented operations ("requires async proposals" / "restricted (non-premium) plans") — not from the response body. In scope, the gated surface that matters is the Premium async-proposal write path (relates to the Proposal Write-Flow problem); the `ai_integration` agent/skill endpoints stay deferred per PROJECT.md scope.
+
+- Feature-Gate Recognition — identify when a `403` came from a known plan/feature-gated operation (the spec's `x-feature-gate: ai_integration` extension and the Premium-documented endpoints, chiefly the async-proposal write path) so a plan-limit rejection is distinguishable from a generic permission denial, since the `403` body is not contractually self-identifying
+  + depends-on: API Error Extraction
+- Plan-Limit Signal — surface a recognized plan-limit rejection as a clear, actionable "not available on your plan" diagnostic that names the gating feature (e.g. Premium async proposals) and the next step, rendered in the selected output format
+  + depends-on: Feature-Gate Recognition
+  + depends-on: Diagnostic Normalization
+
+## Agent Operating Surface
+> Problem: Unequipped Agent Operators — the AI agent driving the CLI has no packaged operating knowledge, so it rediscovers how to operate the CLI each session and can mis-drive it or run ungated writes (affects: AI agent, Practitioner)
+
+A thin operator layer over the CLI — packaged operating knowledge, operator paths for governance work, and a write-safety guardrail — delivered as a repo-shipped plugin (its own marketplace). It adds no API capability of its own: every path is a guided composition of CLI capabilities that already exist, so its capabilities reach across solutions via `depends-on`. Reflects PROJECT scope "Agent operating surface" and honors VISION Exclusion 2 plus the "knowledge + guardrails, never capability" constraint. Holacracy-practice fluency was deliberately excluded (a separate plugin's concern).
+
+- Operator Orientation — the Claude plugin definition (manifest + orientation skill content) plus packaged knowledge of how to drive the CLI: output formats for parsing, pagination, exit-code reactions, credential setup, and write-safety guidance, pointing at the CLI's own help for per-command detail, so the agent operates it correctly without rediscovery
+- Write-Safety Guardrail — enforce governance integrity at the operator layer: gate every command that writes to the governance record (tension capture, proposals, responses) behind explicit confirmation, and handle a stale-write refusal (412) by re-reading and re-confirming, never blind retry (VISION principle 2)
+  + depends-on: Operator Orientation
+  + depends-on: Stale-Write Surfacing
+- Tension Processing Path — a guided path from a sensed tension to a captured one: articulate it, locate the sensing role, choose tactical vs governance, and capture it
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Tension Capture
+  + depends-on: Cross-Model Search
+- Governance Navigation Path — a read-only traversal to work a tension: find the relevant roles, policies, domains, and who fills them, returning a synthesized picture rather than raw dumps
+  + depends-on: Operator Orientation
+  + depends-on: Cross-Model Search
+  + depends-on: Role Fillers
+  + depends-on: Role Reads
+- Constraint Discovery Path — given something the operator wants to do, surface the domains and policies that govern it (whether it falls under another role's domain or is shaped by a policy) so they know if it's within their authority or needs permission or a proposal; surfaces the governing governance, never reimplements permission rules locally
+  + depends-on: Operator Orientation
+  + depends-on: Cross-Model Search
+  + depends-on: Role Domains
+  + depends-on: Role Policies
+- Proposal Drafting Path — from a tension, assemble the governance changes and create the draft proposal
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Proposal Creation
+- Proposal Circulation Path — advance a draft into circulation, track the consent window's responses to acceptance, and withdraw to re-edit when needed
+  + depends-on: Proposal Drafting Path
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Advance to Circulation
+  + depends-on: Proposal Reads
+- Proposal Impact Review Path — given proposals others are circulating, find the ones touching the roles the practitioner fills, assess how their changes affect those roles, and record a response
+  + depends-on: Operator Orientation
+  + depends-on: Write-Safety Guardrail
+  + depends-on: Proposal Reads
+  + depends-on: Response Recording
+  + depends-on: My Roles
+- Operating-Surface Packaging — distribute the plugin Operator Orientation defines so an agent environment discovers, installs, and runs it (repo-shipped, its own marketplace), leaning on existing credential setup; the plugin definition itself lives in Operator Orientation, so this is distribution only
+  + depends-on: Operator Orientation
