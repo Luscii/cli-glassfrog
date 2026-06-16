@@ -17,7 +17,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
     # I want a recognized plan-limit 403 surfaced as an actionable diagnostic that names the gating feature.
 
     # Source: 061-plan-limit-signal — Scenario: Advancing a draft on a non-Premium org surfaces an actionable plan-limit diagnostic
-    @wip
     Scenario: A recognized 403 from advancing a draft names the gating feature and a next step
       Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       And the operation is a known plan-gated operation
@@ -27,7 +26,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
       And it will point the caller to verify the plan includes Premium async proposals
 
     # Source: 061-plan-limit-signal — Scenario: Creating a proposal surfaces the gate, framed as a possibility
-    @wip
     Scenario: A recognized 403 from creating a proposal names the gate as a possibility
       Given the create-proposal operation POST /proposals had been rejected with HTTP status 403
       And the operation is a known plan-gated operation
@@ -36,7 +34,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
       And it will frame the plan limit as a possibility, not a certainty
 
     # Source: 061-plan-limit-signal — Scenario: A 403 that was not recognized keeps the generic diagnostic
-    @wip
     Scenario: A non-recognized 403 keeps the generic permission diagnostic
       Given the role-read operation GET /roles/role_0123 had been rejected with HTTP status 403
       When the failure is rendered
@@ -45,7 +42,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
       And the structured envelope will carry no feature element
 
     # Source: 061-plan-limit-signal — Scenario: A non-403 failure on a gated operation gets no plan-limit wording
-    @wip
     Scenario: A non-403 failure on a gated operation gets no plan-limit wording
       Given the create-proposal operation POST /proposals had been rejected with HTTP status 422 for an invalid change
       When the failure is rendered
@@ -53,7 +49,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
       And it will name no gating feature
 
     # Source: 061-plan-limit-signal — Scenario: The exit code is unchanged by the plan-limit wording
-    @wip
     Scenario: A recognized plan-limit 403 keeps the permission exit code across formats
       Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been recognized as a plan-limit 403
       When the failure is rendered under each output format
@@ -61,7 +56,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
       And only the rendered presentation will differ between formats
 
     # Source: 061-plan-limit-signal — Scenario: A modeled ai_integration gate produces no message today
-    @wip
     Scenario: The ai_integration gate produces no plan-limit message today
       Given the ai_integration gate kind is modeled but reached by no command
       When commands are run
@@ -74,7 +68,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
     # I want the gating feature surfaced as a distinct, parseable element of the failure envelope.
 
     # Source: 061-plan-limit-signal — Scenario: The gating feature is a distinct, parseable element under json
-    @wip
     Scenario: The gating feature is a distinct feature element under json
       Given the create-proposal operation POST /proposals had been recognized as a plan-limit 403
       When the failure is rendered under the json format
@@ -87,7 +80,6 @@ Feature: Unsignalled Plan Limits — Plan-Limit Signal
     # I want the plan-limit wording framed as a possibility, never a certain insufficiency.
 
     # Source: 061-plan-limit-signal — Scenario: A genuine permission denial on a gated operation is still hedged, never asserted
-    @wip
     Scenario: A genuine permission denial on a gated operation is hedged, never asserted
       Given the advance-to-circulation operation POST /proposals/prp_0123/propose had been rejected with HTTP status 403
       And the rejection was a genuine permission denial unrelated to the plan
