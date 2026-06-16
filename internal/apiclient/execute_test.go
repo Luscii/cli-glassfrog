@@ -194,6 +194,34 @@ func TestExecuteNon2xxIsGenericResponseError(t *testing.T) {
 	}
 }
 
+// TestExecuteNon2xxCarriesRequestIdentity pins 061 ADR-1: the non-2xx
+// *ResponseError carries the failed request's method and path (the concrete path
+// as given, not a template), so Feature-Gate Recognition can match the operation
+// when this error reaches Diagnose via the unwrap path — while Error() stays
+// status-only so existing goldens are byte-stable.
+func TestExecuteNon2xxCarriesRequestIdentity(t *testing.T) {
+	base := &respondingBase{status: 403, header: make(http.Header), body: bodyOf(`{"error":"forbidden"}`)}
+	client := mustClient(t, completeContext(secretToken), base)
+
+	resp, err := client.Execute(context.Background(), Request{Method: http.MethodPost, Path: "/proposals/prp_0123/propose"}, nil)
+	if resp != nil {
+		t.Fatalf("response = %v, want nil on a non-2xx", resp)
+	}
+	var respErr *ResponseError
+	if !errors.As(err, &respErr) {
+		t.Fatalf("err = %v, want *ResponseError", err)
+	}
+	if respErr.Method != http.MethodPost {
+		t.Fatalf("ResponseError.Method = %q, want %q", respErr.Method, http.MethodPost)
+	}
+	if respErr.Path != "/proposals/prp_0123/propose" {
+		t.Fatalf("ResponseError.Path = %q, want %q", respErr.Path, "/proposals/prp_0123/propose")
+	}
+	if got := respErr.Error(); got != "the API returned a non-2xx response: status 403" {
+		t.Fatalf("ResponseError.Error() = %q, want status-only wording (unchanged by 061)", got)
+	}
+}
+
 func TestExecute429CarriesRateLimitHeaders(t *testing.T) {
 	header := http.Header{
 		"Retry-After":           []string{"60"},

@@ -71,6 +71,17 @@ type ResponseError struct {
 	StatusCode int
 	Header     http.Header
 	Body       []byte
+	// Method and Path are the failed request's HTTP method and path, set in
+	// Execute where req.Method/req.Path are in scope (061 ADR-1). They describe
+	// *which operation* failed (the request-side complement to the status/headers/
+	// body it already carries for 015/017), so Feature-Gate Recognition (060) can
+	// match the operation when this error reaches Diagnose via the unwrap path.
+	// Path is the CONCRETE request path as given (e.g. /proposals/prp_0123/propose),
+	// never a template or rebuilt absolute URL. Both zero-value to "" and ride the
+	// error through refineClientError's *ProblemError wrap unchanged; Error() does
+	// not surface them (status only), so every existing message stays byte-stable.
+	Method string
+	Path   string
 }
 
 func (e *ResponseError) Error() string {
@@ -105,8 +116,10 @@ func (e *DecodeError) Unwrap() error { return e.cause }
 //   - a 2xx response: a *Response{StatusCode, Header}; when out != nil the body is
 //     decoded into out (a decode failure → *DecodeError), when out == nil the body
 //     is drained without decoding;
-//   - a non-2xx response: a generic *ResponseError{StatusCode, Header, Body} — the
-//     body is never decoded into out and the error is never classified.
+//   - a non-2xx response: a generic *ResponseError{StatusCode, Header, Body,
+//     Method, Path} — the body is never decoded into out and the error is never
+//     classified; Method/Path carry the request identity for downstream
+//     operation-aware recognition (061).
 //
 // The response body is always closed on every branch (no fd/connection leak). 010
 // never reads the token — identity rides 007's AuthTransport, wired at NewClient.
@@ -163,7 +176,7 @@ func (c *Client) Execute(reqCtx context.Context, req Request, out any) (*Respons
 		// Non-2xx: carry the status, headers, and raw body generically. Never
 		// decoded into out, never classified by kind (015/017 refine it).
 		body, _ := io.ReadAll(resp.Body)
-		return nil, &ResponseError{StatusCode: resp.StatusCode, Header: resp.Header, Body: body}
+		return nil, &ResponseError{StatusCode: resp.StatusCode, Header: resp.Header, Body: body, Method: req.Method, Path: req.Path}
 	}
 
 	response := &Response{StatusCode: resp.StatusCode, Header: resp.Header}

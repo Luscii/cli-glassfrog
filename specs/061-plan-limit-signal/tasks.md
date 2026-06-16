@@ -32,7 +32,7 @@ Phase 1: Wire the plan-limit signal into the failure path (3 tasks, single-phase
 
 ## Phase 1: Wire the plan-limit signal into the failure path [Shared]
 
-- [ ] **T001** [Shared] Thread operation identity — add `Method`/`Path` to `apiclient.ResponseError`, set in `Execute`
+- [x] **T001** [Shared] Thread operation identity — add `Method`/`Path` to `apiclient.ResponseError`, set in `Execute` — added dedicated `TestExecuteNon2xxCarriesRequestIdentity`; `Error()` unchanged, full suite byte-stable
   - **Scope**: In `internal/apiclient/execute.go`, add two additive fields `Method string` and `Path string` to `ResponseError`, and set them (`req.Method`, `req.Path`) where `Execute` constructs the non-2xx `*ResponseError` (the one site). Leave `ResponseError.Error()` unchanged (status only). No other type, call site, or behavior changes — the fields zero-value to `""` and ride the error through `refineClientError`'s `*ProblemError` wrap (which `Unwrap`s to the `ResponseError`) to `Diagnose`. Add/extend unit tests in `execute_test.go` asserting a non-2xx `*ResponseError` now carries the request's method and path.
   - **Acceptance criteria**:
     - A non-2xx response from `Execute` yields a `*ResponseError` whose `Method` and `Path` equal the request's method and path (e.g. `POST`, `/proposals/prp_0123/propose`)
