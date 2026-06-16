@@ -277,7 +277,7 @@ func orientationSkillFormats(skill string) ([]string, bool) {
 }
 
 // orientationSkillExitCodes returns the distinct single-digit code numbers the
-// skill documents in backticked form (`` `7` ``) — the exit-code table and its
+// skill documents in backticked form (“ `7` “) — the exit-code table and its
 // cross-references. The backtick form keeps the digit from colliding with an HTTP
 // status or version number in prose.
 func orientationSkillExitCodes(skill string) []string {

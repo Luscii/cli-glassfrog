@@ -411,7 +411,7 @@ func isWordByte(b byte) bool {
 }
 
 // mentionsExitCode reports whether the skill documents a code number in its
-// backticked exit-code form (`` `7` ``), so the digit cannot be confused with an
+// backticked exit-code form (“ `7` “), so the digit cannot be confused with an
 // HTTP status or version number in prose.
 func mentionsExitCode(skill string, code int) bool {
 	return strings.Contains(skill, fmt.Sprintf("`%d`", code))
