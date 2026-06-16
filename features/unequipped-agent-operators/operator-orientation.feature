@@ -61,7 +61,6 @@ Feature: Operator Orientation
       And it will not itself enumerate the command's flags
 
     # Source: 062-operator-orientation — Scenario: Cross-cutting knowledge drifts from the shipped CLI
-    @wip
     Scenario: Detect orientation drifted from the shipped CLI
       Given the CLI's exit-code or output-format behavior had changed
       When the orientation is checked against the shipped CLI
@@ -136,7 +135,6 @@ Feature: Operator Orientation
       And it will nowhere implement confirmation, gating, or blocking
 
     # Source: 062-operator-orientation — architecture-informed (plan ADR-4; proposed by skill)
-    @wip
     Scenario: Drift guard fails when a documented anchor leaves the CLI
       Given the orientation documented an output-format token that the CLI no longer supported
       When the internal/build drift guard runs

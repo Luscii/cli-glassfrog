@@ -23,8 +23,7 @@ By default the CLI renders output for a human to read. When you are going to
 format instead, so you get a stable shape rather than prose that can be reworded
 at any time.
 
-Select the format with the `--output` flag (short: `-o`). The supported tokens
-are exactly: full, compact, json, yaml.
+Select the format with the `--output` flag (short: `-o`). The supported format tokens are exactly: full, compact, json, yaml.
 
 - `full` and `compact` are the two **human** projections (labelled detail vs. a
   denser one-line-per-record listing). Use these when a person will read the

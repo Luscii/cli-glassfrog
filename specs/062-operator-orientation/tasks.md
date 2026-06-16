@@ -51,7 +51,7 @@ T002 depends on T001 and T003 depends on T002, so the three task branches land i
 
 ## Phase 2: Drift guard [Shared]
 
-- [ ] **T003** [Shared] Add the best-effort drift-guard test in `internal/build`
+- [x] **T003** [Shared] Add the best-effort drift-guard test in `internal/build` — 2 scenarios un-@wip'd (drift detected, anchor-left-CLI); standalone guard test pins formats/exit-codes(StaleWrite=7)/auth-login; uncovered prose anchors documented in the test, not omitted silently
   - **Scope**: A new `internal/build` test asserting the orientation's enumerable facts still match their CLI source. Best-effort and explicitly partial; if an anchor proves infeasible to assert, state the reduced coverage rather than dropping it silently.
   - **Acceptance criteria**:
     - Test asserts the orientation's output-format tokens match `internal/output` `supportedFormats` exactly (`full, compact, json, yaml`)

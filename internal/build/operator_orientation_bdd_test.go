@@ -45,6 +45,8 @@ type orientationWorld struct {
 	manifest    OrientationManifest
 	manifestErr error
 	skill       string
+	facts       OrientationFacts
+	drift       []string
 }
 
 func (w *orientationWorld) register(sc *godog.ScenarioContext) {
@@ -97,6 +99,16 @@ func (w *orientationWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the orientation will state the expectation to confirm before writing$`, w.thenConfirmBeforeWriting)
 	sc.Step(`^it will state that a 412 stale-write refusal means re-read and re-confirm, not blind retry$`, w.then412ReReadReconfirm)
 	sc.Step(`^it will not block or gate the write itself$`, w.thenNotGate)
+
+	// --- Drift-guard scenarios (T003) ---
+	sc.Step(`^the CLI's exit-code or output-format behavior had changed$`, w.givenCliBehaviourChanged)
+	sc.Step(`^the orientation is checked against the shipped CLI$`, w.whenDriftChecked)
+	sc.Step(`^the mismatch will be treated as a defect to fix$`, w.thenDriftIsDefect)
+	sc.Step(`^it will not be accepted as a tolerable difference$`, w.thenDriftNotTolerated)
+	sc.Step(`^the orientation documented an output-format token that the CLI no longer supported$`, w.givenSkillDocumentsDroppedToken)
+	sc.Step(`^the internal/build drift guard runs$`, w.whenDriftChecked)
+	sc.Step(`^the guard will fail$`, w.thenDriftIsDefect)
+	sc.Step(`^it will report which documented anchor no longer matches the shipped CLI$`, w.thenDriftNamesFormatAnchor)
 }
 
 func (w *orientationWorld) noop() error { return nil }
@@ -302,6 +314,77 @@ func (w *orientationWorld) thenNotGate() error {
 		return fmt.Errorf("skill does not state it neither blocks nor gates the write")
 	}
 	return nil
+}
+
+// --- Drift-guard scenarios (T003) ------------------------------------------
+
+func (w *orientationWorld) loadLiveFactsAndSkill() error {
+	if err := w.ensureSkill(); err != nil {
+		return err
+	}
+	facts, err := LiveOrientationFacts()
+	if err != nil {
+		return fmt.Errorf("could not extract CLI facts: %w", err)
+	}
+	w.facts = facts
+	return nil
+}
+
+// givenCliBehaviourChanged models the CLI growing a new output-format token the
+// hand-authored skill does not yet document — a behaviour change the guard must
+// catch.
+func (w *orientationWorld) givenCliBehaviourChanged() error {
+	if err := w.loadLiveFactsAndSkill(); err != nil {
+		return err
+	}
+	w.facts.Formats = append(append([]string{}, w.facts.Formats...), "xml")
+	return nil
+}
+
+// givenSkillDocumentsDroppedToken models the reverse: the CLI dropped a format
+// token the skill still documents.
+func (w *orientationWorld) givenSkillDocumentsDroppedToken() error {
+	if err := w.loadLiveFactsAndSkill(); err != nil {
+		return err
+	}
+	kept := w.facts.Formats[:0:0]
+	for _, t := range w.facts.Formats {
+		if t != "yaml" {
+			kept = append(kept, t)
+		}
+	}
+	w.facts.Formats = kept
+	return nil
+}
+
+func (w *orientationWorld) whenDriftChecked() error {
+	w.drift = CheckOrientationDrift(w.skill, w.facts)
+	return nil
+}
+
+func (w *orientationWorld) thenDriftIsDefect() error {
+	if len(w.drift) == 0 {
+		return fmt.Errorf("guard found no drift, but the CLI facts diverged from the skill")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenDriftNotTolerated() error {
+	// The guard surfaces drift as findings (a CI failure), never as an accepted
+	// difference — a non-empty result is exactly that.
+	if len(w.drift) == 0 {
+		return fmt.Errorf("drift was tolerated rather than reported as a defect")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenDriftNamesFormatAnchor() error {
+	for _, d := range w.drift {
+		if containsFold(d, "format") {
+			return nil
+		}
+	}
+	return fmt.Errorf("no drift finding named the offending output-format anchor; got %v", w.drift)
 }
 
 // mentionsToken reports a case-insensitive word-boundary match for a bare token
