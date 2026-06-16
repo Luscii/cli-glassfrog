@@ -62,4 +62,4 @@
 | 058-response-recording | Complete | validate | 2026-06-15T16:30:00 |
 | 059-withdraw-proposal | Complete | validate | 2026-06-15T21:30:00 |
 | 060-feature-gate-recognition | Ready | validate | 2026-06-15T21:30:00 |
-| 061-plan-limit-signal | Implemented | implement | 2026-06-16T12:00:00 |
+| 061-plan-limit-signal | Complete | validate | 2026-06-16T12:30:00 |
