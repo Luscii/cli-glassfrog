@@ -482,7 +482,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Root of the Agent Operating Surface — every path and the guardrail build on it, so it leads the surface; buildable now atop the shipped CLI. Should rather than Must — the CLI ships without the operating layer.
+- **Rationale**: Root of the Agent Operating Surface — every path and the guardrail build on it, so it leads the surface; buildable now atop the shipped CLI. Should rather than Must — the CLI ships without the operating layer. Now also lands the Claude plugin definition (manifest + orientation skill content); its marketplace distribution stays with #70.
 - **Status**: pending
 
 ### 63. Write-Safety Guardrail
@@ -545,6 +545,6 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: The delivery vehicle (repo-shipped plugin + its own marketplace) that makes the surface installable; needs at least Operator Orientation to have content to ship, so it trails the surface but is required for any of it to reach an agent environment.
+- **Rationale**: The distribution vehicle — its own repo-shipped marketplace that publishes and installs the plugin Operator Orientation defines; the plugin definition itself moved to #62, so this is distribution only. Still needs the surface to have content to ship, so it trails it but is required for any of it to reach an agent environment.
 - **Dependencies**: → requires: Operator Orientation
 - **Status**: pending
