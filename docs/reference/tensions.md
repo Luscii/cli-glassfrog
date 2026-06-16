@@ -81,7 +81,7 @@ glassfrog tension list <ROLE_ID> [--status STATUS] [--first-page] [--per-page N]
 |---|---|---|---|
 | `--status` | string | — | Filter by status, sent as `status`. Validated locally against `unprocessed`/`processed`/`archived`; an unsupported value is a usage error with no API call. |
 | `--first-page` | bool | false | Fetch only the first page; signal on stderr if more exist. |
-| `--per-page` | int | API max | Page size for the walk. |
+| `--per-page` | int | API max (500) | Page size for the walk. |
 
 Walks every page to completion by default. An empty result (the role has no
 tensions, or none match the status) exits successfully — an empty list is a valid
@@ -174,7 +174,7 @@ glassfrog tension subroles <ROLE_ID> [--status STATUS] [--first-page] [--per-pag
 |---|---|---|---|
 | `--status` | string | — | Filter by status, validated as for `list`. |
 | `--first-page` | bool | false | Fetch only the first page. |
-| `--per-page` | int | API max | Page size for the walk. |
+| `--per-page` | int | API max (500) | Page size for the walk. |
 
 The roll-up is **one level only** — the anchor's direct children, not the whole
 subtree — and it does not include the anchor role's own tensions (that is `tension

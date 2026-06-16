@@ -92,7 +92,7 @@ filter, every proposal visible to the caller is requested.
 | `--proposed-after` | string | — | Only proposals with `proposed_at` on or after this timestamp, sent as `proposed_after`. Passed through unvalidated (the API validates the timestamp shape). |
 | `--accepted-after` | string | — | Only proposals with `accepted_at` on or after this timestamp, sent as `accepted_after`. Passed through unvalidated. |
 | `--first-page` | bool | false | Fetch only the first page and signal on stderr if more exist, rather than walking every page. |
-| `--per-page` | int | API max | Page size for the walk; the API owns the valid range. |
+| `--per-page` | int | API max (500) | Page size for the walk; the API owns the valid range. |
 
 ### Supported `--status` values
 

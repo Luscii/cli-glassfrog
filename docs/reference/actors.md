@@ -50,7 +50,7 @@ organization is requested.
 | `--role-id` | — | string | — | Filter to the actors filling a role (`role_…`), sent as `role_id`. Passed through unvalidated; a malformed value returns `400`. |
 | `--query` | `-q` | string | — | Free-text search over actor names, sent as `q`. Passed through unvalidated; `--query ""` behaves as no filter. |
 | `--first-page` | — | bool | false | Fetch only the first page; signal on stderr if more exist. |
-| `--per-page` | — | int | API default | Page size for the walk. |
+| `--per-page` | — | int | API max (500) | Page size for the walk. |
 
 Each row carries the actor's `per_`/`agt_` id, a `kind` badge, and name — enough to
 tell a person from an agent and carry the id into the single read. An empty result
@@ -119,7 +119,7 @@ its default `include=role` already embeds each filled role's
 | Flag | Short | Type | Default | Description |
 |---|---|---|---|---|
 | `--first-page` | — | bool | false | Fetch only the first page; signal on stderr if more exist. |
-| `--per-page` | — | int | API default | Page size for the walk. |
+| `--per-page` | — | int | API max (500) | Page size for the walk. |
 
 Walks every page to completion by default. Each row leads with the filled role
 (`role_` id, name, purpose, parent role) and adds the assignment's `focus` and
@@ -150,7 +150,7 @@ The single `actors <id>` read is unpaginated, with no completeness signalling.
 | Flag | Owner | Description |
 |---|---|---|
 | `--base-url` | 011 | Override the API base URL. |
-| `-o`, `--output` | 020 | `full` (default) \| `compact` \| `json` \| `yaml`. |
+| `-o`, `--output` | 020/035 | `full` (default) \| `compact` \| `json` \| `yaml` \| a user-template ref. |
 
 Successful output is rendered by Output Format Selection in the resolved format;
 `json`/`yaml` emit the structured document verbatim, `full`/`compact` render the

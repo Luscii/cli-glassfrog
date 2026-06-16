@@ -131,7 +131,8 @@ transitions and the acceptance rule.
 From here:
 
 - To re-open a circulating proposal so you can amend it, see
-  **How to manage a governance proposal** (the `proposal withdraw` task).
+  [How to manage a governance proposal](how-to-manage-a-governance-proposal.md)
+  (the `proposal withdraw` task).
 - For every flag, filter, and exit code, see the
   [Governance Proposals reference](../../reference/proposals.md).
 - To understand *why* the CLI passes change sets through verbatim and never
