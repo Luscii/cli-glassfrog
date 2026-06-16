@@ -64,7 +64,42 @@ func (w *orientationWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the plugin host attempts to load the plugin$`, w.whenHostLoads)
 	sc.Step(`^the host will not register the orientation skill$`, w.thenHostDoesNotRegister)
 	sc.Step(`^the agent will fall back to rediscovery with no command in the CLI broken$`, w.thenCLIUnbroken)
+
+	// --- Content scenarios (T002): every "consult" Given just makes the skill
+	// available; the assertions read its body. ---
+	sc.Step(`^the glassfrog-operator skill was available to the agent$`, w.givenSkillAvailable)
+	sc.Step(`^a list command returned more results than one response held$`, w.givenSkillAvailable)
+	sc.Step(`^a glassfrog command had just exited with a non-zero code$`, w.givenSkillAvailable)
+	sc.Step(`^the agent had supplied no credential$`, w.givenSkillAvailable)
+	sc.Step(`^the agent needed the exact flags for one specific command$`, w.givenSkillAvailable)
+	sc.Step(`^the Write-Safety Guardrail did not yet exist$`, w.givenSkillAvailable)
+	// Context "And" steps that add no machine state.
+	sc.Step(`^the agent needed to read a practitioner's roles for downstream parsing$`, w.noop)
+	sc.Step(`^a command failed for lack of authentication$`, w.noop)
+	sc.Step(`^the agent was about to run a command that writes to the governance record$`, w.noop)
+	// "When the agent consults the orientation …" — all variants just ensure the
+	// skill is loaded.
+	sc.Step(`^the agent consults the orientation for machine-parseable output$`, w.whenConsult)
+	sc.Step(`^the agent consults the orientation on pagination$`, w.whenConsult)
+	sc.Step(`^the agent consults the orientation for that exit code$`, w.whenConsult)
+	sc.Step(`^the agent consults the orientation$`, w.whenConsult)
+
+	sc.Step(`^the orientation will name "([^"]*)" and "([^"]*)" as the parseable formats$`, w.thenNamesParseableFormats)
+	sc.Step(`^it will instruct the agent to pass "([^"]*)" rather than parse human-rendered text$`, w.thenInstructOutputFlag)
+	sc.Step(`^the orientation will explain how to detect that more pages exist$`, w.thenDetectMorePages)
+	sc.Step(`^it will explain how to fetch the subsequent pages$`, w.thenFetchSubsequentPages)
+	sc.Step(`^the orientation will state the meaning of each code in the 0–7 convention$`, w.thenMeaningEachCode)
+	sc.Step(`^it will state the appropriate reaction for the code received$`, w.thenReactionForCode)
+	sc.Step(`^the orientation will direct the agent to "([^"]*)" for the X-Auth-Token key$`, w.thenDirectToAuthLogin)
+	sc.Step(`^it will introduce no credential mechanism beyond the CLI's own$`, w.thenNoNewCredentialMechanism)
+	sc.Step(`^the orientation will direct the agent to "([^"]*)" for that command$`, w.thenDirectToHelp)
+	sc.Step(`^it will not itself enumerate the command's flags$`, w.thenNotEnumerateFlags)
+	sc.Step(`^the orientation will state the expectation to confirm before writing$`, w.thenConfirmBeforeWriting)
+	sc.Step(`^it will state that a 412 stale-write refusal means re-read and re-confirm, not blind retry$`, w.then412ReReadReconfirm)
+	sc.Step(`^it will not block or gate the write itself$`, w.thenNotGate)
 }
+
+func (w *orientationWorld) noop() error { return nil }
 
 // --- Scenario: Orientation is consultable once the plugin is present -------
 
@@ -142,6 +177,165 @@ func (w *orientationWorld) thenCLIUnbroken() error {
 		return fmt.Errorf("plugin tree carries Go code — a manifest failure could no longer be isolated from the CLI")
 	}
 	return nil
+}
+
+// --- Content scenarios (T002) ----------------------------------------------
+
+func (w *orientationWorld) ensureSkill() error {
+	if w.skill != "" {
+		return nil
+	}
+	skill, err := ReadOrientationSkill()
+	if err != nil {
+		return fmt.Errorf("orientation skill did not load: %w", err)
+	}
+	w.skill = skill
+	return nil
+}
+
+func (w *orientationWorld) givenSkillAvailable() error { return w.ensureSkill() }
+func (w *orientationWorld) whenConsult() error         { return w.ensureSkill() }
+
+func (w *orientationWorld) thenNamesParseableFormats(a, b string) error {
+	if !mentionsToken(w.skill, a) || !mentionsToken(w.skill, b) {
+		return fmt.Errorf("skill does not name both %q and %q as formats", a, b)
+	}
+	if !containsFold(w.skill, "machine-parseable") && !containsFold(w.skill, "parse") {
+		return fmt.Errorf("skill names %q/%q but never frames them as the parseable formats", a, b)
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenInstructOutputFlag(flag string) error {
+	if !strings.Contains(w.skill, flag) {
+		return fmt.Errorf("skill never instructs the agent to pass %q", flag)
+	}
+	if !containsFold(w.skill, "human") {
+		return fmt.Errorf("skill instructs %q but does not contrast it against scraping human-rendered text", flag)
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenDetectMorePages() error {
+	if !strings.Contains(w.skill, "--first-page") || !containsFold(w.skill, "signal") {
+		return fmt.Errorf("skill does not explain how to detect that more pages exist (expected --first-page and a signal)")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenFetchSubsequentPages() error {
+	if !containsFold(w.skill, "subsequent") && !containsFold(w.skill, "every page") {
+		return fmt.Errorf("skill does not explain how to fetch the subsequent pages")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenMeaningEachCode() error {
+	for code := 0; code <= 7; code++ {
+		if !mentionsExitCode(w.skill, code) {
+			return fmt.Errorf("skill does not document exit code %d in the 0–7 convention", code)
+		}
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenReactionForCode() error {
+	// The exit-code table pairs each code with a reaction column.
+	if !containsFold(w.skill, "react by") {
+		return fmt.Errorf("skill states code meanings but no per-code reaction")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenDirectToAuthLogin(cmd string) error {
+	if !strings.Contains(w.skill, cmd) {
+		return fmt.Errorf("skill does not direct the agent to %q", cmd)
+	}
+	if !strings.Contains(w.skill, "X-Auth-Token") {
+		return fmt.Errorf("skill directs to %q but never names the X-Auth-Token key", cmd)
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenNoNewCredentialMechanism() error {
+	if !containsFold(w.skill, "no separate credential") && !containsFold(w.skill, "no other credential") {
+		return fmt.Errorf("skill does not make clear it introduces no credential mechanism beyond the CLI's own")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenDirectToHelp(cmd string) error {
+	if !strings.Contains(w.skill, cmd) {
+		return fmt.Errorf("skill does not route per-command detail to %q", cmd)
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenNotEnumerateFlags() error {
+	if !containsFold(w.skill, "enumerate") {
+		return fmt.Errorf("skill does not state it leaves per-command flag enumeration to the CLI")
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenConfirmBeforeWriting() error {
+	if !containsFold(w.skill, "confirm") {
+		return fmt.Errorf("skill does not state the confirm-before-writing expectation")
+	}
+	return nil
+}
+
+func (w *orientationWorld) then412ReReadReconfirm() error {
+	for _, want := range []string{"412", "re-read", "re-confirm", "blind"} {
+		if !containsFold(w.skill, want) {
+			return fmt.Errorf("skill's 412 guidance is missing %q (expected re-read + re-confirm, not blind retry)", want)
+		}
+	}
+	return nil
+}
+
+func (w *orientationWorld) thenNotGate() error {
+	if !containsFold(w.skill, "guidance") {
+		return fmt.Errorf("skill does not mark write-safety as guidance")
+	}
+	if !containsFold(w.skill, "does not gate") && !containsFold(w.skill, "not enforcement") {
+		return fmt.Errorf("skill does not state it neither blocks nor gates the write")
+	}
+	return nil
+}
+
+// mentionsToken reports a case-insensitive word-boundary match for a bare token
+// (e.g. a format name) so "json" matches but "jsonschema" does not.
+func mentionsToken(skill, token string) bool {
+	low := strings.ToLower(skill)
+	t := strings.ToLower(token)
+	for {
+		i := strings.Index(low, t)
+		if i < 0 {
+			return false
+		}
+		before := i == 0 || !isWordByte(low[i-1])
+		after := i+len(t) >= len(low) || !isWordByte(low[i+len(t)])
+		if before && after {
+			return true
+		}
+		low = low[i+len(t):]
+	}
+}
+
+func isWordByte(b byte) bool {
+	return b == '_' || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9')
+}
+
+// mentionsExitCode reports whether the skill documents a code number in its
+// backticked exit-code form (`` `7` ``), so the digit cannot be confused with an
+// HTTP status or version number in prose.
+func mentionsExitCode(skill string, code int) bool {
+	return strings.Contains(skill, fmt.Sprintf("`%d`", code))
+}
+
+func containsFold(s, sub string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(sub))
 }
 
 // hasFrontmatterField reports whether the SKILL.md leading YAML frontmatter block

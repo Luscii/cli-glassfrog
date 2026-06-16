@@ -36,7 +36,7 @@ T002 depends on T001 and T003 depends on T002, so the three task branches land i
   - **Scenario references**: operator-orientation.feature: "Orientation is consultable once the plugin is present", "Plugin defines no distribution machinery", "Malformed manifest leaves the plugin unloadable"
   - **Interface references**: interface-spec.md — Surface (structural layout, `plugin.json` schema, `SKILL.md` frontmatter)
 
-- [ ] **T002** [Shared] Author the orientation skill content
+- [x] **T002** [Shared] Author the orientation skill content — 6 scenarios un-@wip'd (parseable output, pagination, exit codes, credentials, per-command help, write-safety); all cited surface verified against the CLI
   - **Scope**: Fill `SKILL.md` body with the cross-cutting operating knowledge — the required topic sections — pointing at `glassfrog <command> --help` for per-command detail. Authoring only; adds no CLI code.
   - **Acceptance criteria**:
     - Sections present: output-for-parsing (names `json`/`yaml` as the parseable formats from the supported set `full, compact, json, yaml`), pagination, exit-code reactions (the 0–7 convention, including `StaleWrite`=7 for the `412` the write-safety section covers), credentials (directs to `glassfrog auth login`, introduces no new mechanism), write-safety expectation (confirm-before-write; `412` → re-read + re-confirm) explicitly marked as guidance not enforcement, and a driving-the-command-surface section that routes to `glassfrog <command> --help`

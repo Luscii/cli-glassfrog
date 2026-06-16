@@ -24,7 +24,6 @@ Feature: Operator Orientation
     # pagination, exit codes, credentials, and where to find per-command detail.
 
     # Source: 062-operator-orientation — Scenario: Getting parseable output by consulting orientation
-    @wip
     Scenario: Select a parseable output format
       Given the glassfrog-operator skill was available to the agent
       And the agent needed to read a practitioner's roles for downstream parsing
@@ -33,7 +32,6 @@ Feature: Operator Orientation
       And it will instruct the agent to pass "--output json" rather than parse human-rendered text
 
     # Source: 062-operator-orientation — Scenario: Paging through a large result set
-    @wip
     Scenario: Page through a multi-page result set
       Given a list command returned more results than one response held
       When the agent consults the orientation on pagination
@@ -41,7 +39,6 @@ Feature: Operator Orientation
       And it will explain how to fetch the subsequent pages
 
     # Source: 062-operator-orientation — Scenario: Reacting to a non-zero exit code
-    @wip
     Scenario: React to a non-zero exit code
       Given a glassfrog command had just exited with a non-zero code
       When the agent consults the orientation for that exit code
@@ -49,7 +46,6 @@ Feature: Operator Orientation
       And it will state the appropriate reaction for the code received
 
     # Source: 062-operator-orientation — Scenario: Missing credentials
-    @wip
     Scenario: Set up missing credentials
       Given the agent had supplied no credential
       And a command failed for lack of authentication
@@ -58,7 +54,6 @@ Feature: Operator Orientation
       And it will introduce no credential mechanism beyond the CLI's own
 
     # Source: 062-operator-orientation — Scenario: Per-command detail comes from the CLI, not the orientation
-    @wip
     Scenario: Find per-command detail in the CLI's own help
       Given the agent needed the exact flags for one specific command
       When the agent consults the orientation
@@ -124,7 +119,6 @@ Feature: Operator Orientation
     # I want to be told the write-safety expectations as part of orientation.
 
     # Source: 062-operator-orientation — Scenario: Guidance precedes enforcement on a governance write
-    @wip
     Scenario: Surface the write-safety expectation without gating
       Given the Write-Safety Guardrail did not yet exist
       And the agent was about to run a command that writes to the governance record
