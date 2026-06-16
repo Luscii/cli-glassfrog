@@ -30,7 +30,7 @@ No contradictions, gaps, or drift found across the artifact set.
 | C3 | spec Non-Behaviors ↔ plan System Architecture | PASS — plan architects none of the excluded capabilities (no distribution: ADR-5; no enforcement; no operator paths) |
 | C4 | plan Architecture Decisions ↔ interface-spec Surface | PASS — interface reflects ADR-1 (top-level `plugin/`), ADR-2 (single skill), and the no-marketplace scope (ADR-5) |
 | C5 | plan System Architecture ↔ tasks Task Scope | PASS — T001 (scaffold/manifest), T002 (content), T003 (drift guard) build exactly the plan's parts; no task builds anything the plan omits |
-| C6 | interface-spec Surface ↔ feature Given/When/Then | PASS — every step references a surface the interface defines (`plugin.json`, `SKILL.md`, `glassfrog auth login`, `glassfrog help`, `json`/`yaml`, exit codes, `internal/build` drift guard) |
+| C6 | interface-spec Surface ↔ feature Given/When/Then | PASS — every step references a surface the interface defines (`plugin.json`, `SKILL.md`, `glassfrog auth login`, `glassfrog <command> --help`, `json`/`yaml`, exit codes, `internal/build` drift guard) |
 
 ## Completeness (P1) — 6/6 pass
 

@@ -72,7 +72,7 @@ The body packages cross-cutting operating knowledge only. Required topic section
 | Exit-code reactions | What each code in the **0–7** convention means and the reaction — incl. `StaleWrite`=7 for `412` (source: `internal/cli` `Outcome`→`ExitCode`) |
 | Credentials | How the CLI discovers/accepts the `X-Auth-Token` key; points at the existing `glassfrog auth login` — introduces no new credential mechanism |
 | Write-safety expectation | Confirm before writing; on a `412` stale-write, re-read and re-confirm rather than blind-retry — stated as **guidance**, with an explicit "this skill does not enforce it" note |
-| Driving the command surface | Points the agent at `glassfrog help` / `--help` for per-command and per-flag detail — does **not** catalogue commands |
+| Driving the command surface | Points the agent at the `--help` flag (`glassfrog <command> --help`) for per-command and per-flag detail — does **not** catalogue commands. (The CLI disables a `help` *subcommand*; only the flag resolves — 003.) |
 
 ---
 
@@ -86,7 +86,7 @@ The body packages cross-cutting operating knowledge only. Required topic section
 4. The need matches the skill `description`; the host loads `SKILL.md` on demand.
 5. The agent reads the relevant section and drives the real `glassfrog` CLI (which calls the Glassfrog API exactly as today).
 
-**Instructional model**: the skill tells the agent *how to operate*, not *what governance to perform*. For anything below cross-cutting (a specific command's flags), it routes to `glassfrog help`. For write operations it states the safety expectation but stops short of acting on it.
+**Instructional model**: the skill tells the agent *how to operate*, not *what governance to perform*. For anything below cross-cutting (a specific command's flags), it routes to `glassfrog <command> --help`. For write operations it states the safety expectation but stops short of acting on it.
 
 ---
 

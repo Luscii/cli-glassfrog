@@ -9,7 +9,7 @@ Feature: Operator Orientation
   `plugin/.claude-plugin/plugin.json` plus one skill at
   `plugin/skills/glassfrog-operator/SKILL.md`) that packages cross-cutting
   operating knowledge the agent consults on demand. It adds no API capability
-  and points at the CLI's own `glassfrog help` for per-command detail. A
+  and points at the CLI's own `--help` flag (`glassfrog <command> --help`) for per-command detail. A
   best-effort drift guard in `internal/build` keeps the skill's enumerable
   facts (output formats, exit codes, the credential command) truthful to the
   shipped CLI. Distribution (its marketplace) and write-safety enforcement are
@@ -62,7 +62,7 @@ Feature: Operator Orientation
     Scenario: Find per-command detail in the CLI's own help
       Given the agent needed the exact flags for one specific command
       When the agent consults the orientation
-      Then the orientation will direct the agent to "glassfrog help" for that command
+      Then the orientation will direct the agent to "glassfrog <command> --help" for that command
       And it will not itself enumerate the command's flags
 
     # Source: 062-operator-orientation — Scenario: Cross-cutting knowledge drifts from the shipped CLI
