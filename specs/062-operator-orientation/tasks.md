@@ -25,7 +25,7 @@ T002 depends on T001 and T003 depends on T002, so the three task branches land i
 
 ## Phase 1: Plugin scaffold + orientation content [Shared]
 
-- [ ] **T001** [Shared] Create the plugin scaffold and manifest
+- [x] **T001** [Shared] Create the plugin scaffold and manifest — 2 scenarios un-@wip'd (consultable, malformed-manifest); manifest + frontmatter-only SKILL.md + build-side godog suite
   - **Scope**: Add the top-level `plugin/` directory with `plugin/.claude-plugin/plugin.json` and an empty-bodied `plugin/skills/glassfrog-operator/SKILL.md` (frontmatter only). One structural change — the installable shell, no orientation prose yet.
   - **Acceptance criteria**:
     - `plugin/.claude-plugin/plugin.json` parses as JSON and carries the required `name` (`glassfrog-operator`), `version` (`0.1.0`), and `description`, plus a recommended (optional) `author` `{name}`; no `skills`/`commands`/`hooks` keys (skills are directory-discovered)

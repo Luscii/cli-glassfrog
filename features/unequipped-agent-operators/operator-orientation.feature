@@ -90,7 +90,6 @@ Feature: Operator Orientation
       And it will contain no Holacracy coaching or tension interpretation
 
     # Source: 062-operator-orientation — architecture-informed (interface Error Communication; proposed by skill)
-    @wip
     Scenario: Malformed manifest leaves the plugin unloadable
       Given the plugin manifest at "plugin/.claude-plugin/plugin.json" was malformed
       When the plugin host attempts to load the plugin
@@ -104,7 +103,6 @@ Feature: Operator Orientation
     # into the agent's environment.
 
     # Source: 062-operator-orientation — Scenario: The plugin makes orientation consultable
-    @wip
     Scenario: Orientation is consultable once the plugin is present
       Given the plugin was present in an agent's environment
       When the agent looks for operating knowledge
