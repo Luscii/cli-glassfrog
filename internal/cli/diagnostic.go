@@ -114,15 +114,20 @@ func Diagnose(err error) Diagnostic {
 		// code is unchanged (ADR-2); a GateNone result — a non-gated 403, or no
 		// reachable *ResponseError — leaves the generic permission diagnostic
 		// above exactly as it is today. categoryForStatus/nextStepForStatus are
-		// untouched: this refines only Cause/NextStep/Feature.
+		// untouched: this refines only Cause/NextStep/Feature. A recognized gate
+		// with an empty display name (a future gate registered without a
+		// featureGateDisplayName entry — which TestFeatureGateDisplayName_Exhaustive
+		// guards against) also falls back to the generic diagnostic rather than
+		// rendering broken "requires the  feature" prose (defense-in-depth).
 		if problemErr.StatusCode == http.StatusForbidden {
 			var re *apiclient.ResponseError
 			if errors.As(err, &re) {
 				if gate := apiclient.RecognizeFeatureGate(re.Method, re.Path, problemErr.StatusCode); gate != apiclient.GateNone {
-					name := featureGateDisplayName(gate)
-					diag.Feature = name
-					diag.Cause = planLimitCause(name)
-					diag.NextStep = planLimitNextStep(name)
+					if name := featureGateDisplayName(gate); name != "" {
+						diag.Feature = name
+						diag.Cause = planLimitCause(name)
+						diag.NextStep = planLimitNextStep(name)
+					}
 				}
 			}
 		}
