@@ -30,6 +30,13 @@ type Diagnostic struct {
 	// step exists. "" is the single, unambiguous "no next step" signal — there is
 	// no separate presence flag (interface-spec).
 	NextStep string
+	// Feature is the recognized gating feature's display name (e.g. "Premium
+	// async proposals") when this failure is a recognized plan-limit 403, or ""
+	// otherwise (061 ADR-3). Set once here by Diagnose; both renderers read it —
+	// the human line carries it inside Cause prose, the structured envelope
+	// surfaces it as its own parseable element (errorEnvelopeFor). It never
+	// changes the Category or the exit code.
+	Feature string
 }
 
 // Diagnose is the single, total normalizer for an API-client error: one
@@ -94,11 +101,32 @@ func Diagnose(err error) Diagnostic {
 	// the X-Auth-Token.
 	var problemErr *apiclient.ProblemError
 	if errors.As(err, &problemErr) {
-		return Diagnostic{
+		diag := Diagnostic{
 			Category: categoryForStatus(problemErr.StatusCode),
 			Cause:    problemCause(problemErr),
 			NextStep: nextStepForStatus(problemErr.StatusCode),
 		}
+		// Plan-Limit Signal (061): a 403 from a known plan-gated operation is
+		// refined to possibility-framed plan-limit wording naming the gate. Reach
+		// the wrapped *ResponseError (the same unwrap path errorEnvelopeFor uses)
+		// for the request's method/path and let Feature-Gate Recognition (060)
+		// classify the operation. The Category stays PermissionError and the exit
+		// code is unchanged (ADR-2); a GateNone result — a non-gated 403, or no
+		// reachable *ResponseError — leaves the generic permission diagnostic
+		// above exactly as it is today. categoryForStatus/nextStepForStatus are
+		// untouched: this refines only Cause/NextStep/Feature.
+		if problemErr.StatusCode == http.StatusForbidden {
+			var re *apiclient.ResponseError
+			if errors.As(err, &re) {
+				if gate := apiclient.RecognizeFeatureGate(re.Method, re.Path, problemErr.StatusCode); gate != apiclient.GateNone {
+					name := featureGateDisplayName(gate)
+					diag.Feature = name
+					diag.Cause = planLimitCause(name)
+					diag.NextStep = planLimitNextStep(name)
+				}
+			}
+		}
+		return diag
 	}
 	var responseErr *apiclient.ResponseError
 	if errors.As(err, &responseErr) {
@@ -218,6 +246,47 @@ func nextStepForStatus(status int) string {
 	default:
 		return "the API rejected the read; check that the token has access and retry, or consult the status code"
 	}
+}
+
+// featureGateDisplayName maps a recognized apiclient.Gate kind to its
+// human-prose display name for the operator-facing plan-limit diagnostic (061
+// ADR-3). It is total: every Gate kind has a case. This is DISTINCT from 060's
+// Gate.String() (kebab-case, for logs/%v) — the operator diagnostic uses the
+// human-prose form. GateAIIntegration is mapped for readiness even though no
+// command reaches it today (060 ADR-3); GateNone maps to "" (no gate). 061 owns
+// this name and the wording composed from it; 060 stays a code-free classifier.
+//
+// The exhaustiveness guard test (diagnostic_test.go, LEARNINGS PR #10 shape)
+// fails loud if a new non-None Gate kind is added without a display name here,
+// rather than letting it silently fall through to "".
+func featureGateDisplayName(g apiclient.Gate) string {
+	switch g {
+	case apiclient.GateNone:
+		return ""
+	case apiclient.GatePremiumAsyncProposals:
+		return "Premium async proposals"
+	case apiclient.GateAIIntegration:
+		return "AI Integration"
+	default:
+		return ""
+	}
+}
+
+// planLimitCause composes the possibility-framed plan-limit cause naming the
+// gating feature (061 ADR-3 / spec decision 1A). It states the operation *may
+// not be* available on the organization's plan and notes the same 403 may
+// instead be a permission issue — never asserting the plan is certainly
+// insufficient. It invents no plan name, price, or upgrade URL; the display name
+// (from the recognized gate) is the only added specific (CONSTITUTION VIII).
+func planLimitCause(feature string) string {
+	return fmt.Sprintf("this operation requires the %s feature, which your organization's plan may not include; a 403 may instead mean your identity lacks permission", feature)
+}
+
+// planLimitNextStep composes the possibility-framed next step: a verifiable
+// action, never an instruction to upgrade as the sole remedy (061 ADR-3 / 060
+// ADR-4 / CONSTITUTION VIII).
+func planLimitNextStep(feature string) string {
+	return fmt.Sprintf("verify your organization's plan includes %s, or that your identity has permission for this operation", feature)
 }
 
 // problemCause renders the token-free cause for a refined non-2xx *ProblemError.

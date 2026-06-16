@@ -234,27 +234,31 @@ func TestRunProposalRespond_BadOutputUsageErrorNoRequest(t *testing.T) {
 
 // --- 403 Premium gate / 422 already-responded / 404 unknown ----------------
 
-// TestRunProposalRespond_PremiumDeniedIsPermission pins that a 403 (async proposals not
-// enabled) surfaces as PermissionError(4) with NO plan-specific message, issued without
-// any client-side Premium pre-check.
-func TestRunProposalRespond_PremiumDeniedIsPermission(t *testing.T) {
+// TestRunProposalRespond_PremiumDeniedIsPlanLimit pins that a 403 on this gated
+// operation keeps PermissionError(4) — the category and exit code 061 does NOT
+// change — while Plan-Limit Signal (061) now refines the wording to name the gating
+// feature and frame it as a possibility (superseding the pre-061 "stays generic"
+// assertion). The request is still issued with no client-side Premium pre-check, and
+// the wording never instructs an upgrade.
+func TestRunProposalRespond_PremiumDeniedIsPlanLimit(t *testing.T) {
 	tr := &tensionTransport{status: 403, body: `{"detail":"async proposals not enabled"}`}
 	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
 
 	outcome, _, stderr := runProposalRespondOver(t, seam, proposalRespondConfig{proposalID: "prp_0123", response: "no_objection"})
 	if outcome != PermissionError || ExitCode(outcome) != 4 {
-		t.Fatalf("a 403 should surface PermissionError/4, got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
+		t.Fatalf("a 403 should surface PermissionError/4 (unchanged by 061), got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
 	if tr.calls != 1 {
 		t.Errorf("the command must issue the request (no client-side Premium pre-check), got %d calls", tr.calls)
 	}
-	if !strings.Contains(stderr, "403") {
-		t.Errorf("stderr should name the HTTP status (403):\n%s", stderr)
+	if !strings.Contains(stderr, "Premium async proposals") {
+		t.Errorf("the plan-limit signal should name the gating feature:\n%s", stderr)
 	}
-	for _, banned := range []string{"plan", "Premium", "premium", "upgrade"} {
-		if strings.Contains(stderr, banned) {
-			t.Errorf("the Premium 403 must stay generic — no plan-specific message, but stderr contains %q:\n%s", banned, stderr)
-		}
+	if !strings.Contains(stderr, "may not") {
+		t.Errorf("the plan-limit signal should frame the limit as a possibility:\n%s", stderr)
+	}
+	if strings.Contains(strings.ToLower(stderr), "upgrade") {
+		t.Errorf("the plan-limit signal must never instruct an upgrade:\n%s", stderr)
 	}
 }
 

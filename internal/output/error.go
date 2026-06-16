@@ -18,11 +18,11 @@ type ErrorEnvelope struct {
 	Error ErrorDetail `json:"error"`
 }
 
-// ErrorDetail carries the failure facts. NextStep, Status, and Body are omitempty
-// so a failure that lacks any of them shares the exact top-level shape of one that
-// carries them — the fields that do not apply are absent, never null-keyed or
-// renamed. The struct field declaration order is message → next_step → kind →
-// status → body: the JSON render preserves it (encoding/json emits struct fields in
+// ErrorDetail carries the failure facts. NextStep, Feature, Status, and Body are
+// omitempty so a failure that lacks any of them shares the exact top-level shape of
+// one that carries them — the fields that do not apply are absent, never null-keyed
+// or renamed. The struct field declaration order is message → next_step → feature →
+// kind → status → body: the JSON render preserves it (encoding/json emits struct fields in
 // declaration order), but the YAML render does NOT guarantee key order — JSONToYAML
 // round-trips through a map, so RenderError emits YAML keys alphabetically. Don't
 // rely on YAML key order; rely on the keys themselves.
@@ -35,6 +35,14 @@ type ErrorDetail struct {
 	// declared here (018's home) but populated in internal/cli (032's errorEnvelopeFor),
 	// keeping this package transport-free and classification-free.
 	NextStep string `json:"next_step,omitempty"`
+	// Feature is the gating feature's display name for a recognized plan-limit 403
+	// (Plan-Limit Signal, 061), carried as its own parseable key distinct from
+	// message so an agent reads it without parsing prose (061 ADR-4). omitempty so
+	// every non-plan-limit failure renders no key — the shared envelope shape is
+	// preserved, the field that does not apply is simply absent. Declared here
+	// (018's home) but populated in internal/cli's errorEnvelopeFor from the
+	// Diagnostic's carried gate, keeping this package classification-free.
+	Feature string `json:"feature,omitempty"`
 	// Kind is the lowercased taxonomy term (always present): usage / runtime /
 	// network / api (plus the 015-widened permission / rate-limit).
 	Kind string `json:"kind"`

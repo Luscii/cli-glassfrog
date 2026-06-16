@@ -53,6 +53,9 @@ func kind(o Outcome) string {
 //   - Message  ← d.Cause      (the token-free human cause, 031)
 //   - NextStep ← d.NextStep   (omitted when empty — the internal-error fallback
 //     and bare general-API errors carry none)
+//   - Feature  ← d.Feature    (the recognized plan-limit gate's display name, 061;
+//     omitted when empty — every non-plan-limit failure carries none. Read from
+//     the one Diagnostic, never re-recognized here — single classification site)
 //   - Kind     ← kind(d.Category)
 //   - Status   ← the wrapped *apiclient.ResponseError's StatusCode, when present
 //   - Body     ← that response's raw body, but ONLY when it is valid JSON; a
@@ -75,6 +78,7 @@ func errorEnvelopeFor(d Diagnostic, err error) output.ErrorEnvelope {
 	detail := output.ErrorDetail{
 		Message:  d.Cause,
 		NextStep: d.NextStep,
+		Feature:  d.Feature,
 		Kind:     kind(d.Category),
 	}
 	var re *apiclient.ResponseError

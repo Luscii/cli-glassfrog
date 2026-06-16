@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -321,5 +322,116 @@ func TestDiagnose_NeverEmitsToken(t *testing.T) {
 				t.Errorf("Diagnose(%s).%s leaked the token: %q", a.name, field, val)
 			}
 		}
+	}
+}
+
+// planLimitProblem builds the refined error reportFailure hands Diagnose for a
+// non-2xx from a given operation: a *ProblemError wrapping a *ResponseError that
+// carries the request method/path (061 T001). Recognition runs in the
+// *ProblemError arm and reaches the method/path via the unwrap path.
+func planLimitProblem(method, path string, status int) error {
+	return apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: status, Method: method, Path: path})
+}
+
+// A recognized plan-gate 403 from every gated Premium async-proposal write is
+// refined to the possibility-framed plan-limit diagnostic: the cause names the
+// gating feature and frames the limit as a possibility (never a certainty, never
+// "upgrade"), the next step is to verify the plan, Feature carries the display
+// name, and the category stays PermissionError so the exit code is unchanged
+// (061 ADR-2/ADR-3). Recognition keys on the operation, not the command, so the
+// withdraw/responses rows hold even though no test issues a real request.
+func TestDiagnose_PlanLimit_403_NamesGateAcrossGatedOps(t *testing.T) {
+	gatedOps := []string{
+		"/proposals",
+		"/proposals/prp_0123/propose",
+		"/proposals/prp_0123/withdraw",
+		"/proposals/prp_0123/responses",
+	}
+	for _, path := range gatedOps {
+		d := Diagnose(planLimitProblem(http.MethodPost, path, http.StatusForbidden))
+
+		if d.Category != PermissionError {
+			t.Errorf("POST %s: Category = %v, want PermissionError (exit code unchanged)", path, d.Category)
+		}
+		if d.Feature != "Premium async proposals" {
+			t.Errorf("POST %s: Feature = %q, want %q", path, d.Feature, "Premium async proposals")
+		}
+		if !strings.Contains(d.Cause, "Premium async proposals") {
+			t.Errorf("POST %s: Cause does not name the gate: %q", path, d.Cause)
+		}
+		// Possibility, never certainty: the cause hedges ("may not") and notes the
+		// 403 may instead be a permission issue (a genuine permission denial on a
+		// gated op is indistinguishable from a plan gate — 060 ADR-4).
+		if !strings.Contains(d.Cause, "may not") {
+			t.Errorf("POST %s: Cause does not frame the limit as a possibility: %q", path, d.Cause)
+		}
+		if !strings.Contains(strings.ToLower(d.Cause), "permission") {
+			t.Errorf("POST %s: Cause does not note the rejection may be a permission issue: %q", path, d.Cause)
+		}
+		// Next step is to verify, never to upgrade as the sole remedy.
+		if !strings.Contains(d.NextStep, "verify") {
+			t.Errorf("POST %s: NextStep is not a verify action: %q", path, d.NextStep)
+		}
+		if strings.Contains(strings.ToLower(d.Cause+" "+d.NextStep), "upgrade") {
+			t.Errorf("POST %s: diagnostic instructs an upgrade — forbidden framing: cause=%q nextStep=%q", path, d.Cause, d.NextStep)
+		}
+	}
+}
+
+// A non-gated 403 (a read) and a non-403 on a gated operation both keep today's
+// generic diagnostic untouched, with no Feature — recognition returns GateNone,
+// so the plan-limit wording can never leak onto a failure it does not describe
+// (061 ADR-2).
+func TestDiagnose_PlanLimit_LeavesOtherFailuresUntouched(t *testing.T) {
+	t.Run("non-gated 403 keeps the generic permission diagnostic", func(t *testing.T) {
+		d := Diagnose(planLimitProblem(http.MethodGet, "/roles/role_0123", http.StatusForbidden))
+		if d.Feature != "" {
+			t.Errorf("Feature = %q, want empty for a non-gated 403", d.Feature)
+		}
+		if d.NextStep != "check that the configured identity has the required role membership / permission" {
+			t.Errorf("NextStep = %q, want the generic 403 next step", d.NextStep)
+		}
+		if strings.Contains(d.Cause, "Premium") {
+			t.Errorf("Cause leaked plan-limit wording onto a non-gated 403: %q", d.Cause)
+		}
+	})
+
+	t.Run("non-403 on a gated operation carries no plan-limit wording", func(t *testing.T) {
+		d := Diagnose(planLimitProblem(http.MethodPost, "/proposals", http.StatusUnprocessableEntity))
+		if d.Feature != "" {
+			t.Errorf("Feature = %q, want empty for a 422 on a gated op", d.Feature)
+		}
+		if strings.Contains(d.Cause, "Premium") || strings.Contains(d.Cause, "may not be available") {
+			t.Errorf("Cause leaked plan-limit wording onto a 422: %q", d.Cause)
+		}
+	})
+}
+
+// featureGateDisplayName is total: every Gate kind 060 models has a human-prose
+// display name (distinct from String()'s kebab-case). The guard walks the gate
+// space using String()'s "unknown" sentinel as the upper bound — which 060's own
+// guard keeps in sync with its enum — so a newly added Gate kind without a
+// display name here fails loud rather than silently returning "" (LEARNINGS PR
+// #10).
+func TestFeatureGateDisplayName_Exhaustive(t *testing.T) {
+	for g := apiclient.GateNone; g.String() != "unknown"; g++ {
+		name := featureGateDisplayName(g)
+		if g == apiclient.GateNone {
+			if name != "" {
+				t.Errorf("featureGateDisplayName(GateNone) = %q, want empty (no gate)", name)
+			}
+			continue
+		}
+		if name == "" {
+			t.Errorf("featureGateDisplayName(%v) is empty — every non-None gate kind needs a human display name", g)
+		}
+	}
+	// Pin the human-prose names; these are the operator-facing form, NOT the
+	// kebab-case String() used for logs.
+	if got := featureGateDisplayName(apiclient.GatePremiumAsyncProposals); got != "Premium async proposals" {
+		t.Errorf("featureGateDisplayName(GatePremiumAsyncProposals) = %q, want %q", got, "Premium async proposals")
+	}
+	if got := featureGateDisplayName(apiclient.GateAIIntegration); got != "AI Integration" {
+		t.Errorf("featureGateDisplayName(GateAIIntegration) = %q, want %q", got, "AI Integration")
 	}
 }
