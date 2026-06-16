@@ -409,10 +409,15 @@ func TestDiagnose_PlanLimit_LeavesOtherFailuresUntouched(t *testing.T) {
 
 // featureGateDisplayName is total: every Gate kind 060 models has a human-prose
 // display name (distinct from String()'s kebab-case). The guard walks the gate
-// space using String()'s "unknown" sentinel as the upper bound — which 060's own
-// guard keeps in sync with its enum — so a newly added Gate kind without a
-// display name here fails loud rather than silently returning "" (LEARNINGS PR
-// #10).
+// space using String()'s "unknown" sentinel as the upper bound; this terminator
+// is sound only because apiclient's TestGate_StringExhaustive enforces that
+// String() names every DEFINED gate (so "unknown" reliably marks the first
+// undefined value). Given that, a newly added Gate kind WITH its String() case
+// but WITHOUT a display name here is reached by the loop and fails loud rather
+// than silently returning "" (LEARNINGS PR #10). The residual case — a gate added
+// without a String() case at all — is caught upstream by TestGate_StringExhaustive,
+// not here (Go cannot enumerate enum constants at runtime, so the loud-fail is
+// split across the two guards).
 func TestFeatureGateDisplayName_Exhaustive(t *testing.T) {
 	for g := apiclient.GateNone; g.String() != "unknown"; g++ {
 		name := featureGateDisplayName(g)
