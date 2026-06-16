@@ -80,6 +80,44 @@ func TestRenderError_BodilessFailureOmitsStatusAndBody(t *testing.T) {
 	}
 }
 
+// The 061 feature key carries the plan-limit gate's display name as its own
+// parseable element when present, and is omitted (never null-keyed) for every
+// non-plan-limit failure — so the shared envelope shape is preserved (ADR-4).
+func TestRenderError_FeatureKeyPresentAndOmitted(t *testing.T) {
+	t.Run("present and verbatim when the detail carries a feature", func(t *testing.T) {
+		env := ErrorEnvelope{Error: ErrorDetail{
+			Message: "this operation requires the Premium async proposals feature, which your organization's plan may not include",
+			Feature: "Premium async proposals",
+			Kind:    "permission",
+			Status:  403,
+		}}
+		doc, err := RenderError(JSON, env)
+		if err != nil {
+			t.Fatalf("RenderError(JSON) error = %v", err)
+		}
+		detail := topLevelKeys(t, doc)
+		if got, _ := detail["feature"].(string); got != "Premium async proposals" {
+			t.Errorf("error.feature = %v, want %q:\n%s", detail["feature"], "Premium async proposals", doc)
+		}
+	})
+
+	t.Run("absent (not null) when the detail carries no feature", func(t *testing.T) {
+		env := ErrorEnvelope{Error: ErrorDetail{
+			Message: "the API returned a non-2xx response: status 403",
+			Kind:    "permission",
+			Status:  403,
+		}}
+		doc, err := RenderError(JSON, env)
+		if err != nil {
+			t.Fatalf("RenderError(JSON) error = %v", err)
+		}
+		detail := topLevelKeys(t, doc)
+		if _, present := detail["feature"]; present {
+			t.Errorf("error.feature present on a non-plan-limit failure (want absent, not null-keyed):\n%s", doc)
+		}
+	})
+}
+
 func TestRenderError_AllFailuresShareTopLevelShape(t *testing.T) {
 	apiDoc, err := RenderError(JSON, ErrorEnvelope{Error: ErrorDetail{
 		Message: "status 404", Kind: "api", Status: 404, Body: json.RawMessage(`{"detail":"x"}`),

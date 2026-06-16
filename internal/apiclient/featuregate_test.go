@@ -108,6 +108,30 @@ func TestGatedRegistry_ChangeDetector(t *testing.T) {
 	}
 }
 
+// TestGate_StringExhaustive pins that String() covers every DEFINED Gate kind,
+// so the "unknown" sentinel reliably marks the first UNDEFINED value. It walks
+// Gate(0)..Gate(definedGateCount-1) asserting each yields a real (non-"unknown")
+// name, then asserts Gate(definedGateCount) is the first "unknown". Adding a Gate
+// constant forces bumping definedGateCount; the bumped loop then covers the new
+// value and fails loud if its String() case is missing. This makes the
+// String()-is-exhaustive contract enforceable at the enum's home package — the
+// downstream cli featureGateDisplayName guard (TestFeatureGateDisplayName_Exhaustive)
+// relies on it to bound its own walk on the "unknown" terminator. Go cannot
+// enumerate enum constants at runtime, so the pinned count is the deliberate
+// update point a new gate must touch (same shape as TestGatedRegistry_ChangeDetector).
+func TestGate_StringExhaustive(t *testing.T) {
+	// GateNone, GatePremiumAsyncProposals, GateAIIntegration.
+	const definedGateCount = 3
+	for g := Gate(0); g < Gate(definedGateCount); g++ {
+		if got := g.String(); got == "unknown" {
+			t.Errorf("Gate(%d).String() = %q — String() must name every defined gate (definedGateCount=%d); add a case or fix the count", int(g), got, definedGateCount)
+		}
+	}
+	if got := Gate(definedGateCount).String(); got != "unknown" {
+		t.Errorf("Gate(%d).String() = %q, want \"unknown\" — definedGateCount is stale (a gate was added without bumping it)", definedGateCount, got)
+	}
+}
+
 // Gate.String renders each kind as a stable kebab-case name (matching the
 // package's sibling enums), and an out-of-range value degrades to "unknown".
 func TestGate_String(t *testing.T) {

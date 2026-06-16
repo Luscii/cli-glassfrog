@@ -266,22 +266,31 @@ func TestRunProposalCreate_NoCredentialsIsUsageError(t *testing.T) {
 	}
 }
 
-// TestRunProposalCreate_PremiumDeniedIsPermission pins that a 403 (async proposals
-// disabled) surfaces as PermissionError(4) with the status named — issued without any
-// client-side Premium pre-check.
-func TestRunProposalCreate_PremiumDeniedIsPermission(t *testing.T) {
+// TestRunProposalCreate_PremiumDeniedIsPlanLimit pins that a 403 on this gated
+// operation keeps PermissionError(4) — the category and exit code 061 does NOT
+// change — while Plan-Limit Signal (061) now refines the wording to name the gating
+// feature and frame it as a possibility (superseding the pre-061 "stays generic"
+// assertion). The request is still issued with no client-side Premium pre-check, and
+// the wording never instructs an upgrade.
+func TestRunProposalCreate_PremiumDeniedIsPlanLimit(t *testing.T) {
 	tr := &tensionTransport{status: 403, body: `{"detail":"async proposals not enabled"}`}
 	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
 
 	outcome, _, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{tensionID: "ten_0123", changesValue: `[{"type":"X"}]`})
 	if outcome != PermissionError || ExitCode(outcome) != 4 {
-		t.Fatalf("a 403 should surface PermissionError/4, got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
+		t.Fatalf("a 403 should surface PermissionError/4 (unchanged by 061), got %v/%d\nstderr: %s", outcome, ExitCode(outcome), stderr)
 	}
 	if tr.calls != 1 {
 		t.Errorf("the command must issue the request (no client-side Premium pre-check), got %d calls", tr.calls)
 	}
-	if !strings.Contains(stderr, "403") {
-		t.Errorf("stderr should name the HTTP status (403):\n%s", stderr)
+	if !strings.Contains(stderr, "Premium async proposals") {
+		t.Errorf("the plan-limit signal should name the gating feature:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "may not") {
+		t.Errorf("the plan-limit signal should frame the limit as a possibility:\n%s", stderr)
+	}
+	if strings.Contains(strings.ToLower(stderr), "upgrade") {
+		t.Errorf("the plan-limit signal must never instruct an upgrade:\n%s", stderr)
 	}
 }
 

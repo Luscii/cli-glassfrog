@@ -169,6 +169,58 @@ func TestErrorEnvelopeFor(t *testing.T) {
 			t.Error("Body must survive the refinement — the *ProblemError unwraps to the *ResponseError")
 		}
 	})
+
+	t.Run("feature key present and naming the gate for a recognized plan-limit 403 (061)", func(t *testing.T) {
+		body := `{"type":"about:blank","title":"Forbidden","detail":"Forbidden"}`
+		// A recognized plan-gate 403 reaches the mapper as the refined *ProblemError
+		// wrapping a *ResponseError carrying the gated operation's method/path.
+		refined := apiclient.ExtractProblem(&apiclient.ResponseError{
+			StatusCode: 403, Method: "POST", Path: "/proposals/prp_0123/propose", Body: []byte(body),
+		})
+		env := envFor(refined)
+		if env.Error.Feature != "Premium async proposals" {
+			t.Errorf("Feature = %q, want %q", env.Error.Feature, "Premium async proposals")
+		}
+		if env.Error.Kind != "permission" {
+			t.Errorf("Kind = %q, want permission (the 403 stays PermissionError)", env.Error.Kind)
+		}
+		doc := jsonOf(t, env)
+		if !strings.Contains(doc, `"feature": "Premium async proposals"`) {
+			t.Errorf("rendered envelope should carry the distinct feature key:\n%s", doc)
+		}
+		// Declaration order: message → next_step → feature → kind → status → body.
+		order := []string{`"message"`, `"next_step"`, `"feature"`, `"kind"`, `"status"`, `"body"`}
+		last := -1
+		for _, key := range order {
+			at := strings.Index(doc, key)
+			if at < 0 {
+				t.Fatalf("key %s missing from a recognized plan-limit envelope:\n%s", key, doc)
+			}
+			if at < last {
+				t.Errorf("key %s is out of declaration order:\n%s", key, doc)
+			}
+			last = at
+		}
+	})
+
+	t.Run("feature key omitted (not null) for every non-plan-limit failure (061 omitempty)", func(t *testing.T) {
+		// A generic 403 (no recognized gate), a non-403, and a transport failure all
+		// carry no feature.
+		for _, err := range []error{
+			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403, Method: "GET", Path: "/roles/role_0123"}),
+			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 404}),
+			&apiclient.TransportError{},
+		} {
+			env := envFor(err)
+			if env.Error.Feature != "" {
+				t.Errorf("Feature = %q, want empty for %T", env.Error.Feature, err)
+			}
+			doc := jsonOf(t, env)
+			if strings.Contains(doc, `"feature"`) {
+				t.Errorf("the feature key must be absent (omitempty), not null-keyed:\n%s", doc)
+			}
+		}
+	})
 }
 
 // No rendered failure carries the API token, in any family or format. The
