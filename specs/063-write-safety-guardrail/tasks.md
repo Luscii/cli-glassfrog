@@ -31,6 +31,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
     - `plugin/hooks/hooks.json` parses as JSON and registers a `PreToolUse` entry with `matcher:"Bash"` and a single `type:"command"` hook whose `command` is rooted at `${CLAUDE_PLUGIN_ROOT}` with a bounded `timeout`; it is `type:"command"` (deterministic), never `type:"prompt"`
     - The plugin is wired to load the hook (either a top-level `"hooks":"./hooks/hooks.json"` key in the existing `plugin/.claude-plugin/plugin.json`, or the default `./hooks/hooks.json` path) without altering 062's manifest identity or its orientation skill
     - The registry lists exactly the four proposal-write leaves and contains no read or `tension` command; it is single-sourced so T002 and T003 read the same definition
+    - The gate script's runtime is pinned to `bash` — the interpreter the `hooks.json` `command` invokes (`bash "${CLAUDE_PLUGIN_ROOT}/hooks/<gate-script>"`) and the one installed-plugin hook examples assume — introducing no other interpreter dependency (closes the checklist P2 on XII-adjacent runtime portability)
   - **Dependencies**: None
   - **Plan reference**: Phase 1; ADR-1 (operator-layer hook), ADR-3 (static registry), ADR-4 (single-sourced registry)
   - **Scenario references**: write-safety-guardrail.feature: "No proposal-write path bypasses confirmation", "Tension edits stay outside the gate"

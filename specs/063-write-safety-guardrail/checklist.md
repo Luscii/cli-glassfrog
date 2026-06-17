@@ -19,6 +19,15 @@
 
 ---
 
+## Post-Triage Resolution (PR #149)
+
+Both failing checks were addressed during PR #149 review triage (Copilot comments `r3421226233`, `r3421226275`); the findings below are preserved as the original point-in-time assessment:
+
+- **P1 (II/IX conflict-resolution)** → resolved: plan.md ADR-1 now carries an explicit **Constitution reconciliation** note — the gate is operator-layer, the CLI's command-is-intent / non-interactive contract is untouched, and an amendment is required only if the resolution is read as binding on the whole operating surface.
+- **P2 (hook runtime)** → resolved: tasks.md T001 now pins the gate script's runtime to `bash` (the interpreter the `hooks.json` `command` invokes).
+
+---
+
 ## Constitution Checks: 11/13 passed
 
 ### Failures
