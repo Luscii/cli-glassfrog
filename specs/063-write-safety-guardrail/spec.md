@@ -10,7 +10,7 @@
 
 Write-Safety Guardrail is the **governance-integrity gate of the Agent Operating Surface** — the enforcing counterpart to the write-safety *guidance* that Operator Orientation (062) only describes. Today an AI agent driving the CLI can run a command that changes governance through the proposal write path (create or advance a proposal, record a response, withdraw a circulating proposal) directly, with nothing standing between the agent's decision and the write. VISION principle 2 says a change to the governance record must be a *deliberate, explicit choice* — "never something an agent reaches without asking." This capability makes that real: it gates every governance write behind an explicit human confirmation from the practitioner, and when a write is refused as stale it re-reads and re-confirms rather than blindly retrying.
 
-It rides on the operator layer, not the CLI binary: like its sibling capabilities it arrives as an additional skill in the plugin Operator Orientation (062) defines, and it adds **no API capability of its own** — it sequences and gates invocations of commands the CLI already exposes. It builds on two things: Operator Orientation (062) as the plugin root that already states the write-safety expectation as guidance, and Stale-Write Surfacing (054) as the distinct `412` signal (its own failure category and exit code) the guardrail reacts to on a refused write. It deliberately stops at gating: it does **not** add or change any command, does **not** re-validate the change locally (the API stays the source of truth), and does **not** judge whether the change is governance-sound (that is coaching, VISION Exclusion 1).
+It rides on the operator layer, not the CLI binary: like its sibling capabilities it arrives as an additional capability in the plugin Operator Orientation (062) defines, and it adds **no API capability of its own** — it sequences and gates invocations of commands the CLI already exposes. It builds on two things: Operator Orientation (062) as the plugin root that already states the write-safety expectation as guidance, and Stale-Write Surfacing (054) as the distinct `412` signal (its own failure category and exit code) the guardrail reacts to on a refused write. It deliberately stops at gating: it does **not** add or change any command, does **not** re-validate the change locally (the API stays the source of truth), and does **not** judge whether the change is governance-sound (that is coaching, VISION Exclusion 1).
 
 ---
 
@@ -65,14 +65,14 @@ It rides on the operator layer, not the CLI binary: like its sibling capabilitie
 - The guardrail must not blindly retry a stale-write refusal. **Why**: re-sending the stale version either fails again or clobbers the very concurrent change the `412` exists to protect, defeating the Optimistic Concurrency the surfacing was built for.
 - The guardrail must not auto-confirm or let the agent self-authorize a governance write. **Why**: VISION principle 2 — a governance change must be a deliberate, explicit choice, never something an agent reaches without asking; silent self-confirmation removes the human deliberation the guardrail exists to guarantee.
 - The guardrail must not coach Holacracy or judge the governance merits of the change. **Why**: VISION Exclusion 1 — the surface orients on driving the CLI safely, not facilitating governance; assessing whether a change is *wise* is coaching, a different surface's concern.
-- This spec must not define how the guardrail skill is distributed or packaged. **Why**: distribution is *Operating-Surface Packaging* (#70) and the plugin it lives in is defined by Operator Orientation (062); defining delivery here couples the guardrail to a mechanism that should evolve independently.
+- This spec must not define how the guardrail is distributed or packaged. **Why**: distribution is *Operating-Surface Packaging* (#70) and the plugin it lives in is defined by Operator Orientation (062); defining delivery here couples the guardrail to a mechanism that should evolve independently.
 
 ---
 
 ## Integration Boundaries
 
 - **Glassfrog CLI**: the thing being driven. The guardrail sequences invocations of the CLI's existing write and read commands and observes their outcomes (including exit codes); it invokes nothing beyond what the CLI exposes.
-- **Operator Orientation (062) / the Claude plugin**: the guardrail ships as an additional skill in the same plugin. Orientation *describes* the write-safety expectation as guidance; this capability *enforces* it. If the guardrail skill is absent, writes fall back to the unguarded, orientation-only behavior.
+- **Operator Orientation (062) / the Claude plugin**: the guardrail ships as an additional capability in the same plugin. Orientation *describes* the write-safety expectation as guidance; this capability *enforces* it. If the guardrail is absent, writes fall back to the unguarded, orientation-only behavior.
 - **Stale-Write Surfacing (054)**: supplies the distinct stale-write signal (its own failure category and exit code) the guardrail reacts to on a refused write. A refusal not classified as stale-write is left to the normal failure paths.
 - **Practitioner (human in the loop)**: the actor whose explicit confirmation gates each governance write and whose re-confirmation is required after a stale-write re-read.
 
@@ -169,7 +169,7 @@ Then it states what will change (command, target, change) and nowhere advises wh
 
 ## Assumptions
 
-- **Delivered as a skill in the existing plugin**: the guardrail arrives as an additional skill in the plugin Operator Orientation (062) defines, consistent with 062's "arrives later as additional skills in the same plugin." (Structural; the exact skill decomposition is a shaping decision.)
+- **Delivered as an added capability in the existing plugin**: the guardrail is an additional capability in the plugin Operator Orientation (062) defines. The delivery mechanism is a shaping decision — the plan resolves it to an operator-layer `PreToolUse` hook (plan ADR-1), not new skill content. (Structural; this spec stays mechanism-agnostic.)
 - **Scope narrowed from FEATURE-MODEL**: FEATURE-MODEL enumerates the gated set as "tension capture, proposals, responses"; this spec deliberately narrows it to the proposal write path only (create, advance, withdraw, record response), treating tension capture/update/discard as ungated operational edits. (Resolved during clarification — grounded in PROJECT.md's operational/governance split; FEATURE-MODEL may warrant a reconciling update.)
 - **Stale-write signal reuse** (technical): the guardrail keys off the distinct stale-write category and exit code from Stale-Write Surfacing (054) rather than re-classifying `412` itself, mirroring 054's own decoupling from the write command. (Keeps the guardrail independent of the classification mechanism.)
 
