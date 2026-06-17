@@ -69,7 +69,7 @@ func (w *orientationWorld) register(sc *godog.ScenarioContext) {
 
 	// --- Content scenarios (T002): every "consult" Given just makes the skill
 	// available; the assertions read its body. ---
-	sc.Step(`^the glassfrog-operator skill was available to the agent$`, w.givenSkillAvailable)
+	sc.Step(`^the orientation skill was available to the agent$`, w.givenSkillAvailable)
 	sc.Step(`^a list command returned more results than one response held$`, w.givenSkillAvailable)
 	sc.Step(`^a glassfrog command had just exited with a non-zero code$`, w.givenSkillAvailable)
 	sc.Step(`^the agent had supplied no credential$`, w.givenSkillAvailable)
@@ -135,8 +135,8 @@ func (w *orientationWorld) whenLooksForKnowledge() error {
 }
 
 func (w *orientationWorld) thenKnowledgeConsultable() error {
-	if w.manifest.Name != "glassfrog-operator" {
-		return fmt.Errorf("manifest name is %q, want glassfrog-operator — the host could not identify the plugin", w.manifest.Name)
+	if w.manifest.Name != "glassfrog" {
+		return fmt.Errorf("manifest name is %q, want glassfrog — the host could not identify the plugin", w.manifest.Name)
 	}
 	// The skill is consultable iff it is discoverable: a frontmatter block that
 	// carries the name and the description trigger surface.
@@ -161,7 +161,7 @@ func (w *orientationWorld) givenManifestMalformed(path string) error {
 	}
 	// A truncated object — valid JSON start, no close — models a manifest the host
 	// cannot parse.
-	w.manifestRaw = []byte(`{"name": "glassfrog-operator", "version": "0.1.0"`)
+	w.manifestRaw = []byte(`{"name": "glassfrog", "version": "0.1.0"`)
 	return nil
 }
 

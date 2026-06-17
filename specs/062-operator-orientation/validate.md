@@ -5,7 +5,7 @@
 **Date**: 2026-06-16
 **Verdict**: Ready
 **Artifacts loaded**: spec.md, plan.md, tasks.md, interface-spec.md, features/unequipped-agent-operators/operator-orientation.feature, PROJECT.md
-**Implementation files**: 4 — `plugin/.claude-plugin/plugin.json`, `plugin/skills/glassfrog-operator/SKILL.md` (the artifact); `internal/build/operatororientation.go`, `internal/build/operator_orientation_guard_test.go` (drift guard + BDD suite companion: `internal/build/operator_orientation_bdd_test.go`)
+**Implementation files**: 4 — `plugin/.claude-plugin/plugin.json`, `plugin/skills/orientation/SKILL.md` (the artifact); `internal/build/operatororientation.go`, `internal/build/operator_orientation_guard_test.go` (drift guard + BDD suite companion: `internal/build/operator_orientation_bdd_test.go`)
 
 ---
 
@@ -49,7 +49,7 @@ Every non-`@validation` scenario referenced by a checked task has an identifiabl
 
 **Status**: Pass (3 of 3 tasks, all criteria met)
 
-- **T001** — `plugin.json` parses as JSON; carries `name` (`glassfrog-operator`), `version` (`0.1.0`), `description`, `author {name}`, `keywords`; no `skills`/`commands`/`hooks` keys. `SKILL.md` has YAML frontmatter `name` + a trigger `description` naming the CLI-driving topics. No `marketplace.json` / publishing workflow / install flow.
+- **T001** — `plugin.json` parses as JSON; carries `name` (`glassfrog`), `version` (`0.1.0`), `description`, `author {name}`, `keywords`; no `skills`/`commands`/`hooks` keys. `SKILL.md` has YAML frontmatter `name` + a trigger `description` naming the CLI-driving topics. No `marketplace.json` / publishing workflow / install flow.
 - **T002** — All six required sections present (output-for-parsing naming `full, compact, json, yaml` with json/yaml as the parseable pair; pagination; exit-code reactions over 0–7 incl. `StaleWrite`=7 → 412; credentials → `glassfrog auth login`; write-safety marked guidance-not-enforcement; command-surface → `glassfrog <command> --help`). Every command/flag/format named exists in the CLI; no per-command flag list; no Holacracy coaching; no gating logic.
 - **T003** — Drift guard asserts format tokens match `internal/output supportedFormats` exactly, the documented exit-code set matches `internal/cli/exitcode.go` (incl. `StaleWrite`=7), and `auth login` exists; fails loudly naming the offending anchor; the explicitly-uncovered anchors are documented in the test, not omitted silently.
 
@@ -61,7 +61,7 @@ Every non-`@validation` scenario referenced by a checked task has an identifiabl
 
 | Surface | Status | Evidence |
 |---|---|---|
-| Structural layout (`plugin/.claude-plugin/plugin.json`, `plugin/skills/glassfrog-operator/SKILL.md`, `internal/build` guard) | ✓ Conformant | Files present exactly as specified |
+| Structural layout (`plugin/.claude-plugin/plugin.json`, `plugin/skills/orientation/SKILL.md`, `internal/build` guard) | ✓ Conformant | Files present exactly as specified |
 | `plugin.json` schema (name/version/description/author object/keywords; **no `skills` array** — directory discovery) | ✓ Conformant | `plugin.json` matches the score/prelude convention |
 | `SKILL.md` frontmatter (name + description only) | ✓ Conformant | Lines 2–3 |
 | Required content sections (6) | ✓ Conformant | §§ Output / Pagination / Exit codes / Credentials / Write-safety / Per-command detail |

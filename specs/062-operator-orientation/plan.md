@@ -14,7 +14,7 @@ Three parts:
 
 1. **Plugin package** — a dedicated top-level `plugin/` directory holding a Claude plugin manifest (`plugin/.claude-plugin/plugin.json`) and a `plugin/skills/` directory. The manifest makes the directory a well-formed, installable plugin; it does **not** publish or distribute it (that is #70). The directory is laid out so the Write-Safety Guardrail (#63) and the operator paths (#64–#69) drop in later as additional skills under `plugin/skills/` (and, for the guardrail, possibly `plugin/hooks/`) without restructuring.
 
-2. **Orientation skill** — a single skill (`plugin/skills/glassfrog-operator/SKILL.md`, working name) carrying the hand-authored, cross-cutting operating knowledge: how to select a structured output format and what shape to expect, how to page, what each exit code means and the reaction, how credentials are supplied, and the write-safety *expectation* (as guidance, not enforcement). For per-command/per-flag detail it points the agent at the CLI's own `--help` flag (`glassfrog <command> --help`), rather than cataloguing it — keeping the drift surface minimal.
+2. **Orientation skill** — a single skill (`plugin/skills/orientation/SKILL.md`, working name) carrying the hand-authored, cross-cutting operating knowledge: how to select a structured output format and what shape to expect, how to page, what each exit code means and the reaction, how credentials are supplied, and the write-safety *expectation* (as guidance, not enforcement). For per-command/per-flag detail it points the agent at the CLI's own `--help` flag (`glassfrog <command> --help`), rather than cataloguing it — keeping the drift surface minimal.
 
 3. **Drift guard** — a best-effort `internal/build` config-drift test that anchors the small set of *stable facts* the skill states against their source of truth in the CLI, so the skill cannot silently drift as the CLI evolves. This is the project's existing config-guard pattern (§175/§203/§309/§316) applied to a new artifact.
 
@@ -41,7 +41,7 @@ Data flow: there is no runtime flow inside this feature. The agent (the consumer
 **Context**: The spec deferred skill decomposition to shaping. The Agent Operating Surface will eventually hold the guardrail (#63) and several operator paths (#64–#69).
 
 **Options considered**:
-1. **One orientation skill** — all cross-cutting knowledge in a single `skills/glassfrog-operator` skill. Simplest; one description-triggered unit; matches the on-demand consumption model.
+1. **One orientation skill** — all cross-cutting knowledge in a single `skills/orientation` skill. Simplest; one description-triggered unit; matches the on-demand consumption model.
 2. **Several fine-grained skills now** (output / pagination / exit-codes / credentials) — finer triggering, but fragments tightly-related knowledge, multiplies frontmatter/descriptions, and pre-commits a decomposition before the paths that would justify it exist.
 
 **Decision**: Option 1 — a single orientation skill now. The `plugin/skills/` directory is the extension point: #63 and #64–#69 arrive as *sibling* skills (and the guardrail may add `plugin/hooks/`), so growth is additive, not a restructure.
@@ -110,7 +110,7 @@ Protocol-level detail — the exact `plugin.json` field set, the SKILL.md frontm
 
 ## Implementation Strategy
 
-**Phase 1 — Plugin scaffold + orientation content.** Create `plugin/.claude-plugin/plugin.json` and `plugin/skills/glassfrog-operator/SKILL.md`. Author the cross-cutting orientation content (output formats, pagination, exit-code reactions, credential setup, write-safety guidance; per-command detail deferred to `glassfrog <command> --help`). This phase is self-contained and is the bulk of the work; it depends only on the interface contract for the manifest/frontmatter shape.
+**Phase 1 — Plugin scaffold + orientation content.** Create `plugin/.claude-plugin/plugin.json` and `plugin/skills/orientation/SKILL.md`. Author the cross-cutting orientation content (output formats, pagination, exit-code reactions, credential setup, write-safety guidance; per-command detail deferred to `glassfrog <command> --help`). This phase is self-contained and is the bulk of the work; it depends only on the interface contract for the manifest/frontmatter shape.
 
 **Phase 2 — Drift guard.** Add the best-effort anchor test in `internal/build` asserting the skill's enumerable facts match their CLI source (formats, exit codes, `auth login`). Depends on Phase 1 (the content must exist to anchor against). If anchoring proves infeasible within reasonable effort, reduce scope and state the reduction.
 

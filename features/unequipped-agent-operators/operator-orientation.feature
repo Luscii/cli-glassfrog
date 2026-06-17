@@ -7,7 +7,7 @@ Feature: Operator Orientation
   mis-drive it or run ungated writes. Operator Orientation is the root of the
   Agent Operating Surface: a repo-shipped Claude plugin (a manifest at
   `plugin/.claude-plugin/plugin.json` plus one skill at
-  `plugin/skills/glassfrog-operator/SKILL.md`) that packages cross-cutting
+  `plugin/skills/orientation/SKILL.md`) that packages cross-cutting
   operating knowledge the agent consults on demand. It adds no API capability
   and points at the CLI's own `--help` flag (`glassfrog <command> --help`) for per-command detail. A
   best-effort drift guard in `internal/build` keeps the skill's enumerable
@@ -25,7 +25,7 @@ Feature: Operator Orientation
 
     # Source: 062-operator-orientation — Scenario: Getting parseable output by consulting orientation
     Scenario: Select a parseable output format
-      Given the glassfrog-operator skill was available to the agent
+      Given the orientation skill was available to the agent
       And the agent needed to read a practitioner's roles for downstream parsing
       When the agent consults the orientation for machine-parseable output
       Then the orientation will name "json" and "yaml" as the parseable formats
