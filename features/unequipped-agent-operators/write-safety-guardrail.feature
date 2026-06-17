@@ -37,7 +37,7 @@ Feature: Write-Safety Guardrail
     Scenario: Run only the write that was confirmed
       Given the practitioner explicitly confirmed "glassfrog proposal create ten_0456"
       When the agent executes the confirmed write
-      Then exactly that change will be sent to tension "ten_0456"
+      Then exactly the confirmed draft proposal will be created from tension "ten_0456"
       And the agent will not broaden, substitute, or bundle any additional write into the action
 
     # Source: 063-write-safety-guardrail — Scenario: Confirmation withheld
