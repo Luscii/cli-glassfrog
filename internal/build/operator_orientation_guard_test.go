@@ -30,10 +30,26 @@ func TestOperatorOrientationDriftGuard(t *testing.T) {
 		t.Fatalf("could not extract the CLI facts the orientation anchors against: %v", err)
 	}
 
-	// Sanity-pin the extracted anchors so a regression in extraction (not just in
-	// the skill) also fails loudly.
-	if facts.FormatsRaw != "full, compact, json, yaml" {
-		t.Errorf("CLI supportedFormats is %q; the orientation guard assumed \"full, compact, json, yaml\" — update both together", facts.FormatsRaw)
+	// Sanity-check the extraction itself (so a regression in LiveOrientationFacts
+	// fails loudly), without re-pinning the exact format set — that set is the
+	// CLI's own concern, and CheckOrientationDrift below already compares the
+	// skill's enumeration against it. We assert only what the orientation
+	// genuinely depends on: that extraction found tokens at all, and that the
+	// machine-parseable pair the skill names (json + yaml) is still present.
+	if len(facts.Formats) == 0 {
+		t.Error("LiveOrientationFacts extracted no output-format tokens — the formats anchor could not be read from internal/output")
+	}
+	hasJSON, hasYAML := false, false
+	for _, f := range facts.Formats {
+		switch f {
+		case "json":
+			hasJSON = true
+		case "yaml":
+			hasYAML = true
+		}
+	}
+	if !hasJSON || !hasYAML {
+		t.Errorf("CLI format set %v no longer includes both json and yaml — the orientation names them as the machine-parseable pair", facts.Formats)
 	}
 	if label, ok := facts.ExitCodes[7]; !ok || label != "StaleWrite" {
 		t.Errorf("exit code 7 is %q (present=%v); the orientation's 412 guidance anchors on codeStaleWrite=7", label, ok)

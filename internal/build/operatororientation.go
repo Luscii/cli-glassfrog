@@ -32,7 +32,7 @@ const (
 
 	// OrientationSkillPath is the one orientation skill the agent consults on
 	// demand. Its frontmatter description is the trigger surface.
-	OrientationSkillPath = "plugin/skills/glassfrog-operator/SKILL.md"
+	OrientationSkillPath = "plugin/skills/orientation/SKILL.md"
 
 	// OrientationPluginDir is the plugin package root. Distribution (#70) extends
 	// this directory; it is not added here.
@@ -58,14 +58,29 @@ type ManifestAuthor struct {
 }
 
 // ParseOrientationManifest decodes raw plugin.json bytes into the validated
-// manifest shape. A decode error is exactly the "malformed manifest → unloadable
-// plugin" condition: the host cannot register the skill, and — because the plugin
-// tree carries no Go code (see OrientationPluginHasNoGoCode) — nothing in the CLI
-// is affected; the agent simply falls back to rediscovery.
+// manifest shape. A decode error — or a missing required field — is exactly the
+// "malformed/invalid manifest → unloadable plugin" condition: the host cannot
+// register the skill, and — because the plugin tree carries no Go code (see
+// OrientationPluginHasNoGoCode) — nothing in the CLI is affected; the agent
+// simply falls back to rediscovery.
+//
+// name, version, and description are required by the interface contract; a
+// syntactically-valid manifest that omits any of them is still not loadable, so
+// the validation lives here rather than letting an incomplete manifest pass the
+// build-side checks.
 func ParseOrientationManifest(raw []byte) (OrientationManifest, error) {
 	var m OrientationManifest
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return OrientationManifest{}, err
+	}
+	for _, required := range []struct{ field, value string }{
+		{"name", m.Name},
+		{"version", m.Version},
+		{"description", m.Description},
+	} {
+		if strings.TrimSpace(required.value) == "" {
+			return OrientationManifest{}, fmt.Errorf("plugin manifest is missing the required %q field", required.field)
+		}
 	}
 	return m, nil
 }
@@ -89,19 +104,21 @@ func ReadOrientationSkill() (string, error) {
 	return string(raw), nil
 }
 
-// ManifestDemandsNoSetup reports whether the manifest avoids every key that would
-// force configuration beyond the CLI's existing credential setup — it declares no
-// MCP servers, hooks, or commands of its own. The orientation is knowledge +
-// packaging: once the plugin is present, the only thing an agent needs is the
-// CLI's own `auth login`, nothing more. The raw bytes are inspected (not the
-// decoded struct) so an unknown demanding key cannot slip through the lenient
-// decode.
+// ManifestDemandsNoSetup reports whether the manifest avoids every key the
+// contract forbids — both the setup-demanding ones (no MCP servers or hooks of
+// its own) and the capability declarations that must instead be discovered by
+// directory convention (`skills`, `commands`, `agents`). The orientation is
+// knowledge + packaging: once the plugin is present, the only thing an agent
+// needs is the CLI's own `auth login`, nothing more, and the single skill is
+// found under skills/ — so a `skills` array in the manifest is out of contract.
+// The raw bytes are inspected (not the decoded struct) so an unknown forbidden
+// key cannot slip through the lenient decode.
 func ManifestDemandsNoSetup(raw []byte) bool {
 	var keyed map[string]json.RawMessage
 	if json.Unmarshal(raw, &keyed) != nil {
 		return false
 	}
-	for _, forbidden := range []string{"mcpServers", "hooks", "commands", "agents"} {
+	for _, forbidden := range []string{"skills", "mcpServers", "hooks", "commands", "agents"} {
 		if _, present := keyed[forbidden]; present {
 			return false
 		}
