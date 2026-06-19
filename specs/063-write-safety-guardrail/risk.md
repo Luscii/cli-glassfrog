@@ -24,7 +24,7 @@
 | H-7 | False-positive gating of reads / tension edits → agent friction, pressure to disable the hook | spec § Non-Behaviors | Med | Low | Green | RC-1, RC-11 | **Green** |
 | H-8 | Human rubber-stamps the confirmation → gate becomes ceremonial, an unintended write is approved | spec § User Scenarios (human-in-loop); plan ADR-2 | Med | Med | Yellow | RC-12 | **Yellow** |
 
-No residual risk is **Red**. Four High-severity hazards (H-1, H-3, H-4 + the registry path H-5) remain **Yellow** (acceptable with documented justification) because their full mitigation depends on factors partly outside the artifact (exotic command forms, an external host contract, installation, human attention).
+No residual risk is **Red**. Four High-severity hazards (H-1, H-2, H-3, H-4) remain **Yellow** (acceptable with documented justification) because their full mitigation depends on factors partly outside the artifact — exotic or unparseable command forms (H-1/H-2), an external host contract (H-3), and installation/host capability (H-4). The registry-drift hazard H-5 is High-severity but mitigated to **Green** (build-time tripwire + runtime fail-closed); the fifth Yellow, H-8, is Medium severity (confirmation fatigue).
 
 ---
 
