@@ -1,0 +1,9 @@
+{
+  "name": "glassfrog",
+  "version": "0.1.0",
+  "description": "Agent operating surface for the glassfrog CLI: cross-cutting orientation (output formats, pagination, exit codes, credentials, write-safety) an AI agent consults on demand to drive the CLI correctly from the first session.",
+  "author": {
+    "name": "Luscii"
+  },
+  "keywords": ["glassfrog", "cli", "holacracy", "agent", "operator"]
+}

@@ -18,7 +18,7 @@ The plugin exposes **no CLI-style entry point**. It is consumed two ways:
 | Consumer | Entry point | Trigger |
 |---|---|---|
 | Claude Code plugin host | `plugin/.claude-plugin/plugin.json` | Host loads the manifest and auto-discovers skills under `plugin/skills/` |
-| AI agent | `plugin/skills/glassfrog-operator/SKILL.md` | The skill's frontmatter `description` matches an agent need ("how do I drive this CLI / parse output / react to this exit code") — loaded **on demand**, not at session start |
+| AI agent | `plugin/skills/orientation/SKILL.md` | The skill's frontmatter `description` matches an agent need ("how do I drive this CLI / parse output / react to this exit code") — loaded **on demand**, not at session start |
 
 There are no flags or arguments.
 
@@ -29,7 +29,7 @@ plugin/
   .claude-plugin/
     plugin.json                      # plugin manifest (required)
   skills/
-    glassfrog-operator/              # the one orientation skill (working name)
+    orientation/                     # the one orientation skill
       SKILL.md                       # the orientation content (required)
 internal/build/
     operator_orientation_guard_test.go   # best-effort drift guard (companion, not part of the plugin package)
@@ -43,7 +43,7 @@ Grounded on the score/prelude manifests (author object form, `keywords` array, *
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `name` | string | yes | kebab-case plugin id — **`glassfrog-operator`** `[ASSUMED]` |
+| `name` | string | yes | kebab-case plugin id — **`glassfrog`** |
 | `version` | string (semver) | yes | starts at `0.1.0` |
 | `description` | string | yes | one line — what the operating surface provides |
 | `author` | object `{name, url?}` | recommended | `{ "name": "Luscii" }` to match sibling plugins |
@@ -58,7 +58,7 @@ YAML frontmatter, matching the score-skill convention (`name` + `description` on
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `name` | string | yes | `glassfrog-operator` `[ASSUMED]` |
+| `name` | string | yes | `orientation` |
 | `description` | string | yes | **The trigger.** Must state *when* to consult it and name the CLI-driving topics (parsing output, pagination, exit-code reactions, credentials, write-safety) so it fires on the right need and not spuriously |
 
 ### Required sections in `SKILL.md` (the orientation content)
@@ -112,4 +112,4 @@ Runtime error shapes (request/response bodies, HTTP status rendering, rate-limit
 - **Follows plugin conventions** observed in `score`/`prelude`: `author` as an object, `keywords` array, and **skill auto-discovery** (no `skills` array in the manifest). Version starts at `0.1.0` per the spec's pre-1.0 surface.
 - **Distribution deferred to #70** (plan ADR-5): when #70 lands it adds a `{ name, version, description, source }` entry for this plugin to a marketplace manifest (e.g. the Luscii marketplace seen in installed plugins under `~/.claude/plugins/` — no such file exists in this repo today) or ships the plugin's own marketplace. The shape is known; producing it here is out of scope and is asserted absent by a validation scenario.
 - **Deviation from sibling acquisition channels** (npm §318 / homebrew §316): those are CI-*generated/published* binary channels; this plugin is **committed, hand-authored content** (plan ADR-3). Same "repo-shipped acquisition channel" family, different production mode — flagged so #70 doesn't assume a generated path.
-- **Naming `[ASSUMED]`**: plugin id and skill name `glassfrog-operator` are working names; reversible (consumers trigger by `description`, not a fixed file path). Adjust freely before implementation.
+- **Naming**: plugin id `glassfrog` and skill name `orientation` (renamed from the working `glassfrog-operator` during PR review); reversible (consumers trigger by `description`, not a fixed file path).
