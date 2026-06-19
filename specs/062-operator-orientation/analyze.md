@@ -47,7 +47,7 @@ No contradictions, gaps, or drift found across the artifact set.
 
 | ID | Scope | Result |
 |---|---|---|
-| H1 | Terminology | PASS — "orientation", "plugin", "skill", "drift guard", "write-safety", "cross-cutting" used consistently; `glassfrog-operator` is a consistent, explicitly `[ASSUMED]` alias for the orientation skill across plan/interface/tasks/feature |
+| H1 | Terminology | PASS — "orientation", "plugin", "skill", "drift guard", "write-safety", "cross-cutting" used consistently; the plugin id `glassfrog` and skill name `orientation` are used consistently across plan/interface/tasks/feature |
 | H2 | Detail symmetry | PASS — spec↔plan and plan↔tasks are proportionate; no shared topic is 3x+ heavier on one side |
 | H3 | Scope alignment (spec + interface + tasks) | PASS — plugin definition + orientation content + drift guard present in all three; distribution/marketplace excluded in all three; nothing added or dropped silently |
 | H4 | Phase coverage (plan + tasks) | PASS — tasks' Phase 1/Phase 2 structure and the Phase 2→Phase 1 dependency mirror the plan; no task references a non-existent phase and no plan phase is unimplemented |

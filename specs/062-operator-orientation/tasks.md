@@ -25,18 +25,18 @@ T002 depends on T001 and T003 depends on T002, so the three task branches land i
 
 ## Phase 1: Plugin scaffold + orientation content [Shared]
 
-- [ ] **T001** [Shared] Create the plugin scaffold and manifest
-  - **Scope**: Add the top-level `plugin/` directory with `plugin/.claude-plugin/plugin.json` and an empty-bodied `plugin/skills/glassfrog-operator/SKILL.md` (frontmatter only). One structural change — the installable shell, no orientation prose yet.
+- [x] **T001** [Shared] Create the plugin scaffold and manifest — 2 scenarios un-@wip'd (consultable, malformed-manifest); manifest + frontmatter-only SKILL.md + build-side godog suite
+  - **Scope**: Add the top-level `plugin/` directory with `plugin/.claude-plugin/plugin.json` and an empty-bodied `plugin/skills/orientation/SKILL.md` (frontmatter only). One structural change — the installable shell, no orientation prose yet.
   - **Acceptance criteria**:
-    - `plugin/.claude-plugin/plugin.json` parses as JSON and carries the required `name` (`glassfrog-operator`), `version` (`0.1.0`), and `description`, plus a recommended (optional) `author` `{name}`; no `skills`/`commands`/`hooks` keys (skills are directory-discovered)
-    - `plugin/skills/glassfrog-operator/SKILL.md` exists with YAML frontmatter `name` + `description`, the `description` stating when to consult it and naming the CLI-driving topics so it triggers on the right need
+    - `plugin/.claude-plugin/plugin.json` parses as JSON and carries the required `name` (`glassfrog`), `version` (`0.1.0`), and `description`, plus a recommended (optional) `author` `{name}`; no `skills`/`commands`/`hooks` keys (skills are directory-discovered)
+    - `plugin/skills/orientation/SKILL.md` exists with YAML frontmatter `name` + `description`, the `description` stating when to consult it and naming the CLI-driving topics so it triggers on the right need
     - No `marketplace.json`, publishing workflow, or install flow is added (distribution is #70)
   - **Dependencies**: None
   - **Plan reference**: Phase 1; ADR-1 (plugin home & layout), ADR-2 (one skill, additive growth)
   - **Scenario references**: operator-orientation.feature: "Orientation is consultable once the plugin is present", "Plugin defines no distribution machinery", "Malformed manifest leaves the plugin unloadable"
   - **Interface references**: interface-spec.md — Surface (structural layout, `plugin.json` schema, `SKILL.md` frontmatter)
 
-- [ ] **T002** [Shared] Author the orientation skill content
+- [x] **T002** [Shared] Author the orientation skill content — 6 scenarios un-@wip'd (parseable output, pagination, exit codes, credentials, per-command help, write-safety); all cited surface verified against the CLI
   - **Scope**: Fill `SKILL.md` body with the cross-cutting operating knowledge — the required topic sections — pointing at `glassfrog <command> --help` for per-command detail. Authoring only; adds no CLI code.
   - **Acceptance criteria**:
     - Sections present: output-for-parsing (names `json`/`yaml` as the parseable formats from the supported set `full, compact, json, yaml`), pagination, exit-code reactions (the 0–7 convention, including `StaleWrite`=7 for the `412` the write-safety section covers), credentials (directs to `glassfrog auth login`, introduces no new mechanism), write-safety expectation (confirm-before-write; `412` → re-read + re-confirm) explicitly marked as guidance not enforcement, and a driving-the-command-surface section that routes to `glassfrog <command> --help`
@@ -51,7 +51,7 @@ T002 depends on T001 and T003 depends on T002, so the three task branches land i
 
 ## Phase 2: Drift guard [Shared]
 
-- [ ] **T003** [Shared] Add the best-effort drift-guard test in `internal/build`
+- [x] **T003** [Shared] Add the best-effort drift-guard test in `internal/build` — 2 scenarios un-@wip'd (drift detected, anchor-left-CLI); standalone guard test pins formats/exit-codes(StaleWrite=7)/auth-login; uncovered prose anchors documented in the test, not omitted silently
   - **Scope**: A new `internal/build` test asserting the orientation's enumerable facts still match their CLI source. Best-effort and explicitly partial; if an anchor proves infeasible to assert, state the reduced coverage rather than dropping it silently.
   - **Acceptance criteria**:
     - Test asserts the orientation's output-format tokens match `internal/output` `supportedFormats` exactly (`full, compact, json, yaml`)
