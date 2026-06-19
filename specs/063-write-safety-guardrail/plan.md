@@ -100,7 +100,7 @@ This feature's boundary is a **specification boundary** plus a **host-integratio
 - **What the consumer expects**: a hook the host invokes on `PreToolUse` with the documented tool-call JSON on stdin, returning the documented permission-decision JSON.
 - **Invocation surface**: the host fires the hook; there is no CLI-level invocation surface and no new `glassfrog` command or flag.
 
-Protocol-level detail — the exact hook-registration schema, the stdin/stdout JSON contract (`hookSpecificOutput.permissionDecision` / `permissionDecisionReason`), the registry file format and location, and the precise content of the confirmation reason string — is the **interface** skill's concern (`interface-spec.md`).
+Protocol-level detail — the exact hook-registration schema, the stdin/stdout JSON contract (`hookSpecificOutput.permissionDecision` plus the human-facing message field, whose exact spelling is host-specific and is pinned in `interface-spec.md`), the registry file format and location, and the precise content of the confirmation reason string — is the **interface** skill's concern (`interface-spec.md`).
 
 ---
 
