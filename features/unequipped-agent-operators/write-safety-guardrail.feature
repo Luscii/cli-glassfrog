@@ -136,7 +136,7 @@ Feature: Write-Safety Guardrail
     # Source: 063-write-safety-guardrail — Scenario: An operational tension edit passes through ungated
     @wip
     Scenario: Let a tension edit run without confirmation
-      Given the agent was about to run "glassfrog tension create rol_0789"
+      Given the agent was about to run "glassfrog tension create role_0123 --body 'onboarding flow unclear'"
       When the PreToolUse hook evaluates the command
       Then the hook will not require confirmation
       And the tension will be captured immediately
