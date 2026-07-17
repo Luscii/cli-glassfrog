@@ -42,7 +42,7 @@ internal/build/
 
 ### `plugin.json` changes
 
-Additive only. Skills are auto-discovered from `skills/` (062 convention), so no `skills` key is added. Whether agents are auto-discovered from `agents/` or require an `agents` array depends on the host convention observed in installed plugins (score ships `agents/` with no `agents` array in its `plugin.json`); **follow the auto-discovery convention** — add no `agents` key unless a consulted host requires it. `version` MAY bump per the surface's pre-1.0 discretion. No existing field is rewritten.
+Additive only. Skills are auto-discovered from `skills/` (062 convention), so no `skills` key is added. **Directory auto-discovery is confirmed by 063** (now landed): `plugin/hooks/hooks.json` is discovered from `plugin/hooks/` with **no** `hooks` array in this repo's `plugin.json`. By the same convention the agent is auto-discovered from `plugin/agents/` — **add no `agents` key**. `version` MAY bump per the surface's pre-1.0 discretion. No existing field is rewritten.
 
 ### `SKILL.md` frontmatter
 
@@ -132,7 +132,7 @@ Specification artifacts fail as **constraint violations** and as **runtime trave
 | Drift guard fails (`internal/build` test red) | A composed command leaf the artifacts name no longer exists in the CLI — the truthfulness contract is broken; fix the artifact (or the claim) |
 | Drift guard coverage reduced/omitted | Permitted **only if stated**, never silent — the test names what it does not cover (LEARNINGS: no silent caps) |
 
-**Governance-write nuance (refines plan ADR-5)**: the `tools` grant gates *Claude tools*, not individual `glassfrog` subcommands, so withholding `Write`/`Edit` blocks workspace mutation but cannot by itself stop a `glassfrog` proposal/tension write issued through `Bash`. Governance-write prevention is therefore **layered**: (1) the agent prompt scopes it to the read leaves above; (2) 063's `PreToolUse` write-safety hook gates any proposal-write `Bash` call regardless. The read-only property is thus a prompt-and-hook guarantee at the governance level, with the tool grant guaranteeing no *local* writes — consistent with plan ADR-5's layered-defense note.
+**Governance-write nuance (consistent with plan ADR-5)**: the `tools` grant gates *Claude tools*, not individual `glassfrog` subcommands, so withholding `Write`/`Edit` blocks workspace mutation but cannot by itself stop a `glassfrog` proposal/tension write issued through `Bash`. Governance-write prevention is therefore **layered**: (1) the agent prompt scopes it to the read leaves above; (2) 063's now-landed `PreToolUse` write-safety hook (`plugin/hooks/glassfrog-write-gate.sh`) gates any proposal-write `Bash` call and passes the navigator's reads through ungated. **Caveat (063 landed):** that hook is registered as a `PreToolUse` matcher on `Bash`; whether the host applies it to a **subagent's** Bash calls is not settled by the plugin. If it does not, layer (2) does not cover the navigator and the read-only property rests on layer (1) (prompt scope) plus the `Write`/`Edit`-withheld grant. Implementation (T001) should confirm subagent hook coverage against the target host and keep the prompt strictly read-only regardless.
 
 Runtime HTTP error shapes, status rendering, and rate-limit handling are **N/A** here — they belong to the CLI the agent drives (015/017/031/032) and are surfaced through the exit-code reactions orientation (062) already documents.
 

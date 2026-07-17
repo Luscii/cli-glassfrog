@@ -51,7 +51,7 @@ In practice: the skill's frontmatter `description` triggers it whenever a caller
 
 This is silent conformance to 062 ADR-1/ADR-2's additive-growth home for everything except that `plugin/agents/` is new; the plugin manifest (`plugin.json`) is updated only as the host's agent-registration convention requires (interface-level detail). No existing artifact (the orientation skill, the manifest's existing fields) is moved or rewritten.
 
-**Consequences**: The surface now has `skills/` and `agents/` subtrees; #65–#69 extend by adding sibling files, not restructuring. The exact manifest registration and agent frontmatter schema are the interface skill's concern.
+**Consequences**: The surface now has `skills/` and `agents/` subtrees; #65–#69 extend by adding sibling files, not restructuring. The exact manifest registration and agent frontmatter schema are the interface skill's concern. *Confirmed post-063:* 063's implementation landed `plugin/hooks/hooks.json` discovered from `plugin/hooks/` with **no** `hooks` array in `plugin.json` — concrete evidence that this plugin uses directory auto-discovery, so `plugin/agents/` needs no `agents` manifest key.
 
 ### ADR-3: Compose only already-shipped read commands; add no CLI code beyond a drift guard
 
@@ -77,7 +77,7 @@ This is silent conformance to 062 ADR-1/ADR-2's additive-growth home for everyth
 
 Coverage is explicitly partial: it pins the *existence* of the command leaves the artifacts compose, not their flags (deferred to `--help`), not the synthesized-picture prose, and not parser robustness. The partial scope is stated in the test and the plan (no silent caps).
 
-**Consequences**: A renamed/removed read command fails the build until the artifacts are updated. Establishes that operator *paths*, like the orientation and guardrail before them, carry a drift tripwire for the command leaves they name.
+**Consequences**: A renamed/removed read command fails the build until the artifacts are updated. Establishes that operator *paths*, like the orientation and guardrail before them, carry a drift tripwire for the command leaves they name. *Pattern from 063 (landed):* 063 keeps its gated set in a single `plugin/hooks/gated-commands.txt` consumed by **both** the hook script and the drift test, so the two can't disagree. T002 should mirror this — single-source the composed-read leaf list in one file consumed by both the agent/skill artifact and the drift guard, rather than duplicating the list in prose and test.
 
 ### ADR-5: Read-only is layered — tool grant blocks workspace writes; prompt + 063 hook prevent governance writes; "surfacing, not judging" is prompt-level
 
@@ -117,6 +117,7 @@ The tasks skill may still split this into PR-sized units (e.g. artifacts + regis
 
 - **Skill/agent drift from each other** (medium likelihood, low impact): two artifacts describing one workflow can diverge. *Mitigation*: single-source the workflow steps in the skill and have the agent reference that workflow rather than restating it (ADR-1); the drift guard does not cover this, so review must.
 - **Host doesn't support subagents or read-only tool grants** (low likelihood, medium impact): the isolation and structural read-only enforcement depend on a plugin host that honours agent definitions and tool restrictions (external contract, like 062 R2 and 063's `PreToolUse` dependency). *Mitigation*: the skill remains useful as guidance even where the agent can't run isolated, and 063's guardrail still gates writes; #70 owns getting the surface installed in a capable host.
+- **063's write hook may not cover the subagent's Bash** (low likelihood, medium impact): 063 landed as a `PreToolUse` matcher on `Bash`; if the host does not apply it to a *subagent's* Bash calls, the navigator's read-only guarantee rests on prompt scope + the `Write`/`Edit`-withheld grant, not on the 063 backstop (see risk.md H-4 / Post-063-Landing Note). *Mitigation*: T001 confirms subagent hook coverage against the target host and keeps the navigator's prompt strictly read-only regardless; the reads pass the gate ungated either way.
 - **Boundary bleed into Constraint Discovery (065)** (medium likelihood, low impact): because 064 reads domains/policies, it is tempting to answer "can I do X?" *Mitigation*: ADR-5's prompt-level guardrail and a spec non-behavior; a validation scenario asserts no authority verdict appears.
 - **Traversal-depth judgment** (low likelihood, low impact): "relevance-bounded" depth (spec Assumption 3) is judgment, not an algorithm, so a navigator could over- or under-traverse. *Mitigation*: the workflow describes narrowing over dumping; the over-broad-concern scenario pins the expected narrowing behaviour.
 

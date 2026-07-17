@@ -33,6 +33,7 @@ T002 depends on T001 (the guard pins the command leaves the artifacts name), so 
     - The skill body carries the when / workflow (concern → `search` → `roles [id]` → `fillers`/`subrole-actors` → `domains`/`policies` → synthesize, relevance-bounded) / delegation / read-only + surfacing-not-judging note, pointing at `glassfrog <command> --help` for per-command detail and at the orientation skill (062) for output/pagination/exit-code mechanics rather than restating them
     - The workflow states that where a `search` or list read spans multiple pages, the navigator pages through the full result set (per the orientation pagination guidance) **before** narrowing to "most relevant" — narrowing is a choice over the complete set, never a silent single-page cap (Constitution VI)
     - The agent is registered so the host discovers it and the skill's delegation resolves; if the agent is absent/unregistered, the skill's workflow remains usable as guidance with no CLI command broken (documented degradation)
+    - Subagent hook coverage is confirmed against the target host: verify whether 063's landed `PreToolUse` `Bash` gate (`plugin/hooks/glassfrog-write-gate.sh`) also fires for the navigator subagent's Bash calls; regardless of the answer, the agent prompt is strictly read-only (the load-bearing control if the hook does not reach the subagent — see risk.md H-4)
     - `plugin/agents/governance-navigator.md` exists with frontmatter `name` (`governance-navigator`), `description`, and a **read-only `tools` grant** that includes `Bash` (to invoke `glassfrog` reads) and excludes `Write`/`Edit`; the body references the skill's workflow, lists only the composed read leaves, and defines the synthesized-picture output (roles/fillers/domains/policies, each carrying its id; narrowing/failure notes)
     - The workflow steps are single-sourced in the skill and referenced by the agent — no second, divergent copy
     - The artifacts only read and only surface governing governance: they name no write command, and they defer the authority verdict to the Constraint Discovery Path (065); the existing `plugin/skills/orientation/` is untouched and no `marketplace.json` is added (distribution is #70)
@@ -47,7 +48,8 @@ T002 depends on T001 (the guard pins the command leaves the artifacts name), so 
     - Test asserts the command leaves the artifacts compose — `search`, `roles`, `tree`, `fillers`, `subrole-actors`, `domains`, `policies` — each resolve to a real command in the CLI's registry
     - Test fails loudly and names the offending leaf when one no longer exists in the shipped CLI
     - Any leaf or fact deliberately left uncovered is documented in the test, not omitted silently (no silent caps)
-    - Reuses the `internal/build` config-guard home/idiom established by 062/063
+    - Reuses the `internal/build` config-guard home/idiom established by 062/063 (063's `write_safety_guardrail_guard_test.go` + `writesafetyguardrail.go` are the concrete model)
+    - Single-sources the composed-read leaf list in one file consumed by **both** the agent/skill artifact and the drift test — mirroring 063's `plugin/hooks/gated-commands.txt` (single source for the hook script and its drift tripwire) — rather than duplicating the leaf list in prose and test
   - **Dependencies**: T001
   - **Plan reference**: Phase 1; ADR-4 (best-effort drift guard)
   - **Scenario references**: governance-navigation-path.feature — "The path names no read the CLI lacks"
