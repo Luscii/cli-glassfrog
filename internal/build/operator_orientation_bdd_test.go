@@ -387,29 +387,6 @@ func (w *orientationWorld) thenDriftNamesFormatAnchor() error {
 	return fmt.Errorf("no drift finding named the offending output-format anchor; got %v", w.drift)
 }
 
-// mentionsToken reports a case-insensitive word-boundary match for a bare token
-// (e.g. a format name) so "json" matches but "jsonschema" does not.
-func mentionsToken(skill, token string) bool {
-	low := strings.ToLower(skill)
-	t := strings.ToLower(token)
-	for {
-		i := strings.Index(low, t)
-		if i < 0 {
-			return false
-		}
-		before := i == 0 || !isWordByte(low[i-1])
-		after := i+len(t) >= len(low) || !isWordByte(low[i+len(t)])
-		if before && after {
-			return true
-		}
-		low = low[i+len(t):]
-	}
-}
-
-func isWordByte(b byte) bool {
-	return b == '_' || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9')
-}
-
 // mentionsExitCode reports whether the skill documents a code number in its
 // backticked exit-code form (“ `7` “), so the digit cannot be confused with an
 // HTTP status or version number in prose.

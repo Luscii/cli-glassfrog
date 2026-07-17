@@ -25,7 +25,6 @@ Feature: Governance Navigation Path
     # synthesized picture of the governance around it.
 
     # Source: 064-governance-navigation-path — Scenario: From a concern to the roles that touch it
-    @wip
     Scenario: Search a concern surfaces the relevant roles
       Given a practitioner had voiced a free-form concern with no role in hand
       When the governance-navigator traverses the concern
@@ -34,7 +33,6 @@ Feature: Governance Navigation Path
       And each role and filler will carry the id needed to read it again
 
     # Source: 064-governance-navigation-path — Proposed: registration/discovery surface (interface Surface) — the agent is reachable once registered
-    @wip
     Scenario: The navigator is reachable once the plugin registers it
       Given the plugin was present with the governance-navigator agent registered
       When the governance-navigation skill delegates a concern for traversal
@@ -42,7 +40,6 @@ Feature: Governance Navigation Path
       And it will return only the synthesized picture to the caller
 
     # Source: 064-governance-navigation-path — Proposed: missing-agent degradation (interface Error Communication) — path degrades to guidance
-    @wip
     Scenario: A missing navigator degrades the path to guidance
       Given the plugin was present but the governance-navigator agent was absent or unregistered
       When the governance-navigation skill is consulted for a concern
@@ -50,7 +47,6 @@ Feature: Governance Navigation Path
       And no command in the CLI will be broken by the agent's absence
 
     # Source: 064-governance-navigation-path — Scenario: An over-broad concern matches many models
-    @wip
     Scenario: An over-broad concern is narrowed, not dumped
       Given a concern so broad that the search matched many roles, domains, and policies across several pages
       When the governance-navigator assembles the picture
@@ -59,7 +55,6 @@ Feature: Governance Navigation Path
       And it will note that the picture was narrowed so the practitioner can refine
 
     # Source: 064-governance-navigation-path — Scenario: The concern matches nothing
-    @wip
     Scenario: An empty search reports nothing found without fabricating
       Given a concern for which the search returned no results
       When the governance-navigator completes the traversal
@@ -68,7 +63,6 @@ Feature: Governance Navigation Path
       And it will fabricate no roles or governance
 
     # Source: 064-governance-navigation-path — Scenario: A read in the traversal fails
-    @wip
     Scenario: A failed read yields a partial picture
       Given a traversal in which one read failed while the others succeeded
       When the governance-navigator assembles the picture
@@ -77,7 +71,7 @@ Feature: Governance Navigation Path
       And it will not invent the missing piece
 
     # Source: 064-governance-navigation-path — Scenario: Synthesized, not raw
-    @validation @wip
+    @validation
     Scenario: The result is a synthesized picture, not raw output
       Given the picture the governance-navigator returned
       When it is compared against the raw command output
@@ -92,7 +86,6 @@ Feature: Governance Navigation Path
     # that shape them, drawn together.
 
     # Source: 064-governance-navigation-path — Scenario: Drawing in the governing domains and policies
-    @wip
     Scenario: A relevant role's domains and policies are drawn in
       Given a role the governance-navigator had identified as relevant to the concern
       When it traverses that role's governance
@@ -101,7 +94,6 @@ Feature: Governance Navigation Path
       And it will present them as part of one picture
 
     # Source: 064-governance-navigation-path — Scenario: A circle concern follows into its sub-roles
-    @wip
     Scenario: A circle concern follows into its sub-roles
       Given the concern touched a role that is a circle
       When the governance-navigator judges the sub-roles relevant
@@ -109,7 +101,6 @@ Feature: Governance Navigation Path
       And it will stop short of walking the whole tree
 
     # Source: 064-governance-navigation-path — Scenario: The concern is really an authority question
-    @wip
     Scenario: An authority question surfaces governance but defers the verdict
       Given a concern phrased as whether the practitioner may take an action
       When the governance-navigator surfaces the domains and policies that govern it
@@ -118,7 +109,7 @@ Feature: Governance Navigation Path
       And it will not rule on whether the action is permitted
 
     # Source: 064-governance-navigation-path — Scenario: Surfacing, not judging
-    @validation @wip
+    @validation
     Scenario: The path surfaces governance without judging authority
       Given the governance-navigator's treatment of domains and policies
       When it is inspected for an authority or permission verdict
@@ -132,7 +123,6 @@ Feature: Governance Navigation Path
     # or feeds the next path.
 
     # Source: 064-governance-navigation-path — Proposed: synthesized-picture output contract (interface Surface) — every element carries its id
-    @wip
     Scenario: Every element of the picture carries its actionable id
       Given a picture the governance-navigator had returned for a concern
       When the caller inspects each role, filler, domain, and policy in it
@@ -140,7 +130,7 @@ Feature: Governance Navigation Path
       And the caller will be able to act on any element without re-running the search
 
     # Source: 064-governance-navigation-path — Scenario: Read-only throughout
-    @validation @wip
+    @validation
     Scenario: The path only reads, never writes
       Given the governance-navigation skill and agent content
       When it is inspected for any write, confirm, or gate step
