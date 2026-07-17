@@ -1,0 +1,17 @@
+{
+  "description": "Write-safety guardrail — gate governance writes (the proposal write path) behind explicit confirmation",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/glassfrog-write-gate.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

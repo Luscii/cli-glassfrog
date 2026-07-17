@@ -25,7 +25,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
 
 ## Phase 1: Recognizer + registry + hook [Shared]
 
-- [ ] **T001** [Shared] Add the gated-command registry and the PreToolUse hook registration
+- [x] **T001** [Shared] Add the gated-command registry and the PreToolUse hook registration — hooks.json + gated-commands.txt + build-side readers/validators; 3 guard tests; default-path discovery keeps 062's manifest setup-free (its 2 scenarios are @validation, held for validate)
   - **Scope**: Add `plugin/hooks/hooks.json` registering a `PreToolUse` hook with `matcher:"Bash"`, `type:"command"`, and a `${CLAUDE_PLUGIN_ROOT}`-rooted command pointing at the gate script, plus the single gated-command registry (a data file or a constant the gate script and the drift test both read) enumerating exactly the four proposal-write leaves: `proposal create`, `proposal propose`, `proposal respond`, `proposal withdraw`. Wires the gate in; no recognition logic yet. Adds no Go CLI code.
   - **Acceptance criteria**:
     - `plugin/hooks/hooks.json` parses as JSON and registers a `PreToolUse` entry with `matcher:"Bash"` and a single `type:"command"` hook whose `command` is rooted at `${CLAUDE_PLUGIN_ROOT}` with a bounded `timeout`; it is `type:"command"` (deterministic), never `type:"prompt"`
@@ -37,7 +37,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
   - **Scenario references**: write-safety-guardrail.feature: "No proposal-write path bypasses confirmation", "Tension edits stay outside the gate"
   - **Interface references**: interface-spec.md — Surface (structural layout, `hooks.json` schema, gated-command registry)
 
-- [ ] **T002** [Shared] Implement the gate script — recognizer plus permission-decision emitter
+- [x] **T002** [Shared] Implement the gate script — recognizer plus permission-decision emitter — pure-bash gate (no jq/sed/grep), fail-closed within proposal, fail-safe elsewhere; BDD suite drives the real script + models the host confirmation loop; 11 scenarios un-wipped (5 @validation held for validate)
   - **Scope**: The `PreToolUse` gate script: read the tool-call JSON on stdin, and for a `Bash` call parse `tool_input.command`, resolve the `glassfrog` invocation token (bare name, absolute/relative path, leading `VAR=val` env prefix) and the subcommand path, classify against the registry, and emit the permission decision on stdout. No CLI code; lives under `plugin/hooks/`.
   - **Acceptance criteria**:
     - A recognized proposal-write leaf → `{"hookSpecificOutput":{"permissionDecision":"ask"}}` with a message naming the command, the target id, and the effect; a write is sent only after the practitioner confirms
@@ -55,7 +55,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
 
 ## Phase 2: Drift tripwire [Shared]
 
-- [ ] **T003** [Shared] Add the best-effort drift tripwire in `internal/build`
+- [x] **T003** [Shared] Add the best-effort drift tripwire in `internal/build` — anchors the registry to the CLI's proposal surface (each gated leaf exists + full surface matches the checked-in expectation), names the offending command, documents its partial coverage (surface only, not parser robustness); drift scenario un-wipped
   - **Scope**: A new `internal/build` test anchoring the gated-command registry to the CLI's `proposal` subcommand surface, so a new or renamed proposal write command cannot silently ship ungated. Best-effort and explicitly partial; if an anchor proves infeasible, state the reduced coverage rather than dropping it silently.
   - **Acceptance criteria**:
     - Test asserts each registry leaf (`proposal create/propose/respond/withdraw`) still exists on the CLI's `proposal` command

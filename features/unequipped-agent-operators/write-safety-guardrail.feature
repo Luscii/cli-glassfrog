@@ -23,7 +23,6 @@ Feature: Write-Safety Guardrail
     # so the agent never alters governance without my explicit go-ahead.
 
     # Source: 063-write-safety-guardrail — Scenario: Confirming a proposal write before it runs
-    @wip
     Scenario: Gate a proposal write behind explicit confirmation
       Given the guardrail hook was active over the Bash tool
       And the agent was about to run "glassfrog proposal propose prp_0123"
@@ -33,7 +32,6 @@ Feature: Write-Safety Guardrail
       And the write will not be sent until the practitioner explicitly confirms it
 
     # Source: 063-write-safety-guardrail — Scenario: Performing exactly the confirmed write
-    @wip
     Scenario: Run only the write that was confirmed
       Given the practitioner explicitly confirmed "glassfrog proposal create ten_0456"
       When the agent executes the confirmed write
@@ -41,7 +39,6 @@ Feature: Write-Safety Guardrail
       And the agent will not broaden, substitute, or bundle any additional write into the action
 
     # Source: 063-write-safety-guardrail — Scenario: Confirmation withheld
-    @wip
     Scenario: Decline a proposal write when confirmation is withheld
       Given the agent was about to run "glassfrog proposal create ten_0456"
       And the hook returned permissionDecision "ask"
@@ -74,7 +71,6 @@ Feature: Write-Safety Guardrail
       And it will nowhere advise whether the change is governance-sound
 
     # Source: 063-write-safety-guardrail — architecture-informed (plan R1 / interface Error Communication; proposed by skill)
-    @wip
     Scenario: Gate an unrecognized proposal subcommand fail-closed
       Given the agent invoked "glassfrog proposal <new-write-leaf> prp_0123" that the registry did not list
       When the PreToolUse hook evaluates the command
@@ -88,7 +84,6 @@ Feature: Write-Safety Guardrail
     # retrying, rather than blindly re-sending the stale write.
 
     # Source: 063-write-safety-guardrail — Scenario: Stale-write refusal triggers re-read and re-confirm
-    @wip
     Scenario: Re-confirm a retry after a stale-write refusal
       Given a confirmed write was refused as a stale write with exit code 7
       When the agent re-reads the resource for its current version and retries the write
@@ -96,7 +91,6 @@ Feature: Write-Safety Guardrail
       And the practitioner will be asked to confirm against the now-current state before it is sent
 
     # Source: 063-write-safety-guardrail — Scenario: Re-confirmation withheld after a stale-write re-read
-    @wip
     Scenario: Hold off the retry when re-confirmation is withheld
       Given a stale-write refusal had prompted a re-read of the current state
       When the practitioner does not re-confirm against that current state
@@ -104,7 +98,6 @@ Feature: Write-Safety Guardrail
       And the resource will remain as the concurrent change last set it
 
     # Source: 063-write-safety-guardrail — Scenario: A non-stale-write failure is not treated as a clobber
-    @wip
     Scenario: Leave a non-stale failure to normal handling
       Given a confirmed write failed with a permission outcome rather than the stale-write category
       When the agent observes the outcome
@@ -125,7 +118,6 @@ Feature: Write-Safety Guardrail
     # so only governance writes through the proposal path carry the confirmation cost.
 
     # Source: 063-write-safety-guardrail — Scenario: A read passes through ungated
-    @wip
     Scenario: Let a read run without confirmation
       Given the guardrail hook was active over the Bash tool
       And the agent was about to run "glassfrog roles --output json"
@@ -134,7 +126,6 @@ Feature: Write-Safety Guardrail
       And the read will proceed immediately
 
     # Source: 063-write-safety-guardrail — Scenario: An operational tension edit passes through ungated
-    @wip
     Scenario: Let a tension edit run without confirmation
       Given the agent was about to run "glassfrog tension create role_0123 --body 'onboarding flow unclear'"
       When the PreToolUse hook evaluates the command
@@ -150,7 +141,6 @@ Feature: Write-Safety Guardrail
       And the gate will cover the proposal write path only
 
     # Source: 063-write-safety-guardrail — architecture-informed (plan R3; proposed by skill)
-    @wip
     Scenario: Fall back to ungated guidance when the hook is absent
       Given the guardrail hook was not installed in the agent's host
       When the agent runs "glassfrog proposal propose prp_0123"
@@ -158,7 +148,6 @@ Feature: Write-Safety Guardrail
       And nothing in the CLI will break
 
     # Source: 063-write-safety-guardrail — architecture-informed (plan ADR-4 / interface drift tripwire; proposed by skill)
-    @wip
     Scenario: Drift tripwire fails when a gated leaf leaves the CLI
       Given the registry gated a proposal-write leaf the CLI's proposal surface no longer exposed
       When the internal/build drift tripwire runs
