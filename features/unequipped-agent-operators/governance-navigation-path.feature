@@ -138,7 +138,7 @@ Feature: Governance Navigation Path
       And the path will only read
 
     # Source: 064-governance-navigation-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no read the CLI lacks
       Given the produced navigation-path content
       When every command and read it composes is checked against the shipped CLI
