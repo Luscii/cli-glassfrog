@@ -90,7 +90,7 @@ The agent's return value — the contract the caller consumes. Field names/types
 
 | Element | Type | Notes |
 |---|---|---|
-| roles | Role[] | Each: `id` (`role_`/`circle_`-resolved), `name`, one-line relevance to the concern |
+| roles | Role[] | Each: `id` (always `role_…` — a circle is a role with `type: circle`, keeping a `role_…` id; there is no `circle_` id namespace), `name`, one-line relevance to the concern |
 | fillers | per-role list | Each role's actors: `actor_id` (`per_`/`agt_`), `name` |
 | domains | Domain[] | Governing domains in view: `id`, `role_id`, brief |
 | policies | Policy[] | Governing policies in view: `id`, `role_id`, brief |
