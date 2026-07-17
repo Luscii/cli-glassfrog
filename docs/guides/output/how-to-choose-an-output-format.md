@@ -88,7 +88,7 @@ A `--output` flag on the invocation overrides both `GLASSFROG_OUTPUT` and the co
 
 ## Verify
 
-- **`json`** — stdout is a single valid JSON document of the raw payload, and is the only content on stdout. It includes fields the human projection omits (such as hypermedia links), and preserves exact integer values without rounding.
+- **`json`** — stdout is a single valid JSON document and the only content on stdout. For a single-resource read (e.g. `glassfrog me`, `roles <id>`) it is the raw API payload; for a walked **list** read (e.g. `me roles`, `roles`, `domains`) it is the aggregated `{data:[…]}` document — each record's bytes preserved, per-page `meta` dropped — not the per-page API envelope. Either way it includes fields the human projection omits (such as hypermedia links) and preserves exact integer values without rounding.
 - **`yaml`** — stdout is a single valid YAML document carrying the same data as the JSON form, with no field added or dropped.
 - **`compact`** — each record appears on a single line surfacing its id.
 - **`full`** (default) — the labelled projection with the actor's id, name, and kind; the organization's id and name; and the access level.
