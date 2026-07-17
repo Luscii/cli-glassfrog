@@ -51,14 +51,18 @@ precision.
 
 Worked example (064 `governance-navigator`, opus-4-8, 4 iterations, 12 train / 8 test):
 
-| | train | test (held-out) |
+| | train — accuracy | test (held-out) — accuracy |
 |---|---|---|
-| Original (winner) | 6/12 | 4/8 |
-| Rewrites (iter 2–4) | 6/12 | 4/8 |
+| Original (winner) | 6/12 (50%) | 4/8 (50%) |
+| Rewrites (iter 2–4) | 6/12 (50%) | 4/8 (50%) |
 
-Precision was 100% on both splits (zero false triggers across every near-miss
-negative). Recall was ~6–8% and identical for every description. The loop kept the
-original as `best_description`. **Correct outcome: change nothing — the gate passed.**
+Those cells are overall accuracy (correct trigger / no-trigger decisions ÷ total
+queries). The two discriminating metrics sit underneath it: precision was 100% on
+both splits (zero false triggers across every near-miss negative), while recall was
+~6–8% and identical for every description — which is *why* accuracy lands at 50%: the
+~half of queries that are negatives all pass, while the positives mostly don't fire.
+The loop kept the original as `best_description`. **Correct outcome: change nothing —
+the gate passed.**
 
 ## The apply rule
 
