@@ -66,3 +66,4 @@
 | 062-operator-orientation | Ready | validate | 2026-06-16T13:00:00 |
 | 063-write-safety-guardrail | Complete | validate | 2026-07-17T19:09:30 |
 | 064-governance-navigation-path | Ready | validate | 2026-07-17T16:15:00 |
+| 065-constraint-discovery-path | Analyzed | risk | 2026-07-18T11:30:00 |
