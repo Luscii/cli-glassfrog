@@ -15,8 +15,8 @@ The Glassfrog API returns list results one page at a time, carrying paging state
 
 Which reads paginate:
 
-- **Paginated** — the list reads: `me roles`, `me actions`, `me projects`; `roles` (list), `subroles`, `domains`, `policies`, `projects`, `fillers`, `subrole-actors`, `search`; and the tension list reads. Each walks to completion by default.
-- **Not paginated** — single-resource reads (`roles <id>`, `domain <id>`, `policy <id>`, `project <id>`, `me`) and the organization `tree` (its response carries no `meta.pagination`). These issue exactly one request.
+- **Paginated** — **every list read** walks to completion by default. That includes the personal reads (`me roles`, `me actions`, `me projects`), the governance reads (`roles`, `subroles`, `domains`, `policies`, `projects`, `fillers`, `subrole-actors`, `search`), the actor reads (`actors`, `assignments`), and the tension and proposal list reads. (Illustrative, not exhaustive — the rule is that a list read walks.)
+- **Not paginated** — single-resource reads (`roles <id>`, `domain`/`policy`/`project <id>`, `me`, a single proposal or tension) and the organization `tree` (its response carries no `meta.pagination`). These issue exactly one request.
 
 ## The default: walk to completion
 

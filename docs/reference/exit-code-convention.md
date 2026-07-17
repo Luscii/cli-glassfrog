@@ -4,7 +4,7 @@
      Artifacts: interface-cli.md (Surface — code registry, Interactions, Error Communication); internal/cli/exitcode.go (shipped code constants)
      Generated: 2026-07-17
      Type: reference
-     Note: based on the interface accord; no codebase enrichment attempted. -->
+     Note: registry cross-checked against internal/cli/exitcode.go (shipped code constants). -->
 
 # Exit-Code Convention Reference
 

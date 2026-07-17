@@ -146,7 +146,7 @@ Failure rendering is **format-aware** (Output-Aware Failure Rendering): under `j
 | Condition | Exit | Diagnostic |
 |---|---|---|
 | Domains listed / domain read (incl. empty list, no-match search) | 0 | — (result on stdout; incompleteness note on stderr when applicable) |
-| No usable token | 2 | "not authenticated — run `glassfrog auth login`" |
+| No usable token | 2 | "not authenticated — run `glassfrog auth login` or set GLASSFROG_TOKEN" |
 | Unreadable / malformed credential file | 1 | names the path — "fix or remove the malformed `.glassfrogrc`" |
 | Unknown/forbidden role or domain id, or other non-2xx (4xx/5xx) | 3 / 4 / 5 | names the HTTP status + extracted detail; per-class next step (permission: "check the token's access"; rate-limit: "retry later") |
 | Could not reach the wire | 6 | names the transport failure + host — "check network access and the base URL" |
