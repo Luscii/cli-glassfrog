@@ -60,7 +60,7 @@ The body is thin — *when* + *workflow* + *delegation*, not a second copy of th
 | Section | Must convey |
 |---|---|
 | When to reach for it | The job: work a tension by understanding the governance around a free-form concern; and the boundaries — not tension *capture* (066), not authority *judgment* (065) |
-| The workflow | The single-sourced traversal steps: concern → `search` to discover what it touches → read the relevant roles (`roles get`) and fillers (`roles fillers` / `subrole-actors`) → draw in governing `roles domains` / `roles policies` → synthesize. Bounded by relevance, not a full-tree walk; where a search or list spans multiple pages it pages through the full set (per the orientation pagination guidance) *before* narrowing, so narrowing never silently drops unfetched pages |
+| The workflow | The single-sourced traversal steps: concern → `search` to discover what it touches → read the relevant roles (`roles [id]`) and fillers (`fillers` / `subrole-actors`) → draw in governing `domains` / `policies` → synthesize. Bounded by relevance, not a full-tree walk; where a search or list spans multiple pages it pages through the full set (per the orientation pagination guidance) *before* narrowing, so narrowing never silently drops unfetched pages |
 | Delegation | Instruction to run the `governance-navigator` subagent for execution so the raw reads stay out of the caller's context; and what the caller gets back (the synthesized picture) |
 | Read-only + surfacing note | States the path only reads and only *surfaces* governing governance — it hands "can I do X?" to 065. Points at orientation (062) for output/exit-code/pagination mechanics rather than restating them |
 
@@ -81,7 +81,7 @@ YAML, matching the installed-plugin agent convention (`name`, `description`, `to
 |---|---|
 | Identity & scope | Who it is (a read-only navigator) and its hard limits: never writes to the governance record, never judges authority |
 | Workflow | Executes the same single-sourced traversal the skill names (references it; does not restate a divergent copy) |
-| Composed reads | The exact `glassfrog` read leaves it may call: `search`, `roles get`, `tree`, `roles fillers`, `subrole-actors`, `roles domains`, `roles policies` — and only these |
+| Composed reads | The exact `glassfrog` read leaves it may call: `search`, `roles`, `tree`, `fillers`, `subrole-actors`, `domains`, `policies` — and only these |
 | Output contract | Returns **only** the synthesized picture (below), never a dump of raw command output |
 
 ### Synthesized-picture output shape
@@ -106,7 +106,7 @@ Every listed element carries the id needed to read it again (spec accord: the sy
 
 1. A caller (agent or user) senses a governance concern and its need matches the skill `description`; the host loads `SKILL.md` on demand.
 2. The skill states the workflow and directs the caller to delegate to the `governance-navigator` subagent, passing the concern.
-3. The subagent runs the traversal **in its own context**: `search` on the concern → resolve matched role ids into `roles get` → `roles fillers` / `subrole-actors` for who fills them → `roles domains` / `roles policies` for governing governance, following into sub-roles only as far as relevance warrants. Multi-page searches/lists are paged through in full (orientation pagination) before the picture is narrowed, so "most relevant" is chosen over the complete set.
+3. The subagent runs the traversal **in its own context**: `search` on the concern → resolve matched role ids into `roles [id]` → `fillers` / `subrole-actors` for who fills them → `domains` / `policies` for governing governance, following into sub-roles only as far as relevance warrants. Multi-page searches/lists are paged through in full (orientation pagination) before the picture is narrowed, so "most relevant" is chosen over the complete set.
 4. The subagent synthesizes and returns **only** the picture (the shape above) — the raw command output never leaves its context.
 5. The caller receives the picture and can act on any element by its id (bridging back into the CLI, or into 065/066 as the next step).
 
@@ -143,6 +143,6 @@ Runtime HTTP error shapes, status rendering, and rate-limit handling are **N/A**
 - **Sibling interface files**: none — this feature has only a specification touchpoint (it adds no `glassfrog` subcommand, API, UI, or event surface).
 - **Follows 062's plugin conventions**: `author`/`keywords` object-and-array manifest shape, skill auto-discovery (no `skills` array), hand-authored committed content, and deferral of per-command detail to `--help`. Extends them additively with the first `agents/` component (plan ADR-2).
 - **Introduces the skill+agent pattern** (plan ADR-1) — an **announced divergence** from 062 ADR-2's projection that the paths "arrive as sibling skills." Recorded in DECISIONS.md; #65 (Constraint Discovery, also a read path) may reuse this pattern.
-- **Refines plan ADR-5** on the tool-grant's reach (see Error Communication) — the divergence is a precision refinement, not a reversal: the plan already noted layered defense with 063.
+- **Consistent with plan ADR-5** on the tool-grant's reach (see Error Communication): both state the layered reality — the tool grant blocks `Write`/`Edit` (workspace mutation), and governance-write prevention is prompt scope + 063's `PreToolUse` hook when present.
 - **Depends on the orientation skill (062)** for output/pagination/exit-code mechanics and on 063's write-safety hook for the governance-write guarantee — both single-sourced elsewhere, referenced not duplicated.
 - **Agent frontmatter grounded** against installed plugins under `~/.claude/plugins/` (external examples, not repo files); the exact `tools` token list and any host-specific `agents` registration key are confirmed against the target host at build time.

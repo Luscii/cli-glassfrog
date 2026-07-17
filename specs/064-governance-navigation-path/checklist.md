@@ -20,7 +20,7 @@ Two observations are recorded below the check results and carried into analyze a
 
 ### Passed (12/12)
 
-- **I. Spec Fidelity** (P0) — The path invents no endpoint, parameter, or behavior: it composes only shipped read commands (`search`, `roles get`, `tree`, `roles fillers`, `subrole-actors`, `roles domains`, `roles policies`), plan ADR-3 forbids a new `navigate` command, and T002's drift guard pins those leaves to the CLI registry. spec.md Non-Behaviors + interface-spec Surface + validation scenario "The path names no read the CLI lacks".
+- **I. Spec Fidelity** (P0) — The path invents no endpoint, parameter, or behavior: it composes only shipped read commands (`search`, `roles`, `tree`, `fillers`, `subrole-actors`, `domains`, `policies`), plan ADR-3 forbids a new `navigate` command, and T002's drift guard pins those leaves to the CLI registry. spec.md Non-Behaviors + interface-spec Surface + validation scenario "The path names no read the CLI lacks".
 - **II. Action Transparency** (P0) — The synthesized picture carries each element's id (traceable, actionable); the underlying reads keep the CLI's machine-parseable output; error/empty/partial-failure scenarios surface cause + a refine next-step. (See Observation 1 on the picture's *form*.)
 - **III. Fail Safe, Not Silent** (P0) — Read-only, so no partial-write state is possible; the partial-failure scenario surfaces what failed and returns the reads that succeeded; the empty-search scenario reports "nothing found" rather than an empty-looking success.
 - **IV. Test-Driven Development** (P0) — 12 acceptance scenarios exist `@wip` in the feature file before implementation; tasks T001/T002 reference the scenarios they un-`@wip`.
