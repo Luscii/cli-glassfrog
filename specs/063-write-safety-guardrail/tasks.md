@@ -25,7 +25,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
 
 ## Phase 1: Recognizer + registry + hook [Shared]
 
-- [ ] **T001** [Shared] Add the gated-command registry and the PreToolUse hook registration
+- [x] **T001** [Shared] Add the gated-command registry and the PreToolUse hook registration — hooks.json + gated-commands.txt + build-side readers/validators; 3 guard tests; default-path discovery keeps 062's manifest setup-free (its 2 scenarios are @validation, held for validate)
   - **Scope**: Add `plugin/hooks/hooks.json` registering a `PreToolUse` hook with `matcher:"Bash"`, `type:"command"`, and a `${CLAUDE_PLUGIN_ROOT}`-rooted command pointing at the gate script, plus the single gated-command registry (a data file or a constant the gate script and the drift test both read) enumerating exactly the four proposal-write leaves: `proposal create`, `proposal propose`, `proposal respond`, `proposal withdraw`. Wires the gate in; no recognition logic yet. Adds no Go CLI code.
   - **Acceptance criteria**:
     - `plugin/hooks/hooks.json` parses as JSON and registers a `PreToolUse` entry with `matcher:"Bash"` and a single `type:"command"` hook whose `command` is rooted at `${CLAUDE_PLUGIN_ROOT}` with a bounded `timeout`; it is `type:"command"` (deterministic), never `type:"prompt"`
