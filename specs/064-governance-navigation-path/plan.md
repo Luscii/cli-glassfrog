@@ -107,7 +107,7 @@ Coverage is explicitly partial: it pins the *existence* of the command leaves th
 
 Single phase — the feature is one coherent unit with no internal sequencing that isn't obvious:
 
-1. **Author the skill and agent, register the agent, add the drift guard.** Write `plugin/skills/governance-navigation/SKILL.md` (when + workflow, delegating to the agent), write `plugin/agents/governance-navigator.md` (read-only grant + isolated execution returning the synthesized picture), update `plugin/.claude-plugin/plugin.json` per the host's agent-registration convention, and add the best-effort `internal/build` drift test. These land together because the drift test pins the command leaves the artifacts name, and the manifest registration is what makes the agent discoverable.
+1. **Author the skill and agent, add the drift guard.** Write `plugin/skills/governance-navigation/SKILL.md` (when + workflow, delegating to the agent), write `plugin/agents/governance-navigator.md` (read-only grant + isolated execution returning the synthesized picture), and add the best-effort `internal/build` drift test. The agent is discovered by directory convention from `plugin/agents/` — no `plugin.json` edit is needed (063's landed `hooks.json` confirms directory auto-discovery). These land together because the drift test pins the command leaves the artifacts name, and the agent must be present under `plugin/agents/` for its delegation to resolve.
 
 The tasks skill may still split this into PR-sized units (e.g. artifacts + registration in one, drift guard in another), but there is no cross-dependency forcing an order beyond "the artifacts must name the leaves the guard pins."
 
