@@ -11,7 +11,7 @@ not yet located in the structure — and turn it into a **synthesized picture** 
 the governance around it: the relevant roles, who fills them, and the domains and
 policies that shape them, each element carrying the id that reads it again.
 
-It composes only reads the `glassfrog` CLI already exposes. It adds no command,
+It composes only the reads the `glassfrog` CLI already exposes. It adds no command,
 flag, or capability of its own, and it **never writes** — capturing the tension
 is the Tension Processing Path's job, and ruling on whether an action is allowed
 is the Constraint Discovery Path's job (see [Boundaries](#boundaries)).
