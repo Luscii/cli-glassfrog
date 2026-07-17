@@ -50,14 +50,13 @@ type navigationWorld struct {
 	agent string
 	// skillRaw/agentRaw keep the verbatim content for structural checks that depend
 	// on line breaks (frontmatter delimiters, the tools list).
-	skillRaw     string
-	agentRaw     string
-	agentPresent bool
-	composed     []string
-	live         []string
-	tools        []string
-	hasTools     bool
-	drift        []string
+	skillRaw string
+	agentRaw string
+	composed []string
+	live     []string
+	tools    []string
+	hasTools bool
+	drift    []string
 }
 
 func (w *navigationWorld) register(sc *godog.ScenarioContext) {
@@ -148,7 +147,7 @@ func (w *navigationWorld) register(sc *godog.ScenarioContext) {
 
 // --- Loading -----------------------------------------------------------------
 
-func (w *navigationWorld) ensureLoaded() error {
+func (w *navigationWorld) ensureSkillLoaded() error {
 	if w.skillRaw == "" {
 		skill, err := ReadNavigationSkill()
 		if err != nil {
@@ -156,6 +155,10 @@ func (w *navigationWorld) ensureLoaded() error {
 		}
 		w.skillRaw, w.skill = skill, normalizeWS(skill)
 	}
+	return nil
+}
+
+func (w *navigationWorld) ensureAgentLoaded() error {
 	if w.agentRaw == "" {
 		agent, err := ReadNavigatorAgent()
 		if err != nil {
@@ -164,6 +167,16 @@ func (w *navigationWorld) ensureLoaded() error {
 		w.agentRaw, w.agent = agent, normalizeWS(agent)
 	}
 	return nil
+}
+
+// ensureLoaded loads both artifacts — used by every scenario except the
+// missing-navigator degradation path, which loads only the skill (see
+// givenAgentAbsent) so it faithfully models the agent being absent.
+func (w *navigationWorld) ensureLoaded() error {
+	if err := w.ensureSkillLoaded(); err != nil {
+		return err
+	}
+	return w.ensureAgentLoaded()
 }
 
 func (w *navigationWorld) givenLoaded() error { return w.ensureLoaded() }
@@ -214,7 +227,6 @@ func (w *navigationWorld) givenAgentRegistered() error {
 	if err := w.ensureLoaded(); err != nil {
 		return err
 	}
-	w.agentPresent = true
 	// Discoverability: the agent carries the frontmatter (name/description/tools)
 	// the host needs, and — like the skill — it is auto-discovered from
 	// plugin/agents/, so the manifest declares NO `agents` key.
@@ -260,15 +272,14 @@ func (w *navigationWorld) thenReturnsOnlyPicture() error {
 	return nil
 }
 
-func (w *navigationWorld) givenAgentAbsent() error {
-	if err := w.ensureLoaded(); err != nil {
-		return err
-	}
-	w.agentPresent = false
-	return nil
-}
+// givenAgentAbsent models the navigator agent being absent/unregistered: it loads
+// ONLY the skill. The degradation scenario asserts the skill's workflow stands
+// alone as guidance and no CLI command breaks — neither needs the agent, and
+// loading it would both contradict the premise and fail outright if the agent
+// file were genuinely gone.
+func (w *navigationWorld) givenAgentAbsent() error { return w.ensureSkillLoaded() }
 
-func (w *navigationWorld) whenSkillConsulted() error { return w.ensureLoaded() }
+func (w *navigationWorld) whenSkillConsulted() error { return w.ensureSkillLoaded() }
 
 func (w *navigationWorld) thenWorkflowStandsAsGuidance() error {
 	// The skill body carries the traversal steps itself (usable standalone) and
