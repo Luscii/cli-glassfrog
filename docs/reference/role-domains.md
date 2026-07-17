@@ -135,15 +135,15 @@ Inherited persistent root flags, read by cobra inheritance:
 | Flag | Description |
 |---|---|
 | `--base-url URL` | Override the API base URL (top rung of the base-URL precedence chain). |
-| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml`. Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full`. |
+| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml` — or, at the flag only, a user-template ref (a template file path, or `stdin`; see [User-Defined Template Output](user-defined-template-output.md)). Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full` (env/config accept only the four tokens). |
 
 The raw API envelope is never emitted under a human format (`full`/`compact`).
 
 ## Exit codes and errors
 
-Errors go to **stderr**; the exit code is the category from the Exit-Code Convention. Every message names the cause and a next step, and never includes the token.
+Failure rendering is **format-aware** (Output-Aware Failure Rendering): under `json`/`yaml` a failure emits the unified error envelope on **stdout** (so an agent parses success and failure the same way); under `full`/`compact` the diagnostic goes to **stderr**. The incompleteness note stays on **stderr** in every format. The exit code is the category from the Exit-Code Convention. Every diagnostic names the cause and a next step, and never includes the token.
 
-| Condition | Exit | stderr message |
+| Condition | Exit | Diagnostic |
 |---|---|---|
 | Domains listed / domain read (incl. empty list, no-match search) | 0 | — (result on stdout; incompleteness note on stderr when applicable) |
 | No usable token | 2 | "not authenticated — run `glassfrog auth login`" |

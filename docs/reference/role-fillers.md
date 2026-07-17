@@ -99,7 +99,7 @@ Inherited persistent root flags, read by cobra inheritance:
 | Flag | Description |
 |---|---|
 | `--base-url URL` | Override the API base URL (top rung of the base-URL precedence chain). |
-| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml`. Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full`. |
+| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml` — or, at the flag only, a user-template ref (a template file path, or `stdin`; see [User-Defined Template Output](user-defined-template-output.md)). Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full` (env/config accept only the four tokens). |
 
 The raw API envelope is never emitted under a human format.
 

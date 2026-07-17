@@ -60,7 +60,7 @@ Rendered in the resolved format. **Result order is the API's relevance order, pr
 [<type>]  <id>  <title>  rank=<rank>
 ```
 
-**`json` / `yaml`** — the raw API payload verbatim, in relevance order.
+**`json` / `yaml`** — the aggregated `{data:[…]}` document, built from each result's raw bytes across the walk (per-page `meta` dropped), in relevance order; a valid empty result is `{"data": []}`, never `null`.
 
 **Empty result** (the query matched nothing): under `full`/`compact`, stdout is exactly `No results.` and the command exits `0` — zero matches is a valid answer, not an error.
 
@@ -94,15 +94,15 @@ Inherited persistent root flags, read by cobra inheritance:
 | Flag | Description |
 |---|---|
 | `--base-url URL` | Override the API base URL (top rung of the base-URL precedence chain). |
-| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml`. Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full`. |
+| `-o`, `--output FORMAT` | `full` (default), `compact`, `json`, or `yaml` — or, at the flag only, a user-template ref (a template file path, or `stdin`; see [User-Defined Template Output](user-defined-template-output.md)). Resolution chain: flag → `GLASSFROG_OUTPUT` → `.glassfrogrc output` → `full` (env/config accept only the four tokens). |
 
 The raw API envelope is never emitted under a human format.
 
 ## Exit codes and errors
 
-Errors go to **stderr**; the exit code is the category from the Exit-Code Convention. Every message names the cause and a next step, and never includes the token.
+Failure rendering is **format-aware** (Output-Aware Failure Rendering): under `json`/`yaml` a failure emits the unified error envelope on **stdout** (so an agent parses success and failure the same way); under `full`/`compact` the diagnostic goes to **stderr**. The incompleteness note stays on **stderr** in every format. The exit code is the category from the Exit-Code Convention. Every diagnostic names the cause and a next step, and never includes the token.
 
-| Condition | Exit | stderr message |
+| Condition | Exit | Diagnostic |
 |---|---|---|
 | Results listed (incl. empty result) | 0 | — (result on stdout; incompleteness note on stderr when applicable) |
 | No usable token | 2 | "not authenticated — run `glassfrog auth login`" |
