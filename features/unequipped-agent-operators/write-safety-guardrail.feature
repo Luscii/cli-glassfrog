@@ -148,7 +148,6 @@ Feature: Write-Safety Guardrail
       And nothing in the CLI will break
 
     # Source: 063-write-safety-guardrail — architecture-informed (plan ADR-4 / interface drift tripwire; proposed by skill)
-    @wip
     Scenario: Drift tripwire fails when a gated leaf leaves the CLI
       Given the registry gated a proposal-write leaf the CLI's proposal surface no longer exposed
       When the internal/build drift tripwire runs

@@ -58,6 +58,41 @@ func TestGatedRegistryListsExactlyTheProposalWrites(t *testing.T) {
 	}
 }
 
+// TestWriteSafetyRegistryDriftGuard is the best-effort drift tripwire (T003, plan
+// ADR-4). It anchors the single-sourced gated-command registry to the CLI's actual
+// `proposal` subcommand surface so a newly-added or renamed proposal write command
+// cannot silently ship UNGATED.
+//
+// COVERAGE (explicitly partial, per plan R4 — stated, not silent):
+//   - every gated registry leaf (create/propose/respond/withdraw) still exists on
+//     the CLI's proposal command;
+//   - the CLI's full proposal subcommand surface still matches the checked-in
+//     expectation, so an added/renamed leaf (read OR write) breaks the build until
+//     it is reclassified and — if a write — added to the registry.
+//
+// NOT COVERED (no machine source to anchor against; left to review + the BDD
+// suite's command-variant unit coverage): the hook's command-string parsing
+// robustness (chaining, quoting, aliases — plan R1). The tripwire pins the
+// enumerable surface, never the parser; it is not total coverage.
+func TestWriteSafetyRegistryDriftGuard(t *testing.T) {
+	registry, err := ReadGatedRegistry()
+	if err != nil {
+		t.Fatalf("could not read the gated-command registry: %v", err)
+	}
+	live, err := LiveProposalSubcommands()
+	if err != nil {
+		t.Fatalf("could not extract the CLI's proposal subcommand surface: %v", err)
+	}
+	// Sanity-check the extraction itself, so a regression in LiveProposalSubcommands
+	// fails loudly rather than silently reporting an empty surface as "no drift".
+	if len(live) == 0 {
+		t.Fatal("extracted no proposal subcommands — the surface anchor could not be read")
+	}
+	if drift := CheckRegistryDrift(registry, live); len(drift) != 0 {
+		t.Fatalf("write-safety registry drifted from the CLI's proposal surface:\n  - %s", joinDrift(drift))
+	}
+}
+
 // TestGuardrailKeepsManifestSetupFree confirms the design choice that makes T001
 // safe for 062: the hook is discovered at the default hooks path, NOT declared as
 // a `hooks` key in plugin.json, so the manifest stays free of every setup-forcing

@@ -65,6 +65,12 @@ type gateWorld struct {
 
 	staleExitCode int    // the exit code of a prior confirmed write (7 == stale)
 	unlistedLeaf  string // the concrete unrecognized proposal leaf under test
+
+	// Drift tripwire scenario (T003).
+	registryLeaves []string
+	liveSurface    []string
+	droppedLeaf    string
+	driftFindings  []string
 }
 
 func (w *gateWorld) register(sc *godog.ScenarioContext) {
@@ -119,6 +125,12 @@ func (w *gateWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the agent runs "([^"]*)"$`, w.whenAgentRuns)
 	sc.Step(`^the write will proceed under Operator Orientation's guidance only with no enforcement$`, w.thenProceedUnderGuidance)
 	sc.Step(`^nothing in the CLI will break$`, w.thenNothingBreaks)
+
+	// Drift tripwire (T003) --------------------------------------------------
+	sc.Step(`^the registry gated a proposal-write leaf the CLI's proposal surface no longer exposed$`, w.givenRegistryGatesDroppedLeaf)
+	sc.Step(`^the internal/build drift tripwire runs$`, w.whenDriftTripwireRuns)
+	sc.Step(`^the tripwire will fail$`, w.thenTripwireFails)
+	sc.Step(`^it will report that the proposal subcommand surface changed without the registry$`, w.thenReportsSurfaceChanged)
 }
 
 // --- Gate driver + host model ----------------------------------------------
@@ -507,4 +519,53 @@ func (w *gateWorld) thenNothingBreaks() error {
 		return fmt.Errorf("plugin tree carries Go code — hook absence could no longer be isolated from the CLI")
 	}
 	return nil
+}
+
+// --- Drift tripwire (T003) -------------------------------------------------
+
+// givenRegistryGatesDroppedLeaf models the CLI dropping a still-gated proposal
+// write: the registry keeps every real leaf, but the live surface handed to the
+// tripwire has one gated leaf removed — the "a gated leaf left the CLI" condition.
+func (w *gateWorld) givenRegistryGatesDroppedLeaf() error {
+	reg, err := ReadGatedRegistry()
+	if err != nil {
+		return err
+	}
+	live, err := LiveProposalSubcommands()
+	if err != nil {
+		return err
+	}
+	const dropped = "withdraw" // a real gated write leaf, removed to model the CLI dropping it
+	var doctored []string
+	for _, l := range live {
+		if l != dropped {
+			doctored = append(doctored, l)
+		}
+	}
+	if len(doctored) == len(live) {
+		return fmt.Errorf("setup error: %q was not in the live proposal surface %v, so nothing was dropped", dropped, live)
+	}
+	w.registryLeaves, w.liveSurface, w.droppedLeaf = reg, doctored, dropped
+	return nil
+}
+
+func (w *gateWorld) whenDriftTripwireRuns() error {
+	w.driftFindings = CheckRegistryDrift(w.registryLeaves, w.liveSurface)
+	return nil
+}
+
+func (w *gateWorld) thenTripwireFails() error {
+	if len(w.driftFindings) == 0 {
+		return fmt.Errorf("drift tripwire reported no findings, but a gated leaf left the CLI's proposal surface")
+	}
+	return nil
+}
+
+func (w *gateWorld) thenReportsSurfaceChanged() error {
+	for _, f := range w.driftFindings {
+		if strings.Contains(f, w.droppedLeaf) {
+			return nil
+		}
+	}
+	return fmt.Errorf("no drift finding named the offending command %q; got %v", w.droppedLeaf, w.driftFindings)
 }

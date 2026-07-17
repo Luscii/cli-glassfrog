@@ -3,6 +3,10 @@ package build
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -182,4 +186,161 @@ func ReadGateScript() (string, error) {
 		return "", err
 	}
 	return string(raw), nil
+}
+
+// --- Drift tripwire (T003) --------------------------------------------------
+//
+// The drift tripwire anchors the single-sourced gated-command registry to the
+// CLI's actual `proposal` subcommand surface, so a newly-added or renamed proposal
+// write command cannot silently ship UNGATED (plan ADR-4). It is best-effort and
+// explicitly PARTIAL (plan R4, stated not silent): it pins the enumerable command
+// surface only. It deliberately does NOT verify the hook's command-string parsing
+// robustness (chaining, quoting, aliases — plan R1); that has no machine source to
+// anchor against and stays a review + unit-test concern (the BDD suite's
+// command-variant coverage). This gap is stated here rather than left silent.
+//
+// build stays cli-free (see VersionInjectionTarget / operatororientation.go), so
+// the proposal surface is read as strings from the CLI sources rather than by
+// importing internal/cli and inverting the dependency.
+
+// proposalSurfaceSource is the CLI source the proposal subcommand surface is
+// extracted from — the group constructor that registers every leaf.
+const proposalSurfaceSource = "internal/cli/proposal.go (newProposalCommand)"
+
+// expectedProposalSurface is the checked-in expectation of the CLI's full
+// `proposal` subcommand surface (sorted). It is the second half of the drift
+// guard: the gated registry (create/propose/respond/withdraw) covers the WRITES;
+// this pins the whole surface so an added/renamed leaf — read OR write — breaks
+// the build until a human reclassifies it and, if it is a write, adds it to the
+// registry. Reads (get/list) live here but not in the registry.
+var expectedProposalSurface = []string{"create", "get", "list", "propose", "respond", "withdraw"}
+
+// LiveProposalSubcommands extracts the current `proposal` subcommand leaves from
+// the CLI source: it reads the leaves newProposalCommand registers, then resolves
+// each constructor's cobra `Use:` token. Returned sorted. Extracting the real
+// `Use:` token (not the constructor name) means a rename of the command word is
+// caught even if the constructor keeps its name.
+func LiveProposalSubcommands() ([]string, error) {
+	proposalGo, err := readRepoFile("internal/cli/proposal.go")
+	if err != nil {
+		return nil, err
+	}
+	body, ok := extractFuncBody(string(proposalGo), "newProposalCommand")
+	if !ok {
+		return nil, fmt.Errorf("could not locate newProposalCommand in %s", proposalSurfaceSource)
+	}
+	suffixes := regexp.MustCompile(`MustRegister\(group,\s*newProposal(\w+)Command\(`).FindAllStringSubmatch(body, -1)
+	if len(suffixes) == 0 {
+		return nil, fmt.Errorf("found no proposal subcommands registered in newProposalCommand (%s)", proposalSurfaceSource)
+	}
+	sources, err := readProposalSources()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var leaves []string
+	for _, m := range suffixes {
+		suffix := m[1]
+		ctor := regexp.MustCompile(`func newProposal` + regexp.QuoteMeta(suffix) + `Command\([^)]*\)[^{]*\{`)
+		loc := ctor.FindStringIndex(sources)
+		if loc == nil {
+			return nil, fmt.Errorf("could not find constructor newProposal%sCommand for a registered proposal leaf", suffix)
+		}
+		use := regexp.MustCompile(`Use:\s*"([a-zA-Z][\w-]*)`).FindStringSubmatch(sources[loc[1]:])
+		if use == nil {
+			return nil, fmt.Errorf("could not read the Use token for newProposal%sCommand", suffix)
+		}
+		if !seen[use[1]] {
+			seen[use[1]] = true
+			leaves = append(leaves, use[1])
+		}
+	}
+	sort.Strings(leaves)
+	return leaves, nil
+}
+
+// CheckRegistryDrift returns one finding per way the registry and the CLI's
+// proposal surface have diverged. Empty means truthful. Each finding names the
+// offending command so a CI failure points straight at it.
+//
+//	(a) every gated registry leaf must still exist on the CLI's proposal command —
+//	    else the gate references a write the CLI dropped or renamed;
+//	(b) the CLI's proposal surface must match the checked-in expectation — a leaf
+//	    added or renamed beyond it (read OR write) must be consciously reclassified
+//	    and, if a write, added to the registry.
+func CheckRegistryDrift(registryLeaves, liveSurface []string) []string {
+	var findings []string
+
+	liveSet := map[string]bool{}
+	for _, l := range liveSurface {
+		liveSet[l] = true
+	}
+
+	// (a) gated leaves must still exist on the CLI.
+	for _, r := range registryLeaves {
+		leaf := r
+		if fields := strings.Fields(r); len(fields) == 2 && fields[0] == "proposal" {
+			leaf = fields[1]
+		}
+		if !liveSet[leaf] {
+			findings = append(findings, fmt.Sprintf("gated registry leaf %q no longer exists on the CLI's proposal command — the gate references a write the CLI dropped or renamed; fix the registry or restore the command (anchor: %s)", r, proposalSurfaceSource))
+		}
+	}
+
+	// (b) the proposal surface must match the checked-in expectation.
+	missing, extra := diffSets(expectedProposalSurface, liveSurface)
+	sort.Strings(missing)
+	sort.Strings(extra)
+	for _, e := range extra {
+		findings = append(findings, fmt.Sprintf("the CLI's proposal command grew or renamed subcommand %q, absent from the checked-in expectation — reclassify it (read or write?) and, if a write, add it to the gated registry before updating expectedProposalSurface (anchor: %s)", e, proposalSurfaceSource))
+	}
+	for _, m := range missing {
+		findings = append(findings, fmt.Sprintf("expected proposal subcommand %q is no longer on the CLI — the surface shrank or was renamed; update expectedProposalSurface and the registry to match (anchor: %s)", m, proposalSurfaceSource))
+	}
+
+	return findings
+}
+
+// extractFuncBody returns the text of the named top-level func — from its `func
+// <name>(` header to the next top-level `func ` (or end of file). Good enough to
+// scope a MustRegister sweep to one constructor without a full Go parse (build
+// stays cli-free). The second return is false when the func is absent.
+func extractFuncBody(src, name string) (string, bool) {
+	start := strings.Index(src, "func "+name+"(")
+	if start < 0 {
+		return "", false
+	}
+	rest := src[start+1:]
+	if next := strings.Index(rest, "\nfunc "); next >= 0 {
+		return src[start : start+1+next], true
+	}
+	return src[start:], true
+}
+
+// readProposalSources concatenates the non-test `proposal*.go` sources in
+// internal/cli so a constructor defined in any of them can be found.
+func readProposalSources() (string, error) {
+	root, err := RepoRoot()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(root, "internal", "cli")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	var sb strings.Builder
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasPrefix(name, "proposal") || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return "", err
+		}
+		sb.Write(b)
+		sb.WriteByte('\n')
+	}
+	return sb.String(), nil
 }

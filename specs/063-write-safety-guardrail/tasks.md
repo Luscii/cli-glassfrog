@@ -55,7 +55,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
 
 ## Phase 2: Drift tripwire [Shared]
 
-- [ ] **T003** [Shared] Add the best-effort drift tripwire in `internal/build`
+- [x] **T003** [Shared] Add the best-effort drift tripwire in `internal/build` — anchors the registry to the CLI's proposal surface (each gated leaf exists + full surface matches the checked-in expectation), names the offending command, documents its partial coverage (surface only, not parser robustness); drift scenario un-wipped
   - **Scope**: A new `internal/build` test anchoring the gated-command registry to the CLI's `proposal` subcommand surface, so a new or renamed proposal write command cannot silently ship ungated. Best-effort and explicitly partial; if an anchor proves infeasible, state the reduced coverage rather than dropping it silently.
   - **Acceptance criteria**:
     - Test asserts each registry leaf (`proposal create/propose/respond/withdraw`) still exists on the CLI's `proposal` command
