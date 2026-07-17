@@ -218,37 +218,48 @@ classify_segment() {
   local inv=${toks[i]}
   [ "${inv##*/}" = "glassfrog" ] || return 1
 
-  # Find the `proposal` group token among the remaining tokens. Absent → this is a
-  # read, a tension edit, or some other glassfrog command → ungated.
-  local p=-1 j
+  # Collect the POSITIONAL arguments after `glassfrog`, in order. The subcommand
+  # path is positional (`glassfrog <group> <leaf> <id>`), so the group is the first
+  # positional, the leaf the second, the target the third. Matching a `proposal`
+  # token positionally — not "anywhere" — is what keeps a flag VALUE equal to
+  # `proposal` (e.g. `--output proposal`, `--body proposal`) from mis-triggering the
+  # gate on an unrelated read or tension edit.
+  #
+  # Flags are skipped. The two persistent value-flags (`--base-url`, `-o`/`--output`)
+  # in space form consume the following token as their value, so that token is NOT a
+  # positional — skipping it prevents the reverse error: `glassfrog --output json
+  # proposal propose` must still resolve group=`proposal` (not `json`), so a real
+  # write is never let through. These are the only inheritable value-flags that can
+  # precede the group; command-specific value-flags (`--changes`/`--response`/
+  # `--body`) only appear after their subcommand.
+  local -a pos=()
+  local j tok skipval=0
   for (( j = i + 1; j < n; j++ )); do
-    if [ "${toks[j]}" = "proposal" ]; then
-      p=$j
-      break
+    tok=${toks[j]}
+    if [ "$skipval" = 1 ]; then
+      skipval=0
+      continue
     fi
+    case $tok in
+      --base-url|--output|-o) skipval=1 ;; # space-form value flag: its value is next
+      -*) : ;;                             # any other flag (booleans, --flag=value, bundled shorts)
+      *) pos+=("$tok") ;;                  # a positional argument
+    esac
   done
-  [ $p -ge 0 ] || return 1
 
-  # The leaf is the first non-flag token after `proposal`; the target the next
-  # non-flag token after the leaf.
-  local leaf='' target='' k
-  for (( k = p + 1; k < n; k++ )); do
-    case ${toks[k]} in -*) continue ;; esac
-    leaf=${toks[k]}
-    break
-  done
-  for (( k = k + 1; k < n; k++ )); do
-    case ${toks[k]} in -*) continue ;; esac
-    target=${toks[k]}
-    break
-  done
-  [ -n "$target" ] || target="the target"
+  local group=${pos[0]:-} leaf=${pos[1]:-} target=${pos[2]:-}
+
+  # Only the proposal group is in scope; a read, a tension edit, or any other group
+  # passes ungated.
+  [ "$group" = "proposal" ] || return 1
 
   # No subcommand leaf (bare `proposal`, or only flags such as --help): cobra prints
   # usage and writes nothing, so this is not a governance write — pass ungated. The
   # fail-closed default below applies to an unrecognized subcommand TOKEN, never to
   # the absence of one.
   [ -n "$leaf" ] || return 1
+
+  [ -n "$target" ] || target="the target"
 
   # A recognized proposal read passes ungated.
   if is_proposal_read "$leaf"; then

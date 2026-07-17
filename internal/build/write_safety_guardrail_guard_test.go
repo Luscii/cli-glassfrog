@@ -44,6 +44,42 @@ func TestGateHelpPathAndRegistryDriven(t *testing.T) {
 		}
 	})
 
+	// The subcommand group is positional; a flag VALUE equal to "proposal" must not
+	// trigger the gate (would mis-gate reads/tension edits), and a persistent flag
+	// before the group must not hide a real write (would let a write through).
+	t.Run("proposal as a flag value does not gate an unrelated command", func(t *testing.T) {
+		for _, cmd := range []string{
+			"glassfrog --output proposal roles",
+			"glassfrog -o proposal roles",
+			"glassfrog tension create r1 --body proposal --output json",
+			"glassfrog tension update ten_1 --body 'the proposal is unclear'",
+		} {
+			dec, _, err := runGateScript(cmd)
+			if err != nil {
+				t.Fatalf("gate errored on %q: %v", cmd, err)
+			}
+			if dec == "ask" {
+				t.Errorf("%q was gated (ask) — 'proposal' here is a flag value, not the subcommand group", cmd)
+			}
+		}
+	})
+
+	t.Run("a persistent flag before the proposal group still gates the write", func(t *testing.T) {
+		for _, cmd := range []string{
+			"glassfrog --output json proposal propose prp1",
+			"glassfrog -o json proposal create ten1",
+			"glassfrog --base-url http://x proposal withdraw prp1",
+		} {
+			dec, _, err := runGateScript(cmd)
+			if err != nil {
+				t.Fatalf("gate errored on %q: %v", cmd, err)
+			}
+			if dec != "ask" {
+				t.Errorf("%q was NOT gated (decision %q) — a value-flag before the group must not hide the write", cmd, dec)
+			}
+		}
+	})
+
 	t.Run("unrecognized proposal subcommand gates fail-closed with generic wording", func(t *testing.T) {
 		// A concrete token that is not in the registry and is not a recognized read.
 		leaf := "escalate"
