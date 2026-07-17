@@ -44,20 +44,31 @@ set -u
 allow() { exit 0; }
 
 # json_escape: escape a string for embedding in a JSON string literal, using only
-# bash builtins. Handles the characters that would otherwise break the JSON or
-# truncate the value ("\ and the control chars a command line can carry).
+# bash builtins. Escapes `"` and `\`, the shorthand control escapes, and — so the
+# emitted JSON is always valid — EVERY remaining character below 0x20 as \u00XX.
+# A raw control character in the command (a lenient host can pass one through)
+# would otherwise produce invalid JSON that the host may ignore, silently dropping
+# the gate decision. (NUL cannot occur in a bash string, so 0x00 is moot.)
 json_escape() {
-  local s=$1 out='' i c
+  local s=$1 out='' i c code
   local n=${#s}
   for (( i = 0; i < n; i++ )); do
     c=${s:i:1}
     case $c in
       '"') out+='\"' ;;
       '\') out+='\\' ;;
+      $'\b') out+='\b' ;;
+      $'\f') out+='\f' ;;
       $'\n') out+='\n' ;;
-      $'\t') out+='\t' ;;
       $'\r') out+='\r' ;;
-      *) out+=$c ;;
+      $'\t') out+='\t' ;;
+      *)
+        printf -v code '%d' "'$c"
+        if [ "$code" -ge 0 ] && [ "$code" -lt 32 ]; then
+          printf -v c '\\u%04x' "$code"
+        fi
+        out+=$c
+        ;;
     esac
   done
   printf '%s' "$out"
@@ -204,11 +215,34 @@ classify_segment() {
   read -ra toks <<<"$segment"
   local n=${#toks[@]} i=0
 
-  # Skip a leading VAR=val environment prefix.
+  # Resolve the real invocation token, stepping past a leading `VAR=val` env prefix
+  # and any transparent command-runner wrappers (`command`, `env`, `nohup`, …). A
+  # write must not slip through as `command glassfrog proposal propose` or
+  # `env VAR=val glassfrog proposal propose`, where the first token is the wrapper.
+  # Only these NAMED wrappers are stepped over (so `echo glassfrog proposal …` is
+  # still not treated as running glassfrog); for each we also skip its leading
+  # `-flags` and `VAR=val` assignments. Wrappers with positional/option-arg
+  # grammars (`timeout <dur>`, `sudo -u NAME`, `xargs`) are NOT fully handled and
+  # remain accepted residual (plan R1) — partial handling only ever gates more,
+  # never regresses.
   while [ $i -lt "$n" ]; do
     case ${toks[i]} in
-      [A-Za-z_]*=*) (( i++ )) ;;
-      *) break ;;
+      [A-Za-z_]*=*) (( i++ )) ;; # VAR=val env assignment
+      *)
+        case ${toks[i]##*/} in
+          command|env|nohup|setsid|stdbuf|nice|ionice|time)
+            (( i++ ))
+            # Step past the wrapper's own leading options and env assignments.
+            while [ $i -lt "$n" ]; do
+              case ${toks[i]} in
+                -* | [A-Za-z_]*=*) (( i++ )) ;;
+                *) break ;;
+              esac
+            done
+            ;;
+          *) break ;;
+        esac
+        ;;
     esac
   done
   [ $i -lt "$n" ] || return 1

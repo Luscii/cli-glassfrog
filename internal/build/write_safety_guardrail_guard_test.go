@@ -1,6 +1,7 @@
 package build
 
 import (
+	"encoding/json"
 	"sort"
 	"strings"
 	"testing"
@@ -77,6 +78,61 @@ func TestGateHelpPathAndRegistryDriven(t *testing.T) {
 			if dec != "ask" {
 				t.Errorf("%q was NOT gated (decision %q) — a value-flag before the group must not hide the write", cmd, dec)
 			}
+		}
+	})
+
+	// A proposal write must not slip through a transparent command-runner wrapper —
+	// the invocation is resolved past `command`/`env`/… to the real `glassfrog`.
+	t.Run("a write behind a transparent wrapper is still gated", func(t *testing.T) {
+		for _, cmd := range []string{
+			"command glassfrog proposal propose prp1",
+			"env VAR=val glassfrog proposal propose prp1",
+			"env glassfrog proposal create ten1",
+			"nohup glassfrog proposal withdraw prp1",
+		} {
+			dec, _, err := runGateScript(cmd)
+			if err != nil {
+				t.Fatalf("gate errored on %q: %v", cmd, err)
+			}
+			if dec != "ask" {
+				t.Errorf("%q was NOT gated (decision %q) — a wrapper must not let the write bypass the gate", cmd, dec)
+			}
+		}
+		// A wrapper running a non-glassfrog command must still pass ungated (only
+		// named wrappers are stepped over, not arbitrary first tokens).
+		for _, cmd := range []string{"echo glassfrog proposal propose prp1", "command ls", "env FOO=bar ls"} {
+			dec, _, err := runGateScript(cmd)
+			if err != nil {
+				t.Fatalf("gate errored on %q: %v", cmd, err)
+			}
+			if dec == "ask" {
+				t.Errorf("%q was gated (ask) — the wrapper is not running glassfrog", cmd)
+			}
+		}
+	})
+
+	// A raw control character in the command must not break the emitted JSON — the
+	// gate escapes every char below 0x20, so the host always sees a valid decision.
+	t.Run("a control character in the command yields valid JSON", func(t *testing.T) {
+		// Raw 0x01 embedded directly in the stdin (a lenient host could send one),
+		// built by hand so it is not \u-escaped away before the gate sees it. 0x01 has
+		// no shorthand escape, so it exercises the \u00XX branch.
+		stdin := "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"glassfrog proposal propose prp1 \x01 x\"}}"
+		out, err := runGateRawStdin(stdin)
+		if err != nil {
+			t.Fatalf("gate errored: %v", err)
+		}
+		for _, b := range []byte(out) {
+			if b < 0x20 && b != '\n' && b != '\t' {
+				t.Fatalf("gate output carries a raw control byte 0x%02x — invalid JSON a host may ignore: %q", b, out)
+			}
+		}
+		if !strings.Contains(out, "\\u0001") {
+			t.Errorf("expected the control char to be escaped as \\u0001 in the output: %q", out)
+		}
+		var probe map[string]any
+		if uerr := json.Unmarshal([]byte(strings.TrimSpace(out)), &probe); uerr != nil {
+			t.Errorf("gate output is not valid JSON: %v", uerr)
 		}
 	})
 

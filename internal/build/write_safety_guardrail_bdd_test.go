@@ -183,6 +183,27 @@ func runGateScript(command string) (decision, message string, err error) {
 	return g.HookSpecificOutput.PermissionDecision, msg, nil
 }
 
+// runGateRawStdin feeds the gate script arbitrary raw bytes on stdin (bypassing
+// json.Marshal, so a raw control character survives into the command value) and
+// returns the raw stdout. Used to assert the gate emits valid JSON even when the
+// command carries control characters.
+func runGateRawStdin(stdin string) (string, error) {
+	root, err := RepoRoot()
+	if err != nil {
+		return "", err
+	}
+	script := filepath.Join(root, filepath.FromSlash(GateScriptPath))
+	cmd := exec.Command("bash", script)
+	cmd.Stdin = bytes.NewReader([]byte(stdin))
+	var out, errBuf bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	if runErr := cmd.Run(); runErr != nil {
+		return "", fmt.Errorf("gate script failed: %v (stderr: %s)", runErr, errBuf.String())
+	}
+	return out.String(), nil
+}
+
 func (w *gateWorld) evaluate(command string) error {
 	w.command = command
 	dec, msg, err := runGateScript(command)
