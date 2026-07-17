@@ -178,26 +178,30 @@ func frontmatterBlock(content string) (string, bool) {
 // the command surface is read as strings from the CLI sources rather than by
 // importing internal/cli and inverting the dependency.
 
-// LiveTopLevelCommands extracts the current top-level command surface from the
-// CLI: it reads the constructors Assemble wires directly onto the root command,
-// then resolves each constructor's cobra `Use:` token to its command word.
-// Returned sorted. Extracting the real `Use:` token (not the constructor name)
-// means a rename of the command word is caught even if the constructor keeps its
-// name.
+// LiveTopLevelCommands extracts the CLI's top-level command surface from the
+// wiring site: it reads the constructors Assemble registers directly on the root
+// via the `MustRegister(root, new<X>Command(…))` pattern, then resolves each
+// constructor's cobra `Use:` token to its command word. Returned sorted.
+// Extracting the real `Use:` token (not the constructor name) means a rename of
+// the command word is caught even if the constructor keeps its name.
 //
-// The result is the WHOLE top-level surface — reads AND writes (`proposal`,
-// `tension`, …). The navigation drift guard checks that the composed READ leaves
-// are a subset of it; it is deliberately not read-filtered here, so callers must
-// not assume it returns only reads.
+// It is NOT exhaustive: a command registered via a variable rather than a direct
+// `new<X>Command(` call — e.g. `me`, wired as `MustRegister(root, meCmd)` — is not
+// matched. That is fine for the drift guard, whose purpose is only to confirm the
+// composed READ leaves still exist, and every one of those is wired with the
+// `new<X>Command(` pattern. The matched surface still spans reads AND writes
+// (`proposal`, `tension`, …); it is deliberately not read-filtered, so callers
+// must assume neither "only reads" nor "every top-level command".
 func LiveTopLevelCommands() ([]string, error) {
 	appSrc, err := readRepoFile("internal/cli/app.go")
 	if err != nil {
 		return nil, err
 	}
-	// Top-level commands are all wired as `MustRegister(root, new<Suffix>Command(…)`
-	// — the single explicit wiring site (app.go Assemble). Sub-commands registered
-	// on a group (e.g. `me`) are intentionally out of scope: the navigation path
-	// composes only top-level leaves.
+	// The composed read leaves — and most top-level commands — are wired as
+	// `MustRegister(root, new<Suffix>Command(…)` at the single explicit wiring site
+	// (app.go Assemble). A command registered via a variable (e.g. `me`, wired as
+	// `MustRegister(root, meCmd)`) does not match this pattern and is intentionally
+	// out of scope: every read leaf the navigation path composes is wired directly.
 	registered := regexp.MustCompile(`MustRegister\(root,\s*new(\w+)Command\(`).FindAllStringSubmatch(string(appSrc), -1)
 	if len(registered) == 0 {
 		return nil, fmt.Errorf("found no top-level commands registered on root in %s", cliWiringSource)
@@ -213,9 +217,10 @@ func LiveTopLevelCommands() ([]string, error) {
 		ctor := regexp.MustCompile(`func new` + regexp.QuoteMeta(suffix) + `Command\(`)
 		loc := ctor.FindStringIndex(sources)
 		if loc == nil {
-			// A constructor with no locatable definition (e.g. defined via a
-			// variable, like `me`) is skipped — it is not one of the top-level
-			// command leaves resolved here.
+			// A matched `new<X>Command(` whose constructor definition is not found
+			// in the cli sources is skipped rather than erroring. (Variable-wired
+			// commands like `me` never reach this branch — they don't match the
+			// `new<X>Command(` pattern above, so they're excluded before the lookup.)
 			continue
 		}
 		use := regexp.MustCompile(`Use:\s*"([a-zA-Z][\w-]*)`).FindStringSubmatch(sources[loc[1]:])
