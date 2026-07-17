@@ -1,6 +1,6 @@
 ---
 name: skill-validate
-description: Validates a Claude Skill deliverable before PR — runs the trigger-precision gate (skill-creator's description-optimizer) as independent verification, applies a description only if it wins on the held-out split, then hands off to score:validate for conformance. Use this instead of /score:validate whenever the thing being validated is itself a Claude Skill (a produced SKILL.md), when the user wants to check a skill's description won't over-trigger on adjacent surfaces, or when running post-implementation validation on a skill-deliverable.
+description: Validates a Claude Skill deliverable before PR — runs the trigger-precision gate (skill-creator's description-optimizer) as independent verification, applies a description only if it wins on the held-out split, then hands off to /score:validate for conformance. Use this instead of /score:validate whenever the thing being validated is itself a Claude Skill (a produced SKILL.md), when the user wants to check a skill's description won't over-trigger on adjacent surfaces, or when running post-implementation validation on a skill-deliverable.
 ---
 
 # Skill-Validate
@@ -80,7 +80,7 @@ Run skill-creator's description-optimizer as an independent evaluator. Then:
   validated." Optionally write a short `skill-trigger-gate.md` into the spec directory
   so the numbers and the applied/kept decision are durable alongside `validate.md`.
 
-### Step 4: Hand off to score:validate
+### Step 4: Hand off to /score:validate
 
 Invoke `/score:validate` against the same spec (via the Skill tool). This is the
 wrapper's composition step — `validate` runs its five conformance dimensions and
