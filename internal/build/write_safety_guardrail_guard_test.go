@@ -2,8 +2,72 @@ package build
 
 import (
 	"sort"
+	"strings"
 	"testing"
 )
+
+// TestGateHelpPathAndRegistryDriven locks in the two refinements from PR #150
+// review triage: (1) a bare `proposal` or a help/usage path such as
+// `proposal --help` writes nothing, so it must pass ungated rather than being
+// fail-closed gated on the absence of a subcommand leaf; and (2) the gated
+// classification is driven by the single-sourced registry — a registry-listed
+// write leaf gates with its specific effect wording, while an unrecognized
+// proposal subcommand token still gates fail-closed but with the generic wording,
+// proving `gated-commands.txt` actually influences the decision (not dead data).
+func TestGateHelpPathAndRegistryDriven(t *testing.T) {
+	t.Run("help and bare proposal pass ungated", func(t *testing.T) {
+		for _, cmd := range []string{
+			"glassfrog proposal --help",
+			"glassfrog proposal",
+			"glassfrog proposal -h",
+		} {
+			dec, _, err := runGateScript(cmd)
+			if err != nil {
+				t.Fatalf("gate errored on %q: %v", cmd, err)
+			}
+			if dec == "ask" {
+				t.Errorf("%q was gated (ask) — a help/usage path writes nothing and must pass ungated", cmd)
+			}
+		}
+	})
+
+	t.Run("registry-listed write gates with its specific effect", func(t *testing.T) {
+		dec, msg, err := runGateScript("glassfrog proposal propose prp_0123")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dec != "ask" {
+			t.Fatalf("a registry-listed write was not gated: decision %q", dec)
+		}
+		if !strings.Contains(msg, "into circulation") {
+			t.Errorf("gated write message lost its specific effect wording: %q", msg)
+		}
+	})
+
+	t.Run("unrecognized proposal subcommand gates fail-closed with generic wording", func(t *testing.T) {
+		// A concrete token that is not in the registry and is not a recognized read.
+		leaf := "escalate"
+		leaves, err := ReadGatedRegistry()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, l := range leaves {
+			if l == "proposal "+leaf {
+				t.Fatalf("%q is in the registry — pick a token that is not, to exercise fail-closed", leaf)
+			}
+		}
+		dec, msg, err := runGateScript("glassfrog proposal " + leaf + " prp_9")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dec != "ask" {
+			t.Fatalf("an unrecognized proposal subcommand was not gated fail-closed: decision %q", dec)
+		}
+		if !strings.Contains(msg, "unrecognized proposal subcommand") {
+			t.Errorf("fail-closed message did not use the generic wording (registry not consulted?): %q", msg)
+		}
+	})
+}
 
 // TestGateRegistrationWellFormed pins T001's contract: the PreToolUse hook that
 // wires the write-safety gate to the Bash tool is present, deterministic, and

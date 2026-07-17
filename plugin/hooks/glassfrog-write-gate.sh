@@ -173,8 +173,10 @@ is_proposal_read() { case "$PROPOSAL_READS" in *" $1 "*) return 0 ;; *) return 1
 
 # --- Command classification -------------------------------------------------
 
-# effect_for LEAF TARGET — the human-facing effect clause for a gated write. States
-# WHAT changes (command, target, effect); never whether the change is sound.
+# effect_for LEAF TARGET — the human-facing effect clause for a registry-listed
+# write. States WHAT changes (command, target, effect); never whether the change is
+# sound. The default arm covers a registry leaf without a bespoke phrasing (e.g. a
+# future write added to the registry) — still naming command/target/effect.
 effect_for() {
   local leaf=$1 target=$2
   case $leaf in
@@ -182,15 +184,20 @@ effect_for() {
     propose) printf 'advance proposal %s into circulation' "$target" ;;
     respond) printf 'record a response on proposal %s' "$target" ;;
     withdraw) printf 'withdraw proposal %s' "$target" ;;
-    *) printf 'run an unrecognized proposal write (%s), gated by default until the guardrail registry lists it' "$leaf" ;;
+    *) printf 'perform the %s proposal write on %s' "$leaf" "$target" ;;
   esac
 }
 
-# classify_segment SEGMENT — inspect one command segment. Echoes the gated leaf and
-# target ("leaf<TAB>target") and returns 0 when the segment is a proposal write to
-# gate (a registered write leaf, OR — fail-closed — an unrecognized proposal
-# subcommand). Returns 1 for anything that passes ungated (non-glassfrog, a read,
-# a tension edit, a recognized proposal read).
+# classify_segment SEGMENT — inspect one command segment. On a proposal write to
+# gate it echoes "<kind>\t<leaf>\t<target>" and returns 0, where <kind> is:
+#   - "gated"      — a registry-listed write leaf (the registry is the source of
+#                    truth for what is a governance write); or
+#   - "failclosed" — an unrecognized proposal subcommand token, gated by default
+#                    (a future write leaf until the registry lists it).
+# It returns 1 for anything that passes ungated: non-glassfrog, no proposal group,
+# NO subcommand leaf at all (bare `proposal` or a help/usage path like
+# `proposal --help` — cobra prints usage and writes nothing), a recognized proposal
+# read (get/list), a tension edit, or a plain read.
 classify_segment() {
   local segment=$1
   local -a toks
@@ -237,13 +244,25 @@ classify_segment() {
   done
   [ -n "$target" ] || target="the target"
 
+  # No subcommand leaf (bare `proposal`, or only flags such as --help): cobra prints
+  # usage and writes nothing, so this is not a governance write — pass ungated. The
+  # fail-closed default below applies to an unrecognized subcommand TOKEN, never to
+  # the absence of one.
+  [ -n "$leaf" ] || return 1
+
   # A recognized proposal read passes ungated.
-  if [ -n "$leaf" ] && is_proposal_read "$leaf"; then
+  if is_proposal_read "$leaf"; then
     return 1
   fi
-  # A registered write leaf, or a missing/unrecognized proposal subcommand
-  # (fail-closed), is gated.
-  printf '%s\t%s' "$leaf" "$target"
+
+  # A registry-listed write leaf is gated — the registry is the source of truth for
+  # what counts as a governance write. Any other proposal subcommand is gated
+  # fail-closed: a future write leaf until the registry lists it.
+  if is_gated "$leaf"; then
+    printf 'gated\t%s\t%s' "$leaf" "$target"
+  else
+    printf 'failclosed\t%s\t%s' "$leaf" "$target"
+  fi
   return 0
 }
 
@@ -274,9 +293,16 @@ segments=${segments//|/$'\n'}
 while IFS= read -r segment; do
   [ -n "$segment" ] || continue
   if hit=$(classify_segment "$segment"); then
-    leaf=${hit%%$'\t'*}
-    target=${hit#*$'\t'}
-    ask "Governance write: \`$command\` will $(effect_for "$leaf" "$target"). Confirm to proceed; the write is sent only if you approve."
+    kind=${hit%%$'\t'*}
+    rest=${hit#*$'\t'}
+    leaf=${rest%%$'\t'*}
+    target=${rest#*$'\t'}
+    if [ "$kind" = "gated" ]; then
+      effect=$(effect_for "$leaf" "$target")
+    else
+      effect="run an unrecognized proposal subcommand ($leaf), gated by default until the guardrail registry lists it"
+    fi
+    ask "Governance write: \`$command\` will $effect. Confirm to proceed; the write is sent only if you approve."
   fi
 done <<<"$segments"
 
