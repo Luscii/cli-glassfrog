@@ -39,11 +39,11 @@ func TestGovernanceNavigationDriftGuard(t *testing.T) {
 		t.Fatalf("the composed-read registry %s lists no leaves — the guard would check nothing", ComposedReadsPath)
 	}
 
-	live, err := LiveTopLevelReads()
+	live, err := LiveTopLevelCommands()
 	if err != nil {
 		t.Fatalf("could not extract the CLI's top-level command surface: %v", err)
 	}
-	// Sanity-check the extraction, so a regression in LiveTopLevelReads fails loudly
+	// Sanity-check the extraction, so a regression in LiveTopLevelCommands fails loudly
 	// rather than silently reporting an empty surface as "no drift".
 	if len(live) == 0 {
 		t.Fatal("extracted no top-level commands — the surface anchor could not be read")

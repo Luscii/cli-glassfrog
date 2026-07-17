@@ -86,14 +86,14 @@ func TestCheckNavigationDrift(t *testing.T) {
 	}
 }
 
-// TestLiveTopLevelReads_ComposedLeavesResolve is a focused positive check that the
-// extraction resolves the exact read leaves the navigation path composes to real
-// top-level commands — a regression in the app.go/cli-source parsing that dropped
-// one would otherwise surface only as a confusing drift-guard failure.
-func TestLiveTopLevelReads_ComposedLeavesResolve(t *testing.T) {
-	live, err := LiveTopLevelReads()
+// TestLiveTopLevelCommands_ComposedLeavesResolve is a focused positive check that
+// the extraction resolves the exact read leaves the navigation path composes to
+// real top-level commands — a regression in the app.go/cli-source parsing that
+// dropped one would otherwise surface only as a confusing drift-guard failure.
+func TestLiveTopLevelCommands_ComposedLeavesResolve(t *testing.T) {
+	live, err := LiveTopLevelCommands()
 	if err != nil {
-		t.Fatalf("LiveTopLevelReads: %v", err)
+		t.Fatalf("LiveTopLevelCommands: %v", err)
 	}
 	set := map[string]bool{}
 	for _, r := range live {
@@ -101,7 +101,7 @@ func TestLiveTopLevelReads_ComposedLeavesResolve(t *testing.T) {
 	}
 	for _, leaf := range []string{"search", "roles", "tree", "fillers", "subrole-actors", "domains", "policies"} {
 		if !set[leaf] {
-			t.Errorf("LiveTopLevelReads did not resolve the composed read leaf %q; got %v", leaf, live)
+			t.Errorf("LiveTopLevelCommands did not resolve the composed read leaf %q; got %v", leaf, live)
 		}
 	}
 }

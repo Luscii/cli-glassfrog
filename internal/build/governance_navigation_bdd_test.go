@@ -570,7 +570,7 @@ func (w *navigationWorld) givenNavigationContent() error {
 }
 
 func (w *navigationWorld) whenCheckedAgainstCLI() error {
-	live, err := LiveTopLevelReads()
+	live, err := LiveTopLevelCommands()
 	if err != nil {
 		return fmt.Errorf("could not extract the CLI's top-level command surface: %w", err)
 	}

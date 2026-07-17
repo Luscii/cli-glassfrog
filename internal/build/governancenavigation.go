@@ -178,20 +178,26 @@ func frontmatterBlock(content string) (string, bool) {
 // the command surface is read as strings from the CLI sources rather than by
 // importing internal/cli and inverting the dependency.
 
-// LiveTopLevelReads extracts the current top-level command surface from the CLI:
-// it reads the constructors Assemble wires directly onto the root command, then
-// resolves each constructor's cobra `Use:` token to its command word. Returned
-// sorted. Extracting the real `Use:` token (not the constructor name) means a
-// rename of the command word is caught even if the constructor keeps its name.
-func LiveTopLevelReads() ([]string, error) {
+// LiveTopLevelCommands extracts the current top-level command surface from the
+// CLI: it reads the constructors Assemble wires directly onto the root command,
+// then resolves each constructor's cobra `Use:` token to its command word.
+// Returned sorted. Extracting the real `Use:` token (not the constructor name)
+// means a rename of the command word is caught even if the constructor keeps its
+// name.
+//
+// The result is the WHOLE top-level surface — reads AND writes (`proposal`,
+// `tension`, …). The navigation drift guard checks that the composed READ leaves
+// are a subset of it; it is deliberately not read-filtered here, so callers must
+// not assume it returns only reads.
+func LiveTopLevelCommands() ([]string, error) {
 	appSrc, err := readRepoFile("internal/cli/app.go")
 	if err != nil {
 		return nil, err
 	}
-	// The composed reads are all wired as `MustRegister(root, new<Suffix>Command(…)`
+	// Top-level commands are all wired as `MustRegister(root, new<Suffix>Command(…)`
 	// — the single explicit wiring site (app.go Assemble). Sub-commands registered
-	// on a group (e.g. `me`) are intentionally out of scope: the navigator composes
-	// only top-level leaves.
+	// on a group (e.g. `me`) are intentionally out of scope: the navigation path
+	// composes only top-level leaves.
 	registered := regexp.MustCompile(`MustRegister\(root,\s*new(\w+)Command\(`).FindAllStringSubmatch(string(appSrc), -1)
 	if len(registered) == 0 {
 		return nil, fmt.Errorf("found no top-level commands registered on root in %s", cliWiringSource)
@@ -208,8 +214,8 @@ func LiveTopLevelReads() ([]string, error) {
 		loc := ctor.FindStringIndex(sources)
 		if loc == nil {
 			// A constructor with no locatable definition (e.g. defined via a
-			// variable, like `me`) is skipped — it is not one of the top-level read
-			// leaves the navigator composes.
+			// variable, like `me`) is skipped — it is not one of the top-level
+			// command leaves resolved here.
 			continue
 		}
 		use := regexp.MustCompile(`Use:\s*"([a-zA-Z][\w-]*)`).FindStringSubmatch(sources[loc[1]:])
@@ -240,11 +246,11 @@ func LiveTopLevelReads() ([]string, error) {
 //	    — else the artifacts name a read the CLI dropped or renamed;
 //	(b) the navigator agent must name every composed leaf — so the artifact prose
 //	    stays a genuine consumer of the single source and cannot silently drop one.
-func CheckNavigationDrift(composedLeaves, liveReads []string, agent string) []string {
+func CheckNavigationDrift(composedLeaves, liveCommands []string, agent string) []string {
 	var findings []string
 
 	liveSet := map[string]bool{}
-	for _, r := range liveReads {
+	for _, r := range liveCommands {
 		liveSet[r] = true
 	}
 
@@ -264,31 +270,6 @@ func CheckNavigationDrift(composedLeaves, liveReads []string, agent string) []st
 	}
 
 	return findings
-}
-
-// mentionsToken reports a case-insensitive word-boundary match for a bare token
-// (e.g. a command leaf) so "roles" matches but "controls" does not. A hyphen is a
-// boundary, so "subrole-actors" is matched as the whole leaf. Shared by the BDD
-// suite and the drift guard.
-func mentionsToken(text, token string) bool {
-	low := strings.ToLower(text)
-	t := strings.ToLower(token)
-	for {
-		i := strings.Index(low, t)
-		if i < 0 {
-			return false
-		}
-		before := i == 0 || !isWordByte(low[i-1])
-		after := i+len(t) >= len(low) || !isWordByte(low[i+len(t)])
-		if before && after {
-			return true
-		}
-		low = low[i+len(t):]
-	}
-}
-
-func isWordByte(b byte) bool {
-	return b == '_' || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9')
 }
 
 // readCLISources concatenates the non-test .go sources in internal/cli so a
