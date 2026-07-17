@@ -1,0 +1,26 @@
+# Composed-read registry — the reads the Governance Navigation Path traverses
+# (064 Governance Navigation Path).
+#
+# THE single source of "which glassfrog read leaves the navigator composes",
+# consumed by BOTH:
+#   - the governance-navigator agent  (plugin/agents/governance-navigator.md)
+#     — its "Composed reads" section names exactly these leaves and no others
+#   - the drift guard                 (internal/build/governance_navigation_guard_test.go)
+#     — it checks every leaf here still resolves to a top-level command in the
+#       shipped CLI, and that the agent artifact names each one
+# so the artifact prose and the guard can never disagree about the composed
+# surface (plan ADR-4, mirroring 063's gated-commands.txt).
+#
+# Each non-comment, non-blank line is ONE top-level `glassfrog` read command the
+# navigator may invoke. These are reads only — no write leaf (proposal/tension
+# writes) ever appears here; the path never writes (spec non-behavior).
+#
+# Renaming or dropping one of these commands in the CLI turns the drift guard red
+# — a navigation artifact cannot silently name a read the CLI no longer exposes.
+search
+roles
+tree
+fillers
+subrole-actors
+domains
+policies
