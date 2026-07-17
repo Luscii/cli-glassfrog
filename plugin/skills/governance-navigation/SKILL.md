@@ -36,7 +36,7 @@ path only surfaces the governing governance; it does not judge it.
 
 ## The workflow
 
-These are the single source of the traversal steps — the `governance-navigator`
+This is the single source of the traversal steps — the `governance-navigator`
 agent runs exactly this workflow; it does not carry a second copy. From a concern:
 
 1. **Search** — run `search` on the concern to discover what governance it
