@@ -37,7 +37,7 @@ T002 depends on T001; T003 also depends only on T001, so once T001 lands on the 
   - **Scenario references**: write-safety-guardrail.feature: "No proposal-write path bypasses confirmation", "Tension edits stay outside the gate"
   - **Interface references**: interface-spec.md — Surface (structural layout, `hooks.json` schema, gated-command registry)
 
-- [ ] **T002** [Shared] Implement the gate script — recognizer plus permission-decision emitter
+- [x] **T002** [Shared] Implement the gate script — recognizer plus permission-decision emitter — pure-bash gate (no jq/sed/grep), fail-closed within proposal, fail-safe elsewhere; BDD suite drives the real script + models the host confirmation loop; 11 scenarios un-wipped (5 @validation held for validate)
   - **Scope**: The `PreToolUse` gate script: read the tool-call JSON on stdin, and for a `Bash` call parse `tool_input.command`, resolve the `glassfrog` invocation token (bare name, absolute/relative path, leading `VAR=val` env prefix) and the subcommand path, classify against the registry, and emit the permission decision on stdout. No CLI code; lives under `plugin/hooks/`.
   - **Acceptance criteria**:
     - A recognized proposal-write leaf → `{"hookSpecificOutput":{"permissionDecision":"ask"}}` with a message naming the command, the target id, and the effect; a write is sent only after the practitioner confirms
