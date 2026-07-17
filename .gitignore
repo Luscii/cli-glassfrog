@@ -17,3 +17,7 @@
 # npm auth token for local publish/testing — a secret, never commit it.
 # (Release publishing uses tokenless OIDC; no token is needed in CI.)
 .npmrc
+
+# Skill-review eval scratch (skill-validate / skill-creator description-optimizer):
+# eval sets, results, and run logs are evaluation artifacts, never committed.
+.context/skill-review/
