@@ -33,7 +33,7 @@ The value is interpreted (flag rung only) as:
 
 ## Affected commands
 
-Every result-producing read that resolves `-o` — `me` / `me roles` / `me actions` / `me projects`, `roles` / `role` / `tree` / `subroles`, `domains` / `domain`, `policies` / `policy`, `projects` / `project`, and every future `--output`-capable read. The command synopsis is unchanged (the `-o <value>` slot already exists). Commands that produce no result data (`auth login`, `version`) are unaffected by `-o`.
+Every result-producing read that resolves `-o` — `me` / `me roles` / `me actions` / `me projects`, `roles` (list or single by id) / `tree` / `subroles`, `domains` / `domain`, `policies` / `policy`, `projects` / `project`, and every future `--output`-capable read. The command synopsis is unchanged (the `-o <value>` slot already exists). Commands that produce no result data (`auth login`, `version`) are unaffected by `-o`.
 
 ## What a user template puts on stdout
 
