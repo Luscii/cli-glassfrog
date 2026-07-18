@@ -570,21 +570,23 @@ func (w *proposalDraftingWorld) thenCreateGatedRunsConfirmed() error {
 }
 
 func (w *proposalDraftingWorld) thenNotUngated() error {
-	// Structurally: the create is a member of 063's gated set and the situating
-	// reads are not — the gated-membership invariant, source-derived from both
-	// registries (never a hard-coded write-leaf name).
+	// Structurally: the one gated write (the create) is a composed leaf AND a member
+	// of 063's gated set, and every other composed leaf (the situating reads) is
+	// absent from it. Anchored on the write leaf — deriving it as "the single gated
+	// composed leaf" would pass if a read were swapped in for the create (both share
+	// the proposal group), the exact regression this check exists to catch.
 	gatedSet := setOf(w.gated)
-	var gatedComposed []string
+	composedSet := setOf(w.composed)
+	if !composedSet[ProposalDraftingGatedWrite] {
+		return fmt.Errorf("the composed set no longer names the one gated write %q — the guardrail-crossing write is missing from what the path composes", ProposalDraftingGatedWrite)
+	}
+	if !gatedSet[ProposalDraftingGatedWrite] {
+		return fmt.Errorf("the one gated write %q is not a member of 063's gated set — the create would ship ungated", ProposalDraftingGatedWrite)
+	}
 	for _, leaf := range w.composed {
-		if gatedSet[leaf] {
-			gatedComposed = append(gatedComposed, leaf)
+		if leaf != ProposalDraftingGatedWrite && gatedSet[leaf] {
+			return fmt.Errorf("composed leaf %q is a situating read but is gated by 063 — situating would start prompting", leaf)
 		}
-	}
-	if len(gatedComposed) != 1 {
-		return fmt.Errorf("the composed set must contain exactly one gated write (its create), found %d (%v) — a create dropped from the gated set would ship ungated, a read added to it would start prompting", len(gatedComposed), gatedComposed)
-	}
-	if fields := strings.Fields(gatedComposed[0]); len(fields) != 2 || fields[0] != "proposal" {
-		return fmt.Errorf("the single gated composed leaf %q is not a proposal write — the one gated write must be a governance write", gatedComposed[0])
 	}
 	// A situating read passes 063's gate ungated (would-be prompting is the defect).
 	dec, _, err := runGateScript(`glassfrog proposal list --role-id circ_1 --status draft`)
@@ -640,18 +642,21 @@ func (w *proposalDraftingWorld) whenInspectForCirculationStep() error {
 }
 
 func (w *proposalDraftingWorld) thenContainsNoCirculationStep() error {
-	// The path RUNS exactly one gated write (the create). Any circulation write
-	// (propose/respond/withdraw) is a gated leaf the composed set must NOT contain —
-	// the artifacts may disclaim them in the fence, but the path never runs them.
-	composedSet := setOf(w.composed)
-	var gatedComposed []string
-	for _, g := range w.gated {
-		if composedSet[g] {
-			gatedComposed = append(gatedComposed, g)
+	// The path RUNS exactly one gated write — the create — and no circulation write
+	// (propose/respond/withdraw). The gated composed leaves must be EXACTLY the
+	// create anchor: any other gated leaf in the composed set is a circulation write
+	// the path would run, and the create missing means it stops short of its write.
+	gatedSet := setOf(w.gated)
+	if !gatedSet[ProposalDraftingGatedWrite] {
+		return fmt.Errorf("the one gated write %q is not gated by 063 — the path's create would ship ungated", ProposalDraftingGatedWrite)
+	}
+	for _, leaf := range w.composed {
+		if gatedSet[leaf] && leaf != ProposalDraftingGatedWrite {
+			return fmt.Errorf("the composed set runs the gated write %q beyond the create — the path must stop at the created draft, never a circulation write", leaf)
 		}
 	}
-	if len(gatedComposed) != 1 {
-		return fmt.Errorf("the composed set runs %d gated writes (%v) — the path must stop at the created draft, running only the one create, never a circulation write", len(gatedComposed), gatedComposed)
+	if !setOf(w.composed)[ProposalDraftingGatedWrite] {
+		return fmt.Errorf("the composed set no longer names the create %q — the path must create the draft it stops at", ProposalDraftingGatedWrite)
 	}
 	return nil
 }

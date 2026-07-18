@@ -106,13 +106,19 @@ func parseProposalDraftingCommands(content string) []string {
 //
 // It is the INVERSE of 066's disjointness assertion. 066 requires every composed
 // tension leaf to be ABSENT from the gated set (all its writes are ungated); 067
-// requires EXACTLY ONE composed leaf to be PRESENT in the gated set (its one
-// gated create) and the rest absent (the situating reads). Both are fully
-// source-derived — the composed leaves from the registry, the gated set from
-// 063's gated-commands.txt, the live surfaces from the CLI sources — so the guard
-// hard-codes none of them, including the identity of the write leaf: it is
-// derived as "the single composed leaf 063 gates", never named literally
-// (LEARNINGS: a drift guard must not hard-code the value it guards).
+// requires its one gated write (ProposalDraftingGatedWrite) to be PRESENT in the
+// gated set and every other composed leaf (the situating reads) to be ABSENT. The
+// three registries are source-derived — the composed leaves from the registry,
+// the gated set from 063's gated-commands.txt, the live surfaces from the CLI
+// sources. The one thing that MUST be named is the identity of the gated write: it
+// cannot be derived as "the single composed leaf 063 gates", because a read and
+// the create both live in the `proposal` group, so that derivation would pass if
+// `proposal create` were dropped from the gated set and a read added in its place
+// (both leave exactly one gated composed leaf, both in the `proposal` group) — the
+// very "create ships unconfirmed" regression the guard exists to catch. So the
+// write leaf is an explicit contract anchor (ProposalDraftingGatedWrite), pinned
+// like 063's expectedProposalSurface, and cross-checked against the composed leaf
+// list so a drift in either surfaces.
 //
 // It is best-effort and explicitly PARTIAL (plan ADR-5, stated not silent): it
 // pins the EXISTENCE of the composed leaves and their GATE-MEMBERSHIP only. It
@@ -121,6 +127,19 @@ func parseProposalDraftingCommands(content string) []string {
 // content-inspection scenarios cover those required phrases), or the gate script's
 // command-string parsing robustness (063's own suite covers it). That gap is
 // stated here rather than left silent (no silent caps).
+
+// ProposalDraftingGatedWrite is 067's one gated governance write — the single
+// composed leaf that MUST be a member of 063's gated set and always run through
+// the confirmed write flow (spec/ADR-3: "the path performs exactly one gated
+// write — the proposal create"). It is an explicit contract anchor, checked in
+// like 063's expectedProposalSurface, because the gate-membership invariant needs
+// an independent statement of WHICH leaf must be gated: a situating read
+// (proposal get/list) shares the `proposal` group with the create, so deriving
+// the write from the gated set alone cannot tell "the create is gated" from "a
+// read was swapped in for the create" — the exact regression that would ship the
+// create unconfirmed. The guard cross-checks this anchor against the composed leaf
+// list, so it can never silently name a leaf the path does not actually compose.
+const ProposalDraftingGatedWrite = "proposal create"
 
 // CheckProposalDraftingDrift returns one finding per way the composed-leaf
 // registry, the CLI's command surface, and 063's gated proposal-write registry
@@ -132,11 +151,11 @@ func parseProposalDraftingCommands(content string) []string {
 //	(b) every composed leaf's subcommand must still exist on the matching CLI
 //	    command (tension leaves against liveTension, proposal leaves against
 //	    liveProposal) — else the artifacts name a command the CLI dropped or renamed;
-//	(c) the gated-membership invariant: EXACTLY ONE composed leaf may be a member
-//	    of 063's gated set (the one gated create), and it must be a `proposal`
-//	    write. Zero gated → the create left the gated registry and would ship
-//	    unconfirmed; more than one → a situating read entered the gated set and
-//	    would start prompting;
+//	(c) the gated-membership invariant, anchored on the one gated write
+//	    (ProposalDraftingGatedWrite): the write anchor is named in the composed
+//	    list AND is a member of 063's gated set (else the create ships
+//	    unconfirmed), and every OTHER composed leaf is absent from the gated set
+//	    (else a situating read would start prompting);
 //	(d) the proposal-drafter agent must name every composed leaf — so the artifact
 //	    prose stays a genuine consumer of the single source and cannot silently
 //	    drop one.
@@ -148,8 +167,8 @@ func CheckProposalDraftingDrift(composedLeaves, liveTension, liveProposal, gated
 		"proposal": setOf(liveProposal),
 	}
 	gatedSet := setOf(gatedLeaves)
+	composedSet := setOf(composedLeaves)
 
-	var gatedComposed []string
 	for _, leaf := range composedLeaves {
 		fields := strings.Fields(leaf)
 
@@ -164,9 +183,11 @@ func CheckProposalDraftingDrift(composedLeaves, liveTension, liveProposal, gated
 			findings = append(findings, fmt.Sprintf("composed leaf %q no longer exists as a subcommand of the CLI's %s command — the drafting artifacts name a command the CLI dropped or renamed; fix the artifact or restore the command", leaf, fields[0]))
 		}
 
-		// Collect the composed leaves 063 gates — the raw material for (c).
-		if gatedSet[leaf] {
-			gatedComposed = append(gatedComposed, leaf)
+		// (c, read side) every composed leaf OTHER than the one gated write must be
+		// absent from 063's gated set — a situating read that entered the gated set
+		// would start prompting.
+		if leaf != ProposalDraftingGatedWrite && gatedSet[leaf] {
+			findings = append(findings, fmt.Sprintf("composed leaf %q is a situating read but appears in 063's gated registry (%s) — situating would start prompting; remove it from the gated set", leaf, GatedRegistryPath))
 		}
 
 		// (d) the agent artifact must name every composed leaf — the prose is a
@@ -176,18 +197,16 @@ func CheckProposalDraftingDrift(composedLeaves, liveTension, liveProposal, gated
 		}
 	}
 
-	// (c) the gated-membership invariant — exactly one composed leaf is gated (the
-	// one create), and it is a proposal write. Derived from source: the write leaf
-	// is "the composed leaf 063 gates", never named literally here.
-	switch {
-	case len(gatedComposed) == 0:
-		findings = append(findings, fmt.Sprintf("no composed leaf is a member of 063's gated proposal-write registry (%s) — the path's one gated write (its create) has left the gated set and would ship unconfirmed; restore it to the registry or fix the artifact", GatedRegistryPath))
-	case len(gatedComposed) > 1:
-		findings = append(findings, fmt.Sprintf("more than one composed leaf is gated by 063 (%v) — the path performs exactly one gated write, so a situating read has entered the gated registry (%s) and would start prompting; remove it from the gated set", gatedComposed, GatedRegistryPath))
-	default:
-		if fields := strings.Fields(gatedComposed[0]); len(fields) == 2 && fields[0] != "proposal" {
-			findings = append(findings, fmt.Sprintf("the single gated composed leaf %q is not a `proposal` write — the path's one gated write must be a governance (proposal) write (registry: %s)", gatedComposed[0], GatedRegistryPath))
-		}
+	// (c, write side) the one gated write must be a composed leaf AND a member of
+	// 063's gated set. The composed cross-check guards the anchor against a drifted
+	// leaf list; the gated check is what catches `proposal create` being dropped
+	// from the registry (or swapped for a read) — the create would then ship
+	// unconfirmed.
+	if !composedSet[ProposalDraftingGatedWrite] {
+		findings = append(findings, fmt.Sprintf("the composed-leaf registry (%s) no longer names the path's one gated write %q — either the artifact dropped it or the write leaf changed; reconcile the anchor with the composed list", ProposalDraftingCommandsPath, ProposalDraftingGatedWrite))
+	}
+	if !gatedSet[ProposalDraftingGatedWrite] {
+		findings = append(findings, fmt.Sprintf("the path's one gated write %q is not a member of 063's gated registry (%s) — the create would ship unconfirmed; restore it to the gated set", ProposalDraftingGatedWrite, GatedRegistryPath))
 	}
 
 	return findings

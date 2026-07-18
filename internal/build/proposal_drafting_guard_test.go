@@ -17,10 +17,11 @@ import "testing"
 //     situating reads must stay out of it.
 //
 // This is the INVERSE of 066's disjointness guard. 066 asserts NO composed leaf is
-// gated (all its tension writes are ungated by design); 067 asserts EXACTLY ONE
-// composed leaf is gated (its one confirmed create) and the rest are not. If
-// `proposal create` ever left the gated registry the create would ship
-// unconfirmed — the very failure this surface is prone to — and this guard turns
+// gated (all its tension writes are ungated by design); 067 asserts its one gated
+// write (ProposalDraftingGatedWrite) IS gated and every other composed leaf is
+// not. If `proposal create` ever left the gated registry — or were swapped for a
+// situating read, which shares the `proposal` group — the create would ship
+// unconfirmed, the very failure this surface is prone to, and this guard turns
 // that into a build failure.
 //
 // Every side is derived from source — the composed leaves from
@@ -34,9 +35,11 @@ import "testing"
 // COVERAGE (explicitly partial, per plan ADR-5 — stated, not silent):
 //   - every composed leaf (tension get; proposal list/get/create) is a `<group>
 //     <sub>` pair whose subcommand still resolves on the CLI's matching command;
-//   - exactly one composed leaf is a member of 063's gated set (the one gated
-//     create), and it is a `proposal` write; the situating reads are absent from
-//     it — the gated-membership invariant, both directions;
+//   - the one gated write (ProposalDraftingGatedWrite) is named in the composed
+//     list and is a member of 063's gated set; every other composed leaf (the
+//     situating reads) is absent from it — the gated-membership invariant, both
+//     directions, anchored on the write leaf so a read swapped in for the create
+//     cannot pass;
 //   - the proposal-drafter agent artifact still names every composed leaf, so the
 //     prose stays a genuine consumer of the single source, not a divergent copy.
 //
