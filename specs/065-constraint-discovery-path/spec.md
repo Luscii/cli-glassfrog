@@ -27,7 +27,8 @@ Critically, the path **surfaces** the governing governance drawn from the record
 ### Discovery
 
 - When the governing governance is not yet known, the path uses cross-model search over the wanted action to discover which roles, domains, and policies it touches, then follows each result's id into the matching role-domains and role-policies reads.
-- When a search or list read spans more than one page, the path pages through the full result set before choosing what is most relevant — so narrowing is a relevance choice made over the complete set, never a silent drop of unfetched pages.
+- When a search or list read that supports paging spans more than one page, the path pages through the full result set before choosing what is most relevant — so narrowing is a relevance choice made over the complete set, never a silent drop of unfetched pages.
+- When a list read cannot be paged to completion — the caller's own-roles read does not follow pagination and signals when its list is incomplete — the path treats that result as possibly-incomplete: it surfaces the incompleteness as uncertainty and must not conclude the action falls outside the caller's authority from a roles list that may be missing entries. An unconfirmed own-role is reported as uncertain, never as a definite "another role's domain".
 
 ### Characterization
 

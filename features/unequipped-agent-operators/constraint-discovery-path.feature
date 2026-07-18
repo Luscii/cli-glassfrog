@@ -46,6 +46,15 @@ Feature: Constraint Discovery Path
       And it will characterize the action as within the caller's own authority
       And it will not frame the action as needing another role's permission
 
+    # Source: 065-constraint-discovery-path — Proposed: incomplete-roles-list uncertainty (interface Surface `owned_by_caller` tri-state) — me roles does not follow pagination
+    @wip
+    Scenario: An incomplete roles list surfaces uncertainty, not a false "not yours"
+      Given the caller's own-roles read returned an incomplete list with an incompleteness note
+      When the constraint-navigator cannot confirm whether the governing domain's role is one the caller fills
+      Then it will mark the owned-by-caller finding as uncertain rather than false
+      And it will surface that the roles list was incomplete
+      And it will not characterize the action as another role's domain on the unconfirmed match
+
     # Source: 065-constraint-discovery-path — Scenario: The wanted action is too vague to locate its governance
     @wip
     Scenario: A too-vague action is clarified by the skill before any traversal
