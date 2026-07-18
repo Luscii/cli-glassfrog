@@ -7,7 +7,7 @@
 
 # Understanding how Glassfrog failures are reported
 
-When a `glassfrog` command fails, you don't see a bare HTTP status or a wall of raw response body. You see one diagnostic — a cause, a category, and a next step — rendered in the same output format you asked for, and your shell sees a distinct exit code for what kind of failure it was. That consistency is produced by a three-stage pipeline: **extract** the failure into a typed error, **normalize** it into one diagnostic shape, and **render** it in the selected format. This document explains why the pipeline is shaped that way, what alternatives were weighed, and where it deliberately stops.
+When a `glassfrog` command fails, you don't see a bare HTTP status or a wall of raw response body. You see one diagnostic — a cause, a category, and a next step — and, for a command-execution failure (a transport, API, or decode error), it is rendered in the same output format you asked for; your shell sees a distinct exit code for what kind of failure it was. (Usage errors — an unknown command or flag, or an invalid `--output` selector — are the exception: they fail before a format is reliably resolved, so they keep a plain-text form. See [Design boundaries](#design-boundaries).) That consistency is produced by a three-stage pipeline: **extract** the failure into a typed error, **normalize** it into one diagnostic shape, and **render** it in the selected format. This document explains why the pipeline is shaped that way, what alternatives were weighed, and where it deliberately stops.
 
 ## The pipeline in one picture
 

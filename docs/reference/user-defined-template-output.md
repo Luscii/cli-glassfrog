@@ -67,7 +67,7 @@ glassfrog me -o full        # the built-in full projection — a file named "ful
 
 ## Exit codes and errors
 
-All template-source failures map to a **usage error (exit `2`)** — the same class as a malformed `--output` token. No new exit code is introduced. Messages are token-free and name the source and a corrective next step.
+All template-source failures map to a **usage error (exit `2`)** — the same class as a malformed `--output` token. No new exit code is introduced. Messages are token-free and name the source (the file path or `stdin`) and the cause (e.g. `could not read template file "…": …`).
 
 | Condition | stdout | Exit | Request made? |
 |---|---|---|---|
