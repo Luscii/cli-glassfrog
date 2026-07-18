@@ -60,6 +60,12 @@ type constraintWorld struct {
 	// confirm, or gate step) — so the shared "it will contain none" Then can
 	// dispatch on world state instead of guessing (two scenarios share the text).
 	inspect string
+	// Drift-guard state (T002): the single-sourced composed reads, the CLI's
+	// live top-level and `me`-subcommand surfaces, and the drift findings.
+	composed []string
+	liveTop  []string
+	liveMe   []string
+	drift    []string
 }
 
 func (w *constraintWorld) register(sc *godog.ScenarioContext) {
@@ -161,6 +167,12 @@ func (w *constraintWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the constraint-discovery skill and agent content$`, w.givenLoaded)
 	sc.Step(`^it is inspected for any write, confirm, or gate step$`, w.whenInspectForWrite)
 	sc.Step(`^the path will only read$`, w.thenOnlyReads)
+
+	// Drift guard (T002) -----------------------------------------------------
+	sc.Step(`^the produced constraint-discovery-path content$`, w.givenConstraintContent)
+	sc.Step(`^every command and read it composes is checked against the shipped CLI$`, w.whenCheckedAgainstCLI)
+	sc.Step(`^each one will exist$`, w.thenEachExists)
+	sc.Step(`^the path will name no read the CLI does not expose$`, w.thenNamesNoLackingRead)
 }
 
 // --- Loading -----------------------------------------------------------------
@@ -678,6 +690,85 @@ func (w *constraintWorld) thenOnlyReads() error {
 	}
 	if !containsFold(w.combined(), "only read") && !containsFold(w.combined(), "reads only") {
 		return fmt.Errorf("the artifacts do not state the path only reads")
+	}
+	return nil
+}
+
+// --- Drift guard (T002) --------------------------------------------------------
+
+func (w *constraintWorld) givenConstraintContent() error {
+	if err := w.ensureLoaded(); err != nil {
+		return err
+	}
+	composed, err := ReadConstraintComposedReads()
+	if err != nil {
+		return fmt.Errorf("could not read the composed-read registry: %w", err)
+	}
+	if len(composed) == 0 {
+		return fmt.Errorf("the composed-read registry is empty — nothing to check against the CLI")
+	}
+	w.composed = composed
+	return nil
+}
+
+func (w *constraintWorld) whenCheckedAgainstCLI() error {
+	liveTop, err := LiveTopLevelCommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's top-level command surface: %w", err)
+	}
+	if len(liveTop) == 0 {
+		return fmt.Errorf("extracted no top-level commands — the surface anchor could not be read")
+	}
+	liveMe, err := LiveMeSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the `me` subcommand surface: %w", err)
+	}
+	if len(liveMe) == 0 {
+		return fmt.Errorf("extracted no `me` subcommands — the surface anchor could not be read")
+	}
+	w.liveTop, w.liveMe = liveTop, liveMe
+	w.drift = CheckConstraintDrift(w.composed, w.liveTop, w.liveMe, w.agent)
+	return nil
+}
+
+func (w *constraintWorld) thenEachExists() error {
+	if w.composed == nil || w.liveTop == nil || w.liveMe == nil {
+		return fmt.Errorf("the composed reads were not checked against the CLI before asserting existence")
+	}
+	if len(w.drift) != 0 {
+		return fmt.Errorf("a composed read no longer resolves in the shipped CLI:\n  - %s", joinDrift(w.drift))
+	}
+	top := map[string]bool{}
+	for _, r := range w.liveTop {
+		top[r] = true
+	}
+	me := map[string]bool{}
+	for _, r := range w.liveMe {
+		me[r] = true
+	}
+	for _, c := range w.composed {
+		parts := strings.Fields(c)
+		if len(parts) == 2 && parts[0] == "me" {
+			if !me[parts[1]] {
+				return fmt.Errorf("composed read %q does not exist as a subcommand of `me`", c)
+			}
+			continue
+		}
+		if !top[c] {
+			return fmt.Errorf("composed read %q does not exist as a top-level CLI command", c)
+		}
+	}
+	return nil
+}
+
+func (w *constraintWorld) thenNamesNoLackingRead() error {
+	// The same drift result proves the path names no read the CLI does not
+	// expose.
+	if w.composed == nil || w.liveTop == nil {
+		return fmt.Errorf("the composed reads were not checked against the CLI before asserting no invented read")
+	}
+	if len(w.drift) != 0 {
+		return fmt.Errorf("the path names a read the CLI does not expose:\n  - %s", joinDrift(w.drift))
 	}
 	return nil
 }

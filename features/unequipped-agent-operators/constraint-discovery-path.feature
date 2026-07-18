@@ -169,7 +169,7 @@ Feature: Constraint Discovery Path
       And the path will only read
 
     # Source: 065-constraint-discovery-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no read the CLI lacks
       Given the produced constraint-discovery-path content
       When every command and read it composes is checked against the shipped CLI
