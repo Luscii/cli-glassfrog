@@ -1,0 +1,31 @@
+# Composed-read registry — the reads the Constraint Discovery Path traverses
+# (065 Constraint Discovery Path).
+#
+# THE single source of "which glassfrog read leaves the constraint-navigator
+# composes", consumed by BOTH:
+#   - the constraint-navigator agent  (plugin/agents/constraint-navigator.md)
+#     — its "Composed reads" section names exactly these leaves and no others
+#   - the drift guard                 (internal/build/constraint_discovery_guard_test.go)
+#     — it checks every leaf here still resolves to a command in the shipped
+#       CLI, and that the agent artifact names each one
+# so the artifact prose and the guard can never disagree about the composed
+# surface (plan ADR-2, mirroring 064's composed-reads.txt and 063's
+# gated-commands.txt).
+#
+# Each non-comment, non-blank line is ONE `glassfrog` read command the
+# navigator may invoke. A line carries the command path: "me roles" is the
+# `roles` subcommand of `me`; every other leaf is a top-level command
+# (`domains`/`policies`/`policy` are top-level, not `roles` subcommands).
+# These are reads only — no write leaf (proposal/tension writes) ever appears
+# here; the path never writes (spec non-behavior).
+#
+# Renaming or dropping one of these commands in the CLI turns the drift guard
+# red — a constraint-discovery artifact cannot silently name a read the CLI no
+# longer exposes.
+search
+roles
+tree
+domains
+policies
+policy
+me roles
