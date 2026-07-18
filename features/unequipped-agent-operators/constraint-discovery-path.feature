@@ -105,7 +105,7 @@ Feature: Constraint Discovery Path
       And it will present it as the constraint to observe, drawn together with any governing domain
       And it will not present it as a concatenation of separate dumps
 
-    # Source: 065-constraint-discovery-path — Scenario: A wanted action nothing in the record constrains
+    # Source: 065-constraint-discovery-path — Scenario: A wanted action that nothing in the record constrains
     @wip
     Scenario: An unconstrained action surfaces the absence without asserting permission
       Given an action for which no domain in view governs it and no policy in view limits it

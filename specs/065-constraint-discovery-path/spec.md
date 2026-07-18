@@ -103,7 +103,7 @@ When the path traverses the policies bearing on it
 Then it surfaces the policy that grants or limits the action
 And presents it as the constraint the operator must observe, drawn together with any governing domain, not as separate dumps.
 
-**Scenario: A wanted action nothing in the record constrains**
+**Scenario: A wanted action that nothing in the record constrains**
 Given an action for which no domain in view governs it and no policy in view limits it
 When the path completes
 Then it surfaces that the record shows nothing constraining the action
