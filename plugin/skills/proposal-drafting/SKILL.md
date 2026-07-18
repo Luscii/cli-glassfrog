@@ -5,19 +5,16 @@ description: Turn a well-formed tension that is ready to become a governance cha
 
 # Drafting a ready tension into a created proposal
 
-This skill is the fourth **operator path** on the agent operating surface, and the
-first to cross the **Write-Safety Guardrail** (063). Its job is to take a
-**well-formed anchor tension** — one already sensed and ready to become a
-governance change — and turn it into a **created draft proposal**: grounded in the
-anchor tension, situated against the proposals already in flight in the circle,
-assembled into a change set, and created through the **guardrail-confirmed write**,
-carrying the `prp_` id that feeds the Proposal Circulation Path.
+This skill takes a **well-formed anchor tension** — one already sensed and ready
+to become a governance change — and turns it into a **created draft proposal**:
+grounded in the anchor tension, situated against the proposals already in flight in
+the circle, assembled into a change set, and created through the
+**guardrail-confirmed write**, carrying the `prp_` id that feeds the Proposal
+Circulation Path.
 
-It composes only commands the `glassfrog` CLI already exposes — the four leaves
-listed in `proposal-drafting-commands.txt` (under `plugin/agents/`, the single
-source the drift guard also pins). It adds no command, flag, or capability of its
-own. Its **one** write is the gated `proposal create`; every other write stays out
-of this path (see [Gated-write note](#gated-write-note)).
+It composes only commands the `glassfrog` CLI already exposes. It adds no command,
+flag, or capability of its own. Its **one** write is the gated `proposal create`;
+every other write stays out of this path (see [Gated-write note](#gated-write-note)).
 
 ## When to reach for it
 
@@ -70,9 +67,7 @@ anchor tension's `ten_` id and the intended change:
    the proposal is that path's job, never this one's.
 
 For the exact flags of any one command, ask the CLI:
-`glassfrog proposal <sub> --help` and `glassfrog tension get --help`. For output
-formats, pagination, and exit-code reactions, consult the **orientation** skill
-(062) rather than restating them here.
+`glassfrog proposal <sub> --help` and `glassfrog tension get --help`.
 
 ## Delegation
 

@@ -51,10 +51,8 @@ floor**) as a **deliberate addition** made in view of what is already
 circulating → narrate anchor + change set → create (`proposal create <ten-id>
 --changes '<inline JSON>'`, the one gated write) → hand the `prp_` id onward.
 
-For output formats, exit codes, and pagination mechanics, rely on the
-**orientation** skill (062) rather than restating them. For any one command's
-exact flags, ask the CLI: `glassfrog proposal <sub> --help` and
-`glassfrog tension get --help`.
+For any one command's exact flags, ask the CLI:
+`glassfrog proposal <sub> --help` and `glassfrog tension get --help`.
 
 ## Confirmation contract
 
