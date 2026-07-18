@@ -24,13 +24,18 @@ import "testing"
 // unconfirmed, the very failure this surface is prone to, and this guard turns
 // that into a build failure.
 //
-// Every side is derived from source — the composed leaves from
+// The three registries are derived from source — the composed leaves from
 // proposal-drafting-commands.txt, the live surfaces from newTensionCommand /
 // newProposalCommand, the gated set from 063's registry — so the guard hard-codes
-// none of them, including the identity of the write leaf (derived as "the single
-// composed leaf 063 gates", never named literally). A hard-coded expectation would
-// become a second source of truth edited on every legitimate change (LEARNINGS: a
-// drift guard must not hard-code the value it guards).
+// none of the SETS. The one thing it must name is the identity of the gated write
+// (ProposalDraftingGatedWrite): a situating read and the create share the
+// `proposal` group, so the write cannot be derived as "the single composed leaf
+// 063 gates" without a read swapped in for the create slipping through undetected.
+// The anchor is pinned like 063's expectedProposalSurface and cross-checked against
+// the composed list. Hard-coding a whole enumerable SET would be the anti-pattern;
+// naming the single contract-fact the derivation genuinely cannot recover is not
+// (LEARNINGS: a drift guard must not hard-code the value it guards — meaning the
+// guarded sets, not the one anchor those sets cannot express).
 //
 // COVERAGE (explicitly partial, per plan ADR-5 — stated, not silent):
 //   - every composed leaf (tension get; proposal list/get/create) is a `<group>
