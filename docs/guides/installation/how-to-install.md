@@ -21,7 +21,7 @@ The `glassfrog` CLI can be installed four ways: the hosted **install script**, *
 
 | Channel | Best for | Command (once a release is published) |
 |---|---|---|
-| A. Install script | Any Linux/macOS host, no package manager | `curl -fsSL …/install.sh \| sh` |
+| A. Install script | Any Linux/macOS host, no package manager | `curl -fsSL …/install.sh` \| `sh` |
 | B. Homebrew | macOS/Linux Homebrew users | `brew install luscii/cli-glassfrog/glassfrog` |
 | C. npm | Node/JS toolchains, `npx` one-offs | `npm i -g @luscii-healthtech/glassfrog` |
 | D. From source | Go developers; works today | `go install github.com/Luscii/cli-glassfrog@latest` |
