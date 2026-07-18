@@ -56,7 +56,7 @@ anchor tension's `ten_` id and the intended change:
    an object with a **non-empty `type`**, and above that type floor the array is
    passed through **verbatim** — the path assembles and passes it, it does not
    interpret or validate any change's `type` value or command-specific keys, and
-   it builds **no typed constructor**. (The CLI's create enforces the floor; 055.)
+   it builds **no typed constructor**. (The CLI's create enforces the floor.)
 5. **Surface & create** — narrate the anchor tension and the assembled change set
    for confirmation, then create the draft:
    `proposal create <ten-id> --changes '<inline JSON>'`. This is a **gated**
