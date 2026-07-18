@@ -1,0 +1,57 @@
+# Tasks: Proposal Drafting Path
+
+**Feature**: 067-proposal-drafting-path
+**Concretization**: Full context (plan + spec + interface + scenarios) — tasks carry scenario and interface references
+**Inputs**: plan.md (single phase; ADR-1 both-form, ADR-2 new agent, ADR-3 gated create in-subagent with inline changes, ADR-4 pure composition, ADR-5 drift guard + gated-membership invariant), spec.md (3 user scenarios), interface-spec.md, `features/unequipped-agent-operators/proposal-drafting-path.feature` (16 scenarios)
+
+---
+
+## Dependency Graph
+
+Phase 1: Proposal-drafting path artifacts + drift guard (2 tasks, no phase dependencies; intra-phase: T002 depends on T001) [Shared]
+
+2 tasks total | 0 phases parallelizable | Builder: pipeline (single active spec)
+
+The plan is a single phase (ADR-1/2/3 land the two artifacts together; ADR-5's guard pins the leaves they name and the gated-membership invariant). The two PR-sized units follow the plan's own suggested split: artifacts + registration first, drift guard second — the sibling-standard shape (065/066).
+
+---
+
+## Branching Guidance
+
+**Pipeline mode**: `spec/067-proposal-drafting-path/base` → `spec/067-proposal-drafting-path/task-1`, `spec/067-proposal-drafting-path/task-2`
+
+T002 depends on T001 (the guard pins the command leaves the artifacts name and asserts `proposal create`'s membership in 063's gated set), so the two task branches land in sequence onto the spec base.
+
+---
+
+## Phase 1: Proposal-drafting path artifacts + drift guard [Shared]
+
+- [ ] **T001** [Shared] Author the proposal-drafting skill and the gated-write proposal-drafter agent, single-source the composed-leaf list, and register the agent
+  - **Scope**: Add `plugin/skills/proposal-drafting/SKILL.md` (the thin, discoverable entry point: when to reach for it, the single-sourced workflow, the delegation-to-the-agent instruction, and the gated-write note) and `plugin/agents/proposal-drafter.md` (the executor: identity/scope, the workflow it runs — *referencing* the skill's workflow, not restating a divergent copy — the confirmation contract, the composed leaves, and the draft-record output contract). Single-source the composed-leaf list in `plugin/agents/proposal-drafting-commands.txt`. The agent is discovered by directory convention from `plugin/agents/` — **do not** add an `agents` key to `plugin/.claude-plugin/plugin.json` (the 063/064/065/066 auto-discovery convention; the manifest stays unchanged). Hand-authored, committed content; adds no CLI code. **Do not touch** 066's `tension-processor.md` or its leaf list — ADR-2 mints a new agent precisely so 066's validate-pinned no-proposal fence stays intact.
+  - **Acceptance criteria**:
+    - `plugin/skills/proposal-drafting/SKILL.md` exists with YAML frontmatter `name` (`proposal-drafting`) + `description`; the `description` states *when* to reach for it (a well-formed tension is ready to become a governance change; assemble the changes and create the draft, returning its `prp_` id through a confirmed gated write), worded not to fire on "capture/refine/retire a tension" (066), "am I allowed to do X" (065), "understand the governance around a concern" (064), or "advance/respond/withdraw a proposal" (068/069)
+    - The skill body carries the when / workflow (anchor `ten_` id → ground via `tension get <ten-id>` → situate via `proposal list --role-id <circle> --status draft` (full walk) + `proposal get <prp-id>` for candidate matches → assemble the changes JSON array (non-empty `type` per element, verbatim above the floor, no typed builders) → surface anchor + change set → gated `proposal create <ten-id> --changes '<inline JSON>'` → hand the `prp_` id to 068) / delegation / gated-write note, pointing at `glassfrog proposal <sub> --help` and `glassfrog tension get --help` for per-command detail and at the orientation skill (062) for output/pagination/exit-code/quoting mechanics rather than restating them
+    - The workflow states that situating pages through the **full** in-flight result set before judging duplicates (Constitution VI: never a silent single-page cap), and that situating narrows by circle + `draft` status because the proposal list offers **no** tension filter — the artifacts must not imply one (spec Assumption 5)
+    - The gated-write note states the create is a governance write gated by 063's confirmed write flow; the change set is passed **inline** so the confirmation prompt displays the exact payload (never a file path or `stdin` that would make the human confirm blind); a declined confirmation means no proposal is created; a change set too unwieldy for the command line is surfaced to the caller, never smuggled through a hidden file (plan ADR-3)
+    - The agent is registered so the host discovers it and the skill's delegation resolves; if the agent is absent/unregistered, the skill's workflow remains usable as guidance with no CLI command broken (documented degradation)
+    - `plugin/agents/proposal-drafter.md` exists with frontmatter `name` (`proposal-drafter`), `description`, and a **write-capable-but-fenced `tools` grant** that includes `Bash` (to invoke the composed reads and the one gated create) and excludes `Write`/`Edit` (no workspace mutation — which also blocks change-set temp files, keeping inline the only honest source); the body carries Identity & scope (exactly one write: `proposal create`, always through the gate; never `proposal propose`/`respond`/`withdraw`, never a tension write, never an authority verdict, never a typed per-change validator), Workflow (by reference to the skill), the Confirmation contract (narrate anchor + change set before the create; inline `--changes`; declined = `action: declined`, an outcome not an error), Composed commands (exactly the four leaves), and the draft-record Output contract (draft?/anchor/situating/action/handoff?/notes, each element carrying its id; `action` ∈ `created`/`surfaced-existing`/`declined`/`none`)
+    - The artifacts' one write is `proposal create`; no other proposal-write phrase appears as a command the path runs; the created draft's `prp_` id is handed to 068 and authority questions to 065; the workflow steps are single-sourced in the skill and referenced by the agent — no second, divergent copy
+    - The existing `plugin/skills/orientation/` (062), `plugin/skills/governance-navigation/` + `plugin/agents/governance-navigator.md` (064), `plugin/skills/constraint-discovery/` + `plugin/agents/constraint-navigator.md` (065), `plugin/skills/tension-processing/` + `plugin/agents/tension-processor.md` + `plugin/agents/tension-processing-commands.txt` (066), and `plugin/hooks/` (063, including `gated-commands.txt`) are untouched, and no `marketplace.json` is added (distribution is #70)
+  - **Dependencies**: None
+  - **Plan reference**: Phase 1; ADR-1 (thin skill + subagent), ADR-2 (new `proposal-drafter`, `plugin/agents/` reuse, no 066 reuse), ADR-3 (gated create inside the subagent, inline `--changes`, layered confirmation), ADR-4 (compose shipped commands, no CLI code)
+  - **Scenario references**: proposal-drafting-path.feature — "A ready tension becomes a created draft proposal", "A file-held change set is passed through verbatim", "A rejected create fabricates no id", "An unconfirmed create leaves the record untouched", "The drafter is reachable once the plugin registers it", "A missing drafter degrades the path to guidance", "The path assembles the change set without typed construction", "The result is a synthesized draft record, not raw output", "A draft is situated against the proposals already in flight", "A matching in-flight draft is surfaced instead of duplicated", "A failed situating walk yields a partial picture", "A created draft is handed off without being advanced", "The path routes its one write through the guardrail", "The path stops at the created draft", "The path drafts without judging authority or coaching"
+  - **Interface references**: interface-spec.md — Surface (structural layout, `SKILL.md` / agent frontmatter, required sections, confirmation contract, draft-record output shape, single-source leaf list), Interactions (skill→agent delegation flow, gated-create step), Error Communication (declined confirmation, create rejected, partial situating, duplicate in flight, ready-handoff, unwieldy change set, gated-write nuance)
+
+- [ ] **T002** [Shared] Add the best-effort drift-guard test in `internal/build` — pins the composed leaves AND the gated-membership invariant (the inverse of 066's disjointness)
+  - **Scope**: A new `internal/build` test asserting every leaf the skill/agent compose still exists in the CLI's command registry **and** the gate-membership posture holds: `proposal create` **is a member of** 063's gated proposal-write set, and the composed reads (`proposal list`, `proposal get`, `tension get`) are **not**. Best-effort and explicitly partial — pins the *existence* of the command leaves and their *gate-membership posture*, not their flags (deferred to `--help`), not the draft-record prose, and not parser robustness. If an anchor proves infeasible to assert, state the reduced coverage rather than dropping it silently.
+  - **Acceptance criteria**:
+    - Test asserts the leaves the artifacts compose — `tension get`, `proposal list`, `proposal get`, `proposal create` — each resolve to a real command in the CLI's registry, reading the composed set from the single-source leaf-list file (`plugin/agents/proposal-drafting-commands.txt`, T001), not a hard-coded copy
+    - Test asserts `proposal create` is **present in** 063's gated set (source-derived from `plugin/hooks/gated-commands.txt`) — the confirmed-write-flow promise pinned structurally: the create leaving the gated registry fails the build — and that the three composed reads are **absent from** it (situating must not start prompting)
+    - Test fails loudly and names the offending leaf when one no longer exists in the shipped CLI or violates the gate-membership invariant on either side
+    - All sides source-derived — composed set from the leaf list, live surface from the command registry, gated set from `gated-commands.txt` — never a hard-coded second copy (drift-guard-must-not-hardcode-the-SoT)
+    - Any leaf or fact deliberately left uncovered is documented in the test, not omitted silently (no silent caps)
+    - Reuses the `internal/build` config-guard home/idiom established by 062/063/064/065/066 (066's `tension_processing_guard_test.go` + `tension-processing-commands.txt` single-source are the concrete models; this guard asserts membership where 066 asserted disjointness)
+  - **Dependencies**: T001
+  - **Plan reference**: Phase 1; ADR-5 (best-effort drift guard + gated-membership invariant)
+  - **Scenario references**: proposal-drafting-path.feature — "The path names no command the CLI lacks"
+  - **Interface references**: interface-spec.md — Surface (single-source leaf list), Error Communication (drift guard red on missing leaf or gate-membership violation; reduced coverage stated)

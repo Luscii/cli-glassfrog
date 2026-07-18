@@ -68,3 +68,4 @@
 | 064-governance-navigation-path | Ready | validate | 2026-07-17T16:15:00 |
 | 065-constraint-discovery-path | Complete | validate | 2026-07-18T11:10:00 |
 | 066-tension-processing-path | Complete | validate | 2026-07-18T11:05:00 |
+| 067-proposal-drafting-path | Analyzed | risk | 2026-07-18T14:15:00 |
