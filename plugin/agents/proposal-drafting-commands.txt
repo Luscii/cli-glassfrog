@@ -1,0 +1,34 @@
+# Composed-leaf registry — the commands the Proposal Drafting Path composes
+# (067 Proposal Drafting Path).
+#
+# THE single source of "which glassfrog leaves the drafter composes", consumed by
+# BOTH:
+#   - the proposal-drafter agent  (plugin/agents/proposal-drafter.md)
+#     — its "Composed commands" section names exactly these leaves and no others
+#   - the drift guard             (internal/build/proposal_drafting_guard_test.go)
+#     — it checks every leaf here still resolves to a subcommand in the shipped
+#       CLI, AND that the gated-membership invariant holds: exactly one leaf here
+#       is a member of 063's gated proposal-write registry
+#       (plugin/hooks/gated-commands.txt) — the one gated create — and the rest
+#       (the situating reads) are absent from it
+# so the artifact prose and the guard can never disagree about the composed
+# surface or its gate posture (plan ADR-5, mirroring 063's gated-commands.txt,
+# 064's composed-reads.txt, and 066's tension-processing-commands.txt).
+#
+# Each non-comment, non-blank line is ONE `glassfrog` leaf the drafter may
+# invoke, written as the two-token `<group> <sub>` pair (matching how 063's
+# registry writes its `proposal <sub>` leaves, so the membership check compares
+# like with like). Three are situating/grounding reads (tension get, proposal
+# list, proposal get); one is the single governance write 063 gates by design
+# (proposal create), run only through the confirmed write flow. No other proposal
+# write ever appears here — the path never advances, responds to, or withdraws a
+# proposal (that is circulation, 068/069).
+#
+# Renaming or dropping one of these commands in the CLI — or pulling `proposal
+# create` OUT of 063's gated set, or pulling a situating read INTO it — turns the
+# drift guard red; the artifacts cannot silently name a command the CLI lacks or
+# a write the guardrail stops confirming.
+tension get
+proposal list
+proposal get
+proposal create

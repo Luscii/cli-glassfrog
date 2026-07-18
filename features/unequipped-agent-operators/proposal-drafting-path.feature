@@ -29,7 +29,7 @@ Feature: Proposal Drafting Path
     # proposal carrying its prp_ id.
 
     # Source: 067-proposal-drafting-path — Scenario: From a tension to a draft proposal
-    @wip
+    
     Scenario: A ready tension becomes a created draft proposal
       Given a well-formed anchor tension's ten_ id and an assembled set of governance changes
       When the proposal-drafter surfaces them for confirmation and runs the create through the confirmed write flow
@@ -37,7 +37,7 @@ Feature: Proposal Drafting Path
       And the record will carry that id so the draft can be advanced or withdrawn
 
     # Source: 067-proposal-drafting-path — Scenario: Sourcing the change set from a file
-    @wip
+    
     Scenario: A file-held change set is passed through verbatim
       Given a set of governance changes held in a JSON file
       When the proposal-drafter assembles the change set from that source
@@ -45,7 +45,7 @@ Feature: Proposal Drafting Path
       And it will not interpret or validate any change's command-specific keys
 
     # Source: 067-proposal-drafting-path — Scenario: A create is rejected
-    @wip
+    
     Scenario: A rejected create fabricates no id
       Given a create attempt whose anchor tension was unknown to the record
       When the proposal-drafter runs the create through the confirmed write flow
@@ -54,7 +54,7 @@ Feature: Proposal Drafting Path
       And it will fabricate no prp_ id the record does not contain
 
     # Source: 067-proposal-drafting-path — Scenario: The create must be confirmed before it crosses the boundary
-    @wip
+    
     Scenario: An unconfirmed create leaves the record untouched
       Given an assembled anchor and change set ready to create
       When the proposal-drafter reaches the proposal create
@@ -62,7 +62,7 @@ Feature: Proposal Drafting Path
       And no proposal will be created when the write is not confirmed
 
     # Source: 067-proposal-drafting-path — Proposed: registration/discovery surface (interface Surface) — the agent is reachable once registered
-    @wip
+    
     Scenario: The drafter is reachable once the plugin registers it
       Given the plugin was present with the proposal-drafter agent registered
       When the proposal-drafting skill delegates a ready tension for drafting
@@ -70,7 +70,7 @@ Feature: Proposal Drafting Path
       And it will return only the draft record to the caller
 
     # Source: 067-proposal-drafting-path — Proposed: missing-agent degradation (interface Error Communication) — path degrades to guidance
-    @wip
+    
     Scenario: A missing drafter degrades the path to guidance
       Given the plugin was present but the proposal-drafter agent was absent or unregistered
       When the proposal-drafting skill is consulted for a ready tension
@@ -78,7 +78,7 @@ Feature: Proposal Drafting Path
       And no command in the CLI will be broken by the agent's absence
 
     # Source: 067-proposal-drafting-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no command the CLI lacks
       Given the produced proposal-drafting-path content
       When every command it composes is checked against the shipped CLI
@@ -86,7 +86,7 @@ Feature: Proposal Drafting Path
       And the path will name no command the CLI does not expose
 
     # Source: 067-proposal-drafting-path — Scenario: Assembly, not typed construction
-    @validation @wip
+    @validation
     Scenario: The path assembles the change set without typed construction
       Given the proposal-drafting skill and agent content
       When it is inspected for per-change interpretation
@@ -95,7 +95,7 @@ Feature: Proposal Drafting Path
       And it will build no typed constructor
 
     # Source: 067-proposal-drafting-path — Scenario: Synthesized, not raw
-    @validation @wip
+    @validation
     Scenario: The result is a synthesized draft record, not raw output
       Given the record the proposal-drafter returned
       When it is compared against the raw command output
@@ -109,7 +109,7 @@ Feature: Proposal Drafting Path
     # before it creates a new one.
 
     # Source: 067-proposal-drafting-path — Scenario: Situating against proposals already in flight
-    @wip
+    
     Scenario: A draft is situated against the proposals already in flight
       Given a circle whose in-flight proposals span several pages
       When the proposal-drafter surfaces the proposals already in flight there
@@ -118,7 +118,7 @@ Feature: Proposal Drafting Path
       And it will treat the new draft as a deliberate addition rather than a blind duplicate
 
     # Source: 067-proposal-drafting-path — Scenario: A matching draft is already in flight
-    @wip
+    
     Scenario: A matching in-flight draft is surfaced instead of duplicated
       Given a change that matched a draft already circulating in the circle
       When the proposal-drafter situates before creating
@@ -127,7 +127,7 @@ Feature: Proposal Drafting Path
       And it will not silently create a duplicate draft
 
     # Source: 067-proposal-drafting-path — Scenario: A situating read fails
-    @wip
+    
     Scenario: A failed situating walk yields a partial picture
       Given a situating step in which the proposal list read failed mid-walk
       When the proposal-drafter continues
@@ -142,7 +142,7 @@ Feature: Proposal Drafting Path
     # Circulation Path.
 
     # Source: 067-proposal-drafting-path — Scenario: The draft is ready to circulate
-    @wip
+    
     Scenario: A created draft is handed off without being advanced
       Given a created draft proposal the practitioner wanted to advance
       When the proposal-drafter completes its drafting
@@ -150,7 +150,7 @@ Feature: Proposal Drafting Path
       And it will not advance, withdraw, or circulate the proposal itself
 
     # Source: 067-proposal-drafting-path — Scenario: The gated create is routed through the guardrail
-    @validation @wip
+    @validation
     Scenario: The path routes its one write through the guardrail
       Given the path's treatment of the proposal create
       When it is inspected against the Write-Safety Guardrail
@@ -158,7 +158,7 @@ Feature: Proposal Drafting Path
       And the path will not issue the gated proposal write as if it were ungated
 
     # Source: 067-proposal-drafting-path — Scenario: Drafting only, no further transition
-    @validation @wip
+    @validation
     Scenario: The path stops at the created draft
       Given the proposal-drafting skill and agent content
       When it is inspected for any advance, withdraw, response, or circulate step
@@ -166,7 +166,7 @@ Feature: Proposal Drafting Path
       And it will hand the prp_ id to the Proposal Circulation Path
 
     # Source: 067-proposal-drafting-path — Scenario: Drafting, not judging or coaching
-    @validation @wip
+    @validation
     Scenario: The path drafts without judging authority or coaching
       Given the proposal-drafting skill and agent content
       When it is inspected for an authority verdict or Holacracy coaching
