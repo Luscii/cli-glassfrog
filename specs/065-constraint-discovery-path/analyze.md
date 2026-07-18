@@ -12,7 +12,7 @@
 
 All 16 checks pass. Both initial findings — both traceable to one root (the own-vs-other characterization added `me roles` as a composed read at interface time) — were resolved by the post-guard fixes: the P2 H3 enumeration drift by reconciling plan ADR-2 to name `me roles`, and the P1 K5 coverage gap by adding the own-role authority scenario.
 
-_Initial run found 1 P1 (K5) + 1 P2 (H3). Resolved: K5 by adding "An action under the caller's own role's domain is within their authority" (T001, now 15 scenarios); H3 by adding `me roles` to plan ADR-2's composed-read enumeration and the System Architecture flow._
+_Initial run found 1 P1 (K5) + 1 P2 (H3). Resolved: K5 by adding "An action under the caller's own role's domain is within their authority" (T001, now 16 scenarios); H3 by adding `me roles` to plan ADR-2's composed-read enumeration and the System Architecture flow._
 
 | Category | Checks | Pass | Fail |
 |---|---|---|---|
