@@ -28,7 +28,6 @@ Feature: Constraint Discovery Path
     # and policies that constrain it.
 
     # Source: 065-constraint-discovery-path — Scenario: A wanted action falls under another role's domain
-    @wip
     Scenario: A wanted action under another role's domain is surfaced with its owner
       Given a practitioner's free-form wanted action with no role or domain in hand
       When the constraint-navigator traverses the action
@@ -38,7 +37,6 @@ Feature: Constraint Discovery Path
       And each domain and role will carry the id needed to read it again
 
     # Source: 065-constraint-discovery-path — Proposed: own-role authority branch (interface Surface `owned_by_caller` + spec Characterization) — the own-vs-other determination drawn from `me roles`
-    @wip
     Scenario: An action under the caller's own role's domain is within their authority
       Given a wanted action governed by a domain that a role the caller fills holds
       When the constraint-navigator reads the caller's own roles and the governing domain
@@ -47,7 +45,6 @@ Feature: Constraint Discovery Path
       And it will not frame the action as needing another role's permission
 
     # Source: 065-constraint-discovery-path — Proposed: incomplete-roles-list uncertainty (interface Surface `owned_by_caller` tri-state) — me roles does not follow pagination
-    @wip
     Scenario: An incomplete roles list surfaces uncertainty, not a false "not yours"
       Given the caller's own-roles read returned an incomplete list with an incompleteness note
       When the constraint-navigator cannot confirm whether the governing domain's role is one the caller fills
@@ -56,7 +53,6 @@ Feature: Constraint Discovery Path
       And it will not characterize the action as another role's domain on the unconfirmed match
 
     # Source: 065-constraint-discovery-path — Scenario: The wanted action is too vague to locate its governance
-    @wip
     Scenario: A too-vague action is clarified by the skill before any traversal
       Given a wanted action described too vaguely to search for its governing governance
       When the constraint-discovery skill begins
@@ -65,7 +61,6 @@ Feature: Constraint Discovery Path
       And the constraint-navigator will not be invoked until the action is well-formed
 
     # Source: 065-constraint-discovery-path — Scenario: An over-broad action matches many models
-    @wip
     Scenario: An over-broad action is narrowed, not dumped
       Given an action so broad that the search matched many roles, domains, and policies across several pages
       When the constraint-navigator assembles the picture
@@ -74,7 +69,6 @@ Feature: Constraint Discovery Path
       And it will note that the picture was narrowed so the practitioner can refine
 
     # Source: 065-constraint-discovery-path — Scenario: A read in the discovery fails
-    @wip
     Scenario: A failed read yields a partial picture
       Given a traversal in which one read failed while the others succeeded
       When the constraint-navigator assembles the picture
@@ -83,7 +77,6 @@ Feature: Constraint Discovery Path
       And it will not invent the missing piece
 
     # Source: 065-constraint-discovery-path — Proposed: registration/discovery surface (interface Surface) — the agent is reachable once registered
-    @wip
     Scenario: The navigator is reachable once the plugin registers it
       Given the plugin was present with the constraint-navigator agent registered
       When the constraint-discovery skill delegates a well-formed action for traversal
@@ -91,7 +84,6 @@ Feature: Constraint Discovery Path
       And it will return only the synthesized picture to the caller
 
     # Source: 065-constraint-discovery-path — Proposed: missing-agent degradation (interface Error Communication) — path degrades to guidance
-    @wip
     Scenario: A missing navigator degrades the path to guidance
       Given the plugin was present but the constraint-navigator agent was absent or unregistered
       When the constraint-discovery skill is consulted for an action
@@ -106,7 +98,6 @@ Feature: Constraint Discovery Path
     # opinion.
 
     # Source: 065-constraint-discovery-path — Scenario: A wanted action is shaped by a policy
-    @wip
     Scenario: A policy that shapes the action is surfaced as a constraint to observe
       Given an action the constraint-navigator had located in the governance record
       When it traverses the policies bearing on the action
@@ -115,7 +106,6 @@ Feature: Constraint Discovery Path
       And it will not present it as a concatenation of separate dumps
 
     # Source: 065-constraint-discovery-path — Scenario: A wanted action that nothing in the record constrains
-    @wip
     Scenario: An unconstrained action surfaces the absence without asserting permission
       Given an action for which no domain in view governs it and no policy in view limits it
       When the constraint-navigator completes the traversal
@@ -124,7 +114,6 @@ Feature: Constraint Discovery Path
       And it will not assert that the operator is permitted
 
     # Source: 065-constraint-discovery-path — Scenario: The record does not clearly answer
-    @wip
     Scenario: An ambiguous record is reported as unclear, not resolved by a guess
       Given an action for which the match is ambiguous and no domain plainly owns it
       When the constraint-navigator completes the traversal
@@ -133,7 +122,7 @@ Feature: Constraint Discovery Path
       And it will not fabricate an authority ruling to resolve the ambiguity
 
     # Source: 065-constraint-discovery-path — Scenario: Surfacing, not ruling
-    @validation @wip
+    @validation
     Scenario: The path surfaces and characterizes without ruling from local logic
       Given the constraint-navigator's treatment of the wanted action
       When it is inspected for a permission verdict computed from local logic
@@ -142,7 +131,7 @@ Feature: Constraint Discovery Path
       And it will nowhere reimplement permission rules or rule on whether the action is allowed
 
     # Source: 065-constraint-discovery-path — Scenario: No fabricated ruling under uncertainty
-    @validation @wip
+    @validation
     Scenario: Under uncertainty the path says so rather than fabricating a verdict
       Given the path's handling of an action the record does not clearly constrain
       When its result is inspected
@@ -150,7 +139,7 @@ Feature: Constraint Discovery Path
       And it will nowhere assert a permitted or forbidden verdict it cannot ground in the record
 
     # Source: 065-constraint-discovery-path — Scenario: Synthesized, not raw
-    @validation @wip
+    @validation
     Scenario: The result is a synthesized picture, not raw output
       Given the picture the constraint-navigator returned
       When it is compared against the raw command output
@@ -165,7 +154,6 @@ Feature: Constraint Discovery Path
     # it again or feeds the next path.
 
     # Source: 065-constraint-discovery-path — Proposed: synthesized-picture output contract (interface Surface) — every element carries its id
-    @wip
     Scenario: Every element of the picture carries its actionable id
       Given a picture the constraint-navigator had returned for a wanted action
       When the caller inspects each domain, policy, and role in it
@@ -173,7 +161,7 @@ Feature: Constraint Discovery Path
       And the caller will be able to act on any element without re-running the search
 
     # Source: 065-constraint-discovery-path — Scenario: Read-only throughout
-    @validation @wip
+    @validation
     Scenario: The path only reads, never writes
       Given the constraint-discovery skill and agent content
       When it is inspected for any write, confirm, or gate step
