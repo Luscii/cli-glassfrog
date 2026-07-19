@@ -31,7 +31,6 @@ Feature: Proposal Circulation Path
     # and shows me where it stands.
 
     # Source: 068-proposal-circulation-path — Scenario: Advance a draft into circulation
-    @wip
     Scenario: A draft proposal advances into circulation
       Given a draft proposal's prp_ id whose available transitions included propose
       When the proposal-circulator surfaces it for confirmation and runs the propose through the confirmed write flow
@@ -39,7 +38,6 @@ Feature: Proposal Circulation Path
       And the record will carry the prp_ id so the proposal can be monitored or withdrawn
 
     # Source: 068-proposal-circulation-path — Scenario: The transition must be confirmed before it crosses the boundary
-    @wip
     Scenario: An unconfirmed transition leaves the record untouched
       Given a proposal ready to propose or withdraw
       When the proposal-circulator reaches the transition
@@ -47,7 +45,6 @@ Feature: Proposal Circulation Path
       And no transition will happen when the write is not confirmed
 
     # Source: 068-proposal-circulation-path — Scenario: A transition is rejected
-    @wip
     Scenario: A rejected transition fabricates no state
       Given a propose attempt whose transition the server did not allow
       When the proposal-circulator runs the transition through the confirmed write flow
@@ -56,7 +53,6 @@ Feature: Proposal Circulation Path
       And it will fabricate no state the record does not contain
 
     # Source: 068-proposal-circulation-path — Scenario: The path reads to inform, not to gate
-    @wip
     Scenario: A stale snapshot does not stop a transition
       Given a proposal whose available transitions the proposal-circulator had read
       When it advances or withdraws the proposal
@@ -65,7 +61,6 @@ Feature: Proposal Circulation Path
       And it will not pre-gate the call on the read snapshot
 
     # Source: 068-proposal-circulation-path — Proposed: registration/discovery surface (interface Surface) — the agent is reachable once registered
-    @wip
     Scenario: The circulator is reachable once the plugin registers it
       Given the plugin was present with the proposal-circulator agent registered
       When the proposal-circulation skill delegates a circulation act
@@ -73,7 +68,6 @@ Feature: Proposal Circulation Path
       And it will return only the circulation record to the caller
 
     # Source: 068-proposal-circulation-path — Proposed: missing-agent degradation (interface Error Communication) — path degrades to guidance
-    @wip
     Scenario: A missing circulator degrades the path to guidance
       Given the plugin was present but the proposal-circulator agent was absent or unregistered
       When the proposal-circulation skill is consulted for a circulation act
@@ -81,7 +75,7 @@ Feature: Proposal Circulation Path
       And no command in the CLI will be broken by the agent's absence
 
     # Source: 068-proposal-circulation-path — Scenario: Both gated transitions are routed through the guardrail
-    @validation @wip
+    @validation
     Scenario: The path routes both writes through the guardrail
       Given the path's treatment of the propose and withdraw transitions
       When each is inspected against the Write-Safety Guardrail
@@ -89,7 +83,7 @@ Feature: Proposal Circulation Path
       And the path will not issue either gated transition as if it were ungated
 
     # Source: 068-proposal-circulation-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no command the CLI lacks
       Given the produced proposal-circulation-path content
       When every command it composes is checked against the shipped CLI
@@ -97,7 +91,7 @@ Feature: Proposal Circulation Path
       And the path will name no command the CLI does not expose
 
     # Source: 068-proposal-circulation-path — Scenario: Reads inform, never gate
-    @validation @wip
+    @validation
     Scenario: The path never pre-gates a transition client-side
       Given the path's use of available transitions
       When it is inspected for a client-side transition gate
@@ -113,7 +107,6 @@ Feature: Proposal Circulation Path
     # drawn together rather than my reading raw command output.
 
     # Source: 068-proposal-circulation-path — Scenario: Monitor a circulating proposal
-    @wip
     Scenario: A circulating proposal is monitored as one picture
       Given the prp_ id of a proposal already circulating
       When the proposal-circulator reads it back
@@ -121,7 +114,6 @@ Feature: Proposal Circulation Path
       And it will not compute acceptance itself
 
     # Source: 068-proposal-circulation-path — Scenario: A monitoring read fails
-    @wip
     Scenario: A failed monitoring walk yields a partial picture
       Given a monitoring step in which the proposal list read failed mid-walk
       When the proposal-circulator continues
@@ -130,7 +122,6 @@ Feature: Proposal Circulation Path
       And it will not invent the missing data or abandon the whole result
 
     # Source: 068-proposal-circulation-path — Scenario: A response belongs to the response side
-    @wip
     Scenario: A consent response is handed to the response side
       Given a circulating proposal awaiting consent
       When a member wants to record a no-objection or bring-to-meeting response
@@ -138,7 +129,7 @@ Feature: Proposal Circulation Path
       And it will not record the response itself
 
     # Source: 068-proposal-circulation-path — Scenario: Circulation only, no response recording
-    @validation @wip
+    @validation
     Scenario: The path records no consent response
       Given the proposal-circulation skill and agent content
       When it is inspected for any no-objection or bring-to-meeting record step
@@ -146,7 +137,7 @@ Feature: Proposal Circulation Path
       And recording a response will remain the response side's act
 
     # Source: 068-proposal-circulation-path — Scenario: Synthesized, not raw
-    @validation @wip
+    @validation
     Scenario: The result is a synthesized circulation picture, not raw output
       Given the record the proposal-circulator returned
       When it is compared against the raw command output
@@ -161,7 +152,6 @@ Feature: Proposal Circulation Path
     # to the Proposal Drafting Path.
 
     # Source: 068-proposal-circulation-path — Scenario: Withdraw a circulating proposal back to draft
-    @wip
     Scenario: A circulating proposal is withdrawn back to draft
       Given a circulating proposal the proposer wanted to amend
       When the proposal-circulator surfaces it for confirmation and runs the withdraw through the confirmed write flow
@@ -169,7 +159,6 @@ Feature: Proposal Circulation Path
       And it will hand the prp_ id back to the Proposal Drafting Path for re-editing
 
     # Source: 068-proposal-circulation-path — Proposed: independent confirmations (plan ADR-3) — each transition is its own gated act
-    @wip
     Scenario: Two transitions in one session confirm twice
       Given a session that advanced a draft and later withdrew the circulating proposal
       When the proposal-circulator runs each transition
@@ -177,7 +166,7 @@ Feature: Proposal Circulation Path
       And neither confirmation will batch or pre-authorize the other
 
     # Source: 068-proposal-circulation-path — Scenario: Circulating, not judging or coaching
-    @validation @wip
+    @validation
     Scenario: The path circulates without judging authority or coaching
       Given the proposal-circulation skill and agent content
       When it is inspected for an authority verdict or Holacracy coaching
