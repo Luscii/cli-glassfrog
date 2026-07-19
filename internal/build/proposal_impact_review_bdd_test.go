@@ -56,11 +56,14 @@ type proposalImpactReviewWorld struct {
 	// depend on line breaks (frontmatter delimiters, the tools list).
 	skillRaw string
 	agentRaw string
-	composed []string
-	gated    []string
-	tools    []string
-	hasTools bool
-	drift    []string
+	composed     []string
+	gated        []string
+	liveTop      []string
+	liveMe       []string
+	liveProposal []string
+	tools        []string
+	hasTools     bool
+	drift        []string
 }
 
 func (w *proposalImpactReviewWorld) register(sc *godog.ScenarioContext) {
@@ -163,8 +166,10 @@ func (w *proposalImpactReviewWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^creation will remain the Proposal Drafting Path's act$`, w.thenCreationRemainsDraftings)
 
 	// Drift guard (standalone test is T002) ----------------------------------
-	// The "The path names no command the CLI lacks" validation scenario stays
-	// @wip until T002 lands the drift guard; its steps register there.
+	sc.Step(`^the produced proposal-impact-review-path content$`, w.givenImpactReviewContent)
+	sc.Step(`^every command it composes is checked against the shipped CLI$`, w.whenCheckedAgainstCLI)
+	sc.Step(`^each one will exist$`, w.thenEachExists)
+	sc.Step(`^the path will name no command the CLI does not expose$`, w.thenNamesNoLackingCommand)
 }
 
 // --- Loading -----------------------------------------------------------------
@@ -844,6 +849,101 @@ func (w *proposalImpactReviewWorld) thenCirculationRemainsCirculations() error {
 func (w *proposalImpactReviewWorld) thenCreationRemainsDraftings() error {
 	if !containsFold(w.combined(), "Proposal Drafting Path") || !containsFold(w.combined(), "067") {
 		return fmt.Errorf("the artifacts do not leave creation to the Proposal Drafting Path (067)")
+	}
+	return nil
+}
+
+// --- Drift guard (standalone test is T002) -------------------------------------
+
+func (w *proposalImpactReviewWorld) givenImpactReviewContent() error {
+	if err := w.ensureLoaded(); err != nil {
+		return err
+	}
+	composed, err := ReadProposalImpactReviewCommands()
+	if err != nil {
+		return fmt.Errorf("could not read the composed-leaf registry: %w", err)
+	}
+	if len(composed) == 0 {
+		return fmt.Errorf("the composed-leaf registry is empty — nothing to check against the CLI")
+	}
+	w.composed = composed
+	return nil
+}
+
+func (w *proposalImpactReviewWorld) whenCheckedAgainstCLI() error {
+	liveTop, err := LiveTopLevelCommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's top-level command surface: %w", err)
+	}
+	if len(liveTop) == 0 {
+		return fmt.Errorf("extracted no top-level commands — the surface anchor could not be read")
+	}
+	w.liveTop = liveTop
+	liveMe, err := LiveMeSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's `me` subcommand surface: %w", err)
+	}
+	if len(liveMe) == 0 {
+		return fmt.Errorf("extracted no `me` subcommands — the me surface anchor could not be read")
+	}
+	w.liveMe = liveMe
+	liveProposal, err := LiveProposalSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's proposal subcommand surface: %w", err)
+	}
+	if len(liveProposal) == 0 {
+		return fmt.Errorf("extracted no proposal subcommands — the surface anchor could not be read")
+	}
+	w.liveProposal = liveProposal
+	gated, err := ReadGatedRegistry()
+	if err != nil {
+		return fmt.Errorf("could not read 063's gated-command registry: %w", err)
+	}
+	w.gated = gated
+	w.drift = CheckProposalImpactReviewDrift(w.composed, w.liveTop, w.liveMe, w.liveProposal, w.gated, w.skillRaw, w.agentRaw)
+	return nil
+}
+
+func (w *proposalImpactReviewWorld) thenEachExists() error {
+	if len(w.drift) != 0 {
+		return fmt.Errorf("a composed leaf no longer resolves in the shipped CLI (or violates the gate-membership invariant):\n  - %s", joinDrift(w.drift))
+	}
+	// Positive per-leaf existence, independent of the drift check's own loop:
+	// every leaf resolves against the anchor its shape names.
+	topSet := setOf(w.liveTop)
+	meSet := setOf(w.liveMe)
+	proposalSet := setOf(w.liveProposal)
+	for _, leaf := range w.composed {
+		fields := strings.Fields(leaf)
+		switch {
+		case leaf == "me":
+			if len(w.liveMe) == 0 {
+				return fmt.Errorf("composed leaf %q could not be anchored to the CLI's `me` wiring", leaf)
+			}
+		case len(fields) == 1:
+			if !topSet[leaf] {
+				return fmt.Errorf("composed leaf %q does not exist as a top-level command in the CLI", leaf)
+			}
+		case len(fields) == 2 && fields[0] == "me":
+			if !meSet[fields[1]] {
+				return fmt.Errorf("composed leaf %q does not exist as a subcommand of the CLI's me command", leaf)
+			}
+		case len(fields) == 2 && fields[0] == "proposal":
+			if !proposalSet[fields[1]] {
+				return fmt.Errorf("composed leaf %q does not exist as a subcommand of the CLI's proposal command", leaf)
+			}
+		default:
+			return fmt.Errorf("composed leaf %q has a shape the guard cannot anchor", leaf)
+		}
+	}
+	return nil
+}
+
+func (w *proposalImpactReviewWorld) thenNamesNoLackingCommand() error {
+	// The same drift result proves the path names no command the CLI does not
+	// expose.
+	if len(w.drift) != 0 {
+		return fmt.Errorf("the path names a command the CLI does not expose:\n  - %s", joinDrift(w.drift))
 	}
 	return nil
 }

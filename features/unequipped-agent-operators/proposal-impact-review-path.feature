@@ -62,7 +62,7 @@ Feature: Proposal Impact Review Path
       And no command in the CLI will be broken by the agent's absence
 
     # Source: 069-proposal-impact-review-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no command the CLI lacks
       Given the produced proposal-impact-review-path content
       When every command it composes is checked against the shipped CLI
