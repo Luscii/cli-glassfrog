@@ -54,8 +54,8 @@ type proposalImpactReviewWorld struct {
 	agent string
 	// skillRaw/agentRaw keep the verbatim content for structural checks that
 	// depend on line breaks (frontmatter delimiters, the tools list).
-	skillRaw string
-	agentRaw string
+	skillRaw     string
+	agentRaw     string
 	composed     []string
 	gated        []string
 	liveTop      []string
