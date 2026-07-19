@@ -55,8 +55,8 @@ pending-list question):
    (`proposal get <prp-id>`: status, change set, `response_summary`,
    `response_deadline`, `available_transitions`), draws the operator's footprint
    (`me`, `me roles`, `me actions`, `me projects`), reads back the affected
-   governance where the change set touches that footprint (`roles <id>`,
-   `domains <id>`, `policies <id>`), and synthesizes the impact picture.
+   governance where the change set touches that footprint (`roles <role-id>`,
+   `domains <role-id>`, `policies <role-id>`), and synthesizes the impact picture.
 3. **Present the picture** — what the proposal changes; where it intersects the
    operator's roles, actions, and projects; the current-vs-proposed read-backs;
    and the footprint-coverage qualifier (see the reviewer's footprint honesty —

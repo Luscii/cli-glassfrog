@@ -54,7 +54,7 @@ single-page cap) and return the pending picture so the operator can pick →
 **draw the footprint** (`me`, `me roles`, `me actions`, `me projects`) —
 reading the `me roles` incompleteness signal (see Footprint honesty) → for
 change elements that touch the footprint, **read the affected governance back**
-(`roles <id>`, `domains <id>`, `policies <id>`) for the current-vs-proposed
+(`roles <role-id>`, `domains <role-id>`, `policies <role-id>`) for the current-vs-proposed
 picture → **synthesize**.
 
 For any one command's exact flags, ask the CLI: `glassfrog <cmd> --help`.
@@ -93,11 +93,12 @@ is the skill's caller-context write and never yours):
   honesty).
 - `me actions` — the actions the operator holds.
 - `me projects` — the projects the operator carries.
-- `roles <id>` — read back an affected role (accountabilities, purpose).
-- `domains <id>` — the domains an affected role controls (a top-level command,
-  not a `roles` subcommand).
-- `policies <id>` — the policies on an affected role's interior (top-level,
-  likewise).
+- `roles <role-id>` — read back an affected role (accountabilities, purpose).
+- `domains <role-id>` — the domains an affected role controls (a top-level
+  command, not a `roles` subcommand; the plural read takes a role id, unlike
+  singular `domain <dom-id>`).
+- `policies <role-id>` — the policies on an affected role's interior (top-level,
+  likewise; the plural read takes a role id, unlike singular `policy <pol-id>`).
 
 Name no other command: no `proposal respond`/`create`/`propose`/`withdraw`, no
 tension write, no command the CLI does not expose.
