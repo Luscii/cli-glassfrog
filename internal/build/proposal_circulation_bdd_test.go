@@ -156,6 +156,12 @@ func (w *proposalCirculationWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^it is inspected for an authority verdict or Holacracy coaching$`, w.whenLoaded)
 	sc.Step(`^it will not rule on whether the change is within authority$`, w.thenNoAuthorityVerdict)
 	sc.Step(`^it will not advise on governance craft$`, w.thenNoCoaching)
+
+	// Drift guard (standalone test is T002) ----------------------------------
+	sc.Step(`^the produced proposal-circulation-path content$`, w.givenCirculationContent)
+	sc.Step(`^every command it composes is checked against the shipped CLI$`, w.whenCheckedAgainstCLI)
+	sc.Step(`^each one will exist$`, w.thenEachExists)
+	sc.Step(`^the path will name no command the CLI does not expose$`, w.thenNamesNoLackingCommand)
 }
 
 // --- Loading -----------------------------------------------------------------
@@ -792,6 +798,64 @@ func (w *proposalCirculationWorld) thenNoAuthorityVerdict() error {
 func (w *proposalCirculationWorld) thenNoCoaching() error {
 	if !containsFold(w.combined(), "advise on governance craft") || !containsFold(w.combined(), "coach") {
 		return fmt.Errorf("the artifacts do not disclaim advising on governance craft or coaching Holacracy practice")
+	}
+	return nil
+}
+
+// --- Drift guard (standalone test is T002) -------------------------------------
+
+func (w *proposalCirculationWorld) givenCirculationContent() error {
+	if err := w.ensureLoaded(); err != nil {
+		return err
+	}
+	composed, err := ReadProposalCirculationCommands()
+	if err != nil {
+		return fmt.Errorf("could not read the composed-leaf registry: %w", err)
+	}
+	if len(composed) == 0 {
+		return fmt.Errorf("the composed-leaf registry is empty — nothing to check against the CLI")
+	}
+	w.composed = composed
+	return nil
+}
+
+func (w *proposalCirculationWorld) whenCheckedAgainstCLI() error {
+	liveProposal, err := LiveProposalSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's proposal subcommand surface: %w", err)
+	}
+	if len(liveProposal) == 0 {
+		return fmt.Errorf("extracted no proposal subcommands — the surface anchor could not be read")
+	}
+	w.liveProposal = liveProposal
+	gated, err := ReadGatedRegistry()
+	if err != nil {
+		return fmt.Errorf("could not read 063's gated-command registry: %w", err)
+	}
+	w.gated = gated
+	w.drift = CheckProposalCirculationDrift(w.composed, w.liveProposal, w.gated, w.agent)
+	return nil
+}
+
+func (w *proposalCirculationWorld) thenEachExists() error {
+	if len(w.drift) != 0 {
+		return fmt.Errorf("a composed leaf no longer resolves in the shipped CLI (or violates the gated-membership invariant):\n  - %s", joinDrift(w.drift))
+	}
+	liveSet := setOf(w.liveProposal)
+	for _, leaf := range w.composed {
+		fields := strings.Fields(leaf)
+		if len(fields) != 2 || fields[0] != "proposal" || !liveSet[fields[1]] {
+			return fmt.Errorf("composed leaf %q does not exist as a subcommand of the CLI's proposal command", leaf)
+		}
+	}
+	return nil
+}
+
+func (w *proposalCirculationWorld) thenNamesNoLackingCommand() error {
+	// The same drift result proves the path names no command the CLI does not
+	// expose.
+	if len(w.drift) != 0 {
+		return fmt.Errorf("the path names a command the CLI does not expose:\n  - %s", joinDrift(w.drift))
 	}
 	return nil
 }

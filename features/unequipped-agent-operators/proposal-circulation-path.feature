@@ -83,7 +83,7 @@ Feature: Proposal Circulation Path
       And the path will not issue either gated transition as if it were ungated
 
     # Source: 068-proposal-circulation-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no command the CLI lacks
       Given the produced proposal-circulation-path content
       When every command it composes is checked against the shipped CLI
