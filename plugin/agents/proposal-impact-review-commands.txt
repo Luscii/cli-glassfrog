@@ -5,7 +5,7 @@
 # consumed by THREE consumers:
 #   - the proposal-impact-reviewer agent (plugin/agents/proposal-impact-reviewer.md)
 #     — its "Composed reads" section names exactly the NINE read leaves below and
-#       no others; the tenth leaf (`proposal respond`) is never the agent's
+#       no others; the tenth leaf (`proposal respond`) is the skill's, never the agent's
 #   - the proposal-impact-review skill (plugin/skills/proposal-impact-review/SKILL.md)
 #     — its decision-and-respond step runs the ONE gated write leaf below, in the
 #       caller's context, only on an explicitly operator-chosen value
