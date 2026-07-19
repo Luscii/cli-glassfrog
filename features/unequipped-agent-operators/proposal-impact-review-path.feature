@@ -33,7 +33,6 @@ Feature: Proposal Impact Review Path
     # draws it against my current governance.
 
     # Source: 069-proposal-impact-review-path — Scenario: Review a circulating proposal's impact on the operator's roles
-    @wip
     Scenario: A circulating proposal is reviewed against the operator's footprint
       Given the prp_ id of a proposal circulating for consent
       When the proposal-impact-reviewer reads the change set back and draws it against the operator's me roles, actions, and projects
@@ -41,7 +40,6 @@ Feature: Proposal Impact Review Path
       And it will record no response
 
     # Source: 069-proposal-impact-review-path — Scenario: A review read fails mid-picture
-    @wip
     Scenario: A failed review read yields a partial picture
       Given a review in which an affected-role read failed
       When the proposal-impact-reviewer continues
@@ -50,7 +48,6 @@ Feature: Proposal Impact Review Path
       And it will not invent the missing data or abandon the whole review
 
     # Source: 069-proposal-impact-review-path — Proposed: registration/discovery surface (interface Surface) — the agent is reachable once registered
-    @wip
     Scenario: The reviewer is reachable once the plugin registers it
       Given the plugin was present with the proposal-impact-reviewer agent registered
       When the proposal-impact-review skill delegates a review
@@ -58,7 +55,6 @@ Feature: Proposal Impact Review Path
       And it will return only the impact picture to the caller
 
     # Source: 069-proposal-impact-review-path — Proposed: missing-agent degradation (interface Error Communication) — path degrades to guidance
-    @wip
     Scenario: A missing reviewer degrades the path to guidance
       Given the plugin was present but the proposal-impact-reviewer agent was absent or unregistered
       When the proposal-impact-review skill is consulted for a review
@@ -66,7 +62,7 @@ Feature: Proposal Impact Review Path
       And no command in the CLI will be broken by the agent's absence
 
     # Source: 069-proposal-impact-review-path — Scenario: No invented surface
-    @validation @wip
+    @validation
     Scenario: The path names no command the CLI lacks
       Given the produced proposal-impact-review-path content
       When every command it composes is checked against the shipped CLI
@@ -74,7 +70,7 @@ Feature: Proposal Impact Review Path
       And the path will name no command the CLI does not expose
 
     # Source: 069-proposal-impact-review-path — Scenario: Synthesized, not raw
-    @validation @wip
+    @validation
     Scenario: The result is a synthesized impact picture, not raw output
       Given the picture the proposal-impact-reviewer returned
       When it is compared against the raw command output
@@ -89,7 +85,6 @@ Feature: Proposal Impact Review Path
     # output myself.
 
     # Source: 069-proposal-impact-review-path — Scenario: The change does not touch the operator's governance
-    @wip
     Scenario: A no-impact review is a load-bearing result
       Given a circulating proposal whose change set fell outside the operator's roles, actions, and projects
       When the proposal-impact-reviewer draws the impact picture
@@ -97,7 +92,6 @@ Feature: Proposal Impact Review Path
       And it will still show what the proposal would change overall
 
     # Source: 069-proposal-impact-review-path — Scenario: The review is complete without a response
-    @wip
     Scenario: A review stands on its own without a response
       Given an operator who had reviewed a proposal's impact but was not ready to answer
       When the path finishes the review
@@ -105,7 +99,6 @@ Feature: Proposal Impact Review Path
       And the review will be a useful result on its own
 
     # Source: 069-proposal-impact-review-path — Proposed: footprint honesty (plan ADR-4a / interface footprint_coverage) — an incomplete me roles read qualifies the picture
-    @wip
     Scenario: An incomplete footprint qualifies the no-impact conclusion
       Given a footprint read in which me roles signalled that more roles exist than shown
       When the proposal-impact-reviewer draws the impact picture
@@ -114,7 +107,7 @@ Feature: Proposal Impact Review Path
       And it will never state an unqualified negative over a known-incomplete list
 
     # Source: 069-proposal-impact-review-path — Scenario: Reviews inform, never decide
-    @validation @wip
+    @validation
     Scenario: The picture carries no verdict and chooses no response
       Given the path's use of the change set and the operator's footprint
       When it is inspected for a fabricated objection verdict or an auto-chosen response
@@ -122,7 +115,7 @@ Feature: Proposal Impact Review Path
       And it will neither rule that an objection is required nor answer on the operator's behalf
 
     # Source: 069-proposal-impact-review-path — Scenario: Reviewing, not judging authority or coaching
-    @validation @wip
+    @validation
     Scenario: The path reviews without judging authority or coaching
       Given the proposal-impact-review skill and agent content
       When it is inspected for a proposer-side authority verdict or Holacracy coaching
@@ -137,7 +130,6 @@ Feature: Proposal Impact Review Path
     # confirmed write flow and return the recorded response.
 
     # Source: 069-proposal-impact-review-path — Scenario: Record no-objection after review finds no concern
-    @wip
     Scenario: A no-objection is recorded through the confirmed write flow
       Given a reviewed proposal whose change did not create a tension for the operator's work
       When the path surfaces the proposal and no-objection for confirmation and runs the respond through the confirmed write flow
@@ -145,7 +137,6 @@ Feature: Proposal Impact Review Path
       And the returned parent status will read accepted when that response completed the expected set
 
     # Source: 069-proposal-impact-review-path — Scenario: Record bring-to-meeting when review surfaces a concern
-    @wip
     Scenario: A bring-to-meeting is recorded and blocks auto-acceptance
       Given a reviewed proposal whose change landed on a role the operator fills in a way they wanted discussed
       When the path surfaces the proposal and bring-to-meeting for confirmation and runs the respond through the confirmed write flow
@@ -153,7 +144,6 @@ Feature: Proposal Impact Review Path
       And the path will stop, leaving advancing or withdrawing to the Proposal Circulation Path
 
     # Source: 069-proposal-impact-review-path — Scenario: The response must be confirmed before it crosses the boundary
-    @wip
     Scenario: An unconfirmed response leaves the record untouched
       Given a proposal the operator was ready to answer
       When the path reaches the respond write
@@ -161,7 +151,6 @@ Feature: Proposal Impact Review Path
       And no response will be recorded when the write is not confirmed
 
     # Source: 069-proposal-impact-review-path — Scenario: A response is rejected
-    @wip
     Scenario: A rejected response fabricates no state
       Given a respond attempt the server did not allow
       When the path runs the response through the confirmed write flow
@@ -170,7 +159,6 @@ Feature: Proposal Impact Review Path
       And it will not treat any non-2xx as success or fabricate a state the record does not contain
 
     # Source: 069-proposal-impact-review-path — Proposed: split write locus (plan ADR-3 / interface Error Communication) — the reviewer hands the respond step back to the caller
-    @wip
     Scenario: The reviewer hands the respond step back to the caller
       Given a caller who asked the proposal-impact-reviewer to record the response itself
       When the reviewer answers
@@ -178,7 +166,7 @@ Feature: Proposal Impact Review Path
       And no respond will be run by the reviewer
 
     # Source: 069-proposal-impact-review-path — Scenario: The single gated response is routed through the guardrail
-    @validation @wip
+    @validation
     Scenario: The path routes its one write through the guardrail
       Given the path's treatment of the respond write
       When it is inspected against the Write-Safety Guardrail
@@ -187,7 +175,7 @@ Feature: Proposal Impact Review Path
       And the path will perform no other governance write
 
     # Source: 069-proposal-impact-review-path — Scenario: Review-and-respond only, no circulation transitions
-    @validation @wip
+    @validation
     Scenario: The path performs no circulation or creation step
       Given the proposal-impact-review skill and agent content
       When it is inspected for any propose, withdraw, or create step

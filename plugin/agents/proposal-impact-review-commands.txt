@@ -1,0 +1,50 @@
+# Composed-leaf registry — the commands the Proposal Impact Review Path composes
+# (069 Proposal Impact Review Path).
+#
+# THE single source of "which glassfrog leaves the impact-review path composes",
+# consumed by THREE consumers:
+#   - the proposal-impact-reviewer agent (plugin/agents/proposal-impact-reviewer.md)
+#     — its "Composed reads" section names exactly the NINE read leaves below and
+#       no others; the tenth leaf (`proposal respond`) is the skill's, never the agent's
+#   - the proposal-impact-review skill (plugin/skills/proposal-impact-review/SKILL.md)
+#     — its decision-and-respond step runs the ONE gated write leaf below, in the
+#       caller's context, only on an explicitly operator-chosen value
+#   - the drift guard              (internal/build/proposal_impact_review_guard_test.go)
+#     — it checks every leaf here still resolves to a command in the shipped CLI,
+#       AND that the one-in-nine-out gate-membership invariant holds: `proposal
+#       respond` IS a member of 063's gated proposal-write registry
+#       (plugin/hooks/gated-commands.txt) — the confirmed-write-flow promise
+#       pinned structurally — and the nine reads are ABSENT from it
+# so the artifact prose and the guard can never disagree about the composed
+# surface or its gate posture (plan ADR-5, mirroring 063's gated-commands.txt,
+# 064's composed-reads.txt, 065's constraint-discovery-composed-reads.txt, 066's
+# tension-processing-commands.txt, 067's proposal-drafting-commands.txt, and
+# 068's proposal-circulation-commands.txt).
+#
+# Each non-comment, non-blank line is ONE `glassfrog` leaf the path may invoke,
+# written as a command path: two-token `proposal <sub>` / `me <sub>` pairs are
+# written like 063's registry lines (so the membership check compares like with
+# like); bare `me` and the top-level reads are single tokens (`domains` and
+# `policies` are top-level commands — `domains <role-id>`, `policies <role-id>` —
+# not `roles` subcommands). Nine are review reads (the grounding/situating
+# proposal reads, the four footprint reads, the three affected-governance
+# read-backs); one is the gated governance write 063 confirms by design
+# (`proposal respond`), run only through the confirmed write flow and belonging
+# to the SKILL's caller-context step, never the agent's composed reads. No other
+# proposal write ever appears here — the path never creates a proposal (that is
+# drafting, 067) and never advances or withdraws one (that is circulation, 068).
+#
+# Renaming or dropping one of these commands in the CLI — or pulling `proposal
+# respond` OUT of 063's gated set, or pulling a read INTO it — turns the drift
+# guard red; the artifacts cannot silently name a command the CLI lacks or a
+# write the guardrail stops confirming.
+proposal get
+proposal list
+proposal respond
+me
+me roles
+me actions
+me projects
+roles
+domains
+policies
