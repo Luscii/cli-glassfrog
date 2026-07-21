@@ -113,6 +113,13 @@ func (e *MarketplacePluginEntry) UnmarshalJSON(raw []byte) error {
 // validated manifest shape. A decode error — or a missing required field — is
 // exactly the "host cannot add the marketplace" condition: nothing installs,
 // and the guard fails first in CI.
+//
+// Required fields follow the interface contract's "yes" rows: the manifest's
+// `name` and `owner.name`, a non-empty `plugins` list, and — for every entry,
+// present and future sibling alike — `name`, `source`, and `description`.
+// `$schema` is deliberately NOT required: the contract marks it recommended,
+// and real host marketplaces ship without it, so requiring it here would
+// reject valid manifests.
 func ParseMarketplaceManifest(raw []byte) (MarketplaceManifest, error) {
 	var m MarketplaceManifest
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -126,6 +133,17 @@ func ParseMarketplaceManifest(raw []byte) (MarketplaceManifest, error) {
 	}
 	if len(m.Plugins) == 0 {
 		return MarketplaceManifest{}, fmt.Errorf("marketplace manifest carries no %q entries", "plugins")
+	}
+	for i, entry := range m.Plugins {
+		for _, required := range []struct{ field, value string }{
+			{"name", entry.Name},
+			{"source", entry.Source},
+			{"description", entry.Description},
+		} {
+			if strings.TrimSpace(required.value) == "" {
+				return MarketplaceManifest{}, fmt.Errorf("marketplace plugin entry %d is missing the required %q field", i, required.field)
+			}
+		}
 	}
 	return m, nil
 }
@@ -165,16 +183,21 @@ func MarketplaceSourcePluginManifest(source string) (OrientationManifest, error)
 		return OrientationManifest{}, fmt.Errorf("marketplace entry carries an empty source")
 	}
 	// The contract is an IN-REPO relative path resolving to the plugin
-	// directory. An absolute path, a `..` traversal, or a scheme/URI form
-	// (e.g. `github:Luscii/x`, `https://…`) is a malformed entry, not
-	// something to follow: `path.Join` would happily escape the checkout, so
-	// the guard would read outside the repo instead of failing on the defect.
-	// Reject those shapes before joining. (A future cross-repo sibling entry
-	// carries its own non-relative source, but the guard only ever resolves
-	// the in-repo glassfrog entry through here.)
+	// directory. An absolute path, a `..` traversal, a scheme/URI form
+	// (e.g. `github:Luscii/x`, `https://…`), or a backslash is a malformed
+	// entry, not something to follow: `path.Join` would happily escape the
+	// checkout, so the guard would read outside the repo instead of failing on
+	// the defect. Reject those shapes before joining. (A future cross-repo
+	// sibling entry carries its own non-relative source, but the guard only
+	// ever resolves the in-repo glassfrog entry through here.)
+	//
+	// The backslash guard matters because `path.Clean` treats `\` as an
+	// ordinary character (not a separator), so a Windows-style `..\..\..`
+	// slips past the `..`/`../` checks below yet would traverse once
+	// filepath.Join sees it on a `\`-separator OS.
 	cleaned := path.Clean(source)
-	if path.IsAbs(cleaned) || strings.Contains(source, ":") || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return OrientationManifest{}, fmt.Errorf("marketplace entry source %q is not an in-repo relative path (absolute, traversal, or scheme forms are rejected) — the guard resolves only committed in-repo plugin sources", source)
+	if path.IsAbs(cleaned) || strings.ContainsAny(source, `:\`) || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return OrientationManifest{}, fmt.Errorf("marketplace entry source %q is not an in-repo relative path (absolute, traversal, scheme, or backslash forms are rejected) — the guard resolves only committed in-repo plugin sources", source)
 	}
 	rel := path.Join(cleaned, ".claude-plugin", "plugin.json")
 	raw, err := readRepoFile(rel)

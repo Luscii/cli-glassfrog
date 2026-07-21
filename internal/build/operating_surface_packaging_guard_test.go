@@ -74,7 +74,7 @@ func TestMarketplaceConsistencyGuard(t *testing.T) {
 	// The source resolver rejects non-in-repo shapes rather than letting
 	// path.Join escape the checkout: an absolute path, a `..` traversal, and a
 	// scheme/URI form must each error instead of reading outside the repo.
-	for _, bad := range []string{"../../..", "/etc", "github:Luscii/cli-glassfrog"} {
+	for _, bad := range []string{"../../..", "/etc", "github:Luscii/cli-glassfrog", `..\..\..`} {
 		if _, err := MarketplaceSourcePluginManifest(bad); err == nil {
 			t.Errorf("MarketplaceSourcePluginManifest(%q) resolved without error — a non-in-repo source must be rejected, not followed", bad)
 		}
