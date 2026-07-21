@@ -25,7 +25,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
 
 ## Phase 1: Distribution vehicle [Shared]
 
-- [ ] **T001** [Shared] Ship the repo-root marketplace manifest and its consistency guard
+- [x] **T001** [Shared] Ship the repo-root marketplace manifest and its consistency guard — 7 scenarios un-@wip'd (marketplace add/install/drift/version-pin/sibling-append + 2 validation); `.claude-plugin/marketplace.json` landed with the verbatim plugin description and no version pin; `internal/build/operatingsurfacepackaging.go` exports the path constant, the `MarketplacePluginName` contract anchor (cross-checked against plugin.json), and the parse/consistency helpers; guard test states its partial coverage in-test
   - **Scope**: Create `.claude-plugin/marketplace.json` at the repo root (ADR-1/-2) and the `internal/build` consistency guard (ADR-5). One reviewable change: the distribution manifest plus the test that keeps it honest.
   - **Acceptance criteria**:
     - `.claude-plugin/marketplace.json` exists at the repo root with `name: "glassfrog"`, `owner: {name: "Luscii"}`, `$schema` set to the Claude marketplace schema URL, and a `plugins` array

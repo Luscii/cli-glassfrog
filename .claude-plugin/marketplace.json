@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "glassfrog",
+  "owner": {
+    "name": "Luscii"
+  },
+  "plugins": [
+    {
+      "name": "glassfrog",
+      "source": "./plugin",
+      "description": "Agent operating surface for the glassfrog CLI: cross-cutting orientation (output formats, pagination, exit codes, credentials, write-safety) an AI agent consults on demand to drive the CLI correctly from the first session."
+    }
+  ]
+}
