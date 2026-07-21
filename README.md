@@ -97,6 +97,27 @@ checksum**, and only then places the binary.
 > [one-time per-package setup](scripts/npm-trusted-publishers.md) before the
 > first release.
 
+## Install the agent operating surface
+
+If an AI agent drives the CLI for you, the repo also ships a Claude plugin — the
+**agent operating surface**: orientation knowledge, operator-path skills, and a
+write-safety hook that equip an agent to drive `glassfrog` correctly and safely.
+In a Claude plugin host (e.g. Claude Code), add this repository as a plugin
+marketplace, then install the plugin from it:
+
+```
+/plugin marketplace add Luscii/cli-glassfrog
+/plugin install glassfrog@glassfrog
+```
+
+The plugin is knowledge and guardrails only — it adds no command and no API
+capability. The **CLI itself is a prerequisite**: install the `glassfrog` binary
+first through any of the channels above (the [install script](#installation),
+[Homebrew](docs/guides/installation/how-to-install.md), or [npm](#install-via-npm)).
+After installing the plugin, the `glassfrog-setup` skill checks that the binary
+is present and authenticated and directs you to the right fix when either is
+missing. See [How to install the operating surface](docs/guides/agent-operators/how-to-install-the-operating-surface.md).
+
 ## Documentation
 
 See [`docs/`](docs/) for guides, reference, and explanation, organised along the

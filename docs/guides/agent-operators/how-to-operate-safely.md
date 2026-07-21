@@ -16,7 +16,7 @@ shell commands and read the CLI's own `--help`.
 ## Prerequisites
 
 - The `glassfrog` binary on your `PATH`, with a usable token (`glassfrog auth login` — see [Set up credentials](#5-set-up-credentials)).
-- The **glassfrog plugin** present in your host, if you want orientation and enforcement. It ships in the repo at `plugin/` — a manifest at `plugin/.claude-plugin/plugin.json`, the orientation skill at `plugin/skills/orientation/SKILL.md`, and the write-safety hook at `plugin/hooks/`. (How the plugin is distributed is a separate concern; for now install it from a local path.) Without the plugin the CLI still works — you just operate under your own knowledge, with the guardrail's enforcement absent.
+- The **glassfrog plugin** present in your host, if you want orientation and enforcement. It ships in the repo at `plugin/` — a manifest at `plugin/.claude-plugin/plugin.json`, the orientation skill at `plugin/skills/orientation/SKILL.md`, and the write-safety hook at `plugin/hooks/`. Install it from the repo's own marketplace — see [How to install the operating surface](how-to-install-the-operating-surface.md). Without the plugin the CLI still works — you just operate under your own knowledge, with the guardrail's enforcement absent.
 
 ## 1. Consult orientation on demand
 

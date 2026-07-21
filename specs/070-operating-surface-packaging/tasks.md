@@ -39,7 +39,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
   - **Scenario references**: operating-surface-packaging.feature: "Marketplace add lists the glassfrog plugin", "Install brings the plugin's surface into the environment", "Marketplace entry drift is a defect", "Guard fails when a version pin appears on the marketplace entry", "Marketplace entry matches the plugin it ships" (@validation), "A sibling plugin is one appended entry", "Marketplace shape admits additional entries" (@validation)
   - **Interface references**: interface-spec.md: `marketplace.json` schema, Guard contract
 
-- [ ] **T002** [Shared] Document the install flow for the operating surface
+- [x] **T002** [Shared] Document the install flow for the operating surface — README gains "Install the agent operating surface" (marketplace add + plugin install, CLI-prerequisite pointer to the three existing channels); new guide `docs/guides/agent-operators/how-to-install-the-operating-surface.md` carries the journey; the operate-safely guide's superseded "install it from a local path" prerequisite now points at the new guide; no new scenario activation (its referenced scenario passed in T001)
   - **Scope**: Add an "agent operating surface" install section to README and `docs/guides/agent-operators/`, beside the existing CLI install section — the marketplace-add then plugin-install steps. Prose only; no code.
   - **Acceptance criteria**:
     - README gains a section showing `/plugin marketplace add Luscii/cli-glassfrog` followed by `/plugin install glassfrog@glassfrog`
