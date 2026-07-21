@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -311,9 +312,12 @@ type SetupSkillAnchors struct {
 	// the exact install coordinate the skill must quote.
 	NPMPackage string
 	// MeResolves reports whether the auth-check leaf (`me`) still resolves in
-	// the CLI command registry. The bare `me` is variable-wired on root, so a
-	// non-empty me-subcommand surface is the proof of registration
-	// (LiveMeSubcommands errors when the root registration is gone).
+	// the CLI command registry. The auth check is the BARE `glassfrog me`
+	// identity read, whose existence depends only on `me` being registered on
+	// root (`MustRegister(root, meCmd)`) — NOT on `me` carrying any
+	// subcommands. So this anchors directly to the root-registration site,
+	// best-effort, rather than to the me-subcommand surface (which would go
+	// false if the CLI kept bare `me` but dropped every `me <sub>`).
 	MeResolves bool
 }
 
@@ -343,10 +347,27 @@ func LiveSetupSkillAnchors() (SetupSkillAnchors, error) {
 	}
 	a.NPMPackage = npmPkg.Name
 
-	subs, err := LiveMeSubcommands()
-	a.MeResolves = err == nil && len(subs) > 0
+	meOnRoot, err := meRegisteredOnRoot()
+	if err != nil {
+		return a, err
+	}
+	a.MeResolves = meOnRoot
 
 	return a, nil
+}
+
+// meRegisteredOnRoot reports, best-effort, whether the bare `me` command is
+// still registered on root (`MustRegister(root, meCmd)` in app.go) — the sole
+// requirement for `glassfrog me` to resolve. It deliberately does NOT require
+// `me` to carry subcommands (unlike LiveMeSubcommands, which anchors 069's
+// `me <sub>` composed reads): the setup skill's auth check is the bare
+// identity read. Returns an error only when the wiring source can't be read.
+func meRegisteredOnRoot() (bool, error) {
+	appSrc, err := readRepoFile("internal/cli/app.go")
+	if err != nil {
+		return false, fmt.Errorf("could not read the CLI wiring source %s: %w", cliWiringSource, err)
+	}
+	return regexp.MustCompile(`MustRegister\(root,\s*meCmd\)`).Match(appSrc), nil
 }
 
 // CheckSetupSkillDrift returns one finding per way the setup skill's
