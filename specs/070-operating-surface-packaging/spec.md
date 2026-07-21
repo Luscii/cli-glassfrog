@@ -53,7 +53,7 @@ The boundary is **distribution only**. The plugin definition, its orientation co
 
 **In order to** add a second operating-surface plugin later without standing up new distribution machinery,
 **as a** maintainer,
-**I want to** the marketplace to be a general one the glassfrog plugin is simply the first entry of.
+**I want** the marketplace to be a general one the glassfrog plugin is simply the first entry of.
 
 ---
 

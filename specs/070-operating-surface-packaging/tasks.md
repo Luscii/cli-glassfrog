@@ -61,7 +61,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
     - `plugin/skills/glassfrog-setup/SKILL.md` exists with frontmatter `name: glassfrog-setup` and a `description` that triggers on provisioning needs (fresh environment, post-install, command-not-found, auth failure) and stays clear of orientation's operating-question territory
     - The skill instructs a presence check (an existing innocuous command) and an auth check (a low-cost authenticated identity read), with the two failure classes kept distinct: missing binary → the three install channels; failing credential → the CLI's existing `X-Auth-Token` setup
     - The skill re-checks after a fix before reporting ready, and never installs a binary or stores a credential of its own
-    - A carries a boundary note: setup owns the journey (check → fix → verify); orientation owns the reference — setup links, never restates
+    - The skill carries a boundary note: setup owns the journey (check → fix → verify); orientation owns the reference — setup links, never restates
     - The guard extension anchors the enumerable facts: the three channel names appear in the skill, and the auth-check command leaf resolves in the CLI command registry; frontmatter `name`/`description` are present and non-empty
     - `go test ./...` and `gofmt -l .` are clean
   - **Dependencies**: None (functionally independent of Phase 1; shares the guard file with T001 — see Branching Guidance)

@@ -134,7 +134,7 @@ Feature: Operating-Surface Packaging
     Scenario: A sibling plugin is one appended entry
       Given the marketplace shipped with the "glassfrog" plugin as its only entry
       When a sibling operating-surface plugin is later added
-      Then it will be listed as an additional plugins entry
+      Then it will be listed as an additional entry in the plugins list
       And the marketplace will require no restructuring to carry it
 
     # Source: 070-operating-surface-packaging — Scenario: The marketplace is general, not glassfrog-locked
