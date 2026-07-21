@@ -164,7 +164,19 @@ func MarketplaceSourcePluginManifest(source string) (OrientationManifest, error)
 	if strings.TrimSpace(source) == "" {
 		return OrientationManifest{}, fmt.Errorf("marketplace entry carries an empty source")
 	}
-	rel := path.Join(source, ".claude-plugin", "plugin.json")
+	// The contract is an IN-REPO relative path resolving to the plugin
+	// directory. An absolute path, a `..` traversal, or a scheme/URI form
+	// (e.g. `github:Luscii/x`, `https://…`) is a malformed entry, not
+	// something to follow: `path.Join` would happily escape the checkout, so
+	// the guard would read outside the repo instead of failing on the defect.
+	// Reject those shapes before joining. (A future cross-repo sibling entry
+	// carries its own non-relative source, but the guard only ever resolves
+	// the in-repo glassfrog entry through here.)
+	cleaned := path.Clean(source)
+	if path.IsAbs(cleaned) || strings.Contains(source, ":") || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return OrientationManifest{}, fmt.Errorf("marketplace entry source %q is not an in-repo relative path (absolute, traversal, or scheme forms are rejected) — the guard resolves only committed in-repo plugin sources", source)
+	}
+	rel := path.Join(cleaned, ".claude-plugin", "plugin.json")
 	raw, err := readRepoFile(rel)
 	if err != nil {
 		return OrientationManifest{}, fmt.Errorf("marketplace entry source %q does not resolve to a directory containing a plugin manifest: %w", source, err)

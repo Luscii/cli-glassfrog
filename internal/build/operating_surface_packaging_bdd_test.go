@@ -323,7 +323,10 @@ func (w *operatingSurfacePackagingWorld) whenInspectedForMultiEntry() error {
 	if !ok {
 		return fmt.Errorf("the manifest carries no %q key", "plugins")
 	}
-	w.pluginsIsArray = len(plugins) > 0 && plugins[0] == '['
+	// json.RawMessage can carry leading whitespace ahead of the value, so trim
+	// before the byte check — a `"plugins":  [ … ]` is still a valid array.
+	pluginsTrimmed := strings.TrimLeft(string(plugins), " \t\r\n")
+	w.pluginsIsArray = len(pluginsTrimmed) > 0 && pluginsTrimmed[0] == '['
 
 	// The checkable form of "can carry more than one": an appended copy still
 	// parses and lists both entries.

@@ -70,6 +70,15 @@ func TestMarketplaceConsistencyGuard(t *testing.T) {
 	if plugin.Name != MarketplacePluginName {
 		t.Errorf("the plugin manifest's name %q no longer matches the pinned install identity %q — the documented install command drifted; reconcile MarketplacePluginName with %s", plugin.Name, MarketplacePluginName, OrientationManifestPath)
 	}
+
+	// The source resolver rejects non-in-repo shapes rather than letting
+	// path.Join escape the checkout: an absolute path, a `..` traversal, and a
+	// scheme/URI form must each error instead of reading outside the repo.
+	for _, bad := range []string{"../../..", "/etc", "github:Luscii/cli-glassfrog"} {
+		if _, err := MarketplaceSourcePluginManifest(bad); err == nil {
+			t.Errorf("MarketplaceSourcePluginManifest(%q) resolved without error — a non-in-repo source must be rejected, not followed", bad)
+		}
+	}
 }
 
 // TestSetupSkillDriftGuard is the best-effort drift guard for the
