@@ -71,6 +71,21 @@ type operatingSurfacePackagingWorld struct {
 	siblingName string
 
 	pluginsIsArray bool
+
+	// setupSkill holds the glassfrog-setup content with whitespace collapsed
+	// to single spaces, so phrase assertions are resilient to markdown
+	// line-wrapping; setupSkillRaw keeps the verbatim content for structural
+	// checks (frontmatter, fenced command blocks).
+	setupSkill    string
+	setupSkillRaw string
+	setupAnchors  SetupSkillAnchors
+
+	// no-operating-surface inspection results (the packaging-wide validation
+	// scenario).
+	manifestExtraKeys   []string
+	unresolvedLeaves    []string
+	restatedOrientation []string
+	mentionedPathSkills []string
 }
 
 func (w *operatingSurfacePackagingWorld) register(sc *godog.ScenarioContext) {
@@ -113,6 +128,40 @@ func (w *operatingSurfacePackagingWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the marketplace manifest$`, w.givenLoaded)
 	sc.Step(`^it is inspected for whether it can carry more than one plugin$`, w.whenInspectedForMultiEntry)
 	sc.Step(`^its plugins list will admit additional entries without restructuring$`, w.thenAdmitsAdditionalEntries)
+
+	// Rule: Go from installed plugin to ready-to-drive through a guided setup
+	sc.Step(`^the plugin was installed$`, w.givenSetupSkillLoaded)
+	sc.Step(`^the "([^"]*)" CLI was present in the environment$`, w.givenSetupSkillLoadedNamed)
+	sc.Step(`^a working credential was configured$`, w.givenSetupSkillLoaded)
+	sc.Step(`^the operator invokes the setup skill$`, w.whenSetupSkillInvoked)
+	sc.Step(`^the setup skill will confirm the CLI presence and the authenticated identity$`, w.thenConfirmsPresenceAndIdentity)
+	sc.Step(`^it will report the environment ready to drive the CLI$`, w.thenReportsReady)
+
+	sc.Step(`^the "([^"]*)" CLI was not present in the environment$`, w.givenSetupSkillLoadedNamed)
+	sc.Step(`^the setup skill will report the CLI as missing$`, w.thenReportsCLIMissing)
+	sc.Step(`^it will direct the operator to the install script, Homebrew tap, and npm wrapper channels$`, w.thenDirectsToChannels)
+	sc.Step(`^it will not attempt to install or bundle the binary itself$`, w.thenNoSelfInstall)
+
+	sc.Step(`^no working credential was configured$`, w.givenSetupSkillLoaded)
+	sc.Step(`^the auth check will fail$`, w.thenAuthCheckFailureHandled)
+	sc.Step(`^the setup skill will guide the operator through the CLI's existing X-Auth-Token setup$`, w.thenGuidesXAuthTokenSetup)
+	sc.Step(`^it will introduce no credential mechanism of its own$`, w.thenNoOwnCredentialMechanism)
+
+	sc.Step(`^the produced setup skill content$`, w.givenSetupSkillLoaded)
+	sc.Step(`^it is inspected for how it handles a missing CLI or a missing credential$`, w.whenSetupSkillInvoked)
+	sc.Step(`^it will only point at the CLI's existing install channels and credential setup$`, w.thenOnlyPointsAtExistingFixes)
+	sc.Step(`^it will install no binary and store no credential of its own$`, w.thenInstallsNothingStoresNothing)
+
+	sc.Step(`^the setup skill had directed the operator to an install channel for a missing CLI$`, w.givenSetupSkillLoaded)
+	sc.Step(`^the operator completes the fix$`, w.whenSetupSkillInvoked)
+	sc.Step(`^the setup skill will run the presence check again before moving to the auth check$`, w.thenRechecksPresenceAfterFix)
+	sc.Step(`^a failing re-check will route back to the fix, never to a ready report$`, w.thenFailingRecheckRoutesBack)
+
+	// Cross-rule validation: distribution only, no operating surface of its own
+	sc.Step(`^the packaging artifacts produced by this feature$`, w.givenPackagingArtifacts)
+	sc.Step(`^they are inspected for orientation content, operator paths, commands, or API capability$`, w.whenInspectedForOperatingSurface)
+	sc.Step(`^none will be present$`, w.thenNoOperatingSurfacePresent)
+	sc.Step(`^every operating fact will still live in the plugin the marketplace distributes$`, w.thenOperatingFactsLiveInPlugin)
 }
 
 // --- Given ------------------------------------------------------------------
@@ -508,4 +557,352 @@ func (w *operatingSurfacePackagingWorld) thenAdmitsAdditionalEntries() error {
 		return fmt.Errorf("an appended sibling entry is not listed by the same parser")
 	}
 	return nil
+}
+
+// --- Setup-skill steps ----------------------------------------------------
+//
+// The setup skill is a declarative artifact — the scenarios' environment
+// states (CLI present/absent, credential working/failing) frame WHICH part of
+// the instructed journey the Then steps assert; the assertions themselves run
+// against the committed content, whitespace-collapsed for phrase checks and
+// raw for structural ones, per the family convention.
+
+func (w *operatingSurfacePackagingWorld) givenSetupSkillLoaded() error {
+	raw, err := ReadSetupSkill()
+	if err != nil {
+		return fmt.Errorf("could not read the setup skill: %w", err)
+	}
+	w.setupSkillRaw = raw
+	w.setupSkill = normalizeWS(raw)
+	w.setupAnchors, err = LiveSetupSkillAnchors()
+	if err != nil {
+		return fmt.Errorf("could not extract the setup skill's in-repo anchors: %w", err)
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) givenSetupSkillLoadedNamed(cli string) error {
+	if cli != "glassfrog" {
+		return fmt.Errorf("the setup skill provisions the %q CLI, not %q", "glassfrog", cli)
+	}
+	if w.setupSkillRaw == "" {
+		return w.givenSetupSkillLoaded()
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) whenSetupSkillInvoked() error {
+	if w.setupSkillRaw == "" {
+		return fmt.Errorf("no setup skill content is in play — the Given did not run")
+	}
+	if _, ok := SkillFrontmatterField(w.setupSkillRaw, "description"); !ok {
+		return fmt.Errorf("the setup skill carries no frontmatter description — it could never be invoked")
+	}
+	return nil
+}
+
+// thenConfirmsPresenceAndIdentity: the skill instructs both checks — the
+// innocuous presence command and the pinned authenticated identity read — with
+// presence ordered before auth.
+func (w *operatingSurfacePackagingWorld) thenConfirmsPresenceAndIdentity() error {
+	presence := strings.Index(w.setupSkillRaw, "glassfrog --version")
+	if presence < 0 {
+		return fmt.Errorf("the skill does not instruct the presence check (glassfrog --version)")
+	}
+	auth := strings.Index(w.setupSkillRaw, SetupAuthCheckCommand)
+	if auth < 0 {
+		return fmt.Errorf("the skill does not instruct the auth check (%s)", SetupAuthCheckCommand)
+	}
+	if auth < presence {
+		return fmt.Errorf("the auth check is instructed before the presence check — a missing binary would surface as a credential failure")
+	}
+	if !strings.Contains(w.setupSkill, "identity") {
+		return fmt.Errorf("the auth check does not read as an authenticated identity confirmation")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenReportsReady() error {
+	if !strings.Contains(w.setupSkill, "ready to drive the CLI") {
+		return fmt.Errorf("the skill never reports the environment ready to drive the CLI")
+	}
+	if !strings.Contains(w.setupSkill, "both passed") {
+		return fmt.Errorf("the ready report is not conditioned on both checks passing")
+	}
+	return nil
+}
+
+// thenReportsCLIMissing: command-not-found maps to the missing-binary class,
+// not to anything credential-shaped.
+func (w *operatingSurfacePackagingWorld) thenReportsCLIMissing() error {
+	if !strings.Contains(w.setupSkill, "not found") || !strings.Contains(w.setupSkill, "the binary is missing") {
+		return fmt.Errorf("the skill does not map a command-not-found to a missing binary")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenDirectsToChannels() error {
+	lower := strings.ToLower(w.setupSkill)
+	for _, channel := range []string{"install script", "homebrew tap", "npm wrapper"} {
+		if !strings.Contains(lower, channel) {
+			return fmt.Errorf("the skill does not direct the operator to the %s channel", channel)
+		}
+	}
+	// The npm coordinate is quoted from its in-repo source, never invented.
+	if w.setupAnchors.NPMPackage == "" || !strings.Contains(w.setupSkillRaw, w.setupAnchors.NPMPackage) {
+		return fmt.Errorf("the skill does not quote the npm wrapper's install coordinate %q", w.setupAnchors.NPMPackage)
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenNoSelfInstall() error {
+	if !strings.Contains(w.setupSkill, "never installs, bundles, or places the binary itself") {
+		return fmt.Errorf("the skill does not state that it installs no binary itself")
+	}
+	return nil
+}
+
+// thenAuthCheckFailureHandled: a non-zero auth-check exit maps to the
+// failing-credential class, with exit-code semantics deferred to orientation
+// rather than restated.
+func (w *operatingSurfacePackagingWorld) thenAuthCheckFailureHandled() error {
+	if !strings.Contains(w.setupSkill, "non-zero exit") {
+		return fmt.Errorf("the skill does not interpret a non-zero exit of the auth check")
+	}
+	if !strings.Contains(w.setupSkill, "orientation skill's exit-code reference") {
+		return fmt.Errorf("the skill does not defer exit-code semantics to orientation")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenGuidesXAuthTokenSetup() error {
+	if !strings.Contains(w.setupSkillRaw, "X-Auth-Token") {
+		return fmt.Errorf("the skill never names the CLI's X-Auth-Token mechanism")
+	}
+	if !strings.Contains(w.setupSkillRaw, "glassfrog auth login") {
+		return fmt.Errorf("the skill does not walk the operator to the CLI's own credential command")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenNoOwnCredentialMechanism() error {
+	if !strings.Contains(w.setupSkill, "no credential mechanism of its own") {
+		return fmt.Errorf("the skill does not state that it introduces no credential mechanism of its own")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenOnlyPointsAtExistingFixes() error {
+	if err := w.thenDirectsToChannels(); err != nil {
+		return err
+	}
+	return w.thenGuidesXAuthTokenSetup()
+}
+
+func (w *operatingSurfacePackagingWorld) thenInstallsNothingStoresNothing() error {
+	if err := w.thenNoSelfInstall(); err != nil {
+		return err
+	}
+	if !strings.Contains(w.setupSkill, "stores nothing") {
+		return fmt.Errorf("the skill does not state that it stores no credential of its own")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenRechecksPresenceAfterFix() error {
+	if !strings.Contains(w.setupSkill, "re-run the presence check") {
+		return fmt.Errorf("the skill does not instruct re-running the presence check after a fix")
+	}
+	if !strings.Contains(w.setupSkill, "only a passing re-check moves you forward") {
+		return fmt.Errorf("the skill lets a fix pass without a verifying re-check")
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenFailingRecheckRoutesBack() error {
+	if !strings.Contains(w.setupSkill, "a failing re-check routes back") {
+		return fmt.Errorf("the skill does not route a failing re-check back to the fix")
+	}
+	if !strings.Contains(w.setupSkill, "never to a ready report") {
+		return fmt.Errorf("the skill does not rule out a ready report on a failing re-check")
+	}
+	return nil
+}
+
+// --- Distribution-only validation steps -----------------------------------
+
+func (w *operatingSurfacePackagingWorld) givenPackagingArtifacts() error {
+	if err := w.givenLoaded(); err != nil {
+		return err
+	}
+	w.entry, w.entryFound = FindMarketplacePlugin(w.manifest, MarketplacePluginName)
+	if !w.entryFound {
+		return fmt.Errorf("the marketplace lists no %q plugin entry", MarketplacePluginName)
+	}
+	w.sourcePlugin, w.sourceErr = MarketplaceSourcePluginManifest(w.entry.Source)
+	return w.givenSetupSkillLoaded()
+}
+
+// whenInspectedForOperatingSurface inspects both packaging artifacts for
+// operating surface of their own: manifest keys beyond the distribution
+// shape, command leaves the CLI does not expose, restated orientation
+// enumerations, and operator-path content.
+func (w *operatingSurfacePackagingWorld) whenInspectedForOperatingSurface() error {
+	// (a) The manifest may carry only distribution keys.
+	var keyed map[string]json.RawMessage
+	if err := json.Unmarshal(w.manifestRaw, &keyed); err != nil {
+		return err
+	}
+	allowed := map[string]bool{"$schema": true, "name": true, "owner": true, "metadata": true, "plugins": true}
+	w.manifestExtraKeys = nil
+	for key := range keyed {
+		if !allowed[key] {
+			w.manifestExtraKeys = append(w.manifestExtraKeys, key)
+		}
+	}
+
+	// (b) Every `glassfrog <leaf>` the skill instructs (in code spans/blocks)
+	// must resolve in the shipped CLI — packaging invents no command.
+	liveTop, err := LiveTopLevelCommands()
+	if err != nil {
+		return err
+	}
+	facts, err := LiveOrientationFacts()
+	if err != nil {
+		return err
+	}
+	resolvable := map[string]bool{}
+	for _, cmd := range liveTop {
+		resolvable[cmd] = true
+	}
+	if w.setupAnchors.MeResolves {
+		resolvable["me"] = true
+	}
+	if facts.AuthLogin {
+		resolvable["auth"] = true
+	}
+	w.unresolvedLeaves = nil
+	for _, leaf := range setupSkillCommandLeaves(w.setupSkillRaw) {
+		if !resolvable[leaf] {
+			w.unresolvedLeaves = append(w.unresolvedLeaves, leaf)
+		}
+	}
+
+	// (c) Orientation's reference enumerations must not be restated: the
+	// format-token enumeration and the exit-code reaction table are
+	// orientation's anchors.
+	w.restatedOrientation = nil
+	for _, anchor := range []string{"tokens are exactly", "| Code | Meaning |"} {
+		if strings.Contains(w.setupSkill, normalizeWS(anchor)) {
+			w.restatedOrientation = append(w.restatedOrientation, anchor)
+		}
+	}
+
+	// (d) No operator-path content: the sibling path skills' names (derived
+	// from the plugin's skills directory, minus orientation and setup itself)
+	// must not appear in either packaging artifact.
+	root, err := RepoRoot()
+	if err != nil {
+		return err
+	}
+	skillDirs, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(path.Clean(w.entry.Source)), "skills"))
+	if err != nil {
+		return err
+	}
+	w.mentionedPathSkills = nil
+	for _, d := range skillDirs {
+		if !d.IsDir() || d.Name() == "orientation" || d.Name() == SetupSkillName() {
+			continue
+		}
+		if strings.Contains(w.setupSkillRaw, d.Name()) || strings.Contains(string(w.manifestRaw), d.Name()) {
+			w.mentionedPathSkills = append(w.mentionedPathSkills, d.Name())
+		}
+	}
+	return nil
+}
+
+func (w *operatingSurfacePackagingWorld) thenNoOperatingSurfacePresent() error {
+	if len(w.manifestExtraKeys) > 0 {
+		return fmt.Errorf("the marketplace manifest carries keys beyond the distribution shape: %v", w.manifestExtraKeys)
+	}
+	if len(w.unresolvedLeaves) > 0 {
+		return fmt.Errorf("the setup skill instructs command leaves the CLI does not expose: %v", w.unresolvedLeaves)
+	}
+	if len(w.restatedOrientation) > 0 {
+		return fmt.Errorf("the setup skill restates orientation's reference enumerations: %v", w.restatedOrientation)
+	}
+	if len(w.mentionedPathSkills) > 0 {
+		return fmt.Errorf("the packaging artifacts carry operator-path content: %v", w.mentionedPathSkills)
+	}
+	return nil
+}
+
+// thenOperatingFactsLiveInPlugin: the operating knowledge stays inside the
+// plugin the marketplace distributes — the entry's source resolves to the
+// plugin that carries the skills, and setup defers reference knowledge there.
+func (w *operatingSurfacePackagingWorld) thenOperatingFactsLiveInPlugin() error {
+	if w.sourceErr != nil {
+		return fmt.Errorf("the marketplace entry does not resolve to the plugin: %w", w.sourceErr)
+	}
+	root, err := RepoRoot()
+	if err != nil {
+		return err
+	}
+	skillsDir := filepath.Join(root, filepath.FromSlash(path.Clean(w.entry.Source)), "skills")
+	if _, err := os.Stat(filepath.Join(skillsDir, "orientation", "SKILL.md")); err != nil {
+		return fmt.Errorf("the distributed plugin no longer carries the orientation skill: %w", err)
+	}
+	if _, err := os.Stat(filepath.Join(skillsDir, SetupSkillName(), "SKILL.md")); err != nil {
+		return fmt.Errorf("the distributed plugin no longer carries the setup skill: %w", err)
+	}
+	if !strings.Contains(w.setupSkill, "orientation skill") {
+		return fmt.Errorf("the setup skill does not defer reference knowledge to the orientation skill")
+	}
+	return nil
+}
+
+// setupSkillCommandLeaves extracts the first word after `glassfrog ` from the
+// skill's code contexts — fenced blocks and inline backtick spans — where an
+// instruction is a command, not prose (prose like "the glassfrog plugin" must
+// not read as a command leaf).
+func setupSkillCommandLeaves(raw string) []string {
+	var code []string
+	inFence := false
+	for _, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			code = append(code, trimmed)
+		}
+	}
+	// Inline backtick spans: after splitting on the backtick, the odd-indexed
+	// segments are the ones inside a span — prose between spans stays out.
+	for i, span := range strings.Split(raw, "`") {
+		if i%2 == 1 {
+			code = append(code, span)
+		}
+	}
+	seen := map[string]bool{}
+	var leaves []string
+	for _, c := range code {
+		for _, fields := range [][]string{strings.Fields(c)} {
+			for i := 0; i+1 < len(fields); i++ {
+				if fields[i] != "glassfrog" {
+					continue
+				}
+				next := fields[i+1]
+				if next == "" || next[0] < 'a' || next[0] > 'z' {
+					continue
+				}
+				if !seen[next] {
+					seen[next] = true
+					leaves = append(leaves, next)
+				}
+			}
+		}
+	}
+	return leaves
 }

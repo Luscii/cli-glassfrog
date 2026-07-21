@@ -55,7 +55,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
 
 ## Phase 2: Setup skill [US2]
 
-- [ ] **T003** [US2] [P] Add the `glassfrog-setup` skill and anchor its enumerable facts
+- [x] **T003** [US2] [P] Add the `glassfrog-setup` skill and anchor its enumerable facts — 6 scenarios un-@wip'd (the 5 referenced setup scenarios + "Packaging adds no operating surface of its own", which no task's references owned; it inspects both packaging artifacts so it activated with the task that completed them — noted in LEARNINGS.md); skill is caller-context instructed knowledge (presence check `glassfrog --version`, auth check `glassfrog me` pinned as `SetupAuthCheckCommand`, three channels quoted from README/guide, re-check-after-fix, X-Auth-Token fix routed to `glassfrog auth login`, boundary note); guard extension anchors channels to install.sh / .goreleaser.yaml brews / npm-package.json name and the `me` leaf to the CLI registry; guard verified red-on-drift (version pin, frontmatter rename)
   - **Scope**: Create `plugin/skills/glassfrog-setup/SKILL.md` (ADR-3/-4) and extend the Phase 1 guard file with the setup-skill anchors. The skill is instructed knowledge — a presence check, an auth check, and directed fixes — no shipped check script or new CLI command.
   - **Acceptance criteria**:
     - `plugin/skills/glassfrog-setup/SKILL.md` exists with frontmatter `name: glassfrog-setup` and a `description` that triggers on provisioning needs (fresh environment, post-install, command-not-found, auth failure) and stays clear of orientation's operating-question territory

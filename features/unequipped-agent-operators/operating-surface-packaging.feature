@@ -52,7 +52,7 @@ Feature: Operating-Surface Packaging
       And the entry's identity will match the plugin manifest's
 
     # Source: 070-operating-surface-packaging — Scenario: Distribution only — no new surface
-    @validation @wip
+    @validation
     Scenario: Packaging adds no operating surface of its own
       Given the packaging artifacts produced by this feature
       When they are inspected for orientation content, operator paths, commands, or API capability
@@ -73,7 +73,6 @@ Feature: Operating-Surface Packaging
     # authenticated, and tells me exactly what to do when either is missing.
 
     # Source: 070-operating-surface-packaging — Scenario: A ready environment reported ready
-    @wip
     Scenario: Ready environment is reported ready
       Given the plugin was installed
       And the "glassfrog" CLI was present in the environment
@@ -83,7 +82,6 @@ Feature: Operating-Surface Packaging
       And it will report the environment ready to drive the CLI
 
     # Source: 070-operating-surface-packaging — Scenario: The CLI is not installed
-    @wip
     Scenario: Missing CLI routes to the install channels
       Given the plugin was installed
       And the "glassfrog" CLI was not present in the environment
@@ -93,7 +91,6 @@ Feature: Operating-Surface Packaging
       And it will not attempt to install or bundle the binary itself
 
     # Source: 070-operating-surface-packaging — Scenario: No working credential is configured
-    @wip
     Scenario: Failing credential routes to the CLI's own setup
       Given the "glassfrog" CLI was present in the environment
       And no working credential was configured
@@ -103,7 +100,7 @@ Feature: Operating-Surface Packaging
       And it will introduce no credential mechanism of its own
 
     # Source: 070-operating-surface-packaging — Scenario: The CLI stays self-contained
-    @validation @wip
+    @validation
     Scenario: Setup leaves the CLI self-contained
       Given the produced setup skill content
       When it is inspected for how it handles a missing CLI or a missing credential
@@ -111,7 +108,6 @@ Feature: Operating-Surface Packaging
       And it will install no binary and store no credential of its own
 
     # Source: 070-operating-surface-packaging — architecture-informed (interface setup journey; proposed by skill)
-    @wip
     Scenario: Setup re-checks after a fix instead of assuming success
       Given the setup skill had directed the operator to an install channel for a missing CLI
       When the operator completes the fix

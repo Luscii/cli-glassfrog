@@ -44,6 +44,14 @@ const (
 // the plugin it names.
 const MarketplacePluginName = "glassfrog"
 
+// SetupSkillPath is the glassfrog-setup provisioning skill (plan ADR-3/-4):
+// a caller-context skill — deliberately NOT a thin-skill+subagent path; setup
+// provisions the environment, it is not an operator path — that instructs a
+// presence check and an auth check and routes each failure to the CLI's
+// existing fix. Added additively beside the seven sibling skills; the plugin
+// manifest is untouched (skills stay directory-discovered).
+const SetupSkillPath = "plugin/skills/glassfrog-setup/SKILL.md"
+
 // MarketplaceManifest is the subset of the Claude marketplace manifest this
 // guard validates: identity, ownership, and the plugins list. The host's full
 // schema is deliberately not mirrored here — the guard checks in-repo
@@ -185,6 +193,172 @@ func CheckMarketplaceEntryConsistency(entry MarketplacePluginEntry, plugin Orien
 	}
 	if entry.HasVersion {
 		findings = append(findings, fmt.Sprintf("marketplace entry %q carries a %q key — the plugin version is single-sourced in the plugin manifest (%s); the in-repo source installs the checkout's version, so remove the pin", entry.Name, "version", OrientationManifestPath))
+	}
+
+	return findings
+}
+
+// --- Setup-skill anchors (T003) ---------------------------------------------
+//
+// The glassfrog-setup skill is instructed knowledge, not shipped code (plan
+// ADR-4): it names an auth-check command and three install channels the repo
+// ships elsewhere. Those are the skill's ENUMERABLE facts, and each is
+// anchored best-effort to its in-repo source (plan ADR-5) so the hand-authored
+// content cannot silently direct an operator at a dead channel or a dropped
+// command. Detail beyond the names — flags, script options, formula internals
+// — deliberately defers to `glassfrog <command> --help`, the README, and the
+// orientation skill, keeping the drift surface small.
+
+// In-repo sources the setup skill's enumerable facts are anchored against.
+const (
+	// setupInstallScriptSource is the install-script channel's artifact (027).
+	setupInstallScriptSource = "install.sh"
+	// setupHomebrewSource carries the Homebrew tap's formula publisher — the
+	// `brews` section (036).
+	setupHomebrewSource = ".goreleaser.yaml"
+	// setupNPMSource is the npm wrapper package whose `name` is the install
+	// coordinate the skill quotes (037).
+	setupNPMSource = "npm/package.json"
+)
+
+// SetupAuthCheckCommand is the low-cost authenticated identity read the setup
+// skill instructs as its auth check (plan ADR-4, command confirmed against the
+// shipped CLI: the bare `me` identity read). Pinned as a checked-in contract
+// fact — the skill's instruction and the registry anchor must name the same
+// leaf — and resolved against the CLI's command registry by the guard, so a
+// dropped or renamed `me` surfaces as drift.
+const SetupAuthCheckCommand = "glassfrog me"
+
+// ReadSetupSkill reads the committed glassfrog-setup SKILL.md
+// (frontmatter + body).
+func ReadSetupSkill() (string, error) {
+	raw, err := readRepoFile(SetupSkillPath)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+// SetupSkillName is the frontmatter name the skill must carry, derived from
+// its directory (the host discovers skills by directory convention, so the
+// directory is the identity's single source).
+func SetupSkillName() string {
+	return path.Base(path.Dir(SetupSkillPath))
+}
+
+// SkillFrontmatterField extracts a top-level scalar field (`name:`,
+// `description:`) from a skill's YAML frontmatter. The second return is false
+// when the frontmatter block or the field is absent.
+func SkillFrontmatterField(content, field string) (string, bool) {
+	front, ok := frontmatterBlock(content)
+	if !ok {
+		return "", false
+	}
+	for _, line := range strings.Split(front, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, field+":") {
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, field+":")), true
+		}
+	}
+	return "", false
+}
+
+// SetupSkillAnchors is the in-repo state the setup skill's enumerable facts
+// are checked against, extracted from the repository at test time.
+type SetupSkillAnchors struct {
+	// InstallScript reports whether the install-script channel's artifact
+	// (install.sh) is still shipped at the repo root.
+	InstallScript bool
+	// HomebrewTap reports whether the Homebrew formula publisher (the
+	// .goreleaser.yaml `brews` section) is still configured.
+	HomebrewTap bool
+	// NPMPackage is the npm wrapper's package name (from npm/package.json) —
+	// the exact install coordinate the skill must quote.
+	NPMPackage string
+	// MeResolves reports whether the auth-check leaf (`me`) still resolves in
+	// the CLI command registry. The bare `me` is variable-wired on root, so a
+	// non-empty me-subcommand surface is the proof of registration
+	// (LiveMeSubcommands errors when the root registration is gone).
+	MeResolves bool
+}
+
+// LiveSetupSkillAnchors extracts the current in-repo anchors.
+func LiveSetupSkillAnchors() (SetupSkillAnchors, error) {
+	var a SetupSkillAnchors
+
+	if _, err := readRepoFile(setupInstallScriptSource); err == nil {
+		a.InstallScript = true
+	}
+
+	brews, err := readRepoFile(setupHomebrewSource)
+	if err != nil {
+		return a, fmt.Errorf("could not read %s: %w", setupHomebrewSource, err)
+	}
+	a.HomebrewTap = strings.Contains(string(brews), "brews:")
+
+	npmRaw, err := readRepoFile(setupNPMSource)
+	if err != nil {
+		return a, fmt.Errorf("could not read %s: %w", setupNPMSource, err)
+	}
+	var npmPkg struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(npmRaw, &npmPkg); err != nil {
+		return a, fmt.Errorf("could not decode %s: %w", setupNPMSource, err)
+	}
+	a.NPMPackage = npmPkg.Name
+
+	subs, err := LiveMeSubcommands()
+	a.MeResolves = err == nil && len(subs) > 0
+
+	return a, nil
+}
+
+// CheckSetupSkillDrift returns one finding per way the setup skill's
+// enumerable facts have diverged from their in-repo sources. Empty means
+// truthful. It checks the facts' presence and resolution only — the journey
+// prose (check → fix → verify, the two failure classes kept distinct) has no
+// machine source and stays a review + BDD concern.
+func CheckSetupSkillDrift(skill string, anchors SetupSkillAnchors) []string {
+	var findings []string
+
+	// Frontmatter: the host triggers the skill through its description; the
+	// name must match the discovered directory.
+	name, ok := SkillFrontmatterField(skill, "name")
+	if !ok || name != SetupSkillName() {
+		findings = append(findings, fmt.Sprintf("setup skill frontmatter name %q does not match its directory-derived identity %q (%s)", name, SetupSkillName(), SetupSkillPath))
+	}
+	if desc, ok := SkillFrontmatterField(skill, "description"); !ok || strings.TrimSpace(desc) == "" {
+		findings = append(findings, fmt.Sprintf("setup skill frontmatter carries no non-empty description — the skill would never trigger (%s)", SetupSkillPath))
+	}
+
+	// The three install channels: each must still exist in-repo AND be named
+	// by the skill — a channel dropped from either side is drift.
+	if !anchors.InstallScript {
+		findings = append(findings, fmt.Sprintf("the install-script channel's artifact (%s) is gone from the repo — the setup skill directs operators at a dead channel", setupInstallScriptSource))
+	}
+	if !strings.Contains(skill, setupInstallScriptSource) {
+		findings = append(findings, fmt.Sprintf("the setup skill no longer names the install-script channel (%s)", setupInstallScriptSource))
+	}
+	if !anchors.HomebrewTap {
+		findings = append(findings, fmt.Sprintf("the Homebrew formula publisher (`brews` section in %s) is gone — the setup skill directs operators at a dead channel", setupHomebrewSource))
+	}
+	if !strings.Contains(strings.ToLower(skill), "homebrew") {
+		findings = append(findings, "the setup skill no longer names the Homebrew tap channel")
+	}
+	if strings.TrimSpace(anchors.NPMPackage) == "" {
+		findings = append(findings, fmt.Sprintf("the npm wrapper package name could not be read from %s — the npm channel cannot be anchored", setupNPMSource))
+	} else if !strings.Contains(skill, anchors.NPMPackage) {
+		findings = append(findings, fmt.Sprintf("the setup skill no longer quotes the npm wrapper's install coordinate %q (%s)", anchors.NPMPackage, setupNPMSource))
+	}
+
+	// The auth-check command: the skill must instruct the pinned identity
+	// read, and its leaf must still resolve in the CLI command registry.
+	if !strings.Contains(skill, SetupAuthCheckCommand) {
+		findings = append(findings, fmt.Sprintf("the setup skill no longer instructs the auth check %q", SetupAuthCheckCommand))
+	}
+	if !anchors.MeResolves {
+		findings = append(findings, fmt.Sprintf("the auth-check leaf (`me`) no longer resolves in the CLI command registry (anchor: %s) — the setup skill instructs a command the CLI dropped", cliWiringSource))
 	}
 
 	return findings

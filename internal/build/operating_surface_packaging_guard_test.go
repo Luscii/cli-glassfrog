@@ -71,3 +71,61 @@ func TestMarketplaceConsistencyGuard(t *testing.T) {
 		t.Errorf("the plugin manifest's name %q no longer matches the pinned install identity %q — the documented install command drifted; reconcile MarketplacePluginName with %s", plugin.Name, MarketplacePluginName, OrientationManifestPath)
 	}
 }
+
+// TestSetupSkillDriftGuard is the best-effort drift guard for the
+// glassfrog-setup skill's enumerable facts (070, plan ADR-4/-5). The skill is
+// instructed knowledge — it names commands and channels the repo ships
+// elsewhere — so each named fact is anchored to its in-repo source, with both
+// sides read at test time:
+//
+//   - frontmatter `name` must match the skill's directory-derived identity
+//     (the host discovers skills by directory) and `description` must be
+//     non-empty (an undescribed skill never triggers);
+//   - the three install channels the missing-CLI fix directs to must each
+//     still exist in-repo AND be named by the skill: the install script
+//     (install.sh), the Homebrew tap (the .goreleaser.yaml `brews`
+//     publisher), and the npm wrapper (whose install coordinate is read from
+//     npm/package.json, never restated here);
+//   - the auth check the skill instructs (SetupAuthCheckCommand, the bare
+//     `me` identity read — a checked-in contract fact) must still resolve in
+//     the CLI command registry: `me` is variable-wired on root, so a
+//     non-empty me-subcommand surface is the proof of registration.
+//
+// COVERAGE (explicitly partial — stated, not silent): this guard pins the
+// enumerable facts' PRESENCE and RESOLUTION only. It deliberately does NOT
+// verify the journey prose (check → fix → verify ordering, the two failure
+// classes kept distinct, the re-check discipline — the BDD scenarios inspect
+// those), channel invocation detail (flags, script options — the README and
+// `glassfrog <command> --help` own those), or trigger-precision of the
+// description (review's concern).
+func TestSetupSkillDriftGuard(t *testing.T) {
+	skill, err := ReadSetupSkill()
+	if err != nil {
+		t.Fatalf("could not read the setup skill (%s): %v", SetupSkillPath, err)
+	}
+	anchors, err := LiveSetupSkillAnchors()
+	if err != nil {
+		t.Fatalf("could not extract the in-repo anchors the setup skill names: %v", err)
+	}
+
+	// Sanity-check the extraction itself so a regression in
+	// LiveSetupSkillAnchors fails loudly rather than passing vacuously.
+	if !anchors.InstallScript {
+		t.Error("the install-script channel artifact (install.sh) was not found at the repo root")
+	}
+	if !anchors.HomebrewTap {
+		t.Error("the Homebrew `brews` publisher was not found in .goreleaser.yaml")
+	}
+	if anchors.NPMPackage == "" {
+		t.Error("the npm wrapper package name could not be read from npm/package.json")
+	}
+	if !anchors.MeResolves {
+		t.Error("the `me` command's registration could not be resolved from the CLI sources")
+	}
+
+	// The integrated check: every enumerable fact the skill states still
+	// matches its in-repo source. Each finding names its offending anchor.
+	if drift := CheckSetupSkillDrift(skill, anchors); len(drift) != 0 {
+		t.Fatalf("the setup skill drifted from its in-repo sources:\n  - %s", joinDrift(drift))
+	}
+}
