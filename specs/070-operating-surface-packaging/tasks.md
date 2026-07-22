@@ -25,7 +25,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
 
 ## Phase 1: Distribution vehicle [Shared]
 
-- [ ] **T001** [Shared] Ship the repo-root marketplace manifest and its consistency guard
+- [x] **T001** [Shared] Ship the repo-root marketplace manifest and its consistency guard — 7 scenarios un-@wip'd (marketplace add/install/drift/version-pin/sibling-append + 2 validation); `.claude-plugin/marketplace.json` landed with the verbatim plugin description and no version pin; `internal/build/operatingsurfacepackaging.go` exports the path constant, the `MarketplacePluginName` contract anchor (cross-checked against plugin.json), and the parse/consistency helpers; guard test states its partial coverage in-test
   - **Scope**: Create `.claude-plugin/marketplace.json` at the repo root (ADR-1/-2) and the `internal/build` consistency guard (ADR-5). One reviewable change: the distribution manifest plus the test that keeps it honest.
   - **Acceptance criteria**:
     - `.claude-plugin/marketplace.json` exists at the repo root with `name: "glassfrog"`, `owner: {name: "Luscii"}`, `$schema` set to the Claude marketplace schema URL, and a `plugins` array
@@ -39,7 +39,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
   - **Scenario references**: operating-surface-packaging.feature: "Marketplace add lists the glassfrog plugin", "Install brings the plugin's surface into the environment", "Marketplace entry drift is a defect", "Guard fails when a version pin appears on the marketplace entry", "Marketplace entry matches the plugin it ships" (@validation), "A sibling plugin is one appended entry", "Marketplace shape admits additional entries" (@validation)
   - **Interface references**: interface-spec.md: `marketplace.json` schema, Guard contract
 
-- [ ] **T002** [Shared] Document the install flow for the operating surface
+- [x] **T002** [Shared] Document the install flow for the operating surface — README gains "Install the agent operating surface" (marketplace add + plugin install, CLI-prerequisite pointer to the three existing channels); new guide `docs/guides/agent-operators/how-to-install-the-operating-surface.md` carries the journey; the operate-safely guide's superseded "install it from a local path" prerequisite now points at the new guide; no new scenario activation (its referenced scenario passed in T001)
   - **Scope**: Add an "agent operating surface" install section to README and `docs/guides/agent-operators/`, beside the existing CLI install section — the marketplace-add then plugin-install steps. Prose only; no code.
   - **Acceptance criteria**:
     - README gains a section showing `/plugin marketplace add Luscii/cli-glassfrog` followed by `/plugin install glassfrog@glassfrog`
@@ -55,7 +55,7 @@ T001 and T003 both touch `internal/build/operatingsurfacepackaging.go` (T003 ext
 
 ## Phase 2: Setup skill [US2]
 
-- [ ] **T003** [US2] [P] Add the `glassfrog-setup` skill and anchor its enumerable facts
+- [x] **T003** [US2] [P] Add the `glassfrog-setup` skill and anchor its enumerable facts — 6 scenarios un-@wip'd (the 5 referenced setup scenarios + "Packaging adds no operating surface of its own", which no task's references owned; it inspects both packaging artifacts so it activated with the task that completed them — noted in LEARNINGS.md); skill is caller-context instructed knowledge (presence check `glassfrog --version`, auth check `glassfrog me` pinned as `SetupAuthCheckCommand`, three channels quoted from README/guide, re-check-after-fix, X-Auth-Token fix routed to `glassfrog auth login`, boundary note); guard extension anchors channels to install.sh / .goreleaser.yaml brews / npm-package.json name and the `me` leaf to the CLI registry; guard verified red-on-drift (version pin, frontmatter rename)
   - **Scope**: Create `plugin/skills/glassfrog-setup/SKILL.md` (ADR-3/-4) and extend the Phase 1 guard file with the setup-skill anchors. The skill is instructed knowledge — a presence check, an auth check, and directed fixes — no shipped check script or new CLI command.
   - **Acceptance criteria**:
     - `plugin/skills/glassfrog-setup/SKILL.md` exists with frontmatter `name: glassfrog-setup` and a `description` that triggers on provisioning needs (fresh environment, post-install, command-not-found, auth failure) and stays clear of orientation's operating-question territory
