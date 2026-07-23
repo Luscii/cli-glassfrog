@@ -105,6 +105,17 @@ jobs:
         with:
           name: dist
           path: dist/
+      # actions/upload-artifact + download-artifact transport files through an
+      # archive that does NOT preserve the Unix executable bit, so the downloaded
+      # dist/ binaries come back non-executable and the execute probe in
+      # TestSelfContainment_HostBinary fails with "permission denied". Re-apply the
+      # exec bit the transport stripped BEFORE the probe. This does not touch the
+      # published bytes (those are the *.tar.gz archives, which carry their own
+      # internal perms); it only restores the on-disk mode of the loose binary so
+      # it can be executed in place. The bytes verified stay byte-identical to the
+      # shipped ones.
+      - name: Restore executable bit on downloaded binaries
+        run: find dist -type f -name glassfrog -exec chmod +x {} +
       # Runs on the leg's native arch, so HostBinary selects this target's binary
       # from dist/artifacts.json and verifies the shipped artifact (not a rebuild).
       - name: Verify ${{ matrix.goos }}/${{ matrix.goarch }} self-containment
