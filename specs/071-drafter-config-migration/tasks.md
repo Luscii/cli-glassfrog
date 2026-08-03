@@ -61,7 +61,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
   - **Scenario references**: drafter-config-contract.feature: "A drafting run reports no schema deprecations"
   - **Risk**: ⚠️ Do **not** set `exclusive: true`. `.github/dependabot.yml`'s header comment claims the drafter "assigns the FIRST matching category" — false against both action majors, which push a pull request into every matching category. Setting it to "preserve" that would silently change note placement. Correcting the comment is out of scope (plan Risks).
 
-- [ ] **T002** [US2] [P] Add drift cases for every position the migration moved
+- [x] **T002** [US2] [P] Add drift cases for every position the migration moved — 7 new table cases (empty when, missing pre-exclude, wrong increment, deleted fallback, 3× superseded schema); no findings
   - **Scope**: Extend `TestLabelContract_Drift`'s table in `internal/build/labelcontract_test.go`. Additive test work only — no production change.
   - **Acceptance criteria**:
     - A changelog category whose `when` names no label fails, and the violation names the file and the missing label.

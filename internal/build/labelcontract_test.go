@@ -106,6 +106,7 @@ func TestLabelContract_Drift(t *testing.T) {
 		drafter, labeler, settings string // empty → use the valid baseline
 		wantPass                   bool
 		wantNamed                  []string // substrings the reported violation set must contain (when failing)
+		wantNotNamed               []string // substrings the reported violation set must NOT contain
 	}{
 		{
 			name:     "all three files agree on the eight-label contract passes",
@@ -190,6 +191,79 @@ func TestLabelContract_Drift(t *testing.T) {
 			wantPass:  false,
 			wantNamed: []string{"settings.yml", "exactly 8"},
 		},
+		{
+			// 071: a changelog category present but with no label in its
+			// condition — the moved position of "a category lost its labels".
+			name: "a changelog category naming no label in its when is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    when:\n      labels: []\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"release-drafter.yml category", "docs", "missing"},
+		},
+		{
+			// 071: the pre-exclude category deleted outright.
+			name: "a missing pre-exclude category is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - type: \"pre-exclude\"\n    when:\n      labels: [no-release-note]\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"pre-exclude", "no-release-note"},
+		},
+		{
+			// 071: a version-resolver bucket carrying the wrong increment. The
+			// fixes label surfaces in minor (unexpected) and vanishes from
+			// patch (required), so both buckets and the label are named.
+			name: "a version-resolver category with the wrong semver-increment is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"    semver-increment: \"patch\"\n    when:\n      labels: [fixes]\n",
+				"    semver-increment: \"minor\"\n    when:\n      labels: [fixes]\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"version-resolver minor", "version-resolver patch", "fixes"},
+		},
+		{
+			// 071: the condition-less fallback deleted. The action's built-in
+			// fallback is also patch, so no drafter output changes — only this
+			// violation can catch the removal, and it must read as an absent
+			// declaration rather than an empty-string mismatch. The anchor
+			// includes the patch bucket above the fallback entry because
+			// `semver-increment: "patch"` alone matches the bucket first.
+			name: "a deleted condition-less version-resolver fallback is rejected as an absent declaration",
+			drafter: strings.Replace(validDrafterYAML,
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"patch\"\n",
+				"      labels: [fixes]\n", 1),
+			wantPass: false,
+			wantNamed: []string{"version-resolver default", "patch",
+				"no condition-less version-resolver category declares it"},
+		},
+		{
+			// 071 ADR-4: the superseded top-level version-resolver key is
+			// rejected by naming the SCHEMA. The config is otherwise valid, so
+			// the failure must not read as a missing label.
+			name:         "a superseded top-level version-resolver key is rejected by schema name",
+			drafter:      validDrafterYAML + "version-resolver:\n  default: patch\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "version-resolver"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// 071 ADR-4: the superseded top-level exclude-labels key, same shape.
+			name:         "a superseded top-level exclude-labels key is rejected by schema name",
+			drafter:      validDrafterYAML + "exclude-labels:\n  - no-release-note\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "exclude-labels"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// 071 ADR-4: the superseded category-level labels shorthand. The
+			// label also goes missing from the contract, but the schema message
+			// must be present so the failure is not read as merely that.
+			name: "a superseded category-level labels shorthand is rejected by schema name",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    labels: [docs]\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"superseded schema", "Documentation"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -213,6 +287,11 @@ func TestLabelContract_Drift(t *testing.T) {
 			for _, want := range tc.wantNamed {
 				if !strings.Contains(joined, want) {
 					t.Fatalf("guard violation must name %q, got:\n%s", want, joined)
+				}
+			}
+			for _, banned := range tc.wantNotNamed {
+				if strings.Contains(joined, banned) {
+					t.Fatalf("guard violation must not read as %q, got:\n%s", banned, joined)
 				}
 			}
 		})
