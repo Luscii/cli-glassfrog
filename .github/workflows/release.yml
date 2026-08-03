@@ -37,7 +37,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history (not a shallow clone) so GoReleaser can derive the
           # version from the release tag the event points at.
@@ -97,7 +97,7 @@ jobs:
           - { goos: darwin, goarch: amd64, runner: macos-15-intel }
           - { goos: darwin, goarch: arm64, runner: macos-14 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -177,7 +177,7 @@ jobs:
     env:
       HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history at the release tag so GoReleaser derives the same
           # version the publish job built.
@@ -219,7 +219,7 @@ jobs:
       # over the workflow default, scoped to this job alone.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
