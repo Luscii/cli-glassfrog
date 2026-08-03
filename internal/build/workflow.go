@@ -180,6 +180,8 @@ func ParseWorkflow(raw []byte) (Workflow, error) {
 // publish job:
 //   - depends on build (so a build failure aborts the whole release),
 //   - sets GH_TOKEN in its env (gh authenticates from the env, not permissions),
+//   - gives gh a target repository (GH_REPO, or --repo, or a checkout) — the job
+//     does not check out, so without it gh cannot resolve the repo at all,
 //   - uploads only the archives + checksums file (never a bare dist/*) to the
 //     triggering release with --clobber (idempotent re-publish, assets-only so
 //     the release body and pre-release/latest status are preserved).
@@ -260,6 +262,44 @@ func CheckVerifyGate(wf Workflow) []string {
 	}
 
 	return violations
+}
+
+// PublishRepoEnv is the env var that tells `gh` which repository to act on in
+// the publish job. The job deliberately does NOT check out the repository — it
+// only needs the dist/ artifact — so there is no .git for gh to infer the target
+// from, and every gh invocation exits with "failed to run git: fatal: not a git
+// repository" before it reaches the API. GH_TOKEN answers "who am I"; this
+// answers "which repo", and both are required.
+//
+// Regression origin: the v0.2.1 release (run 30817412348) was the first release
+// to reach publish — v0.1.0 skipped it and v0.2.0 was cancelled at verify — so
+// this latent gap went unnoticed through three releases and no release ever had
+// assets attached. Guarded here so it cannot recur silently.
+const PublishRepoEnv = "GH_REPO"
+
+// hasRepoContext reports whether the job gives gh a resolvable target
+// repository, by any of the three legitimate means:
+//
+//   - GH_REPO in the job env (what the workflow uses),
+//   - an explicit --repo on the gh command,
+//   - an actions/checkout step, leaving a .git for gh to read.
+//
+// Accepting all three keeps the guard about the *property* (gh can resolve the
+// repo) rather than one spelling of it, so a future refactor that switches
+// mechanism is not a false failure. What it will not accept is none of them.
+func hasRepoContext(j Job) bool {
+	if strings.TrimSpace(j.Env[PublishRepoEnv]) != "" {
+		return true
+	}
+	if strings.Contains(uploadStepRun(j), "--repo") {
+		return true
+	}
+	for _, s := range j.Steps {
+		if strings.Contains(s.Uses, "actions/checkout") {
+			return true
+		}
+	}
+	return false
 }
 
 // TapTokenEnv is the env var the tap job must expose the cross-repo token under
@@ -484,6 +524,11 @@ func checkPublishJob(j Job) []string {
 	}
 	if !strings.Contains(j.Env["GH_TOKEN"], "github.token") {
 		violations = append(violations, "publish job must set env GH_TOKEN: ${{ github.token }} — gh authenticates from the env, not permissions alone")
+	}
+	if !hasRepoContext(j) {
+		violations = append(violations, fmt.Sprintf(
+			"publish job must give gh a target repository — set env %s: ${{ github.repository }} (or pass --repo, or add a checkout step). The job deliberately does not check out, so gh has no .git to infer the repo from and dies with \"failed to run git: fatal: not a git repository\" before reaching the API",
+			PublishRepoEnv))
 	}
 	upload := uploadStepRun(j)
 	if upload == "" {

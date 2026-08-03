@@ -90,6 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -206,11 +207,45 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 			wantNamed: []string{"TestSelfContainment_HostBinary"},
 		},
 		{
+			// Drops ONLY the GH_TOKEN line, leaving env: + GH_REPO intact, so the
+			// case changes exactly one thing and cannot be satisfied by the
+			// repo-context violation instead.
 			name: "publish without GH_TOKEN in env is rejected",
 			yaml: strings.Replace(validWorkflowYAML,
-				"    env:\n      GH_TOKEN: ${{ github.token }}\n", "", 1),
+				"      GH_TOKEN: ${{ github.token }}\n", "", 1),
 			wantPass:  false,
 			wantNamed: []string{"GH_TOKEN"},
+		},
+		{
+			// The v0.2.1 failure: publish does not check out, so with no GH_REPO
+			// (and no --repo) gh cannot resolve the target repo and dies with
+			// "fatal: not a git repository" before reaching the API.
+			name: "publish with no repo context for gh is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				"      GH_REPO: ${{ github.repository }}\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"GH_REPO"},
+		},
+		{
+			// The guard is about the property, not one spelling: an explicit
+			// --repo on the gh command is equally valid repo context.
+			name: "publish passing --repo on the gh command instead of GH_REPO passes",
+			yaml: strings.Replace(
+				strings.Replace(validWorkflowYAML,
+					"      GH_REPO: ${{ github.repository }}\n", "", 1),
+				"          gh release upload \"${{ github.event.release.tag_name }}\" \\",
+				"          gh release upload \"${{ github.event.release.tag_name }}\" \\\n            --repo \"${{ github.repository }}\" \\", 1),
+			wantPass: true,
+		},
+		{
+			// A checkout step also leaves a .git for gh to read.
+			name: "publish checking out the repo instead of setting GH_REPO passes",
+			yaml: strings.Replace(
+				strings.Replace(validWorkflowYAML,
+					"      GH_REPO: ${{ github.repository }}\n", "", 1),
+				"    steps:\n      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n      - name: Attach archives and checksums to the release",
+				"    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/download-artifact@v4\n        with:\n          name: dist\n          path: dist/\n      - name: Attach archives and checksums to the release", 1),
+			wantPass: true,
 		},
 		{
 			name: "a bare dist/* upload (no filtered globs) is rejected",
