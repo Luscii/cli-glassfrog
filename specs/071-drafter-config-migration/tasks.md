@@ -132,7 +132,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ## Phase 3: The Live-Contract Sweep [Shared]
 
-- [ ] **T005** [Shared] Update spec 030's live-contract documents to the new positions
+- [x] **T005** [Shared] Update spec 030's live-contract documents to the new positions — interface-spec/plan/validate updated with 071 pointers (030 ADR citations kept); spec.md verified tool-agnostic (no edit); analyze/risk name only the surviving mechanism vocabulary (no edit); completed task records untouched; directory-wide grep confirms every surviving `version-resolver`/`exclude-labels` occurrence is deliberate history
   - **Scope**: Sweep `specs/030-release-drafting/` for statements describing the configuration's shape. Update the live contract; leave history alone.
   - **Acceptance criteria**:
     - `plan.md`, `interface-spec.md`, and `validate.md` — which carry the most references — describe the current positions.
