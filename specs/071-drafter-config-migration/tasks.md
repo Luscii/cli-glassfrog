@@ -79,7 +79,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ## Phase 2: The Coupling Guard and the Acceptance Suite [US3]
 
-- [ ] **T003** [US3] Add `internal/build/drafterschema.go` and its guard test
+- [x] **T003** [US3] Add `internal/build/drafterschema.go` and its guard test — coupling verdict (derived major ≥ derived floor), real-file test + 9 drift cases; no findings
   - **Scope**: The new invariant: the drafting workflow's pinned action major must be at or above the floor the config's schema requires. Production code and its tests together, following the package's one-file-per-concern convention.
   - **Acceptance criteria**:
     - `DraftingWorkflowFileName`, `DrafterActionRepo`, and `DrafterSchemaMinMajor` are declared, with `DrafterSchemaMinMajor`'s comment carrying the property and reason (the `GoReleaserVersion` precedent in `workflow.go`), not just the number.
