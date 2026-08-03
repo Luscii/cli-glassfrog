@@ -24,7 +24,7 @@ Three artifacts move together, all inside the repository — no runtime componen
                     reuses Workflow/Job/Step from internal/build/workflow.go
 ```
 
-**Flow.** `.github/release-drafter.yml` is restructured so the seven category labels sit under each category's `when`, the exclusion moves to a `pre-exclude` category, and the three semver buckets plus the patch fallback become four `version-resolver` categories. `labelcontract.go`'s `ReleaseDrafterConfig` is reshaped to read those positions, and its four existing verdicts are re-derived from the new shape without changing what they assert. A new sibling, `drafterschema.go`, adds one further verdict: the drafting workflow's pinned action major must be at or above the floor the current config schema requires. Both guards run inside the existing `go test ./...` matrix (024 pre-merge, 029 post-merge), so a drift reddens CI rather than silently mis-drafting.
+**Flow.** `.github/release-drafter.yml` is restructured so the seven category labels sit under each category's `when`, the exclusion moves to a `pre-exclude` category, and the three semver buckets plus the patch fallback become four `version-resolver` categories. `labelcontract.go`'s `ReleaseDrafterConfig` is reshaped to read those positions, and its four existing verdicts are re-derived from the new shape without changing what they assert. A new sibling, `drafterschema.go`, adds one further verdict: the drafting workflow's pinned action major must be at or above the floor the current config schema requires. Both guards run inside the existing `go test ./...` matrix (024 pre-merge, 029 post-merge), so a drift reddens CI rather than silently mis-drafting. A godog suite over this spec's feature file (ADR-8) drives the same two guards through their acceptance scenarios in the same matrix — a presentation layer over the guards, not a third source of assurance.
 
 **What is deliberately not built.** Nothing evaluates drafter output. The spec forecloses a synthetic-pull-request harness (Non-Behaviors), so the architecture's whole assurance surface is structural parsing. The guards answer "is the contract still declared correctly" — never "did the draft come out right."
 
@@ -126,6 +126,26 @@ Ref-parsing rules: the step is located by its `Uses` prefix, and only a `vN`-lea
 
 **Consequences**: A future need for multi-condition categories (say, path-based routing) requires widening the type first. The failure a list-form config produces is a label-set failure, which under ADR-4's reasoning is a symptom-level message; this is accepted because, unlike the whole-file schema case, the config author here has changed exactly the thing the message names.
 
+### ADR-8: Wire the feature file to a godog runner, holding two distinct classes of scenario back
+
+**Context**: `features/no-automated-pipeline/drafter-config-contract.feature` carries thirteen scenarios. None of the four files in `features/no-automated-pipeline/` currently has a godog runner, while `runtime-dependent-distribution/` and `unequipped-agent-operators/` do. Most of this feature's scenarios assert guard verdicts, which are pure functions over parsed structures — directly executable. Some do not.
+
+**Options considered**:
+1. **No runner** — match the neighbouring files' current state; the Go table tests are the real verification and the Gherkin is documentation. Cheapest, and consistent with `release-drafting.feature`; but it leaves thirteen permanently-`@wip` scenarios that read as unfinished work, and it forgoes executable coverage that is genuinely available here in a way it was not for 030 (whose scenarios describe drafter runtime behaviour almost throughout).
+2. **Runner over everything** — execute all thirteen. Impossible without rewording behavioural and review-time assertions into config-shape assertions, which would make them green while destroying what they assert.
+3. **Runner with a `~@wip` filter** — execute what the guards make observable; hold the rest with the tag, and record why per scenario.
+
+**Decision**: Option 3, following `release_bdd_test.go`'s established pattern in this package — `Paths` naming only this spec's feature file, `Tags: "~@wip"`, and a suite doc comment enumerating what stays held and why. This is conformance to an existing idiom, not a new mechanism.
+
+Five scenarios execute. Eight are held, for **two different reasons that must not be conflated**:
+
+- **Held for `/score:validate`** — the four `@validation` scenarios. Score's spec template holds validation scenarios out from the implementing agent for independent verification, and 022's runner does exactly this ("the three `@validation` scenarios (for `/score:validate`)"). Two of the four happen to also be inexecutable; the validate reason is the primary one and applies regardless.
+- **Not executable at all** — the four scenarios asserting drafter runtime output. `spec.md` § Non-Behaviors forecloses verifying it, so these stay documentation-grade in the same way their neighbours in `release-drafting.feature` are. This is a boundary, not a backlog.
+
+The suite comment must state both reasons separately. A single undifferentiated "still `@wip`" list would let a later reader "finish" the inexecutable four by rewording them.
+
+**Consequences**: `features/no-automated-pipeline/` gains its first runner, which makes the other three files' absence more visible — that is a fair observation about those specs, not work this feature takes on. The `~@wip` filter means clearing a tag is the act that puts a scenario under test, so the tags become load-bearing rather than decorative; T004's per-scenario table is the record of which are which.
+
 ---
 
 ## Migration Strategy
@@ -162,7 +182,9 @@ Everything outside that table is untouched: `tag-template`, `name-template`, `ve
 
 **Testing strategy.** The existing split is preserved and extended: a real-file change-detector (`TestLabelContract_RealConfig`) that parses the shipped `.github/` files, plus a table-driven drift suite over in-memory fixtures that mutate one thing each. The fixtures in `labelcontract_test.go` are rewritten to the current schema, and drift cases are added for every position that moved — a category losing its `when` labels, a missing `pre-exclude` category, a `version-resolver` category with the wrong `semver-increment`, the condition-less fallback deleted, and a config left in the superseded shape. The coupling check gets the same pair: a real-file test against the shipped workflow, and drift cases for a below-floor major and an underivable ref.
 
-Two trap-avoidance notes for whoever writes those tests. The drift table must not assert by map lookup against a zero-valued expectation — a dropped entry would return the zero value and pass; the existing suite avoids this with set-difference and substring assertions, and the new cases must too. And the real-file tests are the only thing standing between a green build and a wrong draft, since nothing exercises the drafter itself.
+Above those sits a third layer: a godog suite over this feature's `.feature` file (ADR-8), filtered `~@wip`, driving the same guard functions through the Gherkin. It adds no assurance the Go tests do not already provide — the value is that the acceptance scenarios are executed rather than merely written, so a scenario and its guard cannot drift apart silently.
+
+Three trap-avoidance notes for whoever writes these tests. The drift table must not assert by map lookup against a zero-valued expectation — a dropped entry would return the zero value and pass; the existing suite avoids this with set-difference and substring assertions, and the new cases must too. Godog matches steps by text, so reuse the sibling suites' step phrasing where a step means the same thing rather than inventing a near-miss variant. And the real-file tests are the only thing standing between a green build and a wrong draft, since nothing exercises the drafter itself — the godog layer does not change that.
 
 **Configuration vs. hardcoding.** Exactly one value in this feature is hardcoded on purpose: `DrafterSchemaMinMajor`. Everything else — the pinned major, the label sets, the schema shape — is read from source. The constant's comment carries the property it stands for so the next migration re-derives it.
 
@@ -176,7 +198,7 @@ All three phases ship as **one pull request**. The phases are build order inside
 
 **Phase 1 — the atomic migration.** Move the drafting workflow's pinned action version forward to a major that understands the current schema, and rewrite the pin comment that explains why it was held back; restructure `.github/release-drafter.yml` to the target shape; reshape `ReleaseDrafterConfig`/`DrafterCategory` and re-derive the four verdicts in `labelcontract.go`, including the ADR-4 rejection of the superseded shape; rewrite the `labelcontract_test.go` fixtures. The version move belongs here rather than in Phase 2 because it is one half of the coupling — landing the config without it is the degradation, not a step toward avoiding it. This is the only phase that can redden anything, and it is self-consistent only on completion.
 
-**Phase 2 — the coupling guard.** Add `internal/build/drafterschema.go` with `DraftingWorkflowFileName`, `DrafterSchemaMinMajor`, the ref-major parse, `LoadDrafterSchemaCoupling`, and `CheckDrafterSchemaCoupling`; add its real-file test and drift cases. Depends on Phase 1 only for its precondition (ADR-4 guarantees the config is on the current schema by the time this runs), and is additive — it passes against the workflow as it stands.
+**Phase 2 — the coupling guard and the acceptance suite.** Add `internal/build/drafterschema.go` with `DraftingWorkflowFileName`, `DrafterSchemaMinMajor`, the ref-major parse, `LoadDrafterSchemaCoupling`, and `CheckDrafterSchemaCoupling`; add its real-file test and drift cases. Then wire the godog suite (ADR-8) over this spec's feature file, clearing the `@wip` tag on the five executable scenarios and leaving the eight held ones tagged. The suite comes second within the phase because it drives both guards and cannot run until the coupling functions exist. Depends on Phase 1 for its precondition (ADR-4 guarantees the config is on the current schema by the time this runs) and for the reshaped label-contract functions the suite also exercises.
 
 **Phase 3 — the live-contract sweep.** Update spec 030's documents that describe the configuration's shape. `plan.md`, `interface-spec.md`, and `validate.md` carry the most references; `analyze.md` and `risk.md` carry a few; `spec.md`'s mentions are tool-agnostic behavioral prose about note categories and need no change — verify rather than assume. Completed `- [x] Txxx` entries in `tasks.md` are history and stay as written; only forward-looking contract statements there change. Depends on Phases 1-2 for the final shape.
 

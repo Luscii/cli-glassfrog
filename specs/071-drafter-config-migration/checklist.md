@@ -3,8 +3,8 @@
 **Feature**: 071-drafter-config-migration
 **Checked against**: CONSTITUTION.md (12 principles)
 **Artifacts checked**: spec.md, plan.md, interface-spec.md, tasks.md, features/no-automated-pipeline/drafter-config-contract.feature
-**Checks**: 7 (6 pass, 1 fail) + 3 P2 considerations
-**Generated**: 2026-08-03
+**Checks**: 7 (7 pass, 0 fail) + 3 P2 considerations
+**Generated**: 2026-08-03 (round 2 — re-derived after F1 was resolved)
 
 > Source note: no `accords/governance/done-*.md` accords are deployed in this repo, so this checklist runs **constitution checks only** — the same standing as sibling CI specs 024/028/029/030. Done-criteria checks are skipped, not failed.
 
@@ -14,22 +14,24 @@
 
 | Severity | Count | Pass | Fail |
 |---|---|---|---|
-| P0 (blocking) | 7 | 6 | 1 |
+| P0 (blocking) | 7 | 7 | 0 |
 | P1 (should fix) | 0 | 0 | 0 |
 | P2 (consider) | 3 | — | — |
-| **Total** | **7 checks** | **6** | **1** |
+| **Total** | **7 checks** | **7** | **0** |
+
+**Improvement summary** — round 1: 1 P0 fail (F1), 1 P1 (F2). Round 2: 0 P0, 1 P1. **Resolved**: F1 — `tasks.md` T004 now carries a per-scenario execution table naming five scenarios to execute and eight to hold, with the two hold reasons kept distinct, and `plan.md` ADR-8 grounds the runner it wires. **Remaining**: F2, unchanged and now sharper — the scenario that would have observed the deprecation surface is explicitly in the held set.
 
 ---
 
-## Constitution Checks: 6/7 passed
+## Constitution Checks: 7/7 passed
 
 - **P0 | III (Fail Safe, Not Silent)** — *calibrated*: this feature's "failure surface" is the CI guard, not a governance write. Calibrated assertions: (a) the guard does not pass on a condition it exists to catch — ADR-4 rejects the superseded config shape by name rather than letting it degrade into seven confusing missing-label messages, and ADR-5 forbids an underivable pinned ref from defaulting to a passing value; (b) no swallowed errors — every condition in interface-spec.md's Error Communication table fails, and the table states explicitly that there is no partial-success or defaulting mode; (c) no partially-applied state — the config, guard, and docs ship as one PR (tasks.md preamble), so the repository never sits between shapes. The guard's deliberate one-directional coverage is disclosed rather than hidden (plan Risks; see P2-1). **PASS.**
 
 - **P0 | IV (Test-Driven Development / BDD)** — *calibrated*, two assertions:
   - (a) *User-facing behavior carries acceptance scenarios written before the code.* 13 scenarios in `drafter-config-contract.feature`, each `# Source:`-traced, all preceding the config and guard they describe; tasks.md T001–T004 reference them as verifying conditions. **Passes.**
-  - (b) *No task requires executing a scenario the spec forecloses verifying.* **FAILS.** See finding F1 below.
+  - (b) *No task requires executing a scenario the spec forecloses verifying.* T004's per-scenario table marks all four drafter-output scenarios **hold**, and its criteria forbid rewording any scenario to make it executable. The four `@validation` scenarios are held separately for `/score:validate` — Score's own convention, and the same disposition `release_bdd_test.go` applies. **Passes** (round 2; failed in round 1 as F1).
 
-  **FAIL** — the check is binary and (b) does not hold.
+  **PASS** — both assertions hold. Note the tags are now load-bearing: with `Tags: "~@wip"`, clearing a tag is what puts a scenario under test, so the table in T004 is the executable record rather than commentary.
 
 - **P0 | V (Composition over Monolith)** — ADR-3 places the coupling verdict in a new `internal/build/drafterschema.go` rather than widening `CheckLabelContract`'s signature, so the two invariants stay independently reviewable and neither existing guard (021 `.goreleaser`, 022 release-workflow, 030 label contract, 036 brews-targets-the-tap) is edited. The new file reuses `RepoRoot()`, `loadYAML`, `ReleaseDrafterConfig`, and `workflow.go`'s `Workflow`/`Step` types by reference, adding no duplicate parse. Adding this guard forces no change to an unrelated one. **PASS.**
 
@@ -50,22 +52,13 @@
 
 ## Findings
 
-### F1 | P0 | IV — tasks.md T004 requires executing scenarios that cannot be executed
+### F1 | P0 | IV — RESOLVED in round 2
 
-**Source**: CONSTITUTION.md IV (*"User-facing behavior MUST have an executable acceptance scenario"*), calibrated assertion (b).
-**Artifacts**: `tasks.md` T004 acceptance criteria; `features/no-automated-pipeline/drafter-config-contract.feature`; `spec.md` Non-Behaviors.
+**Was**: `tasks.md` T004 instructed the Builder to execute every scenario under two named Rule blocks. At least three of those assert things no test in this feature can observe — release-drafter's runtime output, a comparison against the guard's prior state, and the content of a pull-request description absent at test time. The phrasing recurred across both Rule blocks, so it was systematically over-broad, and it pushed toward the one thing the same task's final criterion forbade: rewording an assertion into a config-shape check to make it green.
 
-T004 instructs the Builder to execute every scenario under two named Rule blocks and clear their `@wip` tags. At least three of the scenarios so designated assert things no test in this feature can observe, because `spec.md`'s Non-Behaviors forecloses runtime verification of drafter output and no "before" state exists at test time:
+**Resolution applied**: T004 now carries a per-scenario execution table — five execute, eight hold — and `plan.md` ADR-8 grounds the runner the task wires. The hold set came out larger than this finding recommended (eight rather than six) because the four `@validation` scenarios are held for `/score:validate` under Score's own convention, which `release_bdd_test.go` also follows; two of those overlap with the inexecutable set, and the table records both reasons rather than collapsing them. T004's criteria require the suite's doc comment to keep the two reasons separate, so a later reader cannot "finish" the inexecutable four by rewording them.
 
-| Scenario | Why it is not executable |
-|---|---|
-| "A drafting run reports no schema deprecations" (Rule 1 — explicitly in scope per T004) | Asserts release-drafter's runtime output. Same class as the three scenarios T004 correctly excludes. |
-| "The four label-contract assertions survive in number and strictness" (Rule 2, `@validation`) | Compares the guard *before* and *after* the change. No runtime has access to the prior guard. |
-| "The change claims no fix for the untagged-release failure" (Rule 2, `@validation`) | Asserts about the pull-request description, which does not exist when tests run. The spec.md half could be grepped; the PR half cannot. |
-
-This is not a wording slip in one criterion — it recurs across both Rule blocks T004 names, so the criterion is systematically over-broad. Left as written it pushes the Builder toward the one thing the same task's final criterion forbids: rewording a behavioral or review-time assertion into a config-shape assertion to make it green.
-
-**Recommended resolution** (the Shaper's call, not the Guardian's): replace T004's "every scenario under [Rule]" phrasing with an explicit per-scenario execution table, and extend the deliberately-unexecuted set from three scenarios to six with the reason recorded per scenario. Then close the consequence in F2.
+**Verified**: assertion (b) of the IV check now holds. Retained here rather than deleted — the Guardian's record is additive, and the reasoning is what stops the same over-broad phrasing returning.
 
 ### F2 | P1 | III — the zero-deprecation-warnings accord has no detection mechanism
 
@@ -86,7 +79,7 @@ This is P1 rather than P0 because the outcome degrades noisily (a warning in a r
 
 - **P2-1 | III — the coupling guard is one-directional by design.** It catches config-newer-than-action and not action-newer-than-config. Disclosed in ADR-5 and plan Risks with the reasoning (the caught direction is silent and catastrophic; the uncaught one is noisy and degrades through compatibility mode). Recorded here so the asymmetry is visible in the Guardian record too, not only in the plan's own prose. No action recommended. F2's gap sits in the uncaught direction, so the two used to compound — the noisy signal being the only signal, with nobody assigned to read it. That is partly relieved now: the repository's recorded procedure for a hand-made major bump (bump, then watch a throwaway pre-release end to end) does assign an observer to the run this change produces. It is a procedure rather than a check, and it does not close F2, but it means the warning is no longer guaranteed to go unread.
 
-- **P2-2 | VII — T002 is a test-only unit.** Constitution VII forbids test-only increments outside the RED→GREEN pair. T002 (new drift cases) carries no implementation. It is benign — additive coverage over implementation T001 just landed, inside a single PR — but if the Builder follows tasks.md's `task-1 … task-5` branch guidance literally, it becomes a test-only commit. Recommend T001 and T002 land as one commit, mirroring 030's P2-2.
+- **P2-2 | VII — T002 and T004 are test-only units.** Constitution VII forbids test-only increments outside the RED→GREEN pair. T002 (new drift cases) and, since round 2, T004 (the godog suite) both carry no implementation. Both are benign — additive coverage over implementation that just landed, inside a single PR — but if the Builder follows tasks.md's `task-1 … task-5` branch guidance literally, each becomes a test-only commit. Recommend T001+T002 land as one commit and T003+T004 as another, mirroring 030's P2-2. Widened in round 2: adding the suite added a second instance of the same shape.
 
 - **P2-3 | V — `DrafterWhen` deliberately declines the package's `StringOrSlice` idiom.** ADR-7 rejects a tolerant unmarshaller so no untested arm ships, with the consequence (a list-form config fails at parse rather than as a violation) recorded in interface-spec.md's Error Communication rather than smoothed over. Sound, and the reasoning is written down. Flagged only so a future reader encountering the parse-level failure finds it was anticipated.
 

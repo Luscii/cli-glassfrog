@@ -10,7 +10,7 @@
 >
 > **No app code.** Like 030, this feature's only Go is in the test-only `internal/build` guard package. Nothing in the CLI changes, and no runtime behavior is added.
 >
-> **Nothing verifies drafter output.** The spec forecloses a synthetic-pull-request harness, and `release-drafting.yml` triggers only on `push: main` and blocks nothing. The guards are the entire pre-merge assurance surface. Three scenarios in the feature file are behavior-preservation statements that no test can execute — see T004.
+> **Nothing verifies drafter output.** The spec forecloses a synthetic-pull-request harness, and `release-drafting.yml` triggers only on `push: main` and blocks nothing. The guards are the entire pre-merge assurance surface, and the godog suite T004 adds is a presentation layer over them, not a third source of assurance. Of the feature file's thirteen scenarios, five execute and eight are held: four assert drafter output no test here can observe, and four are `@validation`, held for `/score:validate` by Score convention. T004 carries the per-scenario table.
 >
 > **Current state to build from.** #179 merged on 2026-08-03. `.github/workflows/release-drafting.yml` now pins `release-drafter/release-drafter@v6.4.0`, and `.github/dependabot.yml` blocks automated major bumps for it. Action and config currently agree — both on the superseded schema. **A workflow edit is therefore required**, and it belongs in T001 alongside the config: landing the config without moving the pin *is* the silent degradation this feature exists to prevent. T003's guard reddens CI on any later attempt to separate them, which is why T003 must not be deferred to a follow-up PR.
 >
@@ -21,7 +21,7 @@
 ## Dependency Graph
 
 Phase 1: The Atomic Migration (2 tasks, no dependencies) [US1]
-Phase 2: The Coupling Guard (2 tasks, depends on Phase 1) [US3]
+Phase 2: The Coupling Guard and the Acceptance Suite (2 tasks, depends on Phase 1) [US3]
 Phase 3: The Live-Contract Sweep (1 task, depends on Phases 1, 2) [Shared]
 
 5 tasks total | 0 phases parallelizable | Builder: pipeline (single spec)
@@ -77,7 +77,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ---
 
-## Phase 2: The Coupling Guard [US3]
+## Phase 2: The Coupling Guard and the Acceptance Suite [US3]
 
 - [ ] **T003** [US3] Add `internal/build/drafterschema.go` and its guard test
   - **Scope**: The new invariant: the drafting workflow's pinned action major must be at or above the floor the config's schema requires. Production code and its tests together, following the package's one-file-per-concern convention.
@@ -97,17 +97,36 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
   - **Scenario references**: drafter-config-contract.feature: "A pinned action version behind the configuration schema fails the guard"; "A pinned reference with no derivable major fails rather than passes"
   - **Risk**: ⚠️ Must ship in the same PR as T001. Since #179 landed, `main` sits on the previous major, so T001 moves the pin and the config together — this guard is what stops a later change from separating them again. Deferring it leaves exactly the silent-degradation window this feature exists to close.
 
-- [ ] **T004** [US3] Wire the feature file to a godog runner, and record which scenarios stay unexecuted
-  - **Scope**: `features/no-automated-pipeline/*.feature` currently has no godog runner, while `runtime-dependent-distribution/*` and `unequipped-agent-operators/*` do (see `internal/build/release_bdd_test.go` for the pattern). Add a runner over `drafter-config-contract.feature` covering the scenarios the guards make observable, and clear their `@wip` tags. **This task is not named in plan.md** — it closes a hole the scenarios step opened, and is listed rather than left implicit so the decision is visible.
+- [ ] **T004** [US3] Wire the feature file to a godog suite and clear the `@wip` tag on exactly the five executable scenarios
+  - **Scope**: Add a godog suite in `internal/build` over `drafter-config-contract.feature`, following `release_bdd_test.go`'s pattern in this package — `Paths` naming only this feature file, `Tags: "~@wip"`, and a suite doc comment enumerating what stays held and why. Clear the `@wip` tag on the five scenarios the guards make observable; leave the other eight tagged. `features/no-automated-pipeline/` has no runner today, so this is its first.
   - **Acceptance criteria**:
-    - A godog suite in `internal/build` runs `drafter-config-contract.feature`, following the existing runner pattern in the package.
-    - Every scenario under "Express the configuration in the schema the running action reads" and "Fail CI when the pinned action version and the configuration schema disagree" is executed against the T001–T003 guard functions, and its `@wip` tag is removed.
-    - The guard-observable scenarios under "Move labels between configuration positions and nothing else" — the two failure cases and the three `@validation` ones — are likewise executed where the assertion is structural.
-    - The three behavior-preservation scenarios ("A feature merge still bumps the draft to the next minor", "The declared fallback supplies the patch bump", "The exclusion survives the realignment") **keep `@wip` and stay unexecuted**, and the runner's tag filter excludes them. They assert drafter output, which the spec forecloses verifying. A comment in the runner states this, so the tags read as a deliberate boundary rather than unfinished work — the same documentation-grade status as the neighbouring scenarios in `release-drafting.feature`.
-    - No scenario is reworded into a config-shape assertion to make it executable. Restating "a features PR bumps minor" as "the config declares a minor resolver for `features`" would be a shape check wearing a behavior label.
+    - The suite runs with `Tags: "~@wip"` and `Paths` naming only `drafter-config-contract.feature`.
+    - Exactly the scenarios marked **execute** below have their `@wip` tag cleared. Exactly the scenarios marked **hold** keep it.
+
+    | # | Scenario | Disposition | Reason |
+    |---|---|---|---|
+    | 1 | A drafting run reports no schema deprecations | **hold** | Asserts drafter runtime output |
+    | 2 | A configuration left on the superseded schema is rejected by name | **execute** | Guard verdict over a fixture |
+    | 3 | A feature merge still bumps the draft to the next minor | **hold** | Asserts drafter runtime output |
+    | 4 | The declared fallback supplies the patch bump | **hold** | Asserts drafter runtime output |
+    | 5 | The exclusion survives the realignment | **hold** | Asserts drafter runtime output |
+    | 6 | A category losing its label predicate fails the guard | **execute** | Guard verdict over a fixture |
+    | 7 | Removing the declared fallback fails the guard | **execute** | Guard verdict over a fixture |
+    | 8 | No label is invented or dropped by the realignment | **hold** | `@validation` — held for `/score:validate` |
+    | 9 | The four label-contract assertions survive in number and strictness | **hold** | `@validation` — held for `/score:validate`; also needs a before-state no runtime has |
+    | 10 | The change claims no fix for the untagged-release failure | **hold** | `@validation` — held for `/score:validate`; also asserts about a PR description absent at test time |
+    | 11 | A pinned action version behind the configuration schema fails the guard | **execute** | Coupling verdict over a fixture |
+    | 12 | A pinned reference with no derivable major fails rather than passes | **execute** | Coupling verdict over a fixture |
+    | 13 | Neither side of the coupling verdict is a hard-coded literal | **hold** | `@validation` — held for `/score:validate` |
+
+    - The suite doc comment states the **two hold reasons separately** — four held for `/score:validate` (Score convention: validation scenarios are held out from the implementing agent; `release_bdd_test.go` does the same), four held because they assert drafter output the spec forecloses verifying. An undifferentiated "still `@wip`" list would invite a later reader to "finish" the inexecutable four by rewording them.
+    - The four drafter-output scenarios are recorded as a **boundary, not a backlog** — the same documentation-grade status as their neighbours in `release-drafting.feature`.
+    - No scenario is reworded to make it executable. Restating "a features PR bumps minor" as "the config declares a minor resolver for `features`" would be a shape check wearing a behavior label.
+    - Step definitions reuse sibling suites' phrasing where a step means the same thing — godog matches by text, so a near-miss variant silently forks the step registry.
+    - Scenario 13 is *executable* in principle via substitution (change the fixture's pinned ref and assert the verdict follows; feed a superseded-shape config and assert the floor is reported as underivable). It is held anyway because it is `@validation`. If `/score:validate` later wants it under test, the substitution shape is the way in.
   - **Dependencies**: T001, T003
-  - **Plan reference**: Phase 2: the coupling guard; Cross-cutting Concerns > Testing strategy; spec Non-Behaviors (no runtime verification)
-  - **Scenario references**: drafter-config-contract.feature (all thirteen scenarios — ten executed, three deliberately not)
+  - **Plan reference**: Phase 2: the coupling guard and the acceptance suite; ADR-8 (runner with two hold-out classes); Cross-cutting Concerns > Testing strategy
+  - **Scenario references**: drafter-config-contract.feature — 5 executed, 8 held (4 for validate, 4 not executable)
 
 ---
 
