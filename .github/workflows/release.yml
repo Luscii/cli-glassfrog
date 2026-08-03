@@ -72,7 +72,7 @@ jobs:
           # Full history (not a shallow clone) so GoReleaser can derive the
           # version from the release tag the event points at.
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v7
@@ -128,7 +128,7 @@ jobs:
           - { goos: darwin, goarch: arm64, runner: macos-14 }
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: actions/download-artifact@v8
@@ -222,7 +222,7 @@ jobs:
           # version the publish job built.
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v7
