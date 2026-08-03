@@ -50,6 +50,7 @@ brews:
       owner: Luscii
       name: homebrew-cli-glassfrog
       branch: main
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
 `
 
 // TestConfigGuard_RealConfig is the change-detector against the shipped
@@ -247,10 +248,31 @@ func TestConfigGuard_Drift(t *testing.T) {
 			// fails when the brews block is blanked or retargeted").
 			name: "a blanked brews block (no entry) is rejected and named",
 			yaml: strings.Replace(validConfigYAML,
-				"brews:\n  - name: glassfrog\n    repository:\n      owner: Luscii\n      name: homebrew-cli-glassfrog\n      branch: main\n",
+				"brews:\n  - name: glassfrog\n    repository:\n      owner: Luscii\n      name: homebrew-cli-glassfrog\n      branch: main\n      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'\n",
 				"", 1),
 			wantPass:  false,
 			wantNamed: []string{"brews section must declare exactly one"},
+		},
+		{
+			// 036 — the v0.2.2 failure. GoReleaser's brew publisher validates the
+			// token template's SHAPE, so the functionally identical `index` form is
+			// rejected at publish time. It survived three releases only because the
+			// tap job had never run (publish failed first), which is exactly why the
+			// guard has to hold it rather than the comment.
+			name: "a brews token using the index .Env form is rejected and named",
+			yaml: strings.Replace(validConfigYAML,
+				"token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'",
+				`token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'`, 1),
+			wantPass:  false,
+			wantNamed: []string{"repository.token must be exactly"},
+		},
+		{
+			// A blanked token would make the brew push fail to authenticate.
+			name: "a brews entry with no token at all is rejected",
+			yaml: strings.Replace(validConfigYAML,
+				"      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"repository.token must be exactly"},
 		},
 		{
 			// 036 — a retargeted tap repo would push the formula to the wrong place.
