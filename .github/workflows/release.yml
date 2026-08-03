@@ -37,7 +37,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history (not a shallow clone) so GoReleaser can derive the
           # version from the release tag the event points at.
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           # Pinned to the v2.16 line (spec 036): GoReleaser deprecated the `brews`
           # (formula) publisher in favour of `homebrew_casks`, but casks are
@@ -57,7 +57,7 @@ jobs:
           # keeps GoReleaser from creating/uploading anything — publish is the
           # `gh release upload` step below, gated on verification.
           args: release --clean --skip=publish
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           # The whole dist/: the four *.tar.gz, the checksums file, and
@@ -97,11 +97,11 @@ jobs:
           - { goos: darwin, goarch: amd64, runner: macos-15-intel }
           - { goos: darwin, goarch: arm64, runner: macos-14 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -143,7 +143,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -186,7 +186,7 @@ jobs:
     env:
       HOMEBREW_TAP_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history at the release tag so GoReleaser derives the same
           # version the publish job built.
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           # Same brews-supporting pin as the build job (see its note).
           version: "~> v2.16"
@@ -228,8 +228,8 @@ jobs:
       # over the workflow default, scoped to this job alone.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
@@ -237,7 +237,7 @@ jobs:
       # npm so the runner's bundled version cannot regress the publish path.
       - name: Ensure a trusted-publishing-capable npm
         run: npm install -g npm@^11.5.1
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
