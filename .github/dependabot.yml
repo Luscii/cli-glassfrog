@@ -1,0 +1,68 @@
+# Dependabot — dependency update configuration.
+#
+# Two ecosystems are tracked: the Go module at the repository root and the
+# GitHub Actions referenced by the workflows in .github/workflows/.
+#
+# `directory` MUST be an absolute path from the repository root (leading "/").
+# A relative value ("gomod/", ".github/workflows") can stop Dependabot from
+# discovering the manifest at all — it silently skips the ecosystem rather than
+# erroring, so the config looks healthy while nothing is ever updated. For
+# `github-actions` the directory is "/" (NOT ".github/workflows"): Dependabot
+# resolves the workflow directory itself relative to the given root.
+#
+# LABELS ARE DELIBERATELY NOT SET HERE. The managed label catalog lives in
+# .github/settings.yml and is applied by .github/labeler.yml via
+# srvaroa/labeler (see .github/workflows/pr-administration.yml), which runs on
+# `pull_request_target` with `pull-requests: write` — so it labels Dependabot
+# PRs too. labeler.yml's `dependencies` entry matches `branch: "^dependabot/"`,
+# which every Dependabot PR satisfies, so the label arrives without Dependabot
+# asking for it. Setting `labels:` here would make Dependabot a second writer of
+# a contract that 028/030 own (and that the internal/build label-contract guard
+# checks), so it is left alone on purpose.
+#
+# COMMIT PREFIX — why `chore(deps)` and not `build(deps)`. The prefix decides
+# which managed labels the PR picks up, and therefore which release-note
+# category it lands in (release-drafter assigns the FIRST matching category):
+#   - `chore(deps)` matches labeler's `dependencies` (title `^\w+\(deps\)`) and
+#     also `internal` (labeler title regex covers `chore`, `refactor`, `perf`, `test`, `style`). Categories are ordered
+#     Infrastructure → Dependencies → Internal, so a gomod PR lands in
+#     **Dependencies**. Correct.
+#   - `build(deps)` would additionally match `infrastructure` (title
+#     `^(ci|build)`), which sorts FIRST — dragging every dependency PR into
+#     Infrastructure. Avoided.
+#
+# KNOWN INTERACTION (not a bug, worth knowing): `github-actions` PRs change
+# files under .github/workflows/, which matches labeler's `infrastructure`
+# *files* rule. Infrastructure sorts before Dependencies, so action bumps are
+# reported under "Infrastructure" while Go module bumps are reported under
+# "Dependencies". Changing that means editing labeler.yml/release-drafter.yml —
+# a coordinated 028↔030 contract change, not something this file can decide.
+version: 2
+
+updates:
+  # Go module (go.mod / go.sum at the repository root).
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    # Monday early morning so the PRs exist before the week is planned and show
+    # up in that morning's GitHub digest rather than mid-week.
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions used by the workflows in .github/workflows/.
+  # directory "/" is correct here — see the header note.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
