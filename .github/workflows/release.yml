@@ -131,8 +131,17 @@ jobs:
     # gh authenticates from the GH_TOKEN/GITHUB_TOKEN env var, NOT from the
     # workflow `permissions` block alone — the token must be wired into the
     # step's environment or `gh release upload` fails with an auth error.
+    #
+    # GH_REPO is equally load-bearing and less obvious. This job deliberately
+    # does NOT check out the repository (it only needs the dist/ artifact), so
+    # there is no .git directory for gh to infer the target repo from — without
+    # GH_REPO every gh invocation dies with "failed to run git: fatal: not a git
+    # repository" before it ever reaches the API. Setting it at the job level
+    # covers any future gh step here, and is cheaper than adding a checkout
+    # purely to give gh its bearings.
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v8
         with:
