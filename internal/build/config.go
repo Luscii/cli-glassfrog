@@ -68,6 +68,25 @@ const (
 	// Homebrew reads the formula from the tap's default branch, so a drift to a
 	// non-main branch would silently land updates where `brew` never looks.
 	BrewTapBranch = "main"
+	// BrewTapTokenTemplate is the ONLY spelling GoReleaser's brew publisher
+	// accepts for brews.repository.token. It validates the template's shape
+	// against a syntactic allowlist — `{{ .Env.VAR_NAME }}` and nothing else —
+	// and rejects even a functionally identical `{{ index .Env "NAME" }}`.
+	//
+	// Regression origin: the config used the `index` form (chosen so a missing key
+	// rendered empty rather than erroring during the build job's
+	// `--skip=publish` run). It worked for three releases because the tap job had
+	// never actually run — publish failed first — so the first time the publisher
+	// was reached, v0.2.2's tap job died with:
+	//
+	//	homebrew formula: expected {{ .Env.VAR_NAME }} only
+	//	                  (no plain-text or other interpolation)
+	//
+	// The missing-key property is preserved without the `index` form:
+	// `--skip=publish` never reaches the publisher, so neither the shape check nor
+	// the token lookup happens in the build job. TestFormulaRender_Offline pins
+	// that by rendering with HOMEBREW_TAP_TOKEN removed from the environment.
+	BrewTapTokenTemplate = "{{ .Env.HOMEBREW_TAP_TOKEN }}"
 )
 
 // CommitAnchoredMTime are the GoReleaser template sources that pin the archive
@@ -137,6 +156,7 @@ type BrewRepository struct {
 	Owner  string `json:"owner"`
 	Name   string `json:"name"`
 	Branch string `json:"branch"`
+	Token  string `json:"token"`
 }
 
 // Checksum mirrors the GoReleaser checksum section. Disable is captured so the
@@ -484,6 +504,11 @@ func checkBrews(brews []Brew) []string {
 	if b.Repository.Branch != BrewTapBranch {
 		violations = append(violations, fmt.Sprintf(
 			"brews repository.branch must be %q (Homebrew reads the formula from the tap's default branch), got %q", BrewTapBranch, b.Repository.Branch))
+	}
+	if b.Repository.Token != BrewTapTokenTemplate {
+		violations = append(violations, fmt.Sprintf(
+			"brews repository.token must be exactly %q — GoReleaser's brew publisher validates this template's SHAPE against a syntactic allowlist and rejects anything else, including the functionally identical `{{ index .Env \"...\" }}` form (which failed the v0.2.2 release with `expected {{ .Env.VAR_NAME }} only`), got %q",
+			BrewTapTokenTemplate, b.Repository.Token))
 	}
 	return violations
 }

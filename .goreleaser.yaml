@@ -130,12 +130,26 @@ brews:
       # The cross-repo, least-privilege token (ADR-4). The default GITHUB_TOKEN
       # cannot push to another repository; this secret is injected ONLY in the
       # tap job's env (spec 036 Phase 3 / release.yml).
-      # Templated via `index` (not `.Env.HOMEBREW_TAP_TOKEN`) so a missing key
-      # renders as empty rather than erroring: the build job runs `goreleaser
-      # release --skip=publish` WITHOUT this secret, and it must not fail there.
-      # The token is only consumed by the brew push (the tap job), which still
-      # fails loud on a genuinely missing/invalid token.
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+      # MUST be spelled exactly `{{ .Env.VAR_NAME }}`. GoReleaser's brew publisher
+      # validates the SHAPE of this template string against a syntactic allowlist
+      # and rejects anything else — including the functionally identical
+      # `{{ index .Env "HOMEBREW_TAP_TOKEN" }}`, which this field used until
+      # v0.2.2 and which failed the release with:
+      #
+      #   homebrew formula: expected {{ .Env.VAR_NAME }} only
+      #                     (no plain-text or other interpolation)
+      #
+      # The `index` form was chosen so a MISSING key rendered empty instead of
+      # erroring — the build job runs `goreleaser release --skip=publish` without
+      # this secret and must not fail there. That property is preserved a
+      # different way: `--skip=publish` never reaches the publisher, so neither
+      # the shape validation nor the token lookup happens in the build job.
+      # TestFormulaRender_Offline pins it by rendering with the variable removed
+      # from the environment.
+      #
+      # The cross-repo token is injected ONLY in the tap job's env (release.yml),
+      # where the brew push still fails loud on a genuinely absent/invalid value.
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
     # The formula lands at Formula/glassfrog.rb in the tap repo.
     directory: Formula
     # With `release.disable: true` (above) GoReleaser cannot derive the formula's
