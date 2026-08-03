@@ -1,10 +1,19 @@
-# Release Drafting — release-drafter config (spec 030, ADR-2/ADR-3/ADR-4).
+# Release Drafting — release-drafter config (invariants: spec 030,
+# ADR-2/ADR-3/ADR-4; schema positions: spec 071).
 #
 # Read by the pinned release-drafter action (see
 # .github/workflows/release-drafting.yml) on every merge to main. It maintains a
 # single draft GitHub Release: the next semantic version (resolved highest-wins
 # from the PR labels PR Administration applied, defaulting to patch) and the
 # merged-PR titles grouped into the seven release-note categories.
+#
+# Everything the contract pins lives under `categories` (071): each of the seven
+# note sections names its label in its `when`, the exclusion label sits in a
+# `pre-exclude` category, and the three semver buckets plus the patch fallback
+# are `version-resolver` categories — the condition-less one IS the declared
+# fallback (030 ADR-2). `exclusive` is DELIBERATELY OMITTED everywhere: its
+# default (false) is the behavior-preserving value — a PR carrying several
+# managed labels appears under every matching note section.
 #
 # The label STRINGS (breaking/features/fixes/docs/infrastructure/dependencies/
 # internal + no-release-note) are the cross-feature contract 028 produces and
@@ -17,33 +26,53 @@ tag-template: "v$RESOLVED_VERSION"
 name-template: "v$RESOLVED_VERSION"
 version-template: "$MAJOR.$MINOR.$PATCH"
 
-version-resolver:           # ADR-2: highest-wins; patch when no semver label.
-  major:
-    labels: [breaking]
-  minor:
-    labels: [features]
-  patch:
-    labels: [fixes]
-  default: patch
+categories:
+  # 030 ADR-4: exclusion — auto-applied to spec/feature-only PRs (see labeler.yml).
+  - type: "pre-exclude"
+    when:
+      labels: [no-release-note]
 
-categories:                 # ADR-3: the seven 028 labels, exact strings.
+  # 030 ADR-3: the seven 028 labels, exact strings. The relative order of these
+  # changelog entries sets the note-section order in the draft.
   - title: "⚠ Breaking Changes"
-    labels: [breaking]
+    when:
+      labels: [breaking]
   - title: "Features"
-    labels: [features]
+    when:
+      labels: [features]
   - title: "Fixes"
-    labels: [fixes]
+    when:
+      labels: [fixes]
   - title: "Documentation"
-    labels: [docs]
+    when:
+      labels: [docs]
   - title: "Infrastructure"
-    labels: [infrastructure]
+    when:
+      labels: [infrastructure]
   - title: "Dependencies"
-    labels: [dependencies]
+    when:
+      labels: [dependencies]
   - title: "Internal"
-    labels: [internal]
+    when:
+      labels: [internal]
 
-exclude-labels:             # ADR-4: auto-applied to spec/feature-only PRs (see labeler.yml).
-  - no-release-note
+  # 030 ADR-2: highest-wins semver resolution.
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      labels: [breaking]
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels: [features]
+  - type: "version-resolver"
+    semver-increment: "patch"
+    when:
+      labels: [fixes]
+  - type: "version-resolver"
+    semver-increment: "patch"   # 030 ADR-2: the bump when no semver-bearing
+                                # label is present. No `when` — a condition-less
+                                # version-resolver entry IS the fallback.
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
 template: |

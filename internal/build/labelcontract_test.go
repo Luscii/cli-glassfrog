@@ -13,31 +13,45 @@ import (
 // pins the real files separately.
 const (
 	validDrafterYAML = `
-version-resolver:
-  major:
-    labels: [breaking]
-  minor:
-    labels: [features]
-  patch:
-    labels: [fixes]
-  default: patch
 categories:
+  - type: "pre-exclude"
+    when:
+      labels: [no-release-note]
   - title: "Breaking"
-    labels: [breaking]
+    when:
+      labels: [breaking]
   - title: "Features"
-    labels: [features]
+    when:
+      labels: [features]
   - title: "Fixes"
-    labels: [fixes]
+    when:
+      labels: [fixes]
   - title: "Documentation"
-    labels: [docs]
+    when:
+      labels: [docs]
   - title: "Infrastructure"
-    labels: [infrastructure]
+    when:
+      labels: [infrastructure]
   - title: "Dependencies"
-    labels: [dependencies]
+    when:
+      labels: [dependencies]
   - title: "Internal"
-    labels: [internal]
-exclude-labels:
-  - no-release-note
+    when:
+      labels: [internal]
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      labels: [breaking]
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels: [features]
+  - type: "version-resolver"
+    semver-increment: "patch"
+    when:
+      labels: [fixes]
+  - type: "version-resolver"
+    semver-increment: "patch"
 `
 
 	validLabelerYAML = `
@@ -101,8 +115,8 @@ func TestLabelContract_Drift(t *testing.T) {
 			// A category label renamed in release-drafter but not the others.
 			name: "a renamed release-drafter category label is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  - title: \"Features\"\n    labels: [features]\n",
-				"  - title: \"Features\"\n    labels: [feature]\n", 1),
+				"  - title: \"Features\"\n    when:\n      labels: [features]\n",
+				"  - title: \"Features\"\n    when:\n      labels: [feature]\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"release-drafter.yml category", "feature", "features"},
 		},
@@ -129,16 +143,21 @@ func TestLabelContract_Drift(t *testing.T) {
 			// The version-resolver major bucket drifts off `breaking`.
 			name: "a drifted version-resolver major bucket is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  major:\n    labels: [breaking]\n", "  major:\n    labels: [major-change]\n", 1),
+				"    semver-increment: \"major\"\n    when:\n      labels: [breaking]\n",
+				"    semver-increment: \"major\"\n    when:\n      labels: [major-change]\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"version-resolver major", "major-change", "breaking"},
 		},
 		{
 			// spec 030 requires the fallback bump to be patch; a drifted default
-			// must fail as loudly as a drifted bucket.
+			// (the condition-less version-resolver category, since 071) must
+			// fail as loudly as a drifted bucket. The anchor includes the patch
+			// bucket above it — `semver-increment: "patch"` alone matches the
+			// bucket entry first.
 			name: "a drifted version-resolver default is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  default: patch\n", "  default: minor\n", 1),
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"patch\"\n",
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"minor\"\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"version-resolver default", "patch", "minor"},
 		},
@@ -157,11 +176,11 @@ func TestLabelContract_Drift(t *testing.T) {
 			wantNamed: []string{"labeler.yml must define", "no-release-note"},
 		},
 		{
-			name: "no-release-note missing from release-drafter exclude-labels is rejected and named",
+			name: "no-release-note missing from the release-drafter pre-exclude category is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"exclude-labels:\n  - no-release-note\n", "exclude-labels: []\n", 1),
+				"      labels: [no-release-note]\n", "      labels: []\n", 1),
 			wantPass:  false,
-			wantNamed: []string{"exclude-labels must contain", "no-release-note"},
+			wantNamed: []string{"pre-exclude category must exclude", "no-release-note"},
 		},
 		{
 			// Dropping a label entirely shrinks the managed set below eight.

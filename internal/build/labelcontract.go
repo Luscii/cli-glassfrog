@@ -35,10 +35,13 @@ var SemverBuckets = map[string][]string{
 	"patch": {"fixes"},
 }
 
-// ResolverDefault is the version-resolver fallback bump the guard pins (ADR-2):
-// spec 030 requires a patch bump when no included PR carries a semver-bearing
-// label. A drift away from this default would silently change the bump for
-// label-less releases, so the guard fails as loudly as a drifted bucket.
+// ResolverDefault is the fallback bump the guard pins (030 ADR-2): spec 030
+// requires a patch bump when no included PR carries a semver-bearing label.
+// Since 071's schema migration it pins the `semver-increment` of the
+// condition-less `version-resolver` category — the declared fallback — rather
+// than a `version-resolver.default` key. The name encodes the property, not
+// the position. A drift away from this fallback would silently change the bump
+// for label-less releases, so the guard fails as loudly as a drifted bucket.
 const ResolverDefault = "patch"
 
 // NoReleaseNoteLabel is the eighth managed label (ADR-4): the exclusion label
@@ -50,40 +53,53 @@ const (
 	ManagedLabelCount  = 8
 )
 
+// The category-type vocabulary the parse branches on (071's schema): every
+// `categories` entry is a changelog note section (the action's default when
+// `type` is omitted), a pre-merge exclusion, or a semver-resolution rule.
+const (
+	CategoryTypeChangelog       = "changelog"
+	CategoryTypePreExclude      = "pre-exclude"
+	CategoryTypeVersionResolver = "version-resolver"
+)
+
 // ReleaseDrafterConfig is the subset of .github/release-drafter.yml the guard
-// inspects: the categories (label→section mapping), the version-resolver
-// buckets, and the exclude-labels list. The hyphenated YAML keys become
-// hyphenated JSON keys under sigs.k8s.io/yaml's YAML→JSON path, so the json tags
-// carry the hyphens.
+// inspects. Since 071 the categories list is the single contract source: the
+// note-section labels, the exclusion, and the semver buckets plus fallback all
+// live there. The hyphenated YAML keys become hyphenated JSON keys under
+// sigs.k8s.io/yaml's YAML→JSON path, so the json tags carry the hyphens.
 type ReleaseDrafterConfig struct {
-	Categories      []DrafterCategory `json:"categories"`
-	VersionResolver VersionResolver   `json:"version-resolver"`
-	ExcludeLabels   []string          `json:"exclude-labels"`
+	Categories []DrafterCategory `json:"categories"`
+
+	// Rejection detectors only (071 ADR-4): the superseded top-level keys are
+	// parsed solely so their PRESENCE can be reported as "this config is on the
+	// superseded schema". Nothing is ever read from them for contract purposes,
+	// and they exist to be empty — do not "clean them up", or the guard loses
+	// its by-name rejection and reports schema drift as missing labels.
+	LegacyVersionResolver map[string]interface{} `json:"version-resolver"`
+	LegacyExcludeLabels   []string               `json:"exclude-labels"`
 }
 
-// DrafterCategory is one release-drafter `categories` entry: a display title and
-// the labels routed into that section. The guard reads only the labels (the
-// title is tunable display text).
+// DrafterCategory is one release-drafter `categories` entry. The guard reads
+// the type, the condition's labels, and (for version-resolver entries) the
+// semver increment; the title is tunable display text.
 type DrafterCategory struct {
-	Title  string   `json:"title"`
-	Labels []string `json:"labels"`
+	Title           string       `json:"title"`
+	Type            string       `json:"type"`             // empty means changelog — the action's own default
+	SemverIncrement string       `json:"semver-increment"` // read only for version-resolver entries
+	When            *DrafterWhen `json:"when"`             // pointer: nil ("no condition" — the fallback) differs from empty
+
+	// Rejection detectors only (071 ADR-4), like the top-level legacy keys:
+	// the superseded category-level label shorthands, parsed to be refused.
+	LegacyLabels []string `json:"labels"`
+	LegacyLabel  string   `json:"label"`
 }
 
-// VersionResolver mirrors release-drafter's version-resolver: the three semver
-// buckets, each carrying the labels that trigger that bump, plus the fallback
-// Default bump. The guard pins both the buckets (SemverBuckets) and the Default
-// (ResolverDefault) — spec 030 requires a patch default when no semver-bearing
-// label is present.
-type VersionResolver struct {
-	Major   ResolverBucket `json:"major"`
-	Minor   ResolverBucket `json:"minor"`
-	Patch   ResolverBucket `json:"patch"`
-	Default string         `json:"default"`
-}
-
-// ResolverBucket is one version-resolver bucket's label list.
-type ResolverBucket struct {
+// DrafterWhen is a category's condition in its mapping form — the only form
+// this repository writes (071 ADR-7). A list-form `when` fails the parse
+// loudly rather than shipping a permanently untested arm.
+type DrafterWhen struct {
 	Labels []string `json:"labels"`
+	Label  string   `json:"label"` // singular shorthand; folded in with Labels
 }
 
 // LabelerConfig is the subset of .github/labeler.yml the guard inspects: the
@@ -155,18 +171,27 @@ func loadYAML(root, name string, dst interface{}) error {
 // The guard enforces, with change-detector rigor (a missing entry fails as
 // loudly as an extra one):
 //
-//   - release-drafter `categories` labels == the seven CategoryLabels, and the
-//     category labels in labeler.yml and settings.yml (each file's managed set
-//     minus the exclusion label) == the same seven;
-//   - the version-resolver major/minor/patch buckets == exactly
-//     breaking/features/fixes (SemverBuckets), and the fallback default bump ==
+//   - release-drafter's changelog categories' `when` labels == the seven
+//     CategoryLabels, and the category labels in labeler.yml and settings.yml
+//     (each file's managed set minus the exclusion label) == the same seven;
+//   - the version-resolver categories' major/minor/patch buckets == exactly
+//     breaking/features/fixes (SemverBuckets), and the condition-less
+//     version-resolver category declares the fallback bump ==
 //     ResolverDefault (patch);
 //   - NoReleaseNoteLabel is present in settings.yml, labeler.yml, AND
-//     release-drafter's exclude-labels;
+//     release-drafter's pre-exclude category;
 //   - the managed set in labeler.yml and settings.yml is exactly
-//     ManagedLabelCount (eight) entries.
+//     ManagedLabelCount (eight) entries;
+//   - the config is on the current schema (071 ADR-4): the superseded
+//     `version-resolver`/`exclude-labels` keys and category-level
+//     `labels`/`label` shorthands are rejected by name, so schema drift is
+//     never reported as merely-missing labels.
 func CheckLabelContract(rd ReleaseDrafterConfig, labeler LabelerConfig, settings SettingsConfig) []string {
 	var violations []string
+
+	// (0) The superseded schema is rejected by name first (071 ADR-4), so a
+	// whole-file schema problem is never read as a pile of missing labels.
+	violations = append(violations, drafterLegacyShape(rd)...)
 
 	// (a) Category labels agree across all three files with the canonical seven.
 	// Comparing each file to CategoryLabels also catches a *coordinated* rename
@@ -180,17 +205,29 @@ func CheckLabelContract(rd ReleaseDrafterConfig, labeler LabelerConfig, settings
 		diffLabelSet("settings.yml category", categoryLabelsOf(settingsNames(settings)), CategoryLabels)...)
 
 	// (b) version-resolver buckets are exactly the 028 semver-bearing labels,
-	// and the fallback default bump is patch (spec 030).
+	// and the fallback default bump is patch (spec 030). Both are derived from
+	// the version-resolver categories: conditioned entries form the buckets,
+	// the condition-less entry declares the fallback. The action's built-in
+	// fallback is also patch, so deleting the declaration changes no observable
+	// output — only the absent-declaration violation below can catch it.
+	buckets := drafterSemverBuckets(rd)
 	violations = append(violations,
-		diffLabelSet("version-resolver major", rd.VersionResolver.Major.Labels, SemverBuckets["major"])...)
+		diffLabelSet("version-resolver major", buckets["major"], SemverBuckets["major"])...)
 	violations = append(violations,
-		diffLabelSet("version-resolver minor", rd.VersionResolver.Minor.Labels, SemverBuckets["minor"])...)
+		diffLabelSet("version-resolver minor", buckets["minor"], SemverBuckets["minor"])...)
 	violations = append(violations,
-		diffLabelSet("version-resolver patch", rd.VersionResolver.Patch.Labels, SemverBuckets["patch"])...)
-	if rd.VersionResolver.Default != ResolverDefault {
+		diffLabelSet("version-resolver patch", buckets["patch"], SemverBuckets["patch"])...)
+	switch fallback := drafterFallbackIncrement(rd); fallback {
+	case ResolverDefault:
+		// declared and correct
+	case "":
+		violations = append(violations, fmt.Sprintf(
+			"version-resolver default must be declared as %q (spec 030: patch bump when no semver-bearing label is present), but no condition-less version-resolver category declares it",
+			ResolverDefault))
+	default:
 		violations = append(violations, fmt.Sprintf(
 			"version-resolver default must be %q (spec 030: patch bump when no semver-bearing label is present), got %q",
-			ResolverDefault, rd.VersionResolver.Default))
+			ResolverDefault, fallback))
 	}
 
 	// (c) the exclusion label is present in all three places.
@@ -202,9 +239,9 @@ func CheckLabelContract(rd ReleaseDrafterConfig, labeler LabelerConfig, settings
 		violations = append(violations, fmt.Sprintf(
 			"labeler.yml must define the %q exclusion label", NoReleaseNoteLabel))
 	}
-	if !containsString(rd.ExcludeLabels, NoReleaseNoteLabel) {
+	if !containsString(drafterExcludedLabels(rd), NoReleaseNoteLabel) {
 		violations = append(violations, fmt.Sprintf(
-			"release-drafter.yml exclude-labels must contain %q", NoReleaseNoteLabel))
+			"release-drafter.yml pre-exclude category must exclude %q", NoReleaseNoteLabel))
 	}
 
 	// (d) the managed set is exactly eight (seven categories + exclusion) in the
@@ -225,14 +262,107 @@ func CheckLabelContract(rd ReleaseDrafterConfig, labeler LabelerConfig, settings
 	return violations
 }
 
-// drafterCategoryLabels flattens the labels across all release-drafter
-// categories into one slice (each category entry carries its own labels list).
+// categoryType resolves a category entry's effective type: an omitted `type`
+// means changelog, the action's own default.
+func categoryType(c DrafterCategory) string {
+	if c.Type == "" {
+		return CategoryTypeChangelog
+	}
+	return c.Type
+}
+
+// whenLabels flattens a condition's labels, folding the singular `label`
+// shorthand in with `labels`. A nil condition yields nothing.
+func whenLabels(w *DrafterWhen) []string {
+	if w == nil {
+		return nil
+	}
+	labels := append([]string(nil), w.Labels...)
+	if w.Label != "" {
+		labels = append(labels, w.Label)
+	}
+	return labels
+}
+
+// drafterCategoryLabels flattens the `when` labels across the CHANGELOG
+// categories only. Including version-resolver entries would triple-count the
+// semver labels, and including the pre-exclude entry would read
+// no-release-note as an unexpected category label.
 func drafterCategoryLabels(rd ReleaseDrafterConfig) []string {
 	var labels []string
 	for _, c := range rd.Categories {
-		labels = append(labels, c.Labels...)
+		if categoryType(c) != CategoryTypeChangelog {
+			continue
+		}
+		labels = append(labels, whenLabels(c.When)...)
 	}
 	return labels
+}
+
+// drafterSemverBuckets groups the conditioned version-resolver categories'
+// `when` labels by semver increment. The condition-less fallback entry is
+// deliberately excluded — it is drafterFallbackIncrement's subject.
+func drafterSemverBuckets(rd ReleaseDrafterConfig) map[string][]string {
+	buckets := make(map[string][]string)
+	for _, c := range rd.Categories {
+		if categoryType(c) != CategoryTypeVersionResolver || c.When == nil {
+			continue
+		}
+		buckets[c.SemverIncrement] = append(buckets[c.SemverIncrement], whenLabels(c.When)...)
+	}
+	return buckets
+}
+
+// drafterFallbackIncrement returns the `semver-increment` of the
+// condition-less version-resolver category — the declared fallback — or the
+// empty string when no such category exists.
+func drafterFallbackIncrement(rd ReleaseDrafterConfig) string {
+	for _, c := range rd.Categories {
+		if categoryType(c) == CategoryTypeVersionResolver && c.When == nil {
+			return c.SemverIncrement
+		}
+	}
+	return ""
+}
+
+// drafterExcludedLabels flattens the `when` labels across the pre-exclude
+// categories: the labels whose PRs are dropped before drafting.
+func drafterExcludedLabels(rd ReleaseDrafterConfig) []string {
+	var labels []string
+	for _, c := range rd.Categories {
+		if categoryType(c) == CategoryTypePreExclude {
+			labels = append(labels, whenLabels(c.When)...)
+		}
+	}
+	return labels
+}
+
+// drafterLegacyShape is the 071 ADR-4 rejection: a config still expressing the
+// contract at the superseded positions fails by NAME, so the failure reads as
+// "wrong schema — migrate", never as a pile of missing labels whose obvious
+// (and wrong) fix is re-adding the superseded keys.
+func drafterLegacyShape(rd ReleaseDrafterConfig) []string {
+	var violations []string
+	if rd.LegacyVersionResolver != nil {
+		violations = append(violations,
+			"release-drafter.yml is on the superseded schema: top-level \"version-resolver\" is no longer read — migrate its buckets and default to version-resolver categories (071)")
+	}
+	if len(rd.LegacyExcludeLabels) > 0 {
+		violations = append(violations,
+			"release-drafter.yml is on the superseded schema: top-level \"exclude-labels\" is no longer read — migrate it to a pre-exclude category (071)")
+	}
+	for _, c := range rd.Categories {
+		if len(c.LegacyLabels) > 0 || c.LegacyLabel != "" {
+			name := c.Title
+			if name == "" {
+				name = categoryType(c)
+			}
+			violations = append(violations, fmt.Sprintf(
+				"release-drafter.yml is on the superseded schema: category %q declares labels at the category level — migrate them under the category's \"when\" (071)",
+				name))
+		}
+	}
+	return violations
 }
 
 // labelerNames returns every managed label name declared in labeler.yml.

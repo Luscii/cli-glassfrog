@@ -39,30 +39,29 @@ jobs:
       # drafting behaviour.
       - name: Draft the next release
         id: draft
-        # PINNED TO THE v6 LINE ON PURPOSE — do not let Dependabot bump this to
-        # v7 (an ignore rule in .github/dependabot.yml enforces that).
+        # Pinned to an exact patch on the v7 line — the major that reads
+        # release-drafter.yml's schema (071). internal/build/drafterschema.go
+        # holds this pinned major at or above the schema's floor, so the config
+        # and the action cannot drift apart silently again. Majors still move by
+        # hand only: an ignore rule in .github/dependabot.yml blocks automated
+        # major bumps for this action, and this bump was made under that
+        # procedure.
         #
-        # v7.7.0 was merged automatically on 2026-08-03 and the very next drafted
-        # release came out with NO TAG: GitHub substituted the placeholder
+        # Empirical record from the v6 pin-back (kept because it is why the
+        # post-merge pre-release observation below is expected): when v7.7.0 was
+        # merged automatically on 2026-08-03, the very next drafted release came
+        # out with NO TAG — GitHub substituted the placeholder
         # `untagged-1b38099d29f3144567d9`, which is not semver, so the release
         # pipeline died at `goreleaser ... parsing tag`. The fingerprint is the
         # release payload's `target_commitish`, which v6 sets to
         # `refs/heads/main` and v7 sets to `main` — v0.1.0/v0.2.0/v0.2.1 all
         # carry the former and a correct tag; v0.2.2 carried the latter and no
-        # tag. v7 also emits ten deprecation warnings against this repo's
-        # release-drafter.yml (categories[*].labels, exclude-labels,
-        # version-resolver.*.labels), so the config is a v6 config running in v7
-        # compatibility mode.
-        #
-        # NOTE: the tag loss is NOT documented as a v7 breaking change, and
-        # migrating the config is NOT known to fix it — the deprecations are
-        # about config schema, not the payload. So this pin is empirical (v6
-        # tagged correctly 3/3, v7 failed 1/1), not mechanistic. Migrating to v7
-        # is its own coordinated change: the config restructure plus
-        # internal/build/labelcontract.go, which parses `categories[*].labels`,
-        # `version-resolver.*` and `exclude-labels` at their v6 paths and will
-        # fail loudly when they move.
-        uses: release-drafter/release-drafter@v6.4.0
+        # tag. The tag loss is NOT documented as a v7 breaking change, and the
+        # schema migration is NOT known to fix it — v6 tagged correctly 3/3, v7
+        # failed 1/1. Per dependabot.yml's hand-bump procedure, the first
+        # post-merge drafting run and a throwaway pre-release are the
+        # observation points for that failure mode.
+        uses: release-drafter/release-drafter@v7.7.0
         with:
           config-name: release-drafter.yml
         env:
