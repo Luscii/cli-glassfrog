@@ -24,7 +24,7 @@
 # which managed labels the PR picks up, and therefore which release-note
 # category it lands in (release-drafter assigns the FIRST matching category):
 #   - `chore(deps)` matches labeler's `dependencies` (title `^\w+\(deps\)`) and
-#     also `internal` (title `^(chore|...)`). Categories are ordered
+#     also `internal` (labeler title regex covers `chore`, `refactor`, `perf`, `test`, `style`). Categories are ordered
 #     Infrastructure → Dependencies → Internal, so a gomod PR lands in
 #     **Dependencies**. Correct.
 #   - `build(deps)` would additionally match `infrastructure` (title
