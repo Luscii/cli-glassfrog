@@ -57,7 +57,7 @@ jobs:
           # keeps GoReleaser from creating/uploading anything — publish is the
           # `gh release upload` step below, gated on verification.
           args: release --clean --skip=publish
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           # The whole dist/: the four *.tar.gz, the checksums file, and
