@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           # Pinned to the v2.16 line (spec 036): GoReleaser deprecated the `brews`
           # (formula) publisher in favour of `homebrew_casks`, but casks are
@@ -186,7 +186,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           # Same brews-supporting pin as the build job (see its note).
           version: "~> v2.16"
