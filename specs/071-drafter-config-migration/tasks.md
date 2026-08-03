@@ -97,7 +97,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
   - **Scenario references**: drafter-config-contract.feature: "A pinned action version behind the configuration schema fails the guard"; "A pinned reference with no derivable major fails rather than passes"
   - **Risk**: ⚠️ Must ship in the same PR as T001. Since #179 landed, `main` sits on the previous major, so T001 moves the pin and the config together — this guard is what stops a later change from separating them again. Deferring it leaves exactly the silent-degradation window this feature exists to close.
 
-- [ ] **T004** [US3] Wire the feature file to a godog suite and clear the `@wip` tag on exactly the five executable scenarios
+- [x] **T004** [US3] Wire the feature file to a godog suite and clear the `@wip` tag on exactly the five executable scenarios — drafter_config_contract_bdd_test.go, 5 scenarios execute, 8 held (4 for validate, 4 inexecutable) with both reasons in the suite doc comment; no findings
   - **Scope**: Add a godog suite in `internal/build` over `drafter-config-contract.feature`, following `release_bdd_test.go`'s pattern in this package — `Paths` naming only this feature file, `Tags: "~@wip"`, and a suite doc comment enumerating what stays held and why. Clear the `@wip` tag on the five scenarios the guards make observable; leave the other eight tagged. `features/no-automated-pipeline/` has no runner today, so this is its first.
   - **Acceptance criteria**:
     - The suite runs with `Tags: "~@wip"` and `Paths` naming only `drafter-config-contract.feature`.
