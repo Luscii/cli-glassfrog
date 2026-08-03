@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -277,6 +278,13 @@ func CheckVerifyGate(wf Workflow) []string {
 // pins the precondition so the legible failure cannot be dropped.
 const TagPreconditionMarker = "github.event.release.tag_name"
 
+// nonZeroExit matches a shell exit with a non-zero literal status — `exit 1`,
+// `exit 2`, `exit 42`. Used to prove the precondition step actually FAILS rather
+// than merely echoing the tag. Matching the status class rather than the literal
+// string "exit 1" keeps the guard's message ("exit non-zero") true of the code:
+// pinning one specific digit would reject a perfectly valid `exit 2`.
+var nonZeroExit = regexp.MustCompile(`exit[[:space:]]+[1-9][0-9]*`)
+
 // checkTagPrecondition requires the build job to validate the release tag BEFORE
 // running GoReleaser. Order is the point: a precondition that runs after the
 // build has already failed protects nothing, so the step must appear before the
@@ -289,9 +297,12 @@ func checkTagPrecondition(j Job) []string {
 			goreleaserAt = i
 		}
 		// A precondition reads the tag and exits non-zero. Requiring both the tag
-		// reference and an `exit 1` keeps a step that merely *echoes* the tag from
-		// satisfying the guard.
-		if preconditionAt == -1 && strings.Contains(s.Run, TagPreconditionMarker) && strings.Contains(s.Run, "exit 1") {
+		// reference and a non-zero exit keeps a step that merely *echoes* the tag
+		// from satisfying the guard. Matching the exit STATUS rather than the
+		// literal `exit 1` keeps the check honest about what it claims: `exit 2`
+		// and `exit 42` are equally valid failures, and a guard that silently
+		// demanded one specific digit would be prose-vs-code drift.
+		if preconditionAt == -1 && strings.Contains(s.Run, TagPreconditionMarker) && nonZeroExit.MatchString(s.Run) {
 			preconditionAt = i
 		}
 	}

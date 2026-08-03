@@ -50,10 +50,19 @@ jobs:
       # version via GORELEASER_CURRENT_TAG would produce artifacts labelled
       # 0.2.2 hanging off a release nobody can `go install` or brew-install.
       # A release without a real semver tag is broken; say so and stop.
+      #
+      # The pattern is the canonical SemVer 2.0.0 grammar (with the repo's `v`
+      # prefix), not a loose approximation — the step calls the tag "semver", so it
+      # should mean it. Deliberately PERMISSIVE within that grammar: pre-release
+      # identifiers may contain hyphens (`v1.2.3-rc-1`) and build metadata is
+      # accepted (`v1.2.3+build.1`), because the failure this guards against is a
+      # placeholder tag, and false-rejecting a legitimate tag would block a release
+      # — strictly worse than accepting a form nobody uses. Leading zeros are
+      # rejected (`v01.2.3`) because SemVer forbids them.
       - name: Require a semver release tag
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+(\.[0-9A-Za-z.]+)*)?$'; then
+          if ! printf '%s' "$TAG" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'; then
             echo "::error title=Release tag is not semver::Tag '$TAG' is not a vX.Y.Z semver tag. The release was most likely published without choosing a tag, so GitHub generated a placeholder. Fix: delete the release and its tag (gh release delete <name> --cleanup-tag), push a real tag (git tag vX.Y.Z <sha> && git push origin vX.Y.Z), then publish a release against that existing tag."
             exit 1
           fi
