@@ -43,7 +43,7 @@ const GoReleaserVersion = "~> v2.16"
 var VerifyRunners = map[string]string{
 	"linux/amd64":  "ubuntu-latest",
 	"linux/arm64":  "ubuntu-24.04-arm",
-	"darwin/amd64": "macos-13",
+	"darwin/amd64": "macos-15-intel",
 	"darwin/arm64": "macos-14",
 }
 
