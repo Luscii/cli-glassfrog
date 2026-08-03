@@ -15,7 +15,7 @@ The Glassfrog API returns `403 Forbidden` as a generic RFC 9457 Problem Details 
 
 Feature-Gate Recognition closes that gap from the other side: it matches the **failed request's HTTP method and path** against a static registry of known plan-gated operations. Recognition is a classification only — it produces no message and no exit code. The message is rendered by [Plan-Limit Signal](plan-limit-signal.md).
 
-Recognition keys on two inputs and nothing else:
+Recognition keys on three inputs and nothing else:
 
 | Input | Source |
 |---|---|
