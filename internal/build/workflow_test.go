@@ -56,10 +56,23 @@ const tapJobBlock = `  tap:
           args: release --clean
 `
 
-// validWorkflowYAML mirrors the shipped .github/workflows/release.yml
-// (build → verify matrix → publish, publish needs [build, verify]). The drift
-// cases mutate copies of this baseline so each test changes exactly one thing.
-// TestReleaseWorkflow_RealWorkflow pins the real file separately.
+// validWorkflowYAML is a STRUCTURAL BASELINE for the drift cases — it mirrors the
+// shipped .github/workflows/release.yml in *shape* (build → verify matrix →
+// publish, publish needs [build, verify]) but is NOT a byte-for-byte copy, and
+// should not be read as one. The drift cases mutate copies of it so each test
+// changes exactly one thing.
+//
+// Where it deliberately diverges: the release-tag precondition here uses a
+// simplified `^v[0-9]+\.[0-9]+\.[0-9]+$` pattern, while the real workflow uses the
+// full SemVer 2.0.0 grammar (pre-release identifiers, build metadata). That is
+// fine and intentional — checkTagPrecondition is regex-AGNOSTIC: it asserts the
+// step exists, references the tag, and exits non-zero, never what the pattern
+// says. Copying the real regex in would create a maintenance coupling that
+// nothing enforces and that would drift again silently.
+//
+// The real file's own content is pinned separately by
+// TestReleaseWorkflow_RealWorkflow, which runs the same guard against it — so both
+// are covered without this fixture having to impersonate it.
 const validWorkflowYAML = `
 name: release
 on:
@@ -71,6 +84,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -205,6 +225,72 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 				"run: echo skip", 1),
 			wantPass:  false,
 			wantNamed: []string{"TestSelfContainment_HostBinary"},
+		},
+		{
+			// The v0.2.2 failure class: a release published with no tag gets the
+			// placeholder `untagged-<hex>`, which is not semver. Without the
+			// precondition that surfaces as a GoReleaser "parsing tag" error that
+			// names neither the cause nor the fix.
+			name: "a build job with no release-tag precondition is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "", 1),
+			wantPass:  false,
+			wantNamed: []string{"github.event.release.tag_name"},
+		},
+		{
+			// Order is the point: a precondition after the step it protects is not
+			// a precondition. Move it below the goreleaser step and it must fail.
+			name: "a release-tag precondition placed AFTER the goreleaser step is rejected",
+			yaml: strings.Replace(
+				strings.Replace(validWorkflowYAML,
+					`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "", 1),
+				"      - uses: actions/upload-artifact@v4",
+				`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4`, 1),
+			wantPass:  false,
+			wantNamed: []string{"BEFORE the goreleaser step"},
+		},
+		{
+			// The guard requires a non-zero exit, not the literal `exit 1`. A
+			// precondition that exits 2 is an equally valid failure and must pass,
+			// so the guard's message ("exit non-zero") stays true of the code.
+			name: "a release-tag precondition exiting 2 instead of 1 still passes",
+			yaml: strings.Replace(validWorkflowYAML,
+				"            exit 1\n", "            exit 2\n", 1),
+			wantPass: true,
+		},
+		{
+			// A step that merely mentions the tag without failing on it must not
+			// satisfy the guard — otherwise an echo would pass for a precondition.
+			name: "a step that echoes the tag but never exits non-zero is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				`          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "          echo \"$TAG\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"github.event.release.tag_name"},
 		},
 		{
 			// Drops ONLY the GH_TOKEN line, leaving env: + GH_REPO intact, so the

@@ -66,3 +66,23 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    # CI does not exercise release.yml or release-drafting.yml — they trigger on
+    # `release: published` and `push: main` respectively, and a drafting failure
+    # blocks nothing — so a major action bump there lands unverified and only
+    # surfaces at the next release. On 2026-08-03 a release-drafter 6→7 bump
+    # merged green and the next drafted release came out with no tag, breaking
+    # the pipeline three times before the cause was found.
+    #
+    # Majors for release-path actions are therefore bumped DELIBERATELY, not
+    # automatically. Minor/patch still flow. To take one of these to a new major:
+    # bump it by hand, then cut a throwaway pre-release and watch the pipeline
+    # end-to-end before relying on it.
+    ignore:
+      - dependency-name: "release-drafter/release-drafter"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "goreleaser/goreleaser-action"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "actions/upload-artifact"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "actions/download-artifact"
+        update-types: ["version-update:semver-major"]
