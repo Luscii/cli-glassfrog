@@ -174,6 +174,8 @@ func ParseWorkflow(raw []byte) (Workflow, error) {
 //   - permissions grant contents: write (the only privilege).
 //
 // build job:
+//   - validates the release tag is semver BEFORE running goreleaser (a release
+//     published without a tag gets a placeholder `untagged-<hex>`),
 //   - runs goreleaser with `release ... --skip=publish` (build+package, no upload),
 //   - uploads dist/ as a CI artifact.
 //
@@ -262,6 +264,45 @@ func CheckVerifyGate(wf Workflow) []string {
 	}
 
 	return violations
+}
+
+// TagPreconditionMarker is the substring that identifies the build job's
+// semver-tag precondition step. The step rejects a release published without a
+// tag — GitHub substitutes a placeholder `untagged-<hex>`, which is not semver.
+//
+// Regression origin: v0.2.2 was published three times on 2026-08-03 with a
+// placeholder tag. GoReleaser failed at "parsing tag" with a message that named
+// neither the cause nor the fix, and the npm and Homebrew channels would have
+// failed downstream for the same reason (both derive from the tag). The guard
+// pins the precondition so the legible failure cannot be dropped.
+const TagPreconditionMarker = "github.event.release.tag_name"
+
+// checkTagPrecondition requires the build job to validate the release tag BEFORE
+// running GoReleaser. Order is the point: a precondition that runs after the
+// build has already failed protects nothing, so the step must appear before the
+// goreleaser-action step.
+func checkTagPrecondition(j Job) []string {
+	goreleaserAt := -1
+	preconditionAt := -1
+	for i, s := range j.Steps {
+		if goreleaserAt == -1 && strings.Contains(s.Uses, "goreleaser/goreleaser-action") {
+			goreleaserAt = i
+		}
+		// A precondition reads the tag and exits non-zero. Requiring both the tag
+		// reference and an `exit 1` keeps a step that merely *echoes* the tag from
+		// satisfying the guard.
+		if preconditionAt == -1 && strings.Contains(s.Run, TagPreconditionMarker) && strings.Contains(s.Run, "exit 1") {
+			preconditionAt = i
+		}
+	}
+	if preconditionAt == -1 {
+		return []string{fmt.Sprintf(
+			"build job must validate %s is a semver tag and exit non-zero when it is not — a release published without a tag gets a placeholder `untagged-<hex>` and fails deep inside GoReleaser instead of up front", TagPreconditionMarker)}
+	}
+	if goreleaserAt != -1 && preconditionAt > goreleaserAt {
+		return []string{"build job's release-tag precondition must run BEFORE the goreleaser step — a precondition after the failure it prevents protects nothing"}
+	}
+	return nil
 }
 
 // PublishRepoEnv is the env var that tells `gh` which repository to act on in
@@ -497,6 +538,7 @@ func checkBuildJob(j Job) []string {
 	if j.RunsOn != "ubuntu-latest" {
 		violations = append(violations, fmt.Sprintf("build job must run on ubuntu-latest, got %q", j.RunsOn))
 	}
+	violations = append(violations, checkTagPrecondition(j)...)
 	args := goreleaserArgs(j)
 	if args == "" {
 		violations = append(violations, "build job must run the goreleaser-action (no goreleaser step found)")

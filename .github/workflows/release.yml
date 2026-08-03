@@ -37,6 +37,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Fail fast, and legibly, on a release published WITHOUT a tag. GitHub
+      # substitutes a placeholder tag (`untagged-<hex>`) in that case, which is
+      # not semver — GoReleaser then dies at "parsing tag" with a message that
+      # says nothing about the actual mistake, and the npm and Homebrew channels
+      # would have failed further downstream for the same reason (the npm version
+      # and the formula URLs are both derived from the tag). Checking here turns
+      # three confusing failures into one actionable one.
+      #
+      # Deliberately does NOT fall back to github.event.release.name: that field
+      # is free text (a release can be named "August hotfix"), and forcing the
+      # version via GORELEASER_CURRENT_TAG would produce artifacts labelled
+      # 0.2.2 hanging off a release nobody can `go install` or brew-install.
+      # A release without a real semver tag is broken; say so and stop.
+      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+(\.[0-9A-Za-z.]+)*)?$'; then
+            echo "::error title=Release tag is not semver::Tag '$TAG' is not a vX.Y.Z semver tag. The release was most likely published without choosing a tag, so GitHub generated a placeholder. Fix: delete the release and its tag (gh release delete <name> --cleanup-tag), push a real tag (git tag vX.Y.Z <sha> && git push origin vX.Y.Z), then publish a release against that existing tag."
+            exit 1
+          fi
+          echo "Release tag $TAG is a valid semver tag."
       - uses: actions/checkout@v7
         with:
           # Full history (not a shallow clone) so GoReleaser can derive the

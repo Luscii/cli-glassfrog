@@ -71,6 +71,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -205,6 +212,63 @@ func TestReleaseWorkflow_Drift(t *testing.T) {
 				"run: echo skip", 1),
 			wantPass:  false,
 			wantNamed: []string{"TestSelfContainment_HostBinary"},
+		},
+		{
+			// The v0.2.2 failure class: a release published with no tag gets the
+			// placeholder `untagged-<hex>`, which is not semver. Without the
+			// precondition that surfaces as a GoReleaser "parsing tag" error that
+			// names neither the cause nor the fix.
+			name: "a build job with no release-tag precondition is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "", 1),
+			wantPass:  false,
+			wantNamed: []string{"github.event.release.tag_name"},
+		},
+		{
+			// Order is the point: a precondition after the step it protects is not
+			// a precondition. Move it below the goreleaser step and it must fail.
+			name: "a release-tag precondition placed AFTER the goreleaser step is rejected",
+			yaml: strings.Replace(
+				strings.Replace(validWorkflowYAML,
+					`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "", 1),
+				"      - uses: actions/upload-artifact@v4",
+				`      - name: Require a semver release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4`, 1),
+			wantPass:  false,
+			wantNamed: []string{"BEFORE the goreleaser step"},
+		},
+		{
+			// A step that merely mentions the tag without failing on it must not
+			// satisfy the guard — otherwise an echo would pass for a precondition.
+			name: "a step that echoes the tag but never exits non-zero is rejected",
+			yaml: strings.Replace(validWorkflowYAML,
+				`          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::not semver"
+            exit 1
+          fi
+`, "          echo \"$TAG\"\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"github.event.release.tag_name"},
 		},
 		{
 			// Drops ONLY the GH_TOKEN line, leaving env: + GH_REPO intact, so the

@@ -39,7 +39,30 @@ jobs:
       # drafting behaviour.
       - name: Draft the next release
         id: draft
-        uses: release-drafter/release-drafter@v7.7.0
+        # PINNED TO THE v6 LINE ON PURPOSE — do not let Dependabot bump this to
+        # v7 (an ignore rule in .github/dependabot.yml enforces that).
+        #
+        # v7.7.0 was merged automatically on 2026-08-03 and the very next drafted
+        # release came out with NO TAG: GitHub substituted the placeholder
+        # `untagged-1b38099d29f3144567d9`, which is not semver, so the release
+        # pipeline died at `goreleaser ... parsing tag`. The fingerprint is the
+        # release payload's `target_commitish`, which v6 sets to
+        # `refs/heads/main` and v7 sets to `main` — v0.1.0/v0.2.0/v0.2.1 all
+        # carry the former and a correct tag; v0.2.2 carried the latter and no
+        # tag. v7 also emits ten deprecation warnings against this repo's
+        # release-drafter.yml (categories[*].labels, exclude-labels,
+        # version-resolver.*.labels), so the config is a v6 config running in v7
+        # compatibility mode.
+        #
+        # NOTE: the tag loss is NOT documented as a v7 breaking change, and
+        # migrating the config is NOT known to fix it — the deprecations are
+        # about config schema, not the payload. So this pin is empirical (v6
+        # tagged correctly 3/3, v7 failed 1/1), not mechanistic. Migrating to v7
+        # is its own coordinated change: the config restructure plus
+        # internal/build/labelcontract.go, which parses `categories[*].labels`,
+        # `version-resolver.*` and `exclude-labels` at their v6 paths and will
+        # fail loudly when they move.
+        uses: release-drafter/release-drafter@v6.4.0
         with:
           config-name: release-drafter.yml
         env:
@@ -56,7 +79,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ steps.draft.outputs.major_version }}" = "0" ]; then
+          # Quote-and-default the output. Unquoted it expanded to nothing on
+          # 2026-08-03 (`if [ "" = "0" ]`, run 30818896444, most likely a race
+          # between six rapid merges under cancel-in-progress), which silently
+          # took the else branch and PATCHed make_latest=true on a DRAFT — always
+          # a 422 ("Latest release cannot be draft or prerelease"). Defaulting an
+          # unresolved major to "0" fails safe: a 0.x release is a pre-release
+          # under ADR-2 anyway, so the safe branch is also the correct one.
+          MAJOR="${{ steps.draft.outputs.major_version }}"
+          if [ "${MAJOR:-0}" = "0" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/releases/${{ steps.draft.outputs.id }}" \
               -F prerelease=true -F make_latest=false
           else
