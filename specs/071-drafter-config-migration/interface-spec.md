@@ -76,13 +76,13 @@ The forbidden-field lists are not stylistic. The action emits a warning for a `t
 | Type | Field | Type | Contract |
 |---|---|---|---|
 | `ReleaseDrafterConfig` | `Categories` | `[]DrafterCategory` | The single contract source. |
-| | `LegacyVersionResolver` | pointer/map, `json:"version-resolver"` | **Rejection detector only** (ADR-4). Never read for contract purposes. Non-nil ⇒ violation. |
-| | `LegacyExcludeLabels` | `[]string`, `json:"exclude-labels"` | Rejection detector only. Non-empty ⇒ violation. |
+| | `LegacyVersionResolver` | `json.RawMessage`, `json:"version-resolver"` | **Rejection detector only** (ADR-4). Never read for contract purposes. Key present ⇒ violation — any value, including empty (`{}`) or bare null; a decoded value type could not distinguish those from an absent key (PR #184 review). |
+| | `LegacyExcludeLabels` | `json.RawMessage`, `json:"exclude-labels"` | Rejection detector only. Key present ⇒ violation — including `exclude-labels: []` and the bare-null form. |
 | `DrafterCategory` | `Title` | `string` | Display text. Not asserted. |
 | | `Type` | `string` | Empty string means `changelog` — the action's own default. |
 | | `SemverIncrement` | `string` | Read only for `version-resolver` entries. |
 | | `When` | `*DrafterWhen` | `nil` distinguishes "no condition" (the fallback) from "empty condition". Pointer, not value — a value type cannot express the difference. |
-| | `LegacyLabels` / `LegacyLabel` | `[]string` / `string` | Rejection detectors for the superseded category shorthands. |
+| | `LegacyLabels` / `LegacyLabel` | `json.RawMessage` / `json.RawMessage` | Rejection detectors for the superseded category shorthands. Key present ⇒ violation, so `labels: []` and `label: ""` fire too. |
 | `DrafterWhen` | `Labels` | `[]string` | The primary form. |
 | | `Label` | `string` | The singular shorthand; folded in with `Labels`. |
 

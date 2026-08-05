@@ -119,6 +119,7 @@ The five scenarios referenced as **execute** by checked task T004 have their `@w
 - **Source**: interface-spec.md (071) § Error Communication — "`when` is written in the list form (ADR-7) | A **parse** error from `LoadLabelContract` … noted so a test asserts against the loader's error, not the violation slice"
 - **Implementation**: `internal/build/labelcontract.go` — `DrafterWhen` is a struct type, so a list-form `when` fails `sigs.k8s.io/yaml` unmarshalling loudly (empirically confirmed at validation time with a throwaway probe: the parse errors as specified)
 - **Gap**: The behavior exists and matches the contract, but no committed test asserts it, so a future widening of `DrafterWhen` (e.g. a tolerant unmarshaller) would not redden anything. tasks.md never required this test, so this is an advisory coverage note, not an acceptance failure. A one-case addition to `TestLabelContract_Drift`-adjacent parsing tests would close it.
+- **Resolution** (PR #184 review round 1): closed — `TestLabelContract_ListFormWhenFailsParse` now pins the parse rejection. The same round also strengthened the ADR-4 detectors to fire on key presence (`json.RawMessage`), covering `exclude-labels: []`, bare-null keys, and empty category shorthands.
 
 ---
 

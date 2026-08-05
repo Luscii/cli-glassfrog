@@ -1,6 +1,7 @@
 package build
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -75,8 +76,12 @@ type ReleaseDrafterConfig struct {
 	// superseded schema". Nothing is ever read from them for contract purposes,
 	// and they exist to be empty — do not "clean them up", or the guard loses
 	// its by-name rejection and reports schema drift as missing labels.
-	LegacyVersionResolver map[string]interface{} `json:"version-resolver"`
-	LegacyExcludeLabels   []string               `json:"exclude-labels"`
+	// json.RawMessage because presence is the property: a decoded value type
+	// (slice, map) cannot distinguish an absent key from a present-but-empty
+	// one (`exclude-labels: []`) or a present-but-null one (`version-resolver:`),
+	// and all of those are the superseded schema.
+	LegacyVersionResolver json.RawMessage `json:"version-resolver"`
+	LegacyExcludeLabels   json.RawMessage `json:"exclude-labels"`
 }
 
 // DrafterCategory is one release-drafter `categories` entry. The guard reads
@@ -90,8 +95,9 @@ type DrafterCategory struct {
 
 	// Rejection detectors only (071 ADR-4), like the top-level legacy keys:
 	// the superseded category-level label shorthands, parsed to be refused.
-	LegacyLabels []string `json:"labels"`
-	LegacyLabel  string   `json:"label"`
+	// json.RawMessage so presence fires even for `labels: []` or `label: ""`.
+	LegacyLabels json.RawMessage `json:"labels"`
+	LegacyLabel  json.RawMessage `json:"label"`
 }
 
 // DrafterWhen is a category's condition in its mapping form — the only form
@@ -343,16 +349,19 @@ func drafterExcludedLabels(rd ReleaseDrafterConfig) []string {
 // (and wrong) fix is re-adding the superseded keys.
 func drafterLegacyShape(rd ReleaseDrafterConfig) []string {
 	var violations []string
+	// A RawMessage is non-nil iff the key was present in the file — value
+	// irrelevant, so `exclude-labels: []` and a bare `version-resolver:` are
+	// rejected the same as populated forms.
 	if rd.LegacyVersionResolver != nil {
 		violations = append(violations,
 			"release-drafter.yml is on the superseded schema: top-level \"version-resolver\" is no longer read — migrate its buckets and default to version-resolver categories (071)")
 	}
-	if len(rd.LegacyExcludeLabels) > 0 {
+	if rd.LegacyExcludeLabels != nil {
 		violations = append(violations,
 			"release-drafter.yml is on the superseded schema: top-level \"exclude-labels\" is no longer read — migrate it to a pre-exclude category (071)")
 	}
 	for _, c := range rd.Categories {
-		if len(c.LegacyLabels) > 0 || c.LegacyLabel != "" {
+		if c.LegacyLabels != nil || c.LegacyLabel != nil {
 			name := c.Title
 			if name == "" {
 				name = categoryType(c)

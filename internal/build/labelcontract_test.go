@@ -264,6 +264,37 @@ func TestLabelContract_Drift(t *testing.T) {
 			wantPass:  false,
 			wantNamed: []string{"superseded schema", "Documentation"},
 		},
+		{
+			// PR #184 review: PRESENCE alone must fire — an empty superseded
+			// key is still the superseded schema. A decoded []string cannot
+			// tell `exclude-labels: []` from an absent key; the RawMessage
+			// detector can.
+			name:         "an empty superseded exclude-labels key is rejected by schema name",
+			drafter:      validDrafterYAML + "exclude-labels: []\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "exclude-labels"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// A bare `version-resolver:` decodes to JSON null, which a nil-map
+			// check would also miss; the RawMessage detector fires on it.
+			name:         "a bare null superseded version-resolver key is rejected by schema name",
+			drafter:      validDrafterYAML + "version-resolver:\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "version-resolver"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// The category keeps its valid `when`, so the ONLY violation is
+			// the schema one — the empty shorthand's presence fires by itself.
+			name: "an empty superseded category-level labels shorthand is rejected by schema name",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    labels: []\n    when:\n      labels: [docs]\n", 1),
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "Documentation"},
+			wantNotNamed: []string{"missing"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -295,6 +326,21 @@ func TestLabelContract_Drift(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestLabelContract_ListFormWhenFailsParse pins 071 ADR-7: DrafterWhen is
+// deliberately the mapping form only, so a list-form `when` fails YAML
+// unmarshalling loudly (LoadLabelContract wraps this as "parsing <file>: ...")
+// rather than being silently tolerated. A future tolerant unmarshaller would
+// widen the accepted surface with nothing reddening — except this test.
+func TestLabelContract_ListFormWhenFailsParse(t *testing.T) {
+	raw := strings.Replace(validDrafterYAML,
+		"  - type: \"pre-exclude\"\n    when:\n      labels: [no-release-note]\n",
+		"  - type: \"pre-exclude\"\n    when:\n      - labels: [no-release-note]\n", 1)
+	var rd ReleaseDrafterConfig
+	if err := yaml.Unmarshal([]byte(raw), &rd); err == nil {
+		t.Fatalf("a list-form when must fail the parse (071 ADR-7), but it parsed")
 	}
 }
 
