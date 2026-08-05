@@ -6,28 +6,57 @@ info:
     Holacracy structure — roles, accountabilities, domains, assignments, and more.
 
     > **⚠️ Beta Notice:** This API is in beta. Breaking changes may occur.
-    > Check release notes in the API documentation for updates.
+    > See the **Release Notes** section at the end of this document for updates.
 
     ## Authentication
 
-    All requests require an API v5 key passed via the `X-Auth-Token` header.
-    API v5 keys are distinct from v3 keys and must be generated separately.
+    All requests require an API v5 key. Send it in either the `X-Auth-Token`
+    header or the `Authorization` header as a Bearer credential — the two are
+    equivalent. API v5 keys are distinct from v3 keys and must be generated
+    separately.
 
     ```
     X-Auth-Token: your_v5_api_key_here
     ```
+    ```
+    Authorization: Bearer your_v5_api_key_here
+    ```
+
+    The `Authorization: Bearer` form carries the same static API key — it is
+    NOT OAuth: there is no expiry, no scopes, and no refresh. It exists so
+    hosted clients that cannot set a custom header (for example the Claude
+    Console managed-agent and Messages API MCP connectors) can still connect.
+
+    If both headers are sent, `X-Auth-Token` takes precedence; an invalid
+    `X-Auth-Token` is rejected rather than falling back to `Authorization`.
 
     Each API key is scoped to a single organization and person; permissions
     follow the caller's membership in that organization.
 
     ## Pagination
 
-    List endpoints return cursor-based pagination. Use `per_page` (max 500,
-    default 100) and `after` (cursor from previous response) to page through results.
+    List endpoints use cursor-based pagination. Use `per_page` and `cursor` to
+    page through results. Pass `cursor` the `next_cursor` value from the
+    previous response.
 
-    Values above the maximum return `400 Bad Request` with a `message` explaining the
-    limit — callers should not assume the server silently clamped. Blank, zero, negative,
-    or non-numeric values fall back to the default of 100.
+    Page size limits belong to the endpoint, not to the API as a whole. Most
+    endpoints default to 100 records per page and allow at most 500. Three goal
+    and target sub-resource endpoints default to 25 and allow at most 500:
+    `GET /goals/{goal_id}/targets`, `GET /goals/{goal_id}/progress`, and
+    `GET /targets/{target_id}/progress`. All other goal and target endpoints
+    default to 100. `GET /search` defaults to 25 and allows at most 100. Read
+    `meta.pagination.per_page` in the response to see the size the server
+    applied.
+
+    Values above an endpoint's maximum return `400 Bad Request` with a `message`
+    explaining the limit — callers should not assume the server silently clamped.
+
+    A blank, zero, negative, or non-numeric `per_page` is not rejected. It falls
+    back to a fixed size. That size is not always the endpoint's own default:
+
+    - Most endpoints fall back to 100. That is also their default.
+    - The three goal and target sub-resource endpoints above fall back to 100, but their default is 25.
+    - `GET /search` falls back to 25. That is also its default.
 
     ```json
     {
@@ -42,10 +71,85 @@ info:
     }
     ```
 
+    ### Result order
+
+    List endpoints return records in the order the server stored them. The
+    oldest stored record comes first. New records are added at the end. This
+    order is stable.
+
+    These endpoints page by record id. The cursor is exclusive: a page starts
+    after the last record of the page before it. While the cursor names a
+    record that still exists, paging returns each record once — it never skips
+    a record and never repeats one. If that record has been deleted, the
+    endpoint returns the first page again.
+
+    Storage order is not the same as the `created_at` field. Some records were
+    given a `created_at` value after they were stored, so the two can differ.
+    Sort the records yourself if you need them in `created_at` order.
+
+    `GET /search` is the exception. It ranks results by relevance, not by id.
+    Its paging has a known defect. It is not fixed yet.
+
+    The record at a page boundary can be returned again on the next page, so
+    dedupe by `id` as you page. A page walk is also not guaranteed to return
+    every result: in a sample of four queries, two returned fewer records than
+    the same query returned in one page. Do not treat a finished `/search` page
+    walk as a complete result set.
+
+    ### Known exception: `GET /roles/{role_id}/skills`
+
+    This endpoint reads the cursor from `after`, not from `cursor`. Sending
+    `cursor` to it returns the first page again. Use `after` on this endpoint.
+    Every other list endpoint uses `cursor`. This difference is a known
+    defect. It is not fixed yet.
+
+    ## Unrecognised query parameters
+
+    The API ignores query parameters it does not recognise. It does not reject
+    them. A misspelled or wrong parameter name is dropped, and the request
+    still succeeds. You get no error and no warning.
+
+    This matters most for pagination. Send the cursor under a name the endpoint
+    does not read, and the API returns the first page again, with
+    `has_next_page` still `true`. Two failures follow:
+
+    - A loop that pages until `has_next_page` is `false` never ends.
+    - A caller that reads one page believes it read the whole collection. It
+      sees only the records on the first page. The rest are never returned.
+
+    To confirm you are paging, check that each page returns different ids.
+
     ## Includes
 
     Detail endpoints support `?include=` to embed related resources.
     Pass a comma-separated list of valid include names.
+
+    ## Legacy IDs (transition-only)
+
+    > **⚠️ Temporary migration bridge — will be removed.** The `legacy_id`
+    > field described here exists solely to ease the v3→v5 transition and
+    > **retires when the v3 API retires.** Do not build durable integrations on
+    > it; use the v5 TypeID (`id`) as the stable identifier.
+
+    v5 identifies resources by opaque TypeIDs (e.g. `org_1a2b…`, `role_9f8e…`),
+    which intentionally differ from the v3 sequential numeric IDs (e.g. the org
+    id `38655` shown in the web UI). To help integrators migrating from v3
+    correlate the two, pass `?include_legacy_id=true` on any standard resource
+    endpoint (and `/me`). Each resource in the response then carries an extra
+    `legacy_id` field holding its v3 sequential integer id:
+
+    ```
+    GET /api/v5/me?include_legacy_id=true
+    → { "data": { "organization": { "id": "org_1a2b…", "legacy_id": 38655, … } } }
+    ```
+
+    Notes:
+    - **Opt-in and off by default** — `legacy_id` is omitted unless the param is
+      passed, keeping the default v5 contract free of v3 coupling.
+    - **Actors backed by agents return `null`** — agents have no v3 representation.
+    - Applies to the standard resource list/show endpoints and `/me`. Nested
+      `?include=` embeds and the cross-model `search` / agent-`context`
+      aggregation endpoints do not carry `legacy_id`.
 
     ## Optimistic Concurrency (ETags)
 
@@ -114,6 +218,25 @@ info:
     }
     ```
 
+    ## Release Notes
+
+    Curated highlights of notable changes and clarifications. This section is the
+    canonical changelog for API v5 — check here for updates.
+
+    ### Beta (current)
+
+    - **Focus & election data comes via `?include=assignments`.** A node's
+      assignments — carrying focus and election data — are embedded by requesting
+      `GET /roles/{id}/tree?include=assignments`. Note that `?include=members`
+      returns bare fillers *without* focus or election data; use
+      `?include=assignments` when you need focus.
+    - **Assignments API surface.** Assignments are accessed through the nested
+      collection paths `GET`/`POST /roles/{id}/assignments` and
+      `GET /actors/{id}/assignments`, plus `PATCH`/`DELETE /assignments/{id}` for
+      a single assignment. There is no standalone `GET /assignments` collection
+      endpoint — the tree's `?include=assignments` already returns every focus in
+      one call.
+
   version: 5.0.0
   contact:
     name: GlassFrog Support
@@ -127,6 +250,7 @@ servers:
 
 security:
   - ApiKeyAuth: []
+  - BearerAuth: []
 
 paths:
   /roles:
@@ -141,6 +265,7 @@ paths:
         - $ref: '#/components/parameters/PerPage'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: parent_role_id
           in: query
           description: Filter to roles within a specific parent role.
@@ -204,6 +329,7 @@ paths:
         Returns a single role by its ID. Use `?include=` to embed related
         resources such as assignments, sub-roles, parent role, policies, or notes.
       parameters:
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: id
           in: path
           required: true
@@ -604,8 +730,9 @@ paths:
 
         The per-node shape is "light" by default (id, name, purpose,
         parent_role_id, has_subroles, flags, children). Use `?include=` to
-        add `accountabilities`, `domains`, and/or `members` (fillers) to every
-        node. Policies, notes, and skills — which are often large —
+        add `accountabilities`, `domains`, `members` (fillers), and/or
+        `assignments` (with focus and election data) to every node.
+        Policies, notes, and skills — which are often large —
         are not offered as tree-level includes; fetch them via `/roles/{id}`
         for a specific role.
 
@@ -624,6 +751,7 @@ paths:
         requests to receive a `304 Not Modified` when nothing visible has
         changed.
       parameters:
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: id
           in: path
           required: true
@@ -656,6 +784,7 @@ paths:
                 - accountabilities
                 - domains
                 - members
+                - assignments
       responses:
         '200':
           description: The full subtree rooted at the requested role.
@@ -699,7 +828,8 @@ paths:
           in: query
           description: |
             Comma-separated list of extra per-node fields to include on
-            each tree node: `accountabilities`, `domains`, `members`.
+            each tree node: `accountabilities`, `domains`, `members`,
+            `assignments`.
           style: form
           explode: false
           schema:
@@ -710,6 +840,7 @@ paths:
                 - accountabilities
                 - domains
                 - members
+                - assignments
       responses:
         '200':
           description: The full org tree rooted at the anchor role.
@@ -778,6 +909,7 @@ paths:
         - $ref: '#/components/parameters/PerPage'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: kind
           in: query
           description: Filter by actor type.
@@ -792,6 +924,12 @@ paths:
           schema:
             type: string
             pattern: '^role_[0-9a-f]{32}$'
+        - name: email
+          in: query
+          description: Filter by exact email address (case-insensitive). Returns actors matching the given email within the caller's organization.
+          schema:
+            type: string
+            format: email
       responses:
         '200':
           description: A paginated list of actors.
@@ -860,6 +998,7 @@ paths:
         Returns a single actor by ID. Accepts both `per_` (human) and `agt_` (agent)
         prefixed IDs. Use `?include=` to embed roles or assignments.
       parameters:
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: id
           in: path
           required: true
@@ -976,6 +1115,7 @@ paths:
         response — saving the follow-up call to `/me/roles` when a client
         needs both identity and role context.
       parameters:
+        - $ref: '#/components/parameters/IncludeLegacyId'
         - name: include
           in: query
           description: |
@@ -1140,6 +1280,85 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
+
+  /me/context:
+    get:
+      operationId: getMyContext
+      summary: Get the authenticated caller's self-context
+      description: |
+        Self-context for the authenticated caller, in one call: the full list of
+        roles the caller fills, and — with `?role=role_xxx` — that role's
+        definition, governance context, and org skills.
+
+        Serves any authenticated caller. The agent-identity section (name,
+        description, SOUL-style context blob, configuration) and agent-level
+        skills (by ID — fetch full content via `/skills/{id}`) are present
+        **only when the caller is an agent**; a human caller receives the roles
+        and role-context sections without an `agent` section.
+
+        Analogous to `GET /agents/{id}/context` where the id is the caller's own
+        agent, but scoped to whoever is authenticated.
+      parameters:
+        - name: role
+          in: query
+          required: false
+          description: >
+            Optional role API ID. When provided, the response includes the
+            role's definition, governance context, and org skills index.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+      responses:
+        '200':
+          description: Agent identity context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentContextResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{id}/context:
+    get:
+      operationId: getAgentContext
+      summary: Get an agent's identity context
+      description: |
+        Returns an agent's identity orientation — identity (name, description,
+        SOUL-style context blob), configuration, agent-level skills (by ID),
+        and the full list of roles the agent fills.
+
+        Optionally pass `?role=role_xxx` to also include that role's definition,
+        governance context, and org skills — one call for full context.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The agent's unique identifier.
+          schema:
+            type: string
+            pattern: '^agt_[0-9a-f]{32}$'
+        - name: role
+          in: query
+          required: false
+          description: >
+            Optional role API ID. When provided, the response includes the
+            role's definition, governance context, and org skills index.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+      responses:
+        '200':
+          description: Agent identity context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentContextResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /people:
     get:
@@ -1482,6 +1701,14 @@ paths:
         **Requires AI Integration.** Creates a new skill in the organization.
         Requires agents to be enabled for the organization. Returns 403 when
         the `ai_integration` flag is not enabled for the organization.
+
+        **Content size limit.** `content` has a maximum size in characters.
+        Content over the limit returns 422 and is not saved. The limit exists
+        because an agent reads a skill in a single response, and an oversized
+        skill cannot be delivered. The 422 body names the submitted size, the
+        limit, and the configuration key that set the limit, in the
+        `content_length`, `max_content_length`, and `limit_config_key` members.
+        Split the skill into smaller skills to save it.
       requestBody:
         required: true
         content:
@@ -1572,6 +1799,13 @@ paths:
         Supports optimistic concurrency via `If-Match`. When present, the
         update only proceeds if the ETag matches the current resource state.
         Omit `If-Match` for unconditional (last-write-wins) updates.
+
+        **Content size limit.** `content` has a maximum size in characters.
+        Content over the limit returns 422 and is not saved. The 422 body names
+        the submitted size, the limit, and the configuration key that set the
+        limit, in the `content_length`, `max_content_length`, and
+        `limit_config_key` members. Split the skill into smaller skills to save
+        it.
       parameters:
         - name: id
           in: path
@@ -1632,6 +1866,228 @@ paths:
       responses:
         '204':
           description: Skill deleted successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /roles/{role_id}/skills:
+    get:
+      operationId: listRoleSkills
+      summary: "List skills linked to a role"
+      x-feature-gate: ai_integration
+      description: |
+        **Requires AI Integration.** Returns the skills currently linked to the
+        given role, including each skill's full markdown body. Returns 403 when
+        the `ai_integration` flag is not enabled for the organization.
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          description: The role's unique identifier.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+        - $ref: '#/components/parameters/PerPage'
+        - name: after
+          in: query
+          required: false
+          description: >-
+            Cursor from a previous response's `meta.pagination.next_cursor`.
+            This endpoint reads the cursor from `after`, not from `cursor`. See
+            the known exception noted in the API description.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: A paginated list of skills linked to the role.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+                  meta:
+                    type: object
+                    required:
+                      - pagination
+                    properties:
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      operationId: linkSkillToRole
+      summary: "Link a skill to a role"
+      x-feature-gate: ai_integration
+      description: |
+        **Requires AI Integration.** Links an existing skill to a role.
+        Idempotent — linking an already-linked skill is a no-op and still
+        returns 201. Returns 403 when the `ai_integration` flag is not enabled
+        for the organization.
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          description: The role's unique identifier.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skill_id
+              properties:
+                skill_id:
+                  type: string
+                  pattern: '^skill_[0-9a-f]{32}$'
+                  description: The skill to link.
+      responses:
+        '201':
+          description: The linked skill.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Skill'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /roles/{role_id}/skills/{id}:
+    delete:
+      operationId: unlinkSkillFromRole
+      summary: "Unlink a skill from a role"
+      x-feature-gate: ai_integration
+      description: |
+        **Requires AI Integration.** Unlinks a skill from a role. Returns 403
+        when the `ai_integration` flag is not enabled for the organization.
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          description: The role's unique identifier.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+        - name: id
+          in: path
+          required: true
+          description: The skill's unique identifier.
+          schema:
+            type: string
+            pattern: '^skill_[0-9a-f]{32}$'
+      responses:
+        '204':
+          description: Skill unlinked from role successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agent_id}/skills:
+    post:
+      operationId: linkSkillToAgent
+      summary: "Link a skill to an agent"
+      x-feature-gate: ai_integration
+      description: |
+        **Requires AI Integration.** Links an existing skill to an agent so the
+        skill loads into that agent's session context. Idempotent — linking an
+        already-linked skill is a no-op and still returns 201. Returns 403 when
+        the `ai_integration` flag is not enabled for the organization.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The agent's unique identifier.
+          schema:
+            type: string
+            pattern: '^agt_[0-9a-f]{32}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skill_id
+              properties:
+                skill_id:
+                  type: string
+                  pattern: '^skill_[0-9a-f]{32}$'
+                  description: The skill to link.
+                context_scope:
+                  type: string
+                  enum:
+                    - global
+                    - master_only
+                  description: >
+                    Optional. Controls which of the agent's session contexts
+                    load this skill. Defaults to `global`. Unrecognized values
+                    are ignored (the link is created with the default scope).
+      responses:
+        '201':
+          description: Skill linked to the agent successfully. No response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{agent_id}/skills/{id}:
+    delete:
+      operationId: unlinkSkillFromAgent
+      summary: "Unlink a skill from an agent"
+      x-feature-gate: ai_integration
+      description: |
+        **Requires AI Integration.** Unlinks a skill from an agent. Returns 403
+        when the `ai_integration` flag is not enabled for the organization.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          description: The agent's unique identifier.
+          schema:
+            type: string
+            pattern: '^agt_[0-9a-f]{32}$'
+        - name: id
+          in: path
+          required: true
+          description: The skill's unique identifier.
+          schema:
+            type: string
+            pattern: '^skill_[0-9a-f]{32}$'
+      responses:
+        '204':
+          description: Skill unlinked from agent successfully.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2924,14 +3380,15 @@ paths:
   /roles/{role_id}/strategy:
     get:
       operationId: getRoleStrategy
-      summary: "Get strategy for a role's circle"
+      summary: Get strategy for a role
       description: |
-        Returns the strategy for the circle backing this role. If the circle
-        has no strategy of its own, it inherits from the nearest ancestor
-        circle that does — `inherited` will be `true` and
+        Returns the strategy for a role. If the role expands into a circle
+        and that circle has no strategy of its own, it inherits from the
+        nearest ancestor circle that does — `inherited` will be `true` and
         `inherited_from_role_id` identifies the source.
 
-        Returns 404 if the role does not expand into a circle.
+        Leaf roles (those without a supporting circle) return a null body
+        with `inherited: false`.
       parameters:
         - name: role_id
           in: path
@@ -3078,6 +3535,20 @@ paths:
         **Agent token restriction:** Agent-actor tokens cannot set
         `permissions.view` to `public` (returns 403). Only human-held
         tokens may set public visibility.
+
+        **Content size limit, by author.** `body` has a maximum size in
+        characters, and the limit is enforced differently depending on who is
+        writing. An agent-held token is rejected with 422 when `body` is over
+        the limit, because an agent reads a note in a single response and an
+        oversized note cannot be delivered. A human-held token is not rejected:
+        the note saves, and the response carries a `warnings` array saying the
+        note is too large for an agent to read. A request whose author cannot be
+        determined is treated as an agent and is rejected.
+
+        The 422 body names the submitted size, the limit, and the configuration
+        key that set the limit, in the `content_length`, `max_content_length`,
+        and `limit_config_key` members. Split the note into smaller notes to
+        save it.
       parameters:
         - name: role_id
           in: path
@@ -3104,6 +3575,8 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/Note'
+                  warnings:
+                    $ref: '#/components/schemas/ContentSizeWarnings'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3206,6 +3679,19 @@ paths:
         **Agent token restriction:** Agent-actor tokens cannot set
         `permissions.view` to `public` (returns 403). Only human-held
         tokens may set public visibility.
+
+        **Content size limit, by author.** `body` has a maximum size in
+        characters, and the limit is enforced differently depending on who is
+        writing. An agent-held token is rejected with 422 when `body` is over
+        the limit. A human-held token is not rejected: the note saves, and the
+        response carries a `warnings` array saying the note is too large for an
+        agent to read. A request whose author cannot be determined is treated as
+        an agent and is rejected.
+
+        The 422 body names the submitted size, the limit, and the configuration
+        key that set the limit, in the `content_length`, `max_content_length`,
+        and `limit_config_key` members. Split the note into smaller notes to
+        save it.
       parameters:
         - name: id
           in: path
@@ -3236,6 +3722,8 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/Note'
+                  warnings:
+                    $ref: '#/components/schemas/ContentSizeWarnings'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3793,8 +4281,10 @@ paths:
             email / etc., depending on the circle's notifications config).
           * `response_deadline` is set from the circle's
             `proposal_auto_accept_day_limit`.
-          * Proposer's implicit `no_objection` is recorded (counts toward
-            `received_response_count`).
+          * Proposer's implicit `no_objection` is recorded, but is **excluded**
+            from `received_response_count` (which counts only *expected*
+            responders) — the proposer's own consent can never satisfy the
+            auto-accept quota.
       parameters:
         - name: proposal_id
           in: path
@@ -4179,6 +4669,16 @@ paths:
           schema:
             type: string
             example: role,project
+        - name: include_agent_content
+          in: query
+          required: false
+          description: |
+            Include agent-authored notes in the results. Defaults to false, so
+            notes owned by an agent are excluded. A note is agent-authored when
+            its current owner — its creator, or whoever last edited it — is an agent.
+          schema:
+            type: boolean
+            default: false
         - name: per_page
           in: query
           required: false
@@ -4960,7 +5460,7 @@ paths:
           schema:
             type: string
             pattern: '^goal_[0-9a-f]{32}$'
-        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/PerPageGoalsAndTargets'
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
@@ -5039,7 +5539,7 @@ paths:
       operationId: listGoalProgressUpdates
       summary: "List progress updates for a goal"
       description: |
-        Returns the progress update history for a goal, newest first.
+        Returns the progress update history for a goal, oldest stored first.
 
         Returns 403 when the organization has goals disabled.
       parameters:
@@ -5049,7 +5549,7 @@ paths:
           schema:
             type: string
             pattern: '^goal_[0-9a-f]{32}$'
-        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/PerPageGoalsAndTargets'
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
@@ -5221,7 +5721,7 @@ paths:
       operationId: listTargetProgressUpdates
       summary: "List progress updates for a target"
       description: |
-        Returns the progress update history for a target, newest first.
+        Returns the progress update history for a target, oldest stored first.
 
         Returns 403 when the organization has goals disabled.
       parameters:
@@ -5231,7 +5731,7 @@ paths:
           schema:
             type: string
             pattern: '^tgt_[0-9a-f]{32}$'
-        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/PerPageGoalsAndTargets'
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
@@ -5303,6 +5803,330 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
+  /channels:
+    get:
+      operationId: listChannels
+      summary: List channels
+      description: |
+        Returns the channels in the caller's organization. Channels are
+        org-open: any org member can read and post to any channel. Each
+        channel is a 1:1 wrapper around a Role, which defines the channel's
+        audience (its members, used for notifications), not an access wall:
+
+        * **Circle role** — members are the circle's role-fillers (group
+          chat semantics).
+        * **Leaf role** — members are the role's own filler(s) (DM-like).
+
+        Membership in either case is derived dynamically from current
+        assignments. Channels for a circle the caller participates in
+        are provisioned lazily on first list/show; leaf-role channels
+        are provisioned lazily on direct access.
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A paginated list of channels.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /channels/{id}:
+    get:
+      operationId: getChannel
+      summary: Get a channel
+      description: |
+        Returns a single channel by its api_id. For convenience, the bound
+        role's api_id is also accepted (1:1 mapping), lazy-provisioning
+        the channel row if it didn't exist yet.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The channel's `chn_…` id, or the bound role's `role_…` id.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A single channel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /channels/{id}/read:
+    post:
+      operationId: markChannelRead
+      summary: Mark a channel read
+      description: |
+        Advances the caller's read watermark on the channel to now (never
+        rewinds). Unread state is computed from the caller's newest
+        watermark — see the `viewer_last_read_at` / `viewer_unread_count`
+        fields on Channel.
+
+        Optionally scope the watermark to one of the caller's roles via
+        `role` — multi-role actors (typically agents) can track which of
+        their roles have caught up. The caller must currently fill the
+        role (422 otherwise).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The channel's `chn_…` id, or the bound role's `role_…` id.
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  pattern: '^role_[0-9a-f]{32}$'
+                  description: Optional role api_id to scope the watermark to.
+      responses:
+        '200':
+          description: The caller's updated read state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelReadStateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /channels/{channel_id}/messages:
+    get:
+      operationId: listChannelMessages
+      summary: List messages in a channel
+      description: |
+        Returns a paginated list of messages in a channel, oldest stored
+        first. Use `cursor` + `per_page` for pagination. Soft-deleted
+        messages are omitted.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          description: The channel's id (accepts channel or role api_id).
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A paginated list of messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      operationId: createChannelMessage
+      summary: Post a message to a channel
+      description: |
+        Creates a new message in the channel.
+
+        Agents must post as a specific role via `from_role`. Humans may
+        omit `from_role` when they fill exactly one role in the channel's
+        circle; otherwise it must be specified.
+
+        (Notification fan-out for channel messages arrives in a follow-up
+        release on the event substrate; unread state is watermark-based —
+        see `POST /channels/{id}/read`.)
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          description: The channel's id (accepts channel or role api_id).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageInput'
+      responses:
+        '201':
+          description: The created message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /messages/{id}:
+    patch:
+      operationId: updateMessage
+      summary: Edit a message
+      description: |
+        Edits a message body. Author-only. Sets `edited_at` so clients can
+        render an edited marker — messages carry no further revision
+        history by design.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The message's `msg_…` id.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageInput'
+      responses:
+        '200':
+          description: The updated message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      operationId: deleteMessage
+      summary: Delete a message
+      description: |
+        Soft-deletes a message. Author-only. Replies keep their threading
+        pointers; deleted messages are omitted from lists.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The message's `msg_…` id.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List agent sessions
+      description: |
+        Returns a paginated list of agent session records across the
+        organization, filtered by visibility: an agent sees only its own
+        sessions, a human operator sees sessions of the agents they operate,
+        and an org admin sees every session in the org.
+
+        Records are returned **as stored**. `status` reflects what was
+        recorded by the start/end lifecycle calls — nothing here checks
+        whether a session is really still running on its host. A record
+        reading `active` may correspond to a process that died without
+        ending its session; surfacing that disagreement is the point of the
+        endpoint, so the read path deliberately does not "correct" it.
+        Server-side expiry of stale records is tracked separately.
+
+        There is no `last_heartbeat_at` field — no such data is recorded.
+        `updated_at` is the closest last-touch proxy and is not a heartbeat.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: |
+            Limit to sessions in this state. `active` is the reconciliation
+            query — it pulls just the open records. Any other value returns
+            `422 Unprocessable Entity`.
+          schema:
+            type: string
+            enum: [active, ended]
+        - name: agent_id
+          in: query
+          required: false
+          description: Limit to sessions belonging to this agent.
+          schema:
+            type: string
+            pattern: '^agt_[0-9a-f]{32}$'
+        - name: role_id
+          in: query
+          required: false
+          description: Limit to sessions started for this role.
+          schema:
+            type: string
+            pattern: '^role_[0-9a-f]{32}$'
+        - name: topic
+          in: query
+          required: false
+          description: Exact match on the session's topic (e.g. a ticket id).
+          schema:
+            type: string
+        - name: identifier
+          in: query
+          required: false
+          description: |
+            Exact match on the client-supplied identifier. Lets a caller that
+            knows its own identifier look up its own record — and so recover
+            its `sess_…` id — without guessing.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A paginated list of agent sessions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSessionListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -5310,6 +6134,21 @@ components:
       in: header
       name: X-Auth-Token
       description: Your GlassFrog API v5 key.
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        The same GlassFrog API v5 key, sent in the `Authorization` header as
+        `Authorization: Bearer <your_v5_api_key>`. Provided as an alias to
+        `X-Auth-Token` for hosted clients that cannot send a custom header.
+
+        This is an API key transported in the `Authorization` header — NOT
+        OAuth Bearer semantics. The value is your static v5 API key: it does
+        not expire, carry scopes, or support refresh.
+
+        Precedence: if both `X-Auth-Token` and `Authorization: Bearer` are
+        sent, `X-Auth-Token` is used. An invalid `X-Auth-Token` is rejected
+        and never falls back to `Authorization`.
 
   headers:
     ETag:
@@ -5355,6 +6194,21 @@ components:
         maximum: 500
         default: 100
 
+    PerPageGoalsAndTargets:
+      name: per_page
+      in: query
+      description: >-
+        Number of results per page for the goal and target endpoints. Omit
+        `per_page` and these endpoints return 25 records. The maximum is 500; a
+        larger value returns `400 Bad Request`. A blank, zero, negative, or
+        non-numeric value is not rejected — it sets the page size to 100, not to
+        25.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 25
+
     Cursor:
       name: cursor
       in: query
@@ -5399,6 +6253,27 @@ components:
         type: string
       example: marketing
 
+    IncludeLegacyId:
+      name: include_legacy_id
+      in: query
+      required: false
+      description: |
+        **Transition-only.** When `true`, each resource in the response
+        additionally carries a `legacy_id` field — its v3 sequential integer id
+        — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+        they already hold during migration. Default is off (`legacy_id` is
+        omitted unless explicitly requested).
+
+        This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+        contract**: it retires when the v3 API retires. See the "Legacy IDs
+        (transition-only)" section in the API overview. Applies to the standard
+        resource list/show endpoints and `/me`; nested `?include=` embeds are
+        out of scope.
+      schema:
+        type: boolean
+        default: false
+      example: true
+
   schemas:
     # -- Pagination --
 
@@ -5424,6 +6299,7 @@ components:
       required:
         - id
         - description
+        - is_structural
       properties:
         id:
           type: string
@@ -5431,13 +6307,25 @@ components:
           example: acct_0123456789abcdef0123456789abcdef
         description:
           type: string
+          description: >-
+            For structural (constitutional) accountabilities, resolved from
+            the Holacracy Constitution in the request locale. For custom
+            accountabilities, the org-defined description.
           example: Defining coding standards for the team
+        is_structural:
+          type: boolean
+          description: >-
+            True for constitutional accountabilities defined by the Holacracy
+            Constitution (e.g., Facilitator's meeting facilitation duties).
+            False for org-defined custom accountabilities.
+          example: false
 
     DomainRef:
       type: object
       required:
         - id
         - description
+        - is_structural
       properties:
         id:
           type: string
@@ -5445,7 +6333,17 @@ components:
           example: dom_0123456789abcdef0123456789abcdef
         description:
           type: string
+          description: >-
+            For structural (constitutional) domains, resolved from the
+            Holacracy Constitution in the request locale. For custom
+            domains, the org-defined description.
           example: Company website
+        is_structural:
+          type: boolean
+          description: >-
+            True for constitutional domains defined by the Holacracy
+            Constitution. False for org-defined custom domains.
+          example: false
 
     # -- Role schemas --
 
@@ -5458,6 +6356,7 @@ components:
         - name
         - purpose
         - parent_role_id
+        - original_role_id
         - has_subroles
         - flags
         - accountabilities
@@ -5473,6 +6372,17 @@ components:
           type: string
           enum:
             - role
+        legacy_id:
+          type: integer
+          nullable: true
+          description: >-
+            **Transition-only.** The role's v3 sequential integer id, present
+            ONLY when `?include_legacy_id=true` is passed. A v3→v5 migration
+            bridge for correlating TypeIDs with the numeric IDs integrators
+            already hold; NOT a permanent part of the v5 contract — this field
+            retires when the v3 API retires. See the "Legacy IDs" section in the
+            API overview.
+          example: 38655
         name:
           type: string
           example: Circle Lead
@@ -5491,6 +6401,16 @@ components:
           nullable: true
           pattern: '^role_[0-9a-f]{32}$'
           description: ID of the parent role. Null for anchor roles.
+        original_role_id:
+          type: string
+          nullable: true
+          pattern: '^role_[0-9a-f]{32}$'
+          description: |
+            ID of the role this role derives from — its original role.
+            Non-null on linked roles (which surface `linked` in `flags`) and
+            focus roles; `null` for all other roles. A cross-linked role
+            appears as two v5 records with different `id`s; the linked record
+            points here at its original, letting a consumer correlate the two.
         has_subroles:
           type: boolean
           description: Whether this role is expanded with subroles.
@@ -5572,14 +6492,15 @@ components:
       type: object
       description: |
         A role in the tree response. `children` is always present (possibly
-        empty). `accountabilities`, `domains`, and `fillers` are present only
-        when their corresponding `?include=` value is set.
+        empty). `accountabilities`, `domains`, `fillers`, and `assignments`
+        are present only when their corresponding `?include=` value is set.
       required:
         - id
         - type
         - name
         - purpose
         - parent_role_id
+        - original_role_id
         - has_subroles
         - flags
         - children
@@ -5605,6 +6526,14 @@ components:
             ID of the parent role. Null for the anchor role. Present on every
             node even though nesting is already conveyed by `children`, so
             that consumers who flatten the tree to a list retain the edge.
+        original_role_id:
+          type: string
+          nullable: true
+          pattern: '^role_[0-9a-f]{32}$'
+          description: |
+            ID of the role this node derives from — its original role.
+            Non-null on linked roles (which surface `linked` in `flags`) and
+            focus roles; `null` for all other roles.
         has_subroles:
           type: boolean
         flags:
@@ -5639,6 +6568,11 @@ components:
           items:
             $ref: '#/components/schemas/Actor'
           description: Present when `?include=members` is requested.
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assignment'
+          description: Present when `?include=assignments` is requested.
 
     Assignment:
       type: object
@@ -5689,7 +6623,7 @@ components:
         actor:
           type: object
           description: Present when `?include=actor` is requested (default from `/roles/{id}/assignments`).
-          required: [id, name, kind]
+          required: [id, name, email, kind]
           properties:
             id:
               type: string
@@ -5699,6 +6633,10 @@ components:
               type: string
               description: Display name of the actor.
               example: Alice Smith
+            email:
+              type: string
+              nullable: true
+              description: The actor's email address. Present for human actors; null for agents.
             kind:
               type: string
               enum: [human, agent]
@@ -6230,6 +7168,7 @@ components:
         - id
         - type
         - name
+        - email
         - kind
         - created_at
         - updated_at
@@ -6242,9 +7181,26 @@ components:
           type: string
           enum:
             - actor
+        legacy_id:
+          type: integer
+          nullable: true
+          description: >-
+            **Transition-only.** The actor's v3 sequential integer person id,
+            present ONLY when `?include_legacy_id=true` is passed. Null for
+            actors backed by agents (agents have no v3 representation). A
+            v3→v5 migration bridge for correlating TypeIDs with the numeric IDs
+            integrators already hold; NOT a permanent part of the v5 contract —
+            this field retires when the v3 API retires. See the "Legacy IDs"
+            section in the API overview.
+          example: 38655
         name:
           type: string
           example: Alice Smith
+        email:
+          type: string
+          nullable: true
+          description: The actor's email address. Present for human actors; null for agents.
+          example: alice@example.com
         kind:
           type: string
           enum:
@@ -6279,6 +7235,18 @@ components:
           pattern: '^org_[0-9a-f]{32}$'
         name:
           type: string
+        legacy_id:
+          type: integer
+          nullable: true
+          description: >-
+            **Transition-only.** The organization's v3 sequential integer id
+            (the numeric org id shown in the web UI, e.g. 38655), present ONLY
+            when `?include_legacy_id=true` is passed. Surfaced on `/me`. A
+            v3→v5 migration bridge for correlating TypeIDs with the numeric IDs
+            integrators already hold; NOT a permanent part of the v5 contract —
+            this field retires when the v3 API retires. See the "Legacy IDs"
+            section in the API overview.
+          example: 38655
 
     Membership:
       type: object
@@ -6299,6 +7267,16 @@ components:
           type: string
           enum:
             - membership
+        legacy_id:
+          type: integer
+          nullable: true
+          description: >-
+            **Transition-only.** The membership's v3 sequential integer id,
+            present ONLY when `?include_legacy_id=true` is passed. A v3→v5
+            migration bridge; NOT a permanent part of the v5 contract — this
+            field retires when the v3 API retires. See the "Legacy IDs" section
+            in the API overview.
+          example: 91827
         actor_id:
           type: string
           description: The member (person or agent).
@@ -6319,23 +7297,65 @@ components:
 
     MeResponse:
       type: object
-      description: Authenticated actor bundled with org context.
+      description: Authenticated actor bundled with org context, wrapped in the standard v5 envelope.
       required:
-        - actor
-        - organization
-        - membership
+        - data
       properties:
-        actor:
-          $ref: '#/components/schemas/Actor'
-        organization:
-          $ref: '#/components/schemas/Organization'
-        membership:
-          $ref: '#/components/schemas/Membership'
+        data:
+          type: object
+          required:
+            - actor
+            - organization
+            - membership
+          properties:
+            actor:
+              $ref: '#/components/schemas/Actor'
+            organization:
+              $ref: '#/components/schemas/Organization'
+            membership:
+              $ref: '#/components/schemas/Membership'
+            roles:
+              type: array
+              description: Present when `?include=roles` is requested. Same shape as `GET /roles`.
+              items:
+                $ref: '#/components/schemas/Role'
+
+    AgentContextResponse:
+      type: object
+      description: |
+        Self / agent context orientation. Returned by `GET /me/context` and
+        `GET /agents/{id}/context`. Filled roles are inlined so one call
+        provides enough context to orient. The `agent` section is present only
+        when the subject is an agent — `GET /me/context` omits it for human
+        callers; agent-level skills within it are referenced by ID (fetch full
+        content via `/skills/{id}`).
+      required:
+        - roles
+      properties:
+        agent:
+          $ref: '#/components/schemas/ContextAgent'
         roles:
           type: array
-          description: Present when `?include=roles` is requested. Same shape as `GET /roles`.
+          description: The roles this agent fills via primary, non-discarded assignments.
           items:
-            $ref: '#/components/schemas/Role'
+            $ref: '#/components/schemas/AgentContextRole'
+
+    AgentContextRole:
+      type: object
+      description: A role an agent fills — inline identity only, no definition.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: '^role_[0-9a-f]{32}$'
+        name:
+          type: string
+        circle_name:
+          type: string
+          nullable: true
+          description: Name of the parent circle, if any.
 
     # -- Skill schemas --
 
@@ -6875,6 +7895,342 @@ components:
               format: date
             date_range_id:
               type: integer
+
+    Channel:
+      type: object
+      description: |
+        A chat channel — 1:1 with a Role. Circle-role channels are group
+        chats (members = circle role-fillers); leaf-role channels are
+        DM-like (members = the role's own filler(s)).
+      required:
+        - id
+        - type
+        - role_id
+        - integration_data
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          pattern: '^chn_[0-9a-f]{32}$'
+          example: chn_0123456789abcdef0123456789abcdef
+        type:
+          type: string
+          enum:
+            - channel
+        role_id:
+          type: string
+          nullable: true
+          pattern: '^role_[0-9a-f]{32}$'
+          description: The bound role's api_id (any role — circle or leaf).
+        integration_data:
+          type: object
+          additionalProperties: true
+          description: >-
+            Generic per-platform metadata container. Empty in this surface;
+            populated by the multi-platform external-chat integration series
+            (Slack/Teams/Discord adapters) to carry per-channel binding
+            coordinates.
+        viewer_last_read_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            The caller's newest read watermark on this channel (across the
+            person-level and any role-scoped marks). Null when the caller
+            has never marked the channel read.
+        viewer_unread_count:
+          type: integer
+          nullable: true
+          description: >-
+            Count of messages newer than the caller's watermark (all
+            messages when the watermark is null).
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChannelListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+        meta:
+          type: object
+          required:
+            - pagination
+          properties:
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    ChannelDetailResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Channel'
+
+    ChannelReadStateResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - id
+            - type
+            - last_read_at
+          properties:
+            id:
+              type: string
+              pattern: '^chn_[0-9a-f]{32}$'
+              description: The channel's api_id.
+            type:
+              type: string
+              enum:
+                - channel_read_state
+            role_id:
+              type: string
+              nullable: true
+              pattern: '^role_[0-9a-f]{32}$'
+              description: Set when the watermark is role-scoped.
+            last_read_at:
+              type: string
+              format: date-time
+
+    Message:
+      type: object
+      description: A single post made by a Person into a Channel.
+      required:
+        - id
+        - type
+        - channel_id
+        - from_person_id
+        - body
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          pattern: '^msg_[0-9a-f]{32}$'
+          example: msg_0123456789abcdef0123456789abcdef
+        type:
+          type: string
+          enum:
+            - message
+        channel_id:
+          type: string
+          pattern: '^chn_[0-9a-f]{32}$'
+        from_person_id:
+          type: string
+          pattern: '^per_[0-9a-f]{32}$'
+          description: The sending Person's api_id.
+        from_role_id:
+          type: string
+          nullable: true
+          pattern: '^role_[0-9a-f]{32}$'
+          description: >-
+            The role the sender posted as. Required for agent senders, optional
+            for humans (auto-derived when the caller fills exactly one role in
+            the channel's circle).
+        body:
+          type: string
+          example: Welcome to the circle!
+        parent_id:
+          type: string
+          nullable: true
+          pattern: '^msg_[0-9a-f]{32}$'
+          description: Optional parent message for simple threading.
+        reply_to_id:
+          type: string
+          nullable: true
+          pattern: '^msg_[0-9a-f]{32}$'
+          description: Optional direct reply target.
+        edited_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Set when the body has been edited. This is the entire edit-history
+            surface — messages carry no revision log.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MessageListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        meta:
+          type: object
+          required:
+            - pagination
+          properties:
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+    MessageDetailResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Message'
+
+    MessageInput:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: object
+          required:
+            - body
+          properties:
+            body:
+              type: string
+              description: The message body (plain text; formatting rules TBD).
+              example: Welcome to the circle!
+            from_role:
+              type: string
+              pattern: '^role_[0-9a-f]{32}$'
+              description: >-
+                The role to post as (api_id). Required for agents; optional
+                for humans when unambiguous.
+            parent:
+              type: string
+              pattern: '^msg_[0-9a-f]{32}$'
+              description: Optional parent message api_id (threading).
+            reply_to:
+              type: string
+              pattern: '^msg_[0-9a-f]{32}$'
+              description: Optional direct-reply message api_id.
+
+
+    AgentSession:
+      type: object
+      description: |
+        A record of an agent session, exactly as GlassFrog stored it.
+
+        The fields are a projection of what the start/end lifecycle calls
+        wrote — no liveness is computed on read. `status` is therefore the
+        organization's *belief* about the session, which is precisely what
+        makes it useful for reconciliation against host truth.
+      required:
+        - id
+        - type
+        - agent_id
+        - role_id
+        - assignment_id
+        - topic
+        - identifier
+        - status
+        - summary
+        - started_at
+        - ended_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          pattern: '^sess_[0-9a-f]{32}$'
+          example: sess_0123456789abcdef0123456789abcdef
+        type:
+          type: string
+          enum: [agent_session]
+        agent_id:
+          type: string
+          pattern: '^agt_[0-9a-f]{32}$'
+          description: The agent this session belongs to.
+        role_id:
+          type: string
+          pattern: '^role_[0-9a-f]{32}$'
+          nullable: true
+          description: >-
+            The role the session was started for. Null for an agent-level
+            session that is not scoped to any role.
+        assignment_id:
+          type: string
+          pattern: '^asgn_[0-9a-f]{32}$'
+          nullable: true
+          description: The assignment backing a role session, when there is one.
+        topic:
+          type: string
+          nullable: true
+          description: >-
+            Topic scoping the session, typically a ticket id. Null for a
+            primary session. Several topic sessions may share one role.
+        identifier:
+          type: string
+          nullable: true
+          description: >-
+            Client-supplied identifier for the session (for example a tmux
+            session name). Free text, set by the caller at start and never
+            server-generated, so it is only as meaningful and as unique as
+            the caller made it. Filter on it to recover your own record.
+        status:
+          type: string
+          enum: [active, ended]
+          description: >-
+            The stored lifecycle state. `active` means no end call was
+            recorded — not that the session is verified running.
+        summary:
+          type: string
+          nullable: true
+          description: What the session accomplished. Written when it ends.
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the session was recorded as ended. Null while active.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: >-
+            Last time the record changed. The closest available proxy for
+            recency, but not a heartbeat — no heartbeat is recorded.
+
+    AgentSessionListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSession'
+        meta:
+          type: object
+          required:
+            - pagination
+          properties:
+            pagination:
+              $ref: '#/components/schemas/Pagination'
 
     Target:
       type: object
@@ -7596,9 +8952,14 @@ components:
     ProposalChange:
       type: object
       description: |
-        A governance command (create role, add accountability, update policy,
+        A governance command (create role, add accountability, remove domain,
         etc.). Shape varies by change type — `type` is always present; other
         keys are free-form based on the command's schema.
+
+        Nested-only types (`CreateAccountability`, `UpdateAccountability`,
+        `RemoveAccountability`, `CreateDomain`, `UpdateDomain`,
+        `RemoveDomain`) must appear as children of `CreateRole` or
+        `UpdateRole`, not as top-level proposal changes.
       required:
         - type
       properties:
@@ -7607,7 +8968,29 @@ components:
           description: Stable identifier for the change within the proposal.
         type:
           type: string
-          description: Change type (e.g., CreateRole, UpdateAccountability).
+          description: Governance command type.
+          enum:
+            - CreateRole
+            - UpdateRole
+            - RemoveRole
+            - CreateAccountability
+            - UpdateAccountability
+            - RemoveAccountability
+            - CreateDomain
+            - UpdateDomain
+            - RemoveDomain
+            - CreatePolicy
+            - UpdatePolicy
+            - RemovePolicy
+            - CreateRoleNote
+            - UpdateRoleNote
+            - RemoveRoleNote
+            - CreateLinkedRole
+            - UpdateLinkedRole
+            - MoveRole
+            - MovePolicy
+            - MoveItems
+            - ElectRoleFiller
       additionalProperties: true
 
     ProposalVote:
@@ -7722,6 +9105,38 @@ components:
           type: string
           description: A human-readable explanation specific to this occurrence of the problem.
           example: Not Found
+        content_length:
+          type: integer
+          description: >-
+            Extension member. Present on a 422 that rejects content for being too
+            large. The size of the submitted content, in characters.
+          example: 44364
+        max_content_length:
+          type: integer
+          description: >-
+            Extension member. Present on a 422 that rejects content for being too
+            large. The size limit currently in effect, in characters.
+          example: 40000
+        limit_config_key:
+          type: string
+          description: >-
+            Extension member. Present on a 422 that rejects content for being too
+            large. Names the server configuration key that produced
+            `max_content_length`, so a limit that looks wrong can be traced to the
+            setting that set it.
+          example: GLASSFROG_MCP_OUTPUT_TOKEN_CAP
+
+    ContentSizeWarnings:
+      type: array
+      description: >-
+        Warnings about the saved record. Present only when there is something to
+        report. Currently used for content that saved successfully but is too large
+        for an agent to read in one response. Each warning names the content size,
+        the limit, and the configuration key that set the limit.
+      items:
+        type: string
+      example:
+        - "Note body is 52000 characters. Agents cannot read content over 40000 characters in one response (config: GLASSFROG_MCP_OUTPUT_TOKEN_CAP)."
 
   responses:
     BadRequest:

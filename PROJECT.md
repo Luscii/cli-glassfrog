@@ -33,6 +33,10 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 | AI Agent | An `agt_` actor; the CLI's usual direct operator. Agent/Skill endpoints require the `ai_integration` feature flag. | Agent |
 | Assignment | The mapping of an actor to a role. | — |
 | Context | A hypermedia document with everything needed to fill a role. | — |
+| Skill | A named capability attached to an agent or a role, linkable in either direction. Requires the `ai_integration` feature flag. | — |
+| Session | A recorded agent working session. Requires the `ai_integration` feature flag. | — |
+| Channel | A conversation stream in the organization, carrying messages and a per-caller read state. | — |
+| Message | A single entry in a channel, authored and editable by its creator. | — |
 | Spec | The published Glassfrog API v5 OpenAPI specification (`spec.yaml`); the authoritative contract for every CLI action. | spec.yaml |
 | Agent operating surface | A packaged, agent-facing layer that equips an AI agent to drive the CLI correctly and safely — command surface, credential setup, output parsing, failure handling, and write-safety gating — riding on top of the CLI without adding API capability. | Operating layer |
 
@@ -57,6 +61,11 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 - **Governance proposals (the write path)**: creating a proposal from a tension, viewing proposals and their `changes`/response summary, advancing a draft into circulation (`propose`), withdrawing, and recording a response (`no_objection` / `bring_to_meeting`).
 - **Capturing tensions** as the entry point to a proposal.
 - **Agent operating surface**: a packaged, agent-facing layer that equips an AI agent to drive the CLI correctly and safely — covering the command surface, credential setup, output parsing, failure/exit-code handling, and write-safety gating — so the agent need not rediscover how to operate the CLI each session. This layer rides on top of the CLI and adds no API capability of its own.
+- **AI-agent and skill resources**: agents, skills, and the links between them and roles (`/agents`, `/skills`, role–skill and agent–skill links). Gated behind the `ai_integration` feature flag, so availability follows the organization's enablement. *(Lifted from Deferred on 2026-08-05: the platform has matured and the v5 spec now publishes these operations.)*
+- **Role context**: the hypermedia context document that carries everything needed to fill a role, for the caller and for an agent (`/me/context`, `/agents/{id}/context`, and the agent's recorded sessions). A view over governance the CLI already reads, assembled for a filler rather than per resource.
+- **Channels and messages**: reading and writing the organization's channels, their messages, and per-caller read state. **Not web-UI parity** — the web app does not surface this yet, so the CLI would run ahead of the UI rather than mirror it, which is the distinction that keeps it clear of the exclusion below.
+
+Scope admits these; it does not sequence them. Build order lives in ROADMAP.md and BACKLOG.md — the three entries above are lower priority than the governance write path already in flight.
 
 ### Out of Scope
 - **Actor administration** — inviting, updating, or deleting people, and managing assignments. Administrative, not part of the practitioner-facing surface.
@@ -65,8 +74,6 @@ The CLI's distinctive context is that its operator is usually an **AI agent** ac
 - **Web-UI feature parity** — mirroring the rich visual or interactive features of the Glassfrog web app. The CLI's value is command-line and agent access, not recreating the UI. (Reflects VISION Exclusion 3.)
 
 ### Deferred
-- **AI-agent-specific resources** (the `/agents` and `/skills` endpoints) — gated behind the `ai_integration` feature flag.
-  *Condition to revisit*: when the target organization has `ai_integration` enabled and agent/skill management is needed.
 - **Standalone operational writes** — direct create/update of actions, metrics, checklist items, notes, and strategy as day-to-day task management (beyond the tension capture that feeds a proposal).
   *Condition to revisit*: once the read + propose core is solid and there is demand to manage operational work items from the CLI.
 
