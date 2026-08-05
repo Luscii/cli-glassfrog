@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-12T20:59:00 | Enriched: 2026-06-15 | Framework: MoSCoW | Items: 70
+> Generated: 2026-06-12T20:59:00 | Enriched: 2026-08-05 | Framework: MoSCoW | Items: 84
 
 ### 1. Command Registration
 
@@ -428,7 +428,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Anchor of the Governance Proposals solution and the fulfilment of VISION success criterion #2 (submit a valid proposal); highest-value new capability, buildable now. Should rather than Must — the CLI ships and functions on reads without it.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:055-proposal-creation
 
 ### 56. Proposal Reads
 
@@ -444,7 +444,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The `propose` transition that moves a draft into circulation; without it a created proposal never reaches acceptance, so it ranks with the core write path. Premium-gated.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:057-advance-to-circulation
 
 ### 58. Response Recording
 
@@ -452,7 +452,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Records a circle member's consent-window response (`no_objection` / `bring_to_meeting`), completing the path to auto-acceptance; core to VISION success #2. Premium-gated.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:058-response-recording
 
 ### 59. Withdraw Proposal
 
@@ -460,7 +460,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Returns a circulating proposal to draft for re-editing; a recovery path off the happy path to accepted, so it sits below the core write-path capabilities. Premium-gated.
 - **Dependencies**: → requires: Request Authentication; → requires: Request Execution
-- **Status**: pending
+- **Status**: specified:059-withdraw-proposal
 
 ### 60. Feature-Gate Recognition
 
@@ -468,7 +468,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Distinguishes a plan/feature-gated 403 from a generic permission denial using static spec gate metadata; the foundation of Plan-Limit Signalling, buildable now (dep API Error Extraction shipped).
 - **Dependencies**: → requires: API Error Extraction
-- **Status**: pending
+- **Status**: specified:060-feature-gate-recognition
 
 ### 61. Plan-Limit Signal
 
@@ -476,14 +476,14 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Renders the recognized plan-limit rejection as an actionable "not available on your plan" diagnostic; legibility polish atop Feature-Gate Recognition, so it follows it.
 - **Dependencies**: → requires: Feature-Gate Recognition; → requires: Diagnostic Normalization
-- **Status**: pending
+- **Status**: specified:061-plan-limit-signal
 
 ### 62. Operator Orientation
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Root of the Agent Operating Surface — every path and the guardrail build on it, so it leads the surface; buildable now atop the shipped CLI. Should rather than Must — the CLI ships without the operating layer. Now also lands the Claude plugin definition (manifest + orientation skill content); its marketplace distribution stays with #70.
-- **Status**: pending
+- **Status**: specified:062-operator-orientation
 
 ### 63. Write-Safety Guardrail
 
@@ -491,7 +491,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The governance-integrity gate (VISION principle 2) every write path depends on; builds on Operator Orientation and Stale-Write Surfacing, so it follows the root before any write path.
 - **Dependencies**: → requires: Operator Orientation; → requires: Stale-Write Surfacing
-- **Status**: pending
+- **Status**: specified:063-write-safety-guardrail
 
 ### 64. Governance Navigation Path
 
@@ -499,7 +499,7 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: Core read traversal for working a tension; highest-value path and all its read deps are shipped, so it's buildable right after Operator Orientation.
 - **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Fillers; → requires: Role Reads
-- **Status**: pending
+- **Status**: specified:064-governance-navigation-path
 
 ### 65. Constraint Discovery Path
 
@@ -507,7 +507,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: The "am I limited by a domain or policy?" read path; deps shipped, but narrower in use than general navigation, so it sits a tier below.
 - **Dependencies**: → requires: Operator Orientation; → requires: Cross-Model Search; → requires: Role Domains; → requires: Role Policies
-- **Status**: pending
+- **Status**: specified:065-constraint-discovery-path
 
 ### 66. Tension Processing Path
 
@@ -515,7 +515,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: First write path — capture a tension end-to-end; gated on the Write-Safety Guardrail, with Tension Capture and Cross-Model Search already shipped, so buildable once the guardrail exists.
 - **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Tension Capture; → requires: Cross-Model Search
-- **Status**: pending
+- **Status**: specified:066-tension-processing-path
 
 ### 67. Proposal Drafting Path
 
@@ -523,7 +523,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Drafts a proposal from a tension; gated behind Proposal Creation (#55, still pending), so it follows the Now-tier proposal write-flow landing.
 - **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Creation
-- **Status**: pending
+- **Status**: specified:067-proposal-drafting-path
 
 ### 68. Proposal Circulation Path
 
@@ -531,7 +531,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: Advances and tracks a proposal to acceptance; builds on Proposal Drafting Path and the still-pending circulation/read capabilities, so it sequences after them.
 - **Dependencies**: → requires: Proposal Drafting Path; → requires: Write-Safety Guardrail; → requires: Advance to Circulation; → requires: Proposal Reads
-- **Status**: pending
+- **Status**: specified:068-proposal-circulation-path
 
 ### 69. Proposal Impact Review Path
 
@@ -539,7 +539,7 @@
 - **Framework**: MoSCoW (Could Have)
 - **Rationale**: The consume/respond side — assess others' circulating proposals against the roles I fill and respond; gated on Response Recording (#58, pending), with My Roles already shipped.
 - **Dependencies**: → requires: Operator Orientation; → requires: Write-Safety Guardrail; → requires: Proposal Reads; → requires: Response Recording; → requires: My Roles
-- **Status**: pending
+- **Status**: specified:069-proposal-impact-review-path
 
 ### 70. Operating-Surface Packaging
 
@@ -547,4 +547,115 @@
 - **Framework**: MoSCoW (Should Have)
 - **Rationale**: The distribution vehicle — its own repo-shipped marketplace that publishes and installs the plugin Operator Orientation defines; the plugin definition itself moved to #62, so this is distribution only. Still needs the surface to have content to ship, so it trails it but is required for any of it to reach an agent environment.
 - **Dependencies**: → requires: Operator Orientation
+- **Status**: specified:070-operating-surface-packaging
+
+### 71. Change-Set Grammar Facts
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: Root of the new dependency graph — both Unguided Change Construction solutions derive from it and nothing in either branch can be specified before it; narrowed by the spec refresh to the shapes the contract still does not carry, which makes it cheaper without moving it off the critical path.
+- **Status**: pending
+
+### 72. Circle Routing Rule
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: An independent root whose dependencies are all specified; feeds the pre-assembly gate at #77, and routing must be settled before a change set can be assembled at all, so it precedes the grammar it shares that gate with.
+- **Dependencies**: → requires: My Roles; → requires: Tension Reads
+- **Status**: pending
+
+### 73. Post-Create Validity Read
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: Independent root with every dependency already specified, and it unblocks the outcome change at #76 that stops a dead proposal reading as a success.
+- **Dependencies**: → requires: Proposal Creation; → requires: Proposal Reads
+- **Status**: pending
+
+### 74. Legacy Identifier Request
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: Replaces the harvest at #78 as the Must-tier answer to the identifier gap: a query parameter on reads that already exist, verified live to return the number the write path needs — the cheapest removal of the blocker that cost a full drafter run. Carries a retirement clock, so it ships alongside the ask at #81 rather than instead of it.
+- **Dependencies**: → requires: Role Reads; → requires: Actor Read
+- **Status**: pending
+
+### 75. Agent-Facing Grammar Reference
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: The single deliverable that removes most of the write path's friction; follows the facts at #71 that it renders and precedes the gate at #77 that consults it.
+- **Dependencies**: → requires: Change-Set Grammar Facts
+- **Status**: pending
+
+### 76. Invalid-Create Outcome
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: Needs the read-back at #73 before an invalid create can be rendered as a failure, and it introduces a new outcome touching the exit-code registry, so it is specified after the read rather than folded into it.
+- **Dependencies**: → requires: Post-Create Validity Read; → requires: Diagnostic Normalization; → requires: Output-Aware Failure Rendering; → requires: Exit-Code Convention
+- **Status**: pending
+
+### 77. Pre-Assembly Grammar Consultation
+
+- **Score**: MoSCoW Must Have
+- **Framework**: MoSCoW (Must Have)
+- **Rationale**: Last of the Must tier because it consumes both #75 and #72; without it the reference ships unconsulted, which is the failure the tier exists to prevent.
+- **Dependencies**: → requires: Agent-Facing Grammar Reference; → requires: Proposal Drafting Path; → requires: Circle Routing Rule
+- **Status**: pending
+
+### 78. Identifier Mapping Harvest
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Demoted from Must by the spec refresh: the read route at #74 now covers roles and actors, leaving this the accountability, domain, and policy residue no read exposes — real, but narrower and no longer the write path's blocker.
+- **Dependencies**: → requires: Proposal Reads
+- **Status**: pending
+
+### 79. Identifier Resolution by Content Match
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Turns #78's harvested numbers into usable answers, so it follows directly; matching on accountability description text rather than role names, since names proved ambiguous and roles are now served by #74.
+- **Dependencies**: → requires: Identifier Mapping Harvest; → requires: Role Domains; → requires: Role Policies
+- **Status**: pending
+
+### 80. Capture-Time Detail Flags
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: An independent root, and confirmed still necessary — the refreshed spec leaves tension creation byte-identical, so the refusal was not fixed upstream. Follows the Must tier because the write path survives it.
+- **Dependencies**: → requires: Tension Capture; → requires: Tension Update
+- **Status**: pending
+
+### 81. Capture-Then-Update Guidance
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Follows #80, whose resolution determines what the refusal should say — the diagnostic cannot be written before the flag's fate is settled.
+- **Dependencies**: → requires: Diagnostic Normalization; → requires: Capture-Time Detail Flags
+- **Status**: pending
+
+### 82. Identifier Prompt Before Assembly
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Needs the gate at #77 to exist before a prompt can ride on it; deliberately independent of #74/#78/#79 so the unconditional floor is neither blocked behind them nor lost when the transition bridge retires.
+- **Dependencies**: → requires: Proposal Drafting Path; → requires: Pre-Assembly Grammar Consultation
+- **Status**: pending
+
+### 83. Change-Type Builders
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The larger CLI investment against a problem #75 already solves, so it trails the reference despite sharing its root at #71; its spec-fidelity objection has weakened now that the change types are a published enum, but its cost has not.
+- **Dependencies**: → requires: Change-Set Grammar Facts
+- **Status**: pending
+
+### 84. Change-Set Assembly
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Terminal item in the new graph — needs #83's builders before parts can be composed into a change set.
+- **Dependencies**: → requires: Change-Type Builders; → requires: Proposal Creation
 - **Status**: pending
