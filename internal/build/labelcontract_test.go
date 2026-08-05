@@ -13,31 +13,45 @@ import (
 // pins the real files separately.
 const (
 	validDrafterYAML = `
-version-resolver:
-  major:
-    labels: [breaking]
-  minor:
-    labels: [features]
-  patch:
-    labels: [fixes]
-  default: patch
 categories:
+  - type: "pre-exclude"
+    when:
+      labels: [no-release-note]
   - title: "Breaking"
-    labels: [breaking]
+    when:
+      labels: [breaking]
   - title: "Features"
-    labels: [features]
+    when:
+      labels: [features]
   - title: "Fixes"
-    labels: [fixes]
+    when:
+      labels: [fixes]
   - title: "Documentation"
-    labels: [docs]
+    when:
+      labels: [docs]
   - title: "Infrastructure"
-    labels: [infrastructure]
+    when:
+      labels: [infrastructure]
   - title: "Dependencies"
-    labels: [dependencies]
+    when:
+      labels: [dependencies]
   - title: "Internal"
-    labels: [internal]
-exclude-labels:
-  - no-release-note
+    when:
+      labels: [internal]
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      labels: [breaking]
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels: [features]
+  - type: "version-resolver"
+    semver-increment: "patch"
+    when:
+      labels: [fixes]
+  - type: "version-resolver"
+    semver-increment: "patch"
 `
 
 	validLabelerYAML = `
@@ -92,6 +106,7 @@ func TestLabelContract_Drift(t *testing.T) {
 		drafter, labeler, settings string // empty → use the valid baseline
 		wantPass                   bool
 		wantNamed                  []string // substrings the reported violation set must contain (when failing)
+		wantNotNamed               []string // substrings the reported violation set must NOT contain
 	}{
 		{
 			name:     "all three files agree on the eight-label contract passes",
@@ -101,8 +116,8 @@ func TestLabelContract_Drift(t *testing.T) {
 			// A category label renamed in release-drafter but not the others.
 			name: "a renamed release-drafter category label is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  - title: \"Features\"\n    labels: [features]\n",
-				"  - title: \"Features\"\n    labels: [feature]\n", 1),
+				"  - title: \"Features\"\n    when:\n      labels: [features]\n",
+				"  - title: \"Features\"\n    when:\n      labels: [feature]\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"release-drafter.yml category", "feature", "features"},
 		},
@@ -129,16 +144,21 @@ func TestLabelContract_Drift(t *testing.T) {
 			// The version-resolver major bucket drifts off `breaking`.
 			name: "a drifted version-resolver major bucket is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  major:\n    labels: [breaking]\n", "  major:\n    labels: [major-change]\n", 1),
+				"    semver-increment: \"major\"\n    when:\n      labels: [breaking]\n",
+				"    semver-increment: \"major\"\n    when:\n      labels: [major-change]\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"version-resolver major", "major-change", "breaking"},
 		},
 		{
 			// spec 030 requires the fallback bump to be patch; a drifted default
-			// must fail as loudly as a drifted bucket.
+			// (the condition-less version-resolver category, since 071) must
+			// fail as loudly as a drifted bucket. The anchor includes the patch
+			// bucket above it — `semver-increment: "patch"` alone matches the
+			// bucket entry first.
 			name: "a drifted version-resolver default is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"  default: patch\n", "  default: minor\n", 1),
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"patch\"\n",
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"minor\"\n", 1),
 			wantPass:  false,
 			wantNamed: []string{"version-resolver default", "patch", "minor"},
 		},
@@ -157,11 +177,11 @@ func TestLabelContract_Drift(t *testing.T) {
 			wantNamed: []string{"labeler.yml must define", "no-release-note"},
 		},
 		{
-			name: "no-release-note missing from release-drafter exclude-labels is rejected and named",
+			name: "no-release-note missing from the release-drafter pre-exclude category is rejected and named",
 			drafter: strings.Replace(validDrafterYAML,
-				"exclude-labels:\n  - no-release-note\n", "exclude-labels: []\n", 1),
+				"      labels: [no-release-note]\n", "      labels: []\n", 1),
 			wantPass:  false,
-			wantNamed: []string{"exclude-labels must contain", "no-release-note"},
+			wantNamed: []string{"pre-exclude category must exclude", "no-release-note"},
 		},
 		{
 			// Dropping a label entirely shrinks the managed set below eight.
@@ -170,6 +190,110 @@ func TestLabelContract_Drift(t *testing.T) {
 				"  - name: dependencies\n", "", 1),
 			wantPass:  false,
 			wantNamed: []string{"settings.yml", "exactly 8"},
+		},
+		{
+			// 071: a changelog category present but with no label in its
+			// condition — the moved position of "a category lost its labels".
+			name: "a changelog category naming no label in its when is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    when:\n      labels: []\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"release-drafter.yml category", "docs", "missing"},
+		},
+		{
+			// 071: the pre-exclude category deleted outright.
+			name: "a missing pre-exclude category is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - type: \"pre-exclude\"\n    when:\n      labels: [no-release-note]\n", "", 1),
+			wantPass:  false,
+			wantNamed: []string{"pre-exclude", "no-release-note"},
+		},
+		{
+			// 071: a version-resolver bucket carrying the wrong increment. The
+			// fixes label surfaces in minor (unexpected) and vanishes from
+			// patch (required), so both buckets and the label are named.
+			name: "a version-resolver category with the wrong semver-increment is rejected and named",
+			drafter: strings.Replace(validDrafterYAML,
+				"    semver-increment: \"patch\"\n    when:\n      labels: [fixes]\n",
+				"    semver-increment: \"minor\"\n    when:\n      labels: [fixes]\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"version-resolver minor", "version-resolver patch", "fixes"},
+		},
+		{
+			// 071: the condition-less fallback deleted. The action's built-in
+			// fallback is also patch, so no drafter output changes — only this
+			// violation can catch the removal, and it must read as an absent
+			// declaration rather than an empty-string mismatch. The anchor
+			// includes the patch bucket above the fallback entry because
+			// `semver-increment: "patch"` alone matches the bucket first.
+			name: "a deleted condition-less version-resolver fallback is rejected as an absent declaration",
+			drafter: strings.Replace(validDrafterYAML,
+				"      labels: [fixes]\n  - type: \"version-resolver\"\n    semver-increment: \"patch\"\n",
+				"      labels: [fixes]\n", 1),
+			wantPass: false,
+			wantNamed: []string{"version-resolver default", "patch",
+				"no condition-less version-resolver category declares it"},
+		},
+		{
+			// 071 ADR-4: the superseded top-level version-resolver key is
+			// rejected by naming the SCHEMA. The config is otherwise valid, so
+			// the failure must not read as a missing label.
+			name:         "a superseded top-level version-resolver key is rejected by schema name",
+			drafter:      validDrafterYAML + "version-resolver:\n  default: patch\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "version-resolver"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// 071 ADR-4: the superseded top-level exclude-labels key, same shape.
+			name:         "a superseded top-level exclude-labels key is rejected by schema name",
+			drafter:      validDrafterYAML + "exclude-labels:\n  - no-release-note\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "exclude-labels"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// 071 ADR-4: the superseded category-level labels shorthand. The
+			// label also goes missing from the contract, but the schema message
+			// must be present so the failure is not read as merely that.
+			name: "a superseded category-level labels shorthand is rejected by schema name",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    labels: [docs]\n", 1),
+			wantPass:  false,
+			wantNamed: []string{"superseded schema", "Documentation"},
+		},
+		{
+			// PR #184 review: PRESENCE alone must fire — an empty superseded
+			// key is still the superseded schema. A decoded []string cannot
+			// tell `exclude-labels: []` from an absent key; the RawMessage
+			// detector can.
+			name:         "an empty superseded exclude-labels key is rejected by schema name",
+			drafter:      validDrafterYAML + "exclude-labels: []\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "exclude-labels"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// A bare `version-resolver:` decodes to JSON null, which a nil-map
+			// check would also miss; the RawMessage detector fires on it.
+			name:         "a bare null superseded version-resolver key is rejected by schema name",
+			drafter:      validDrafterYAML + "version-resolver:\n",
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "version-resolver"},
+			wantNotNamed: []string{"missing"},
+		},
+		{
+			// The category keeps its valid `when`, so the ONLY violation is
+			// the schema one — the empty shorthand's presence fires by itself.
+			name: "an empty superseded category-level labels shorthand is rejected by schema name",
+			drafter: strings.Replace(validDrafterYAML,
+				"  - title: \"Documentation\"\n    when:\n      labels: [docs]\n",
+				"  - title: \"Documentation\"\n    labels: []\n    when:\n      labels: [docs]\n", 1),
+			wantPass:     false,
+			wantNamed:    []string{"superseded schema", "Documentation"},
+			wantNotNamed: []string{"missing"},
 		},
 	}
 
@@ -196,7 +320,27 @@ func TestLabelContract_Drift(t *testing.T) {
 					t.Fatalf("guard violation must name %q, got:\n%s", want, joined)
 				}
 			}
+			for _, banned := range tc.wantNotNamed {
+				if strings.Contains(joined, banned) {
+					t.Fatalf("guard violation must not read as %q, got:\n%s", banned, joined)
+				}
+			}
 		})
+	}
+}
+
+// TestLabelContract_ListFormWhenFailsParse pins 071 ADR-7: DrafterWhen is
+// deliberately the mapping form only, so a list-form `when` fails YAML
+// unmarshalling loudly (LoadLabelContract wraps this as "parsing <file>: ...")
+// rather than being silently tolerated. A future tolerant unmarshaller would
+// widen the accepted surface with nothing reddening — except this test.
+func TestLabelContract_ListFormWhenFailsParse(t *testing.T) {
+	raw := strings.Replace(validDrafterYAML,
+		"  - type: \"pre-exclude\"\n    when:\n      labels: [no-release-note]\n",
+		"  - type: \"pre-exclude\"\n    when:\n      - labels: [no-release-note]\n", 1)
+	var rd ReleaseDrafterConfig
+	if err := yaml.Unmarshal([]byte(raw), &rd); err == nil {
+		t.Fatalf("a list-form when must fail the parse (071 ADR-7), but it parsed")
 	}
 }
 

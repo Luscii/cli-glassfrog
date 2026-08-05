@@ -11,11 +11,11 @@
 Release Drafting is a CI-only feature: it ships **no application code**. It is a GitHub Actions workflow plus committed declarative config, guarded by a Go config-drift test. Three artifacts, plus one coordinated extension to 028:
 
 - **`.github/workflows/release-drafting.yml`** — a new workflow on `push: { branches: [main] }` with `permissions: { contents: write, pull-requests: read }`. On every merge to main it runs the pinned `release-drafter` action, which regenerates the single draft release, then a follow-on step sets the draft's pre-release/latest status from the resolved version.
-- **`.github/release-drafter.yml`** — release-drafter's config: the `version-resolver` (label→bump mapping + default), the `categories` (label→note-section mapping), `exclude-labels`, and the name/tag/version templates.
+- **`.github/release-drafter.yml`** — release-drafter's config: the `categories` list carrying the label→note-section mapping, the exclusion (a `pre-exclude` category), and the semver resolution (`version-resolver` categories: label→bump buckets plus a declared patch fallback), and the name/tag/version templates. Schema positions per 071 (Drafter Config Migration); the invariants remain this plan's ADR-2/3/4.
 - **`internal/build/` release-drafter config guard** — a Go test (joining the existing `.goreleaser.yaml` config-guard and `release.yml` workflow guard) that parses `.github/release-drafter.yml`, `.github/labeler.yml`, and `.github/settings.yml` and asserts the label contract is consistent across all three with change-detector rigor.
 - **Coordinated 028 change** — add an eighth managed label (the exclusion label) to `.github/settings.yml` (catalog) and `.github/labeler.yml` (a matcher that applies it to PRs touching nothing noteworthy), so release-drafter can exclude spec/feature-only PRs purely by label.
 
-**Data flow**: merge to `main` → `release-drafting.yml` fires → release-drafter reads the merged PRs since the last published release and their 028-applied labels → computes the next version (highest-wins resolver, default patch) → groups PR titles into note categories, dropping `exclude-labels` PRs → writes/updates the draft release → the prerelease step reads release-drafter's `major_version` output and marks the draft pre-release (0.x) or latest (≥1.0.0). The draft stays unpublished; a maintainer publishing it is what triggers 022's `release.yml`.
+**Data flow**: merge to `main` → `release-drafting.yml` fires → release-drafter reads the merged PRs since the last published release and their 028-applied labels → computes the next version (highest-wins resolver, default patch) → groups PR titles into note categories, dropping PRs the `pre-exclude` category excludes → writes/updates the draft release → the prerelease step reads release-drafter's `major_version` output and marks the draft pre-release (0.x) or latest (≥1.0.0). The draft stays unpublished; a maintainer publishing it is what triggers 022's `release.yml`.
 
 This sits cleanly inside the pipeline cluster already on disk: 024 (`ci.yml`, pre-merge gate), 028 (`pr-administration.yml`, labels), 029 (`main-verify.yml`, post-merge tests), 022 (`release.yml`, build+attach on publish). 030 is the only stage that writes the draft's notes/version/status — 022 explicitly honors them (DECISIONS, 022 ADR).
 
@@ -47,6 +47,8 @@ This sits cleanly inside the pipeline cluster already on disk: 024 (`ci.yml`, pr
 
 **Consequences**: The patch-default and highest-wins behaviour are configuration, not code — cheap and legible. The v0.1.0 floor holds natively for any first release that includes a minor-or-higher change, which a first CLI release will; a *patch/docs-only* first release would compute `v0.0.1` under the native 0.0.0 base, which does not meet the literal floor (see Risks — pinned as an interface/config detail to verify, e.g. an explicit initial-version setting or a seed). The label→bucket mapping is part of the cross-feature contract the config guard pins (ADR-6).
 
+*Schema note (071)*: the resolver now lives as four `type: version-resolver` entries in `categories` — three conditioned buckets plus a condition-less `semver-increment: patch` entry as the declared fallback. The top-level `version-resolver` key (and its `default:`) no longer exists. The invariants (highest-wins, patch default) are unchanged and still this ADR's.
+
 ### ADR-3: Map the seven 028 categories to note sections in `release-drafter.yml`, reusing the exact label strings
 
 **Context**: The spec files each PR title under one of seven categories whose names must match 028's managed set exactly (validation scenario; DECISIONS: "this label SET is the cross-feature contract 028 PRODUCES and 030 CONSUMES"). 028 chose exactly seven labels with no parallel `version:*` namespace.
@@ -59,6 +61,8 @@ This sits cleanly inside the pipeline cluster already on disk: 024 (`ci.yml`, pr
 
 **Consequences**: Renaming any category label is a coordinated three-file change (settings.yml, labeler.yml, release-drafter.yml) — exactly what the config guard (ADR-6) exists to make fail loudly. Categories with no contributing PR are omitted by release-drafter natively (spec's "omitted from the notes").
 
+*Schema note (071)*: each note section's label now sits in the category's `when.labels` rather than a category-level `labels` list. Same seven strings, same single source of truth.
+
 ### ADR-4: Exclusion is purely label-driven; add an eighth managed label that 028's labeler applies to PRs touching nothing noteworthy
 
 **Context**: The spec excludes two PR classes from notes and the bump: those carrying an exclusion label, and those whose changes are confined to `specs/` and `.feature` files. release-drafter filters by **label only** — it has no path-based exclusion. The developer chose (define + this resolve) to ship the full behaviour now via a coordinated 028 change. Verified constraint: `srvaroa/labeler`'s `files:` matcher is *any-file-matches*; it has no native *all-files-confined-to* mode, and `negate` inverts an entire label block.
@@ -70,6 +74,8 @@ This sits cleanly inside the pipeline cluster already on disk: 024 (`ci.yml`, pr
 **Decision**: Option 1. Add one managed label (working name `no-release-note`; exact string is interface-level) to `settings.yml` (catalog) and `labeler.yml`. Because the labeler cannot say "all files are spec/feature," express the inverse with a `negate` block over the **noteworthy** path patterns — i.e. apply the exclusion label when *no* changed file matches code/docs/infra/deps paths (the patterns the existing seven labels already enumerate). That is a faithful realization of the developer's rule ("only when the change contains code or real docs… does it appear"): the complement of noteworthy is spec/feature-only churn. 030's `release-drafter.yml` lists this label under `exclude-labels`, so excluded PRs leave the notes and, because they carry no *counted* semver label in the draft set, do not drive the bump.
 
 **Consequences**: This widens 028's "EXACTLY seven managed labels" invariant (DECISIONS, 028) to eight — a deliberate, announced divergence from that precedent, recorded here and surfaced for `/score:deprecate` consideration in the handoff. The negate-over-noteworthy expression reuses 028's existing path patterns, so the two stay maintainable together; its edge cases (a PR changing only a non-spec, non-noteworthy file like `.gitignore`; an empty PR) are accepted as also-excluded and flagged (Risks). The config guard (ADR-6) pins all eight labels across the three files.
+
+*Schema note (071)*: the exclusion is now declared as a `type: pre-exclude` category (`when.labels: [no-release-note]`); the top-level `exclude-labels` key no longer exists. The exclusion mechanism — purely by label, applied by 028's labeler — is unchanged and still this ADR's.
 
 ### ADR-5: Set pre-release/latest automatically from the resolved version via a post-draft step
 
@@ -95,13 +101,15 @@ This sits cleanly inside the pipeline cluster already on disk: 024 (`ci.yml`, pr
 
 **Consequences**: The 028↔030 label contract becomes structurally enforced — it runs in the existing `go test ./...` suite that 024 (pre-merge) and 029 (post-merge) already execute, so a desync reddens CI rather than silently mis-drafting a release. This is the one piece of Go in the feature; it adds no runtime package, matching `internal/build`'s "the system under test is the pipeline itself" charter.
 
+*Schema note (071)*: the guard's four assertions are unchanged in meaning but now derive from the current positions — category labels from each note category's `when.labels`, the exclusion from the `pre-exclude` category, the buckets and declared patch fallback from the `version-resolver` categories — and the guard additionally rejects the superseded shape by name. A sibling guard (`internal/build/drafterschema.go`, 071) couples the drafting workflow's pinned action major to the schema's floor.
+
 ---
 
 ## Cross-cutting Concerns
 
 **Failure handling**: Drafting is non-blocking by construction — `release-drafting.yml` is not a required check, so a failed run leaves the previous draft intact and blocks nothing (spec's administrative guarantee). The draft is regenerated authoritatively each run (release-drafter overwrites its own draft, keyed by the draft release it manages), so reconciliation converges rather than duplicating (spec edge-case scenario) with no idempotency code of our own.
 
-**Configuration vs hardcoded**: Everything behavioural lives in committed config — the resolver buckets, default bump, categories, exclude-labels, and templates in `release-drafter.yml`; the trigger/permissions/concurrency in the workflow; the labels in `settings.yml`/`labeler.yml`. Only the prerelease threshold (`major_version == 0`) is expressed in the workflow step. Nothing is computed in application code.
+**Configuration vs hardcoded**: Everything behavioural lives in committed config — the note-section, exclusion, and version-resolver categories (with the declared patch fallback) and templates in `release-drafter.yml` (positions per 071); the trigger/permissions/concurrency in the workflow; the labels in `settings.yml`/`labeler.yml`. Only the prerelease threshold (`major_version == 0`) is expressed in the workflow step. Nothing is computed in application code.
 
 **Testing strategy**: One config-drift guard (ADR-6) in `internal/build`, run by the existing `go test ./...` matrix (no new CI wiring). The spec's behavioural scenarios (bump resolution, categorization, exclusion, first-release, prerelease) are validated by the config guard at the contract level plus the scenarios skill's feature file; end-to-end drafting is exercised by the action itself on real merges — there is no local harness for the GitHub-hosted draft, mirroring how 022's release behaviour is guarded at config level rather than executed locally.
 

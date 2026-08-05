@@ -28,7 +28,6 @@ Feature: No Automated Pipeline — Drafter Config Contract
       Then the run will complete without emitting a configuration-schema deprecation warning
 
     # Architecture-informed (proposed by skill — plan ADR-4, reject the superseded shape by name)
-    @wip
     Scenario: A configuration left on the superseded schema is rejected by name
       Given a drafter configuration still carrying top-level "version-resolver" and "exclude-labels" keys
       When the label-contract guard runs
@@ -71,7 +70,6 @@ Feature: No Automated Pipeline — Drafter Config Contract
       And it will not contribute to the version bump
 
     # Source: 071-drafter-config-migration — Scenario: a category losing its label predicate fails the guard
-    @wip
     Scenario: A category losing its label predicate fails the guard
       Given a changelog category in the drafter configuration named no label in its condition
       When the label-contract guard runs
@@ -79,7 +77,6 @@ Feature: No Automated Pipeline — Drafter Config Contract
       And the violation will name the configuration file and the label missing from the contract
 
     # Source: 071-drafter-config-migration — Scenario: removing the declared fallback fails the guard
-    @wip
     Scenario: Removing the declared fallback fails the guard
       Given the condition-less version-resolver category was deleted from the drafter configuration
       When the label-contract guard runs
@@ -118,7 +115,6 @@ Feature: No Automated Pipeline — Drafter Config Contract
     # I want CI to fail when the pinned action version and the configuration's schema disagree.
 
     # Source: 071-drafter-config-migration — Scenario: the pinned action version falling behind the config schema fails the guard
-    @wip
     Scenario: A pinned action version behind the configuration schema fails the guard
       Given the drafter configuration was written in the current schema
       And the drafting workflow pinned the drafter action at "v6.4.0"
@@ -128,7 +124,6 @@ Feature: No Automated Pipeline — Drafter Config Contract
       And the mismatch will be caught before merge rather than by a drafting run
 
     # Architecture-informed (proposed by skill — plan ADR-5, an underivable ref is a finding not a pass)
-    @wip
     Scenario: A pinned reference with no derivable major fails rather than passes
       Given the drafting workflow pinned the drafter action at a commit SHA
       When the coupling guard runs

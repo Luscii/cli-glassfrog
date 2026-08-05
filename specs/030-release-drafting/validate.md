@@ -34,12 +34,12 @@
 
 | Scenario | Status | Implementation |
 |---|---|---|
-| a feature merge bumps the draft to the next minor and files a note | ✓ Covered | `release-drafter.yml` `version-resolver.minor: [features]` + `categories` Features→[features]; `release-drafting.yml` runs release-drafter on `push:main`; no publish step keeps it a draft |
-| highest semver label wins across several merges | ✓ Covered | `version-resolver` `major:[breaking]`/`minor:[features]`/`patch:[fixes]` — release-drafter resolves highest-wins natively; all three labels mapped in `categories` |
-| a docs-only change drafts under Docs with a default patch bump | ✓ Covered | `categories` `docs`→"Documentation" section; `version-resolver.default: patch` |
+| a feature merge bumps the draft to the next minor and files a note | ✓ Covered | `release-drafter.yml` `version-resolver` minor category (`when.labels: [features]`; positions per 071) + Features note category (`when.labels: [features]`); `release-drafting.yml` runs release-drafter on `push:main`; no publish step keeps it a draft |
+| highest semver label wins across several merges | ✓ Covered | the three `version-resolver` categories `major:[breaking]`/`minor:[features]`/`patch:[fixes]` (positions per 071) — release-drafter resolves highest-wins natively; all three labels also mapped as note categories |
+| a docs-only change drafts under Docs with a default patch bump | ✓ Covered | `categories` `docs`→"Documentation" section; the condition-less `version-resolver` category (`semver-increment: patch`, the declared fallback; position per 071) |
 | the draft is never published automatically | ✓ Covered | `release-drafting.yml` has no publish/tag step; release-drafter creates a *draft*; the status PATCH sets `prerelease`/`make_latest` only, never `draft:false` |
-| an excluded pull request affects neither notes nor version | ✓ Covered | `release-drafter.yml` `exclude-labels: [no-release-note]` — release-drafter drops excluded PRs from notes *and* bump resolution |
-| a spec-only pull request is omitted without a label | ✓ Covered | `labeler.yml` `no-release-note` negate-over-noteworthy matcher applies the label to specs/.feature-confined PRs → dropped via `exclude-labels` |
+| an excluded pull request affects neither notes nor version | ✓ Covered | `release-drafter.yml`'s `pre-exclude` category (`when.labels: [no-release-note]`; position per 071) — release-drafter drops excluded PRs from notes *and* bump resolution |
+| a spec-only pull request is omitted without a label | ✓ Covered | `labeler.yml` `no-release-note` negate-over-noteworthy matcher applies the label to specs/.feature-confined PRs → dropped via the `pre-exclude` category (position per 071) |
 | the first ever release proposes v0.1.0 as a pre-release | ✓ Covered | release-drafter from the `0.0.0` base + `features`→minor yields `v0.1.0`; post-step `major_version == 0` → `prerelease=true` |
 | reconciliation converges rather than duplicating | ✓ Covered | release-drafter maintains one draft keyed to the unpublished release it owns (authoritative regenerate); `concurrency.cancel-in-progress` keeps the latest tip |
 
@@ -53,9 +53,9 @@ All driving scenarios trace to identifiable config/workflow paths. The "Docs" vs
 
 | Task | Status | Evidence |
 |---|---|---|
-| T001 — `no-release-note` label | ✓ Met | `settings.yml` adds the 8th labels-only entry (7 unchanged, parses clean); `labeler.yml` negate block carries only `files:`; label name identical across both files + `exclude-labels` + guard |
-| T002 — `release-drafter.yml` | ✓ Met | seven `categories` labels exact; resolver buckets exactly breaking→major/features→minor/fixes→patch + default patch; `exclude-labels: [no-release-note]`; v-prefixed templates; YAML valid |
-| T003 — `release-drafting.yml` | ✓ Met | `on: push:{branches:[main]}` (no tags/PR); `permissions: contents:write + pull-requests:read` exactly; action pinned `@v6.4.0`; never publishes; 0.x→pre-release / ≥1.0.0→latest; not a required check; actionlint clean |
+| T001 — `no-release-note` label | ✓ Met | `settings.yml` adds the 8th labels-only entry (7 unchanged, parses clean); `labeler.yml` negate block carries only `files:`; label name identical across both files + the drafter exclusion (`exclude-labels` then; a `pre-exclude` category since 071) + guard |
+| T002 — `release-drafter.yml` | ✓ Met | seven `categories` labels exact; resolver buckets exactly breaking→major/features→minor/fixes→patch + default patch; exclusion lists `no-release-note`; v-prefixed templates; YAML valid (validated against 030's schema; 071 moved the same invariants to `when.labels` note categories, `version-resolver` categories with a condition-less patch fallback, and a `pre-exclude` category) |
+| T003 — `release-drafting.yml` | ✓ Met | `on: push:{branches:[main]}` (no tags/PR); `permissions: contents:write + pull-requests:read` exactly; action pinned at an exact patch (`@v6.4.0` at this validation; `@v7.7.0` since 071's coordinated schema/major migration); never publishes; 0.x→pre-release / ≥1.0.0→latest; not a required check; actionlint clean |
 | T004 — label-contract guard | ✓ Met | `CheckLabelContract` fails on renamed/dropped/added category label, drifted resolver bucket, missing `no-release-note` in any of three places, or a managed set ≠ 8; `TestLabelContract_RealConfig` passes against shipped files; runs under `go test ./...` |
 
 ---
@@ -67,11 +67,11 @@ All driving scenarios trace to identifiable config/workflow paths. The "Docs" vs
 | Surface | Status | Notes |
 |---|---|---|
 | `release-drafting.yml` structure | ✓ Conformant | name, `push:main` trigger, exact permissions, concurrency group + cancel-in-progress, `draft` job on ubuntu-latest with pinned release-drafter step (id `draft`) + status post-step, no checkout — all match |
-| `release-drafter.yml` structure | ✓ Conformant | tag/name/version templates, version-resolver, categories (Breaking→Internal order), exclude-labels, change-template, template, `prerelease` left default — all match verbatim |
+| `release-drafter.yml` structure | ✓ Conformant | tag/name/version templates, the note/exclusion/version-resolver categories (Breaking→Internal order; positions per 071), change-template, template, `prerelease` left default — all match the interface block |
 | Eighth label `no-release-note` | ✓ Conformant | `labeler.yml` negate block matches the interface block verbatim; `settings.yml` entry uses color `EDEDED` + the specified description |
 | `internal/build` label-contract guard | ✓ Conformant | all four interface assertions implemented (categories-agree, resolver buckets, exclusion-label-present-in-three, managed-set-of-eight) |
 
-**Sanctioned `[ASSUMED]` resolutions (conformant, not deviations):** The interface marked the status-step `gh` invocation and the action pin as `[ASSUMED]`, instructing verify-at-implement with a documented fallback. Implementation resolved both: (1) status via `gh api -X PATCH /releases/{id}` rather than the example `gh release edit <tag>` — the latter 404s on an unpublished draft (no real git tag), so the by-id form is the reliable realization of the same ADR-5 intent; (2) pinned `release-drafter@v6.4.0` because the example `v6.1.0` does not exist. Both honor the load-bearing contract (status follows version via a pinned post-step) and are recorded in `.score/memory/LEARNINGS.md`.
+**Sanctioned `[ASSUMED]` resolutions (conformant, not deviations):** The interface marked the status-step `gh` invocation and the action pin as `[ASSUMED]`, instructing verify-at-implement with a documented fallback. Implementation resolved both: (1) status via `gh api -X PATCH /releases/{id}` rather than the example `gh release edit <tag>` — the latter 404s on an unpublished draft (no real git tag), so the by-id form is the reliable realization of the same ADR-5 intent; (2) pinned `release-drafter@v6.4.0` because the example `v6.1.0` does not exist (071 later moved the pin to `v7.7.0` with the schema migration). Both honor the load-bearing contract (status follows version via a pinned post-step) and are recorded in `.score/memory/LEARNINGS.md`.
 
 ---
 

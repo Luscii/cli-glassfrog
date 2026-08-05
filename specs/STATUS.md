@@ -72,4 +72,4 @@
 | 068-proposal-circulation-path | Complete | document | 2026-08-03T21:36:51 |
 | 069-proposal-impact-review-path | Complete | document | 2026-08-03T21:36:51 |
 | 070-operating-surface-packaging | Complete | validate | 2026-07-21T14:18:31 |
-| 071-drafter-config-migration | Analyzed | analyze | 2026-08-03T21:33:41 |
+| 071-drafter-config-migration | Complete | validate | 2026-08-03T22:40:11 |

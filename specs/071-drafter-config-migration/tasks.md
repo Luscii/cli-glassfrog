@@ -38,7 +38,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ## Phase 1: The Atomic Migration [US1]
 
-- [ ] **T001** [US1] Move the pinned action version forward, restructure `.github/release-drafter.yml` to the current schema, and reshape the guard to read it
+- [x] **T001** [US1] Move the pinned action version forward, restructure `.github/release-drafter.yml` to the current schema, and reshape the guard to read it — pin to v7.7.0, 12-category config, guard re-derived (all 4 verdicts + ADR-4 schema rejection), fixture rewritten; no findings
   - **Scope**: The coupled change — all three halves of it. Raise the drafting step's pinned action major to one that understands the current schema and rewrite the pin comment that argues for holding it back. Move the seven category labels into each changelog category's `when`, the exclusion into a `pre-exclude` category, and the three semver buckets plus the patch fallback into four `version-resolver` categories. In `internal/build/labelcontract.go`, reshape `ReleaseDrafterConfig`/`DrafterCategory`, add `DrafterWhen` and the three category-type constants, retain the superseded keys as rejection detectors, and re-derive the four verdicts from the new positions. Rewrite the `validDrafterYAML` fixture in `labelcontract_test.go` to the new shape so the existing drift table still exercises what it did before. Version, config, and guard are one task because any split leaves either `go test` red or the drafter silently miscategorising — they are not independently reviewable.
   - **Acceptance criteria**:
     - `.github/workflows/release-drafting.yml`'s drafting step pins a `release-drafter/release-drafter` major at or above the schema floor T003 declares, at an exact patch version (the repo's action-pinning discipline).
@@ -61,7 +61,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
   - **Scenario references**: drafter-config-contract.feature: "A drafting run reports no schema deprecations"
   - **Risk**: ⚠️ Do **not** set `exclusive: true`. `.github/dependabot.yml`'s header comment claims the drafter "assigns the FIRST matching category" — false against both action majors, which push a pull request into every matching category. Setting it to "preserve" that would silently change note placement. Correcting the comment is out of scope (plan Risks).
 
-- [ ] **T002** [US2] [P] Add drift cases for every position the migration moved
+- [x] **T002** [US2] [P] Add drift cases for every position the migration moved — 7 new table cases (empty when, missing pre-exclude, wrong increment, deleted fallback, 3× superseded schema); no findings
   - **Scope**: Extend `TestLabelContract_Drift`'s table in `internal/build/labelcontract_test.go`. Additive test work only — no production change.
   - **Acceptance criteria**:
     - A changelog category whose `when` names no label fails, and the violation names the file and the missing label.
@@ -79,7 +79,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ## Phase 2: The Coupling Guard and the Acceptance Suite [US3]
 
-- [ ] **T003** [US3] Add `internal/build/drafterschema.go` and its guard test
+- [x] **T003** [US3] Add `internal/build/drafterschema.go` and its guard test — coupling verdict (derived major ≥ derived floor), real-file test + 9 drift cases; no findings
   - **Scope**: The new invariant: the drafting workflow's pinned action major must be at or above the floor the config's schema requires. Production code and its tests together, following the package's one-file-per-concern convention.
   - **Acceptance criteria**:
     - `DraftingWorkflowFileName`, `DrafterActionRepo`, and `DrafterSchemaMinMajor` are declared, with `DrafterSchemaMinMajor`'s comment carrying the property and reason (the `GoReleaserVersion` precedent in `workflow.go`), not just the number.
@@ -97,7 +97,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
   - **Scenario references**: drafter-config-contract.feature: "A pinned action version behind the configuration schema fails the guard"; "A pinned reference with no derivable major fails rather than passes"
   - **Risk**: ⚠️ Must ship in the same PR as T001. Since #179 landed, `main` sits on the previous major, so T001 moves the pin and the config together — this guard is what stops a later change from separating them again. Deferring it leaves exactly the silent-degradation window this feature exists to close.
 
-- [ ] **T004** [US3] Wire the feature file to a godog suite and clear the `@wip` tag on exactly the five executable scenarios
+- [x] **T004** [US3] Wire the feature file to a godog suite and clear the `@wip` tag on exactly the five executable scenarios — drafter_config_contract_bdd_test.go, 5 scenarios execute, 8 held (4 for validate, 4 inexecutable) with both reasons in the suite doc comment; no findings
   - **Scope**: Add a godog suite in `internal/build` over `drafter-config-contract.feature`, following `release_bdd_test.go`'s pattern in this package — `Paths` naming only this feature file, `Tags: "~@wip"`, and a suite doc comment enumerating what stays held and why. Clear the `@wip` tag on the five scenarios the guards make observable; leave the other eight tagged. `features/no-automated-pipeline/` has no runner today, so this is its first.
   - **Acceptance criteria**:
     - The suite runs with `Tags: "~@wip"` and `Paths` naming only `drafter-config-contract.feature`.
@@ -132,7 +132,7 @@ Within Phase 1, T002 is additive test work over the shape T001 lands. T002 and T
 
 ## Phase 3: The Live-Contract Sweep [Shared]
 
-- [ ] **T005** [Shared] Update spec 030's live-contract documents to the new positions
+- [x] **T005** [Shared] Update spec 030's live-contract documents to the new positions — interface-spec/plan/validate updated with 071 pointers (030 ADR citations kept); spec.md verified tool-agnostic (no edit); analyze/risk name only the surviving mechanism vocabulary (no edit); completed task records untouched; directory-wide grep confirms every surviving `version-resolver`/`exclude-labels` occurrence is deliberate history
   - **Scope**: Sweep `specs/030-release-drafting/` for statements describing the configuration's shape. Update the live contract; leave history alone.
   - **Acceptance criteria**:
     - `plan.md`, `interface-spec.md`, and `validate.md` — which carry the most references — describe the current positions.

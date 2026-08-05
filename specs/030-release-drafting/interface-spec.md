@@ -16,7 +16,7 @@ This feature is committed declarative config (a workflow + a release-drafter con
 | Entry point | Trigger | Notes |
 |---|---|---|
 | `.github/workflows/release-drafting.yml` | GitHub event `push` to `main` | The single automated trigger. Every merge to `main` regenerates the draft. Not a required check — runs after the merge, gates nothing (spec §Non-Behaviors). |
-| `.github/release-drafter.yml` | Read by the release-drafter action each run | Declarative config: version-resolver, categories, exclude-labels, templates. |
+| `.github/release-drafter.yml` | Read by the release-drafter action each run | Declarative config: categories (note sections, exclusion, and semver resolution — schema positions per 071) and templates. |
 | Draft GitHub Release | Maintained by the action; **published by a maintainer by hand** | The output. Publishing it creates the tag and triggers 022's `release.yml`. 030 never publishes (spec §Stops at the draft). |
 
 ### `.github/workflows/release-drafting.yml` structure
@@ -52,7 +52,7 @@ jobs:
     steps:
       - name: Draft the next release
         id: draft
-        uses: release-drafter/release-drafter@v6.1.0   # [ASSUMED] exact patch — pin at impl time
+        uses: release-drafter/release-drafter@v7.7.0   # exact patch; the major floor is guarded (071)
         with:
           config-name: release-drafter.yml
         env:
@@ -73,49 +73,70 @@ jobs:
 
 ### `.github/release-drafter.yml` structure
 
+> **Schema positions per 071 (Drafter Config Migration).** The invariants below are still this accord's (030 ADR-2/ADR-3/ADR-4); 071 moved where they are declared: everything now lives under `categories` — the note sections carry their label in `when.labels`, the exclusion is a `pre-exclude` category, and the semver buckets plus the declared patch fallback are `version-resolver` categories. The superseded top-level `version-resolver`/`exclude-labels` keys no longer exist and are rejected by the guard by name.
+
 | Element | Contract |
 |---|---|
 | `tag-template` / `name-template` | `v$RESOLVED_VERSION` — v-prefixed, consistent with 023's tag form that 022/`go install` read. |
 | `version-template` | `$MAJOR.$MINOR.$PATCH`. |
-| `version-resolver` | `major.labels: [breaking]`, `minor.labels: [features]`, `patch.labels: [fixes]`, `default: patch`. release-drafter resolves highest-wins natively (ADR-2). |
-| `categories` | The seven 028 labels → titled note sections (ADR-3), in order Breaking → Internal. |
-| `exclude-labels` | `[no-release-note]` — PRs carrying it leave the notes and the counted bump set (ADR-4). |
+| `categories` — note sections | The seven 028 labels → titled note sections, each label in the category's `when.labels` (ADR-3; positions per 071), in order Breaking → Internal. |
+| `categories` — `version-resolver` entries | Three conditioned buckets (`major`→`[breaking]`, `minor`→`[features]`, `patch`→`[fixes]`) plus one condition-less entry with `semver-increment: "patch"` — the declared fallback. release-drafter resolves highest-wins natively (ADR-2; positions per 071). |
+| `categories` — `pre-exclude` entry | `when.labels: [no-release-note]` — PRs carrying it leave the notes and the counted bump set (ADR-4; position per 071). |
 | `change-template` | `- $TITLE (#$NUMBER) @$AUTHOR` — one note line per included PR (its title). |
 | `template` | Release body containing `$CHANGES` (the categorized sections). |
 | `prerelease` | Left at the release-drafter default (`false`); the workflow's post-step is authoritative for status (ADR-5). |
+| `exclusive` | Deliberately omitted everywhere: the default (`false`) preserves the behaviour that a PR appears under every matching note section (071). |
 
 ```yaml
 tag-template: "v$RESOLVED_VERSION"
 name-template: "v$RESOLVED_VERSION"
 version-template: "$MAJOR.$MINOR.$PATCH"
 
-version-resolver:           # ADR-2: highest-wins; patch when no semver label.
-  major:
-    labels: [breaking]
-  minor:
-    labels: [features]
-  patch:
-    labels: [fixes]
-  default: patch
+categories:
+  # ADR-4: exclusion — auto-applied to spec/feature-only PRs (see labeler.yml).
+  - type: "pre-exclude"
+    when:
+      labels: [no-release-note]
 
-categories:                 # ADR-3: the seven 028 labels, exact strings.
+  # ADR-3: the seven 028 labels, exact strings.
   - title: "⚠ Breaking Changes"
-    labels: [breaking]
+    when:
+      labels: [breaking]
   - title: "Features"
-    labels: [features]
+    when:
+      labels: [features]
   - title: "Fixes"
-    labels: [fixes]
+    when:
+      labels: [fixes]
   - title: "Documentation"
-    labels: [docs]
+    when:
+      labels: [docs]
   - title: "Infrastructure"
-    labels: [infrastructure]
+    when:
+      labels: [infrastructure]
   - title: "Dependencies"
-    labels: [dependencies]
+    when:
+      labels: [dependencies]
   - title: "Internal"
-    labels: [internal]
+    when:
+      labels: [internal]
 
-exclude-labels:             # ADR-4: auto-applied to spec/feature-only PRs (see labeler.yml).
-  - no-release-note
+  # ADR-2: highest-wins semver resolution; the condition-less entry is the
+  # declared patch fallback.
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      labels: [breaking]
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels: [features]
+  - type: "version-resolver"
+    semver-increment: "patch"
+    when:
+      labels: [fixes]
+  - type: "version-resolver"
+    semver-increment: "patch"
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
 template: |
@@ -172,10 +193,12 @@ A Go test (joining the package's existing `.goreleaser`/`release.yml` guards; pa
 
 | Assertion | Fails when |
 |---|---|
-| release-drafter `categories` labels == the seven category labels in `labeler.yml` **and** `settings.yml` | a category label is renamed/dropped/added in one file but not the others |
-| `version-resolver` `major`/`minor`/`patch` label sets == exactly `breaking`/`features`/`fixes` | the semver buckets drift from the 028 semver-bearing labels |
-| `no-release-note` present in `settings.yml` **and** `labeler.yml` **and** release-drafter `exclude-labels` | the exclusion label exists in one place but not the others |
+| release-drafter changelog categories' `when` labels == the seven category labels in `labeler.yml` **and** `settings.yml` (positions per 071) | a category label is renamed/dropped/added in one file but not the others |
+| the `version-resolver` categories' `major`/`minor`/`patch` buckets == exactly `breaking`/`features`/`fixes`, and the condition-less entry declares `semver-increment: patch` (positions per 071) | the semver buckets drift from the 028 semver-bearing labels, or the declared fallback is removed or drifts off patch |
+| `no-release-note` present in `settings.yml` **and** `labeler.yml` **and** release-drafter's `pre-exclude` category (position per 071) | the exclusion label exists in one place but not the others |
 | total managed set == eight (seven categories + exclusion) across `labeler.yml`/`settings.yml` | a managed label is added or removed without updating the contract |
+| the config is on the current schema — superseded `version-resolver`/`exclude-labels` keys and category-level `labels` shorthands are rejected by name (071 ADR-4) | a config still expresses the contract at the superseded positions |
+| the drafting workflow's pinned action major ≥ the floor the config schema requires (071's `internal/build/drafterschema.go` coupling guard) | the pinned major falls behind the schema, or the pinned ref carries no derivable major |
 
 The guard runs inside the existing `go test ./...` matrix (024 pre-merge, 029 post-merge), so a desync reddens CI rather than silently mis-drafting. Exact Go symbol names / file constants are implementation-level.
 
@@ -183,7 +206,7 @@ The guard runs inside the existing `go test ./...` matrix (024 pre-merge, 029 po
 
 ## Interactions
 
-**Drafting flow (end-to-end):** a PR merges to `main` → `push:main` starts `release-drafting.yml` → release-drafter reads every PR merged since the last *published* release and their 028-applied labels → drops PRs carrying `no-release-note` → resolves the bump highest-wins against the last published tag (`default: patch`; no prior release ⇒ 0.0.0 base) → groups the remaining PR titles into the seven category sections (empty sections omitted) → writes/updates the single draft release with tag `v$RESOLVED_VERSION` → the post-step marks the draft pre-release (`major_version == 0`) or latest (`>= 1`) → the draft sits unpublished for a maintainer.
+**Drafting flow (end-to-end):** a PR merges to `main` → `push:main` starts `release-drafting.yml` → release-drafter reads every PR merged since the last *published* release and their 028-applied labels → drops PRs carrying `no-release-note` (the `pre-exclude` category) → resolves the bump highest-wins against the last published tag (declared patch fallback; no prior release ⇒ 0.0.0 base) → groups the remaining PR titles into the seven category sections (empty sections omitted) → writes/updates the single draft release with tag `v$RESOLVED_VERSION` → the post-step marks the draft pre-release (`major_version == 0`) or latest (`>= 1`) → the draft sits unpublished for a maintainer.
 
 **Authoritative reconciliation:** release-drafter maintains one draft keyed to the unpublished release it owns; each run regenerates it, so re-runs converge rather than appending (spec edge-case "reconciliation converges"). `cancel-in-progress` ensures the final draft reflects the latest `main` tip.
 
@@ -197,9 +220,9 @@ The guard runs inside the existing `go test ./...` matrix (024 pre-merge, 029 po
 
 | Condition | Behavior |
 |---|---|
-| No semver-bearing label across included PRs | `version-resolver.default: patch` applies (spec "default patch"). Not an error. |
+| No semver-bearing label across included PRs | The condition-less `version-resolver` category's `semver-increment: patch` applies (spec "default patch"; position per 071). Not an error. |
 | Multiple semver-bearing labels across included PRs | Highest wins (breaking > features > fixes) — release-drafter native (ADR-2). Not an error. |
-| PR carries `no-release-note` (and possibly other labels too, e.g. `docs`) | `exclude-labels` removes it from the notes **and** the counted bump set before categorization — exclusion wins over any category label it also holds. Not an error. |
+| PR carries `no-release-note` (and possibly other labels too, e.g. `docs`) | The `pre-exclude` category removes it from the notes **and** the counted bump set before categorization — exclusion wins over any category label it also holds. Not an error. |
 | Spec/feature-only PR (confined to `specs/`+`.feature`) | The labeler's negate rule applies `no-release-note` (no noteworthy file changed) → excluded. Not an error. |
 | First release, no published baseline | release-drafter computes from a `0.0.0` base; a feature/breaking first release → `v0.1.0`+ (spec floor). A *patch-only* first release computes `v0.0.1` (below the floor — see Consistency Notes / plan Risk). |
 | Drafting run fails (action error, API hiccup) | The run goes red but blocks nothing — the workflow is not a required check and the merge already happened (spec §Non-Blocking). The previous draft is left intact; the next merge re-reconciles. |
