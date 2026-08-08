@@ -561,8 +561,8 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: An independent root whose dependencies are all specified; feeds the pre-assembly gate at #77, and routing must be settled before a change set can be assembled at all, so it precedes the grammar it shares that gate with.
-- **Dependencies**: → requires: My Roles; → requires: Tension Reads
-- **Status**: pending
+- **Dependencies**: → requires: My Roles; → requires: Tension Reads; → requires: Role Reads
+- **Status**: specified:073-circle-routing-rule
 
 ### 73. Post-Create Validity Read
 
