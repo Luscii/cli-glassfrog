@@ -26,7 +26,6 @@ Feature: Change-Set Grammar Facts
     # symptom — before I build the changes[] array.
 
     # Source: 072-change-set-grammar-facts — Scenario: The own-circle policy shape is recorded with its symptom
-    @wip
     Scenario: Own-circle policy shape is recorded with its symptom
       Given the record carried the fact "CSG-1"
       When the record is consulted for changing a circle's own policy
@@ -34,7 +33,6 @@ Feature: Change-Set Grammar Facts
       And its Symptom field will state that a wrapped shape is refused while the web UI generates exactly the top-level form
 
     # Source: 072-change-set-grammar-facts — Scenario: The accepted-but-invalid shape is recorded with its disposition
-    @wip
     Scenario: Self-targeting role update carries the accepted-but-invalid disposition
       Given the record carried the fact "CSG-2"
       When the record is consulted for a role update that self-targets the circle from inside its own governance
@@ -42,7 +40,6 @@ Feature: Change-Set Grammar Facts
       And its Disposition field will read "accepted-but-invalid" rather than "accepted"
 
     # Source: 072-change-set-grammar-facts — Scenario: A consumer reads a dead shape to avoid before assembling
-    @wip
     Scenario: An assembler finds both the shape to use and the shape to avoid
       Given an assembler was about to build a change set touching a circle's own governance
       When it consults the record before assembling
@@ -51,7 +48,6 @@ Feature: Change-Set Grammar Facts
       And no round-trip against the server will be needed to learn either
 
     # Source: 072-change-set-grammar-facts — Scenario: "Created" is not "valid"
-    @wip
     Scenario: A returned proposal id is not read as a valid governance change
       Given the record carried the fact "CSG-2"
       When a consumer reads the fact's disposition
@@ -66,7 +62,6 @@ Feature: Change-Set Grammar Facts
     # residual shapes are verified and which are merely published contract.
 
     # Source: 072-change-set-grammar-facts — Scenario: A recorded fact would duplicate the published contract
-    @wip
     Scenario: Contract-carried shapes appear as citations, never restatements
       Given the published contract carried the change-type enum at "ProposalChange.properties.type.enum"
       When the record names the enumerated change types or the nested-only rule
@@ -74,7 +69,6 @@ Feature: Change-Set Grammar Facts
       And it will restate no enum values beyond its citation lists
 
     # Source: 072-change-set-grammar-facts — Scenario: A recorded fact would read as spec-authoritative
-    @wip
     Scenario: Every fact is marked empirical, never contract
       Given the record's facts were observed only from live server behavior
       When the record is checked for its empirical marker
@@ -82,7 +76,6 @@ Feature: Change-Set Grammar Facts
       And a record missing that marker will fail the guard
 
     # Source: 072-change-set-grammar-facts — Proposed: interface-spec.md per-fact contract (five required fields)
-    @wip
     Scenario: Every recorded fact carries its full five-field contract
       Given the landed record
       When each fact section is read

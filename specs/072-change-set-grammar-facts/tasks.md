@@ -58,7 +58,7 @@ Totals: **12 executed** (T001 6, T002 6), **3 held for validate**, **1 process-i
 
 ## Phase 1: The record + guard + supersession
 
-- [ ] **T001** [US1] Author the grammar-facts record under the proposal-drafting skill
+- [x] **T001** [US1] Author the grammar-facts record under the proposal-drafting skill — 6 scenarios, record + record-side parser (grammarfacts.go)
   - **Scope**: Create `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md` (the shipped plugin's first `references/` directory) with the full anatomy interface-spec.md pins, in order — empirical-marker blockquote, document header (Owner, Contract citations, and the `Live facts` manifest), contract-citations section, and the two fact sections. No other plugin file changes: drafting's SKILL.md and the drafter agent stay untouched, so the record ships inert and 067's validate-pinned prompt fences are unaffected.
   - **Acceptance criteria**:
     - The `Live facts` manifest declares `CSG-1, CSG-2` and set-equals the actual fact sections; fact sections are headed `## CSG-<n> — <title>`
@@ -71,7 +71,7 @@ Totals: **12 executed** (T001 6, T002 6), **3 held for validate**, **1 process-i
   - **Scenario references**: change-set-grammar-facts.feature: "Own-circle policy shape is recorded with its symptom", "Self-targeting role update carries the accepted-but-invalid disposition", "An assembler finds both the shape to use and the shape to avoid", "A returned proposal id is not read as a valid governance change", "Contract-carried shapes appear as citations, never restatements", "Every recorded fact carries its full five-field contract"
   - **Interface references**: interface-spec.md § Surface — The record file (anatomy rows 1–5, per-fact contract, fact content at landing)
 
-- [ ] **T002** [US2] Add the citation-integrity guard with its manifest and retirement invariants
+- [x] **T002** [US2] Add the citation-integrity guard with its manifest and retirement invariants — 6 scenarios; 8 conditions + guard test, all sides derived
   - **Scope**: `internal/build/grammarfacts.go` (record path constant; parsers deriving every side — the `Live facts` manifest, fact section IDs and titles, field labels, disposition values, cited type names, nested-only citation list, marker presence; and the spec side — enum values and the nested-only set from the `ProposalChange` description) plus `internal/build/grammarfacts_guard_test.go` asserting the eight conditions from interface-spec.md. Derivation helpers in production source, assertions in the test (family convention).
   - **Acceptance criteria**:
     - All **eight** violation conditions fail loudly, each naming the invariant, the offending element, **and which resolution path applies**: (1) manifest declares an ID with no section, (2) a section's ID absent from the manifest, (3) zero fact sections, (4) missing or empty required field, (5) Disposition outside the closed vocabulary, (6) cited change type absent from the spec enum, (7) nested-only citation not set-equal to the spec's set, (8) empirical marker absent or degraded
@@ -86,7 +86,7 @@ Totals: **12 executed** (T001 6, T002 6), **3 held for validate**, **1 process-i
   - **Interface references**: interface-spec.md § Surface — Guard coupling; § Error Communication (conditions 1–8 with resolution paths)
   - **Risk**: ⚠️ Largest task in the decomposition — eight conditions, two parser sides, six scenarios. Deliberately not split: the natural seam (internal-consistency vs citation-integrity invariants) runs through the same two files, so splitting would produce two PRs touching the same pair.
 
-- [ ] **T003** [US3] Record the LEARNINGS supersession via /score:deprecate
+- [x] **T003** [US3] Record the LEARNINGS supersession via /score:deprecate — 1 DEPRECATION.md entry (F5→CSG-1, F6→CSG-2); scenario held for validate
   - **Scope**: One `/score:deprecate` entry in `.score/memory/DEPRECATION.md` recording that LEARNINGS 2026-08-05 F5/F6 are superseded by the record at `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md`. No edit to the LEARNINGS entry itself — it already carries the forward pointer, and git history is the changelog.
   - **Acceptance criteria**:
     - The entry names both superseded facts (F5, F6), the superseding record path and fact IDs (CSG-1, CSG-2), and the origin (072-change-set-grammar-facts)
