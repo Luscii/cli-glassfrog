@@ -1,8 +1,12 @@
 package build
 
 import (
+	"fmt"
 	"regexp"
+	"sort"
 	"strings"
+
+	"sigs.k8s.io/yaml"
 )
 
 // GrammarFactsPath is the change-set grammar record, relative to the repository
@@ -107,7 +111,11 @@ func MarkerIsWellFormed(marker string) bool {
 	}
 	low := strings.ToLower(marker)
 	statesObserved := strings.Contains(low, "observed")
-	statesNotContract := strings.Contains(low, "not part of") && strings.Contains(low, "contract")
+	// The disclaimer half: names the published contract and negates membership,
+	// accepting the natural phrasings ("none of it is part of the … contract",
+	// "is not part of the published contract").
+	negated := strings.Contains(low, "none") || strings.Contains(low, "not part") || strings.Contains(low, "not published")
+	statesNotContract := strings.Contains(low, "contract") && negated
 	return statesObserved && statesNotContract
 }
 
@@ -312,5 +320,193 @@ func splitIDList(s string) []string {
 			out = append(out, id)
 		}
 	}
+	return out
+}
+
+// --- The spec side: the published contract the record cites --------------
+
+// VendoredSpecPath is the vendored Glassfrog API v5 contract, relative to the
+// repository root — the source the record's citations are checked against. Not
+// restated anywhere; the enum and the nested-only set are derived from it at
+// test time.
+const VendoredSpecPath = "spec/glassfrog-api-v5.yaml"
+
+// proposalChangeSchema is the narrow view of the ProposalChange schema the guard
+// needs: the change-type enum and the free-text description carrying the
+// nested-only rule. sigs.k8s.io/yaml converts YAML→JSON, so the json tags drive
+// the decode; every other field in the large spec is ignored.
+type proposalChangeSchema struct {
+	Components struct {
+		Schemas struct {
+			ProposalChange struct {
+				Description string `json:"description"`
+				Properties  struct {
+					Type struct {
+						Enum []string `json:"enum"`
+					} `json:"type"`
+				} `json:"properties"`
+			} `json:"ProposalChange"`
+		} `json:"schemas"`
+	} `json:"components"`
+}
+
+// LoadSpecChangeTypes reads the vendored spec from the repository root and
+// returns the two spec-side sets the guard compares the record against: the
+// full change-type enum at ProposalChange.properties.type.enum, and the
+// nested-only type set named in the ProposalChange schema description. A missing
+// or unparseable spec is an error; an empty enum is too (the anchor the record
+// cites must resolve to something).
+func LoadSpecChangeTypes() (enum []string, nestedOnly []string, err error) {
+	raw, err := readRepoFile(VendoredSpecPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	var doc proposalChangeSchema
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil, nil, fmt.Errorf("parsing %s: %w", VendoredSpecPath, err)
+	}
+	enum = doc.Components.Schemas.ProposalChange.Properties.Type.Enum
+	if len(enum) == 0 {
+		return nil, nil, fmt.Errorf("%s: ProposalChange.properties.type.enum is empty or absent — the record's enum citation anchor does not resolve", VendoredSpecPath)
+	}
+	nestedOnly = specNestedOnlyTypes(doc.Components.Schemas.ProposalChange.Description)
+	return enum, nestedOnly, nil
+}
+
+// specNestedOnlyRE captures the parenthesized nested-only type list from the
+// ProposalChange description sentence ("Nested-only types (`CreateAccountability`,
+// …) must appear as children of `CreateRole` or `UpdateRole`…"). The parens
+// bound the set: `CreateRole`/`UpdateRole` are named after them as the wrapper
+// parts, so a whole-description scan would wrongly fold them in.
+var specNestedOnlyRE = regexp.MustCompile(`Nested-only types\s*\(([^)]*)\)`)
+
+// specNestedOnlyTypes extracts the nested-only change-type names from the
+// ProposalChange schema description.
+func specNestedOnlyTypes(description string) []string {
+	m := specNestedOnlyRE.FindStringSubmatch(description)
+	if m == nil {
+		return nil
+	}
+	return backtickedCamelTokens(m[1])
+}
+
+// --- The guard: the record checked against itself and the contract -------
+
+// CheckGrammarFacts returns every citation-integrity and internal-consistency
+// violation in the record, each message naming the invariant, the offending
+// element, AND which resolution path applies (interface-spec § Error
+// Communication, conditions 1–8). An empty result means the record agrees with
+// itself and with the contract it cites. The marker (condition 8) is checked
+// against the parsed record; every other side is derived — the guard hard-codes
+// no fact ids, enum values, or type names (plan ADR-3).
+//
+// The check never stops at the first failure: it collects every violation it
+// can still evaluate, so one broken invariant does not mask the rest.
+func CheckGrammarFacts(rec GrammarFactsRecord, specEnum, specNestedOnly []string) []string {
+	var v []string
+
+	factIDs := map[string]bool{}
+	for _, f := range rec.Facts {
+		factIDs[f.ID] = true
+	}
+	manifestIDs := map[string]bool{}
+	for _, id := range rec.ManifestIDs {
+		manifestIDs[id] = true
+	}
+
+	// Condition 3: an empty record is not a valid state (checked first so the
+	// empty-shell message leads, but the other checks still run).
+	if len(rec.Facts) == 0 {
+		v = append(v, "the record has no fact sections — an empty record is not a valid state; delete the record and record the supersession rather than keeping a shell")
+	}
+
+	// Condition 1: manifest declares an id with no matching section.
+	for _, id := range rec.ManifestIDs {
+		if !factIDs[id] {
+			v = append(v, fmt.Sprintf("the Live-facts manifest declares %q but no ## %s section exists — complete the retirement (drop the id), or restore the section if the deletion was unintended", id, id))
+		}
+	}
+
+	// Condition 2: a fact section's id is absent from the manifest.
+	for _, f := range rec.Facts {
+		if !manifestIDs[f.ID] {
+			v = append(v, fmt.Sprintf("fact section %q is absent from the Live-facts manifest — add the id to the manifest, or finish the deletion if the fact was meant to retire", f.ID))
+		}
+	}
+
+	// Condition 4/5: per-fact required fields and closed disposition vocabulary.
+	for _, f := range rec.Facts {
+		for _, label := range GrammarRequiredFields {
+			if strings.TrimSpace(f.Fields[label]) == "" {
+				v = append(v, fmt.Sprintf("fact %s is missing or has an empty required field %q — supply the field", f.ID, label))
+			}
+		}
+		if disp := f.Disposition(); disp != "" && !inStringSet(disp, GrammarDispositionVocabulary) {
+			v = append(v, fmt.Sprintf("fact %s carries Disposition %q outside the closed vocabulary — use one of %s", f.ID, disp, strings.Join(GrammarDispositionVocabulary, " / ")))
+		}
+	}
+
+	// Condition 6: a change type the record names in a fact Shape must exist in
+	// the spec's enum.
+	enumSet := toStringSet(specEnum)
+	for _, f := range rec.Facts {
+		for _, t := range f.ShapeCitedTypes {
+			if !enumSet[t] {
+				v = append(v, fmt.Sprintf("fact %s names change type %q, absent from the spec enum at ProposalChange.properties.type.enum — re-derive the citation, or retire the fact that names it", f.ID, t))
+			}
+		}
+	}
+
+	// Condition 7: the record's nested-only citation must set-equal the spec's.
+	if !stringSetsEqual(rec.NestedOnly, specNestedOnly) {
+		v = append(v, fmt.Sprintf("the record's nested-only citation %v is not set-equal to the spec's nested-only set %v (ProposalChange description) — re-derive the citation, or retire the fact it supports", sortedStrings(rec.NestedOnly), sortedStrings(specNestedOnly)))
+	}
+
+	// Condition 8: the empirical marker must be present and well-formed.
+	if !MarkerIsWellFormed(rec.Marker) {
+		v = append(v, "the empirical marker is absent or degraded — restore the leading blockquote stating that every fact is observed behavior and none is part of the published contract (must carry the phrase \"Empirical record\")")
+	}
+
+	return v
+}
+
+// inStringSet reports whether s is a member of set.
+func inStringSet(s string, set []string) bool {
+	for _, x := range set {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+// toStringSet builds a membership set from a slice.
+func toStringSet(xs []string) map[string]bool {
+	set := make(map[string]bool, len(xs))
+	for _, x := range xs {
+		set[x] = true
+	}
+	return set
+}
+
+// stringSetsEqual reports whether two slices carry the same set of values,
+// order- and duplicate-insensitive.
+func stringSetsEqual(a, b []string) bool {
+	sa, sb := toStringSet(a), toStringSet(b)
+	if len(sa) != len(sb) {
+		return false
+	}
+	for k := range sa {
+		if !sb[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// sortedCopy returns a sorted copy for stable failure messages.
+func sortedStrings(xs []string) []string {
+	out := append([]string(nil), xs...)
+	sort.Strings(out)
 	return out
 }

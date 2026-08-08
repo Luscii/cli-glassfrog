@@ -62,6 +62,8 @@ func (w *grammarFactsWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^a consumer reads the fact's disposition$`, w.whenConsult)
 	sc.Step(`^the record names the enumerated change types or the nested-only rule$`, w.whenConsult)
 	sc.Step(`^each fact section is read$`, w.whenConsult)
+	sc.Step(`^the record's facts were observed only from live server behavior$`, w.givenLandedRecord)
+	sc.Step(`^the record is checked for its empirical marker$`, w.whenConsult)
 
 	// Thens
 	sc.Step(`^it will state the change as a top-level "([^"]*)" part with no "([^"]*)" wrapper$`, w.thenTopLevelNoWrapper)
@@ -78,6 +80,8 @@ func (w *grammarFactsWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^every fact will carry all five required fields$`, w.thenFiveFields)
 	sc.Step(`^its Evidence will name the live proposal the fact was verified against$`, w.thenEvidenceNamesProposal)
 	sc.Step(`^its Provenance will name the LEARNINGS entry it supersedes$`, w.thenProvenanceNamesLearnings)
+	sc.Step(`^a leading marker will state that every fact is observed behavior and none is part of the published contract$`, w.thenMarkerWellFormed)
+	sc.Step(`^a record missing that marker will fail the guard$`, w.thenMissingMarkerFailsGuard)
 }
 
 // ensureRecord loads and parses the record once per scenario.
@@ -321,6 +325,35 @@ func (w *grammarFactsWorld) thenProvenanceNamesLearnings() error {
 		}
 	}
 	return nil
+}
+
+func (w *grammarFactsWorld) thenMarkerWellFormed() error {
+	if !MarkerIsWellFormed(w.record.Marker) {
+		return fmt.Errorf("the leading marker is absent or does not state observed-behavior / not-part-of-contract: %q", w.record.Marker)
+	}
+	return nil
+}
+
+// thenMissingMarkerFailsGuard strips the leading marker from the real record and
+// runs the guard against the real spec — the marker's absence must surface as a
+// condition-8 violation.
+func (w *grammarFactsWorld) thenMissingMarkerFailsGuard() error {
+	idx := strings.Index(w.raw, "# Change-Set Grammar Facts")
+	if idx < 0 {
+		return fmt.Errorf("could not locate the document header to strip the marker")
+	}
+	stripped := ParseGrammarFactsRecord(w.raw[idx:])
+	enum, nested, err := LoadSpecChangeTypes()
+	if err != nil {
+		return fmt.Errorf("could not load spec-side sets: %w", err)
+	}
+	v := CheckGrammarFacts(stripped, enum, nested)
+	for _, msg := range v {
+		if containsFold(msg, "marker") {
+			return nil
+		}
+	}
+	return fmt.Errorf("guard did not fail on the missing marker; got %v", v)
 }
 
 // grammarNorm produces the whitespace-normalized copy content assertions read

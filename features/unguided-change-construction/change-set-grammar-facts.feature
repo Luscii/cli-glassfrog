@@ -69,7 +69,6 @@ Feature: Change-Set Grammar Facts
       And it will restate no enum values beyond its citation lists
 
     # Source: 072-change-set-grammar-facts — Scenario: A recorded fact would read as spec-authoritative
-    @wip
     Scenario: Every fact is marked empirical, never contract
       Given the record's facts were observed only from live server behavior
       When the record is checked for its empirical marker
