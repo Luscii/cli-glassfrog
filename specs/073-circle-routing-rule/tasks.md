@@ -108,7 +108,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
   - **Interface references**: interface-spec.md § Surface — Guard coupling; § Error Communication (conditions 1–6, 8–9 with resolution paths, and the three stated residues)
   - **Risk**: ⚠️ Largest task in the decomposition — two parser sides and eight of the nine conditions. Deliberately not split: the natural seam (record-side consistency versus contract-side citation integrity) runs through the same two files.
 
-- [ ] **T003** [US3] Record the LEARNINGS F7 supersession via /score:deprecate
+- [x] **T003** [US3] Record the LEARNINGS F7 supersession via /score:deprecate — 1 DEPRECATION.md entry; whole-record retirement mechanics and the no-manifest contrast with the sibling stated
   - **Scope**: One `/score:deprecate` entry in `.score/memory/DEPRECATION.md` recording that LEARNINGS 2026-08-05 F7 is superseded by the record at `plugin/skills/proposal-drafting/references/circle-routing-rule.md`. No edit to the LEARNINGS entry itself — it already carries the forward pointer naming this capability, and git history is the changelog.
   - **Acceptance criteria**:
     - The entry names the superseded fact (F7), the superseding record path, and the origin (`073-circle-routing-rule`)
