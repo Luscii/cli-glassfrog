@@ -570,7 +570,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Independent root with every dependency already specified, and it unblocks the outcome change at #76 that stops a dead proposal reading as a success.
 - **Dependencies**: → requires: Proposal Creation; → requires: Proposal Reads
-- **Status**: pending
+- **Status**: specified:074-post-create-validity-read
 
 ### 74. Legacy Identifier Request
 
@@ -608,7 +608,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Demoted from Must by the spec refresh: the read route at #74 now covers roles and actors, leaving this the accountability, domain, and policy residue no read exposes — real, but narrower and no longer the write path's blocker.
+- **Rationale**: Demoted from Must by the spec refresh: the read route at #74 now covers the role, actor, and identity reads, leaving this the accountability, domain, and policy residue no read exposes — real, but narrower and no longer the write path's blocker. The residue is confirmed rather than inferred: a live probe during #74's guard round found the number present on a role but absent from every one of that read's embedded accountabilities and domains (LEARNINGS 2026-08-08, W3), which is exactly the gap this item serves.
 - **Dependencies**: → requires: Proposal Reads
 - **Status**: pending
 
