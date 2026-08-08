@@ -73,4 +73,4 @@
 | 069-proposal-impact-review-path | Complete | document | 2026-08-03T21:36:51 |
 | 070-operating-surface-packaging | Complete | validate | 2026-07-21T14:18:31 |
 | 071-drafter-config-migration | Complete | validate | 2026-08-03T22:40:11 |
-| 072-change-set-grammar-facts | Analyzed | analyze | 2026-08-07T13:16:05 |
+| 072-change-set-grammar-facts | Complete | validate | 2026-08-08T12:37:38 |
