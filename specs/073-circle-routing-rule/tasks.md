@@ -92,7 +92,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
   - **Scenario references**: circle-routing-rule.feature — all ten non-`@validation` scenarios
   - **Interface references**: interface-spec.md § Surface — The record file (anatomy rows 1–6, the three field tables, the named-reads block)
 
-- [ ] **T002** [US3] Add the routing guard with its premise tripwire and citation anchors
+- [x] **T002** [US3] Add the routing guard with its premise tripwire and citation anchors — 6 scenarios (incl. 3-example Outline), conditions 1–6/8–9 in `CheckCircleRoutingRule`, three residues stated in its comment
   - **Scope**: `internal/build/circleroutingrule.go` (record path constant; parsers deriving every side — marker presence and its split phrase, required section presence, required field labels and non-emptiness, the named-reads block's leaves, cited schema anchors; and the spec side — the property-name set of `CreateProposalRequest.properties.proposal`, and the presence of `has_subroles` / `parent_role_id` on `Role`) plus `internal/build/circle_routing_rule_guard_test.go`. Named-read resolution reuses `LiveTopLevelCommands()` (064), `LiveMeSubcommands()` (065), and `LiveTensionSubcommands()` (066) — no new extractors. Derivation helpers in production source, assertions in the test.
   - **Acceptance criteria**:
     - Conditions 1–6 and 8–9 from interface-spec.md fail loudly, each naming the invariant, the offending element, **and which resolution path applies**. Condition 7 (record↔registry agreement) is T005's.
