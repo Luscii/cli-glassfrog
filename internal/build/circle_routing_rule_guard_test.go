@@ -60,9 +60,10 @@ func TestCircleRoutingRuleGuard(t *testing.T) {
 // loudly, naming the offending element and its resolution path — a guard that
 // never fails is no guard. Each case mutates a valid fixture (or the passed
 // spec/live sides) to trip exactly one condition, then asserts the message
-// names what the interface-spec § Error Communication table requires.
-// Condition 7 (record↔registry agreement) does not exist yet; it lands with
-// the composed-surface widening (073 phase 2).
+// names what the interface-spec § Error Communication table requires. The
+// table covers all nine conditions: 1–6 and 8–9 landed with the guard, and
+// condition 7 (record↔registry agreement) joined it with the composed-surface
+// widening (073 phase 2, T005).
 func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 	// Fixture sides the record fixture is built against.
 	proposalProps := []string{"changes", "tension_id"}
@@ -175,6 +176,35 @@ func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestParseNamedReadsBlockNormalizesWhitespace pins the like-with-like half of
+// condition 7: the record's fenced block collapses interior whitespace exactly
+// as the registry parse does, so a tab or double space in the block cannot
+// make a declared read miscompare against the registry (PR #191 review).
+func TestParseNamedReadsBlockNormalizesWhitespace(t *testing.T) {
+	fixture := strings.Replace(validRoutingRecordFixture(), "```\nme roles\ntension list\nroles\n```", "```\nme \t roles\ntension  list\n  roles\n```", 1)
+	got := ParseCircleRoutingRuleRecord(fixture).NamedReads
+	want := []string{"me roles", "tension list", "roles"}
+	if len(got) != len(want) {
+		t.Fatalf("parsed %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("parsed %v, want %v — interior whitespace not normalized", got, want)
+		}
+	}
+	// The normalized parse must also keep condition 7 green against a registry
+	// that carries the canonical spellings.
+	registry := []string{"tension get", "proposal list", "proposal get", "proposal create", "me roles", "tension list", "roles"}
+	v := CheckCircleRoutingRule(ParseCircleRoutingRuleRecord(fixture),
+		[]string{"changes", "tension_id"},
+		[]string{"has_subroles", "id", "name", "parent_role_id"},
+		[]string{"roles", "tree"}, []string{"actions", "roles"}, []string{"list", "show"},
+		registry)
+	if len(v) != 0 {
+		t.Fatalf("whitespace-only formatting tripped the guard:\n  - %s", strings.Join(v, "\n  - "))
 	}
 }
 

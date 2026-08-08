@@ -140,8 +140,11 @@ func routingSectionBody(raw, heading string) string {
 // section's fenced code block, one per line in declaration order — the
 // record's declaration surface (plan ADR-2), using the *-commands.txt token
 // grammar: a single token for a top-level command, two tokens for
-// `<group> <sub>`. Empty if the section carries no fenced block or the block
-// is empty.
+// `<group> <sub>`. Interior whitespace collapses to single spaces — the same
+// normalization the registry parse applies — so condition 7's record↔registry
+// comparison is genuinely like with like and a tab or double space in the
+// block cannot trigger a false failure. Empty if the section carries no
+// fenced block or the block is empty.
 func parseNamedReadsBlock(procedureBody string) []string {
 	lines := strings.Split(procedureBody, "\n")
 	var reads []string
@@ -156,7 +159,7 @@ func parseNamedReadsBlock(procedureBody string) []string {
 			continue
 		}
 		if inFence && t != "" {
-			reads = append(reads, t)
+			reads = append(reads, strings.Join(strings.Fields(t), " "))
 		}
 	}
 	return reads
