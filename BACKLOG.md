@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-12T20:59:00 | Enriched: 2026-08-05 | Framework: MoSCoW | Items: 84
+> Generated: 2026-06-12T20:59:00 | Enriched: 2026-08-08 | Framework: MoSCoW | Items: 92
 
 ### 1. Command Registration
 
@@ -554,7 +554,7 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Root of the new dependency graph — both Unguided Change Construction solutions derive from it and nothing in either branch can be specified before it; narrowed by the spec refresh to the shapes the contract still does not carry, which makes it cheaper without moving it off the critical path.
-- **Status**: pending
+- **Status**: specified:072-change-set-grammar-facts
 
 ### 72. Circle Routing Rule
 
@@ -644,18 +644,81 @@
 - **Dependencies**: → requires: Proposal Drafting Path; → requires: Pre-Assembly Grammar Consultation
 - **Status**: pending
 
-### 83. Change-Type Builders
+### 83. Call-Shape Generation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Independent root with no declared dependencies, and the only new item carrying a measured cost — a live tension-processing run spent three of eight tool uses interrogating `--help` before doing any work. Ranked above the projection cluster on that evidence, even though its problem sits a tier lower on the roadmap.
+- **Status**: pending
+
+### 84. Call-Shape Drift Guard
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Follows the generation it verifies, and precedes the agents that consume the artifact — the surface's own invariant is that no artifact asserts what no guard checks, so the guard lands before anything relies on the snapshot.
+- **Dependencies**: → requires: Call-Shape Generation
+- **Status**: pending
+
+### 85. Snapshot-Backed Leaf Invocation
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Where the measured saving is actually realized — the paths read flags from the artifact instead of asking the CLI per run; needs the artifact to exist and be guarded first.
+- **Dependencies**: → requires: Call-Shape Generation
+- **Status**: pending
+
+### 86. Discovery-Guidance Retirement
+
+- **Score**: MoSCoW Should Have
+- **Framework**: MoSCoW (Should Have)
+- **Rationale**: Terminal in its branch — the per-leaf "ask the CLI for its flags" instruction can only be retired once the paths are actually reading the snapshot, and the `--help` guidance that is not per-leaf discovery has to survive the cut.
+- **Dependencies**: → requires: Snapshot-Backed Leaf Invocation; → requires: Operator Orientation
+- **Status**: pending
+
+### 87. Structured Failures Under Projection
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
-- **Rationale**: The larger CLI investment against a problem #75 already solves, so it trails the reference despite sharing its root at #71; its spec-fidelity objection has weakened now that the change types are a published enum, but its cost has not.
+- **Rationale**: Independent root with every dependency specified, and the cheapest correctness fix in the tier: selecting a template forces a human format today, so any template invocation already loses its structured error envelope, unguarded by any test. Leads the projection cluster because the gap predates projections rather than following from them.
+- **Dependencies**: → requires: Output-Aware Failure Rendering
+- **Status**: pending
+
+### 88. Per-Leaf Projection Templates
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Root of the projection artifact — nothing else in the cluster can be specified before the templates exist; its own dependency shipped with user-defined template output.
+- **Dependencies**: → requires: User-Defined Template Output
+- **Status**: pending
+
+### 89. Projection Drift Guard
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Guards the artifact before the paths depend on it, mirroring the call-shape branch — a projection that silently drops a field a path needs is worse than no projection, so the guard precedes adoption.
+- **Dependencies**: → requires: Per-Leaf Projection Templates
+- **Status**: pending
+
+### 90. Projected Leaf Invocation
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: Terminal in its branch and where the context saving is realized; consumes the templates at #88 and cannot land before the envelope is restored at #87, or the paths would trade payload economy for error legibility.
+- **Dependencies**: → requires: Per-Leaf Projection Templates; → requires: Structured Failures Under Projection; → requires: Operator Orientation
+- **Status**: pending
+
+### 91. Change-Type Builders
+
+- **Score**: MoSCoW Could Have
+- **Framework**: MoSCoW (Could Have)
+- **Rationale**: The larger CLI investment against a problem #75 already solves, so it trails the reference despite sharing its root at #71; its spec-fidelity objection has weakened now that the change types are a published enum, but its cost has not. Ranked below the projection cluster for the same reason — that cluster's problem is still unsolved, this one's is not.
 - **Dependencies**: → requires: Change-Set Grammar Facts
 - **Status**: pending
 
-### 84. Change-Set Assembly
+### 92. Change-Set Assembly
 
 - **Score**: MoSCoW Could Have
 - **Framework**: MoSCoW (Could Have)
-- **Rationale**: Terminal item in the new graph — needs #83's builders before parts can be composed into a change set.
+- **Rationale**: Terminal item in the new graph — needs #91's builders before parts can be composed into a change set.
 - **Dependencies**: → requires: Change-Type Builders; → requires: Proposal Creation
 - **Status**: pending

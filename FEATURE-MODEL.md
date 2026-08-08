@@ -70,7 +70,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): each capab
 - Output Format Selection — an `--output` flag selecting the format per invocation (full | compact | json | yaml), with a default when omitted, dispatching the result to the matching renderer
   + depends-on: Structured Serialization
   + depends-on: Templated Human Rendering
-- User-Defined Template Output — accept a caller-supplied template file as the output format, rendered through the same template mechanism (future — lower priority per developer)
+- User-Defined Template Output — accept a caller-supplied template file as the output format, rendered through the same template mechanism
   + depends-on: Templated Human Rendering
 
 ## Self-Contained Distribution
@@ -386,6 +386,22 @@ Closes the gap between guarded command names and unguarded call shapes. The comp
 - Discovery-Guidance Retirement — retire the per-leaf "ask the CLI for its flags" instruction across the plugin's declarative artifacts while preserving the `--help` guidance that is not per-leaf discovery: usage-error recovery, credential setup, and the flag-not-subcommand fact
   + depends-on: Snapshot-Backed Leaf Invocation
   + depends-on: Operator Orientation
+
+## Templated Read Projections
+> Problem: Payloads Outsize the Work — the operating surface's composed reads pull each record's whole payload into the agent's context even when a traversal uses only a few fields, so every path spends far more of its limited context on unused data than the work needs (affects: AI agent)
+
+Grounded in the CLI as shipped. Two facts shape this solution. Templates are **flag-only** — a non-token `--output` value is classified as a template file reference, while the env and `.glassfrogrc` rungs reject one — so a projection is selected per invocation rather than configured once. And selecting a template **forces the render format to `full`**, a human format, so the failure reporter never takes its structured branch: a read invoked through a projection currently loses its machine-parseable error envelope (its next step, status, and plan-gate signal), and the failing-request-under-template combination is untested. Exit codes are format-independent and survive, so what degrades is the envelope's detail, not the failure signal — which is why the projection switch is gated behind restoring it rather than blocked by it. Sibling to **Generated Call-Shape Snapshot** under the same parent problem: both ship a co-located per-leaf artifact the path agents consume, and both are guarded by regeneration at build time. Their artifacts are kept separate here because the derivations differ — a call shape is generated from the shipped binary, a projection is authored and validated against payload shape — so consolidating them into one per-leaf artifact is a question for whichever is specified second, not a coupling imposed now.
+
+- Per-Leaf Projection Templates — a co-located template per composed read leaf that projects the payload to the fields its consuming path actually uses, shipped with the plugin and referenced by file path, since a template is selected as a flag-only file reference rather than a format token
+  + depends-on: User-Defined Template Output
+- Structured Failures Under Projection — a read invoked through a projection still fails into a machine-parseable envelope carrying its category, next step, and any plan-gate signal, rather than degrading to prose because selecting a template forces a human format; the gap exists for any template invocation as shipped, so it is fixable independently of the projections that would expose it at scale
+  + depends-on: Output-Aware Failure Rendering
+- Projected Leaf Invocation — the path agents read each leaf through its projection template instead of `--output json`, with a stated behaviour when the template is missing or unreadable and when a path genuinely needs the unprojected payload
+  + depends-on: Per-Leaf Projection Templates
+  + depends-on: Structured Failures Under Projection
+  + depends-on: Operator Orientation
+- Projection Drift Guard — verify each template against the shipped CLI's output shape during the build and fail on divergence, so a field that moves or a projection that drops a field a path needs turns the build red rather than silently handing an agent an empty read
+  + depends-on: Per-Leaf Projection Templates
 
 ## Shared
 - Change-Set Grammar Facts — the single recorded source of the change-set shapes the published contract does **not** carry: the own-circle policy shape, and the self-targeting role update the server accepts at create but returns invalid with no transitions, each with the symptom it produces — narrowed once the spec began enumerating the change types and stating the nested-only rule, which this cites rather than restates
