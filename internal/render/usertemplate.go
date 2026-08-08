@@ -65,8 +65,10 @@ func (e *UserTemplateError) Unwrap() error { return e.Err }
 // cloning a set after it has executed). Each ParseUserTemplate clones THIS base, so
 // every user template gets its own associated copy of the built-ins, sharing the
 // package FuncMap and Option("missingkey=error") by construction (ADR-2) and able to
-// compose a built-in via {{template "me.full.tmpl" .}}.
-var userTemplateBase = template.Must(templates.Clone())
+// compose a built-in via {{template "me.full.tmpl" .}}. Assigned in render.go's
+// init, right after templates itself (074) — a declaration-time initializer would
+// run before templates exists now that templates is init-assigned.
+var userTemplateBase *template.Template
 
 // UserTemplate is a caller-supplied template parsed into a clone of the built-in set.
 // It is opaque: the caller parses it once (fail-fast, before any request) and renders

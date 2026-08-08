@@ -66,7 +66,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Plan reference**: Phase 2: Create-specific render path; ADR-3, ADR-4
   - **Interface references**: `interface-spec.md`: "`internal/render` — one resource key, one view, one verdict projection, two templates"
 
-- [ ] **T003** [Shared] Register the `proposal-created` resource and add the two delegating templates
+- [x] **T003** [Shared] Register the `proposal-created` resource and add the two delegating templates — 6 tests added incl. the byte-identical leak guard; compact delegation needed a pure `include` FuncMap helper (interface sketch assumed no trailing newline), noted in LEARNINGS.md
   - **Scope**: `internal/render/render.go` + `internal/render/templates/` — add the `ResourceProposalCreated` const with its doc comment, append it to `builtinResources`, and add `proposal-created.full.tmpl` and `proposal-created.compact.tmpl`. Both render the body by invoking the existing `proposal.<format>.tmpl` from the single parsed set; neither restates a body line. The shared `proposal` templates are not modified.
   - **Acceptance criteria**:
     - The full template renders the shared body followed by the `Validity` line, an `Alerts (N):` block only when alerts are present, and the `Verdict source:` line — labels aligned to the existing 16-column field

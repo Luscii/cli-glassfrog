@@ -547,6 +547,14 @@ const (
 	// (056 not landed), grown by 056 to render changes by type. No plural sibling in 055
 	// (the proposals list is 056's concern).
 	ResourceProposal Resource = "proposal"
+	// ResourceProposalCreated is the create-specific projection (074): the created
+	// proposal PLUS the server's verdict read back from getProposal. Distinct from
+	// ResourceProposal, which stays the shared singular projection used by
+	// proposal get (056), propose (057), and withdraw (059) — the verdict is
+	// confined to the create result, so it may not ride the shared key. Its
+	// templates render the body by invoking the shared proposal templates, so there
+	// is exactly one source for the body's lines.
+	ResourceProposalCreated Resource = "proposal-created"
 	// ResourceProposals is the global proposal list read (056): GET /proposals
 	// rendered as a ProposalsView ([]glassfrog.Proposal). Plural — the list sibling of
 	// the singular ResourceProposal (055), added by Proposal Reads (056) since the
@@ -622,7 +630,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposals, ResourceProposalResponse}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposalCreated, ResourceProposals, ResourceProposalResponse}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
@@ -652,6 +660,20 @@ var funcMap = template.FuncMap{
 			depth = 0
 		}
 		return strings.Repeat("  ", depth)
+	},
+	// include executes the named built-in template into a string, so a delegating
+	// template can post-process the shared body before appending to it —
+	// text/template cannot capture {{template}} output, and the shared compact
+	// line ends with a newline that the one-line proposal-created.compact wrapper
+	// must trim (074). The engine's error is returned unchanged, so a failure
+	// inside the included template still fails the outer render loud. Pure over
+	// its inputs, like every sibling helper.
+	"include": func(name string, data any) (string, error) {
+		var buf bytes.Buffer
+		if err := templates.ExecuteTemplate(&buf, name, data); err != nil {
+			return "", err
+		}
+		return buf.String(), nil
 	},
 	// changeProps renders a proposal change's command-specific properties (the
 	// free-form keys beyond id/type) as compact JSON, so `proposal.full` can show
@@ -689,12 +711,25 @@ var funcMap = template.FuncMap{
 // rendering as <no value>, backstopping a typo'd key (the data-fidelity guard,
 // ADR-3). A parse failure is a build-time defect, so template.Must panics it at
 // package init rather than surfacing it per render.
-var templates = template.Must(
-	template.New("render").
-		Funcs(funcMap).
-		Option("missingkey=error").
-		ParseFS(templatesFS, "templates/*.tmpl"),
-)
+//
+// Assigned in init rather than in the declaration because funcMap's include
+// helper (074) refers back to the parsed set — a declaration-time initializer
+// would make funcMap ↔ templates an initialization cycle. init runs after
+// package-level vars, so Must still panics a parse failure at package init.
+// userTemplateBase (usertemplate.go) is assigned here too: its clone must be
+// taken after templates exists, and one init makes that ordering explicit
+// rather than leaning on cross-file init sequencing.
+var templates *template.Template
+
+func init() {
+	templates = template.Must(
+		template.New("render").
+			Funcs(funcMap).
+			Option("missingkey=error").
+			ParseFS(templatesFS, "templates/*.tmpl"),
+	)
+	userTemplateBase = template.Must(templates.Clone())
+}
 
 // RenderError is the typed failure Render returns: an unknown resource/format
 // key (no matching built-in) or a template execution error (a missing key under
