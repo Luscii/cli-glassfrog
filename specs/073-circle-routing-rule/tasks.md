@@ -139,7 +139,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
   - **Interface references**: interface-spec.md § Surface — Composed-surface additions
   - **Risk**: ⚠️ Edits a validate-pinned 067 surface. The fence's permitted-command list grows by three reads the drafter's workflow never uses — capability granted ahead of its use (plan R1), accepted at the developer's direction. Carries T006.
 
-- [ ] **T005** [US3] Cross-check the record's named reads against the composed registry
+- [x] **T005** [US3] Cross-check the record's named reads against the composed registry — 1 scenario; condition 7 one-direction with the reverse-direction rationale in the guard's comment
   - **Scope**: Add condition 7 to `internal/build/circleroutingrule.go` and its guard test — every read the record's named-reads block declares must appear in `plugin/agents/proposal-drafting-commands.txt`. One direction only.
   - **Acceptance criteria**:
     - A named read absent from the registry fails, naming the leaf and the registry path, and naming both resolution paths (add it to the registry and fence, or drop it from the procedure)

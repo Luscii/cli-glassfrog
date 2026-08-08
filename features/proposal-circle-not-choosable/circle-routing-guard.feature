@@ -55,7 +55,6 @@ Feature: Circle Routing Rule — guard enforcement
       And it will not silently skip the leaf it cannot anchor
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 7 (record ↔ registry agreement)
-    @wip
     Scenario: A named read missing from the composed registry fails the build
       Given the record named "me roles" in its named-reads block
       When that leaf is absent from the drafting path's composed-leaf registry

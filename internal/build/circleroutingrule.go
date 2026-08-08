@@ -290,17 +290,18 @@ func LoadSpecRoutingAnchors() (proposalProps, roleProps []string, err error) {
 // CheckCircleRoutingRule returns every violation of the record's invariants,
 // each message naming the invariant, the offending element, AND which
 // resolution path applies (interface-spec § Error Communication, conditions
-// 1–6 and 8–9). An empty result means the record agrees with itself, resolves
-// on the shipped CLI, and still rests on a contract that carries its premise
-// and anchors. Every side is derived at test time — the record's sections,
+// 1–9). An empty result means the record agrees with itself, resolves on the
+// shipped CLI, agrees with the drafting path's composed registry about its
+// named reads, and still rests on a contract that carries its premise and
+// anchors. Every side is derived at test time — the record's sections,
 // fields, named reads, and cited anchors from the record; the property sets
-// from the vendored spec; the live surfaces from the CLI sources. The guard
-// hard-codes no read names, no property sets, and no schema field values
-// (plan ADR-4).
+// from the vendored spec; the live surfaces from the CLI sources; the
+// composed leaves from the drafting registry. The guard hard-codes no read
+// names, no property sets, and no schema field values (plan ADR-4).
 //
 // Condition 7 — every named read present in the drafting path's composed-leaf
-// registry — will be added when the composed surface widens (073 phase 2);
-// its reverse direction will stay unchecked by design (see the residues).
+// registry — is checked in ONE direction only; the reverse stays unchecked by
+// design (see the residues).
 //
 // EXPLICITLY PARTIAL (stated, not silent), three residues:
 //  1. Semantic drift is undetectable — the server could change where a
@@ -318,7 +319,7 @@ func LoadSpecRoutingAnchors() (proposalProps, roleProps []string, err error) {
 //
 // The check never stops at the first failure: it collects every violation it
 // can still evaluate, so one broken invariant does not mask the rest.
-func CheckCircleRoutingRule(rec CircleRoutingRuleRecord, proposalProps, roleProps, liveTop, liveMe, liveTension []string) []string {
+func CheckCircleRoutingRule(rec CircleRoutingRuleRecord, proposalProps, roleProps, liveTop, liveMe, liveTension, draftingComposed []string) []string {
 	var v []string
 
 	// Condition 1: every required section present.
@@ -370,6 +371,23 @@ func CheckCircleRoutingRule(rec CircleRoutingRuleRecord, proposalProps, roleProp
 
 	// Conditions 4–6: the named reads declared, resolving, and anchorable.
 	v = append(v, checkRoutingNamedReads(rec.NamedReads, liveTop, liveMe, liveTension)...)
+
+	// Condition 7: every named read must appear in the drafting path's
+	// composed-leaf registry — the record must not name a read the path is
+	// forbidden to run. ONE direction only, by design: the registry
+	// legitimately carries the drafting path's other composed leaves (the
+	// situating reads and the gated create), and asserting set-equality would
+	// require inventing a routing-read delimiter in the registry and would
+	// make this guard a second source of truth for which reads the procedure
+	// names. Both sides are parsed into the same single-token / `<group>
+	// <sub>` grammar (the record's fenced block and the registry's line
+	// format), so the comparison is like with like, never two spellings.
+	composedSet := toStringSet(draftingComposed)
+	for _, read := range rec.NamedReads {
+		if !composedSet[read] {
+			v = append(v, fmt.Sprintf("named read %q is absent from the drafting path's composed-leaf registry (%s) — add it to the registry (and the agent fence), or drop it from the procedure; the record must not name a read the path is forbidden to run", read, ProposalDraftingCommandsPath))
+		}
+	}
 
 	// Condition 8: the premise tripwire — the create request's whole proposal
 	// property set must equal the set the record's Premise citation claims.

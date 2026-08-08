@@ -29,6 +29,10 @@ func TestCircleRoutingRuleGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	composed, err := ReadProposalDraftingCommands()
+	if err != nil {
+		t.Fatalf("could not read the composed-leaf registry %s: %v", ProposalDraftingCommandsPath, err)
+	}
 
 	// Sanity-check the extraction so a regression in the parsers fails loudly
 	// rather than passing vacuously.
@@ -41,9 +45,13 @@ func TestCircleRoutingRuleGuard(t *testing.T) {
 	if len(rec.RoleCitations) == 0 {
 		t.Fatal("no Role citations parsed from the record — the parser or the record regressed")
 	}
+	if len(composed) == 0 {
+		t.Fatalf("the composed-leaf registry %s lists no leaves — condition 7 would be vacuous", ProposalDraftingCommandsPath)
+	}
 
-	// The committed record must agree with itself, the CLI, and the contract.
-	if v := CheckCircleRoutingRule(rec, proposalProps, roleProps, liveTop, liveMe, liveTension); len(v) != 0 {
+	// The committed record must agree with itself, the CLI, the drafting
+	// registry, and the contract.
+	if v := CheckCircleRoutingRule(rec, proposalProps, roleProps, liveTop, liveMe, liveTension, composed); len(v) != 0 {
 		t.Fatalf("the committed circle-routing record drifted:\n  - %s", strings.Join(v, "\n  - "))
 	}
 }
@@ -62,13 +70,14 @@ func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 	liveTop := []string{"roles", "tree"}
 	liveMe := []string{"actions", "roles"}
 	liveTension := []string{"list", "show"}
+	composed := []string{"tension get", "proposal list", "proposal get", "proposal create", "me roles", "tension list", "roles"}
 
-	check := func(record string, pp, rp, lt, lm, ltn []string) []string {
-		return CheckCircleRoutingRule(ParseCircleRoutingRuleRecord(record), pp, rp, lt, lm, ltn)
+	check := func(record string, pp, rp, lt, lm, ltn, cmp []string) []string {
+		return CheckCircleRoutingRule(ParseCircleRoutingRuleRecord(record), pp, rp, lt, lm, ltn, cmp)
 	}
 
 	// Baseline must pass — otherwise the mutations prove nothing.
-	if v := check(validRoutingRecordFixture(), proposalProps, roleProps, liveTop, liveMe, liveTension); len(v) != 0 {
+	if v := check(validRoutingRecordFixture(), proposalProps, roleProps, liveTop, liveMe, liveTension, composed); len(v) != 0 {
 		t.Fatalf("baseline fixture is not clean:\n  - %s", strings.Join(v, "\n  - "))
 	}
 
@@ -78,6 +87,7 @@ func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 		proposalProps []string // default fixture set
 		roleProps     []string // default fixture set
 		liveTension   []string // default fixture set
+		composed      []string // default fixture set
 		wantNames     []string // substrings the failure must name
 	}{
 		{
@@ -125,6 +135,11 @@ func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 			roleProps: []string{"id", "name", "parent_role_id"}, // has_subroles dropped
 			wantNames: []string{"Role.has_subroles", "Contract citations", "re-derive the citation", "retire the record"},
 		},
+		{
+			name:      "7: a named read absent from the composed registry",
+			composed:  []string{"tension get", "proposal list", "proposal get", "proposal create", "tension list", "roles"}, // me roles missing
+			wantNames: []string{`"me roles"`, ProposalDraftingCommandsPath, "add it to the registry", "drop it from the procedure"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -145,7 +160,11 @@ func TestCircleRoutingRuleGuardConditions(t *testing.T) {
 			if ltn == nil {
 				ltn = liveTension
 			}
-			v := check(record, pp, rp, liveTop, liveMe, ltn)
+			cmp := tc.composed
+			if cmp == nil {
+				cmp = composed
+			}
+			v := check(record, pp, rp, liveTop, liveMe, ltn, cmp)
 			if len(v) == 0 {
 				t.Fatalf("condition did not fire; expected a violation naming %v", tc.wantNames)
 			}
@@ -207,6 +226,7 @@ type circleRoutingGuardWorld struct {
 	liveTop       []string
 	liveMe        []string
 	liveTension   []string
+	registry      []string // the drafting path's composed leaves (condition 7's side)
 	realRaw       string   // the committed record, for the marker scenario
 	added         string   // property added by the modelled refresh
 	dropped       string   // Role field dropped by the modelled refresh
@@ -233,6 +253,10 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 		if err != nil {
 			return ctx, err
 		}
+		registry, err := ReadProposalDraftingCommands()
+		if err != nil {
+			return ctx, fmt.Errorf("could not read the composed-leaf registry: %w", err)
+		}
 		*w = circleRoutingGuardWorld{
 			record:        validRoutingRecordFixture(),
 			proposalProps: proposalProps,
@@ -240,6 +264,7 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 			liveTop:       liveTop,
 			liveMe:        liveMe,
 			liveTension:   liveTension,
+			registry:      registry,
 		}
 		return ctx, nil
 	})
@@ -261,6 +286,7 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the guard evaluates the record$`, w.whenGuardRuns)
 	sc.Step(`^the record is checked for its leading marker$`, w.whenMarkerChecked)
 	sc.Step(`^the gated-membership invariant is checked$`, w.whenGatedMembershipChecked)
+	sc.Step(`^that leaf is absent from the drafting path's composed-leaf registry$`, w.whenLeafAbsentFromRegistry)
 
 	// Thens
 	sc.Step(`^the guard will fail naming both property sets so the addition is readable from the failure$`, w.thenFailNamingBothPropertySets)
@@ -277,11 +303,13 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^a record missing that marker will fail the guard$`, w.thenStrippedMarkerFailsGuard)
 	sc.Step(`^"([^"]*)" will remain the only composed leaf in the write-safety gated registry$`, w.thenWriteRemainsSoleGated)
 	sc.Step(`^every other composed leaf will remain absent from it$`, w.thenOtherLeavesUngated)
+	sc.Step(`^the guard will fail naming the leaf and the registry path$`, w.thenFailNamingLeafAndRegistry)
+	sc.Step(`^the record will not be able to name a read the path is forbidden to run$`, w.thenForbiddenReadFails)
 }
 
 // run evaluates the guard over the current fixture + sides, once.
 func (w *circleRoutingGuardWorld) run() {
-	w.violations = CheckCircleRoutingRule(ParseCircleRoutingRuleRecord(w.record), w.proposalProps, w.roleProps, w.liveTop, w.liveMe, w.liveTension)
+	w.violations = CheckCircleRoutingRule(ParseCircleRoutingRuleRecord(w.record), w.proposalProps, w.roleProps, w.liveTop, w.liveMe, w.liveTension, w.registry)
 	w.ran = true
 }
 
@@ -427,6 +455,24 @@ func (w *circleRoutingGuardWorld) whenCLIDropsTensionList() error {
 }
 
 func (w *circleRoutingGuardWorld) whenGuardRuns() error {
+	w.run()
+	return nil
+}
+
+// whenLeafAbsentFromRegistry models the record naming a read the drafting
+// registry does not carry: `me roles` is removed from the registry side while
+// the record keeps declaring it.
+func (w *circleRoutingGuardWorld) whenLeafAbsentFromRegistry() error {
+	var kept []string
+	for _, leaf := range w.registry {
+		if leaf != "me roles" {
+			kept = append(kept, leaf)
+		}
+	}
+	if len(kept) == len(w.registry) {
+		return fmt.Errorf("the registry did not carry %q; nothing to remove", "me roles")
+	}
+	w.registry = kept
 	w.run()
 	return nil
 }
@@ -631,6 +677,36 @@ func (w *circleRoutingGuardWorld) thenOtherLeavesUngated() error {
 	return nil
 }
 
+// thenFailNamingLeafAndRegistry asserts condition 7 fired naming the missing
+// leaf, the registry path, and both resolution paths.
+func (w *circleRoutingGuardWorld) thenFailNamingLeafAndRegistry() error {
+	w.ensureRan()
+	if len(w.violations) == 0 {
+		return fmt.Errorf("guard passed; expected condition 7 to fire")
+	}
+	if !strings.Contains(w.joined(), `"me roles"`) {
+		return fmt.Errorf("failure does not name the leaf: %s", w.joined())
+	}
+	if !strings.Contains(w.joined(), ProposalDraftingCommandsPath) {
+		return fmt.Errorf("failure does not name the registry path: %s", w.joined())
+	}
+	if !containsFold(w.joined(), "add it to the registry") || !containsFold(w.joined(), "drop it from the procedure") {
+		return fmt.Errorf("failure does not name both resolution paths: %s", w.joined())
+	}
+	return nil
+}
+
+// thenForbiddenReadFails asserts the direction the check exists for: a record
+// naming a read the path cannot run is a build failure, not a warning.
+func (w *circleRoutingGuardWorld) thenForbiddenReadFails() error {
+	for _, v := range w.violations {
+		if strings.Contains(v, "forbidden to run") {
+			return nil
+		}
+	}
+	return fmt.Errorf("no violation states the record must not name a read the path is forbidden to run: %v", w.violations)
+}
+
 // thenStrippedMarkerFailsGuard strips the leading marker from the real record
 // and runs the guard against the real sides — the marker's absence must
 // surface as a condition-3 violation.
@@ -640,7 +716,7 @@ func (w *circleRoutingGuardWorld) thenStrippedMarkerFailsGuard() error {
 		return fmt.Errorf("could not locate the document header to strip the marker")
 	}
 	stripped := ParseCircleRoutingRuleRecord(w.realRaw[idx:])
-	v := CheckCircleRoutingRule(stripped, w.proposalProps, w.roleProps, w.liveTop, w.liveMe, w.liveTension)
+	v := CheckCircleRoutingRule(stripped, w.proposalProps, w.roleProps, w.liveTop, w.liveMe, w.liveTension, w.registry)
 	for _, msg := range v {
 		if containsFold(msg, "marker") {
 			return nil
