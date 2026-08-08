@@ -27,7 +27,6 @@ Feature: Circle Routing Rule — guard enforcement
     # answer it.
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 8 (premise tripwire)
-    @wip
     Scenario: A circle parameter on the create request fails the build
       Given the record's premise cited "CreateProposalRequest.properties.proposal" as carrying no circle property
       When a spec refresh adds any property to that object beyond "tension_id" and "changes"
@@ -35,7 +34,6 @@ Feature: Circle Routing Rule — guard enforcement
       And the message will name re-deriving the rule or retiring the record as the two resolution paths
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 9 (classification anchors)
-    @wip
     Scenario: A dropped Role field fails at the section citing it
       Given the record cited "Role.has_subroles" as the circle indicator and "Role.parent_role_id" as the root signal
       When a spec refresh drops either field from the Role schema
@@ -43,7 +41,6 @@ Feature: Circle Routing Rule — guard enforcement
       And the message will name re-deriving the citation or retiring the record as the two resolution paths
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 5 (named-read integrity)
-    @wip
     Scenario: A named read the CLI no longer exposes fails the build
       Given the record named "tension list" in its named-reads block
       When the CLI drops or renames that subcommand
@@ -51,7 +48,6 @@ Feature: Circle Routing Rule — guard enforcement
       And the record will not be able to name a read the CLI no longer exposes
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 6 (unanchorable command path)
-    @wip
     Scenario: An unanchorable command path is reported rather than skipped
       Given the record named a read carrying a command path of three tokens
       When the guard resolves the named-reads block
@@ -59,7 +55,6 @@ Feature: Circle Routing Rule — guard enforcement
       And it will not silently skip the leaf it cannot anchor
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 7 (record ↔ registry agreement)
-    @wip
     Scenario: A named read missing from the composed registry fails the build
       Given the record named "me roles" in its named-reads block
       When that leaf is absent from the drafting path's composed-leaf registry
@@ -67,7 +62,6 @@ Feature: Circle Routing Rule — guard enforcement
       And the record will not be able to name a read the path is forbidden to run
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md conditions 1, 2, 4 (structural invariants)
-    @wip
     Scenario Outline: A structurally incomplete record fails the guard
       Given a record missing <element>
       When the guard evaluates the record
@@ -81,7 +75,6 @@ Feature: Circle Routing Rule — guard enforcement
         | the named-reads block  | that the record declares no reads |
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 3 (empirical marker)
-    @wip
     Scenario: A record without its empirical marker fails the build
       Given the record's landing behaviour was observed rather than published
       When the record is checked for its leading marker
@@ -89,7 +82,6 @@ Feature: Circle Routing Rule — guard enforcement
       And a record missing that marker will fail the guard
 
     # Source: 073-circle-routing-rule — Proposed: plan ADR-3 gated-membership posture preserved
-    @wip
     Scenario: Widening the composed surface leaves the gate posture unchanged
       Given the three routing reads joined the drafting path's composed surface
       When the gated-membership invariant is checked

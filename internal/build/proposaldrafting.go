@@ -20,8 +20,8 @@ import (
 // internal/build stays cli-free by deliberate convention (see
 // VersionInjectionTarget / operatororientation.go): the CLI's command surface is
 // matched as strings against the CLI sources (LiveTensionSubcommands,
-// LiveProposalSubcommands) rather than importing internal/cli and inverting the
-// dependency.
+// LiveProposalSubcommands, LiveTopLevelCommands, LiveMeSubcommands) rather than
+// importing internal/cli and inverting the dependency.
 
 // Repo-relative locations of the proposal-drafting-path artifacts (forward-slash;
 // joined through filepath so the reads are OS-agnostic).
@@ -146,48 +146,62 @@ const ProposalDraftingGatedWrite = "proposal create"
 // have diverged. Empty means truthful. Each finding names the offending leaf so a
 // CI failure points straight at it.
 //
-//	(a) every composed leaf must be a `tension <sub>` or `proposal <sub>` pair —
-//	    a leaf under any other group is reported, not silently accepted;
-//	(b) every composed leaf's subcommand must still exist on the matching CLI
-//	    command (tension leaves against liveTension, proposal leaves against
-//	    liveProposal) — else the artifacts name a command the CLI dropped or renamed;
+//	(a+b) every composed leaf must resolve on the shipped CLI through a four-way
+//	    leaf resolution (transplanted from 065's CheckConstraintDrift when 073
+//	    widened the composed surface to the three routing reads): a single-token
+//	    leaf against the top-level surface, a `me <sub>` leaf against the `me`
+//	    subcommands, and a `tension <sub>`/`proposal <sub>` leaf against the
+//	    matching group — with an unanchorable-default arm that REPORTS a command
+//	    path the guard cannot anchor rather than silently skipping it (no silent
+//	    caps); else the artifacts name a command the CLI dropped or renamed;
 //	(c) the gated-membership invariant, anchored on the one gated write
 //	    (ProposalDraftingGatedWrite): the write anchor is named in the composed
 //	    list AND is a member of 063's gated set (else the create ships
 //	    unconfirmed), and every OTHER composed leaf is absent from the gated set
-//	    (else a situating read would start prompting);
+//	    (else a read would start prompting);
 //	(d) the proposal-drafter agent must name every composed leaf — so the artifact
 //	    prose stays a genuine consumer of the single source and cannot silently
 //	    drop one.
-func CheckProposalDraftingDrift(composedLeaves, liveTension, liveProposal, gatedLeaves []string, agent string) []string {
+func CheckProposalDraftingDrift(composedLeaves, liveTop, liveMe, liveTension, liveProposal, gatedLeaves []string, agent string) []string {
 	var findings []string
 
 	liveByGroup := map[string]map[string]bool{
 		"tension":  setOf(liveTension),
 		"proposal": setOf(liveProposal),
 	}
+	topSet := setOf(liveTop)
+	meSet := setOf(liveMe)
 	gatedSet := setOf(gatedLeaves)
 	composedSet := setOf(composedLeaves)
 
 	for _, leaf := range composedLeaves {
 		fields := strings.Fields(leaf)
 
-		// (a) the composed set holds `tension <sub>` / `proposal <sub>` pairs only.
-		if len(fields) != 2 || (fields[0] != "tension" && fields[0] != "proposal") {
-			findings = append(findings, fmt.Sprintf("composed leaf %q is not a `tension <sub>` or `proposal <sub>` pair — an unexpected command must not enter the drafter's composed set (registry: %s)", leaf, ProposalDraftingCommandsPath))
+		// (a+b) four-way leaf resolution against the live surfaces, with the
+		// unanchorable default reporting rather than skipping.
+		switch {
+		case len(fields) == 1:
+			if !topSet[leaf] {
+				findings = append(findings, fmt.Sprintf("composed leaf %q no longer exists as a top-level command in the CLI — the drafting artifacts name a command the CLI dropped or renamed; fix the artifact or restore the command", leaf))
+			}
+		case len(fields) == 2 && fields[0] == "me":
+			if !meSet[fields[1]] {
+				findings = append(findings, fmt.Sprintf("composed leaf %q no longer exists as a subcommand of `me` in the CLI — the drafting artifacts name a command the CLI dropped or renamed; fix the artifact or restore the command", leaf))
+			}
+		case len(fields) == 2 && (fields[0] == "tension" || fields[0] == "proposal"):
+			if !liveByGroup[fields[0]][fields[1]] {
+				findings = append(findings, fmt.Sprintf("composed leaf %q no longer exists as a subcommand of the CLI's %s command — the drafting artifacts name a command the CLI dropped or renamed; fix the artifact or restore the command", leaf, fields[0]))
+			}
+		default:
+			findings = append(findings, fmt.Sprintf("composed leaf %q is a command path the drift guard cannot anchor (only top-level commands, `me <sub>`, `tension <sub>`, and `proposal <sub>` are supported) — extend the guard or fix the registry (registry: %s)", leaf, ProposalDraftingCommandsPath))
 			continue
 		}
 
-		// (b) the subcommand must still exist on the matching CLI command.
-		if !liveByGroup[fields[0]][fields[1]] {
-			findings = append(findings, fmt.Sprintf("composed leaf %q no longer exists as a subcommand of the CLI's %s command — the drafting artifacts name a command the CLI dropped or renamed; fix the artifact or restore the command", leaf, fields[0]))
-		}
-
 		// (c, read side) every composed leaf OTHER than the one gated write must be
-		// absent from 063's gated set — a situating read that entered the gated set
-		// would start prompting.
+		// absent from 063's gated set — a read that entered the gated set would
+		// start prompting.
 		if leaf != ProposalDraftingGatedWrite && gatedSet[leaf] {
-			findings = append(findings, fmt.Sprintf("composed leaf %q is a situating read but appears in 063's gated registry (%s) — situating would start prompting; remove it from the gated set", leaf, GatedRegistryPath))
+			findings = append(findings, fmt.Sprintf("composed leaf %q is a read but appears in 063's gated registry (%s) — a read would start prompting; remove it from the gated set", leaf, GatedRegistryPath))
 		}
 
 		// (d) the agent artifact must name every composed leaf — the prose is a
