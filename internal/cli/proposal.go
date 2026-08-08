@@ -154,7 +154,32 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 		if _, err := exec.Execute(cfg.reqCtx, req, &raw); err != nil {
 			return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 		}
-		doc, rerr := output.RenderSuccess(machineFmt, raw)
+		// Lift the created id by decoding a COPY of the retained bytes (074
+		// ADR-6): the raw bytes stay untouched for the verbatim emission — the
+		// machine path never re-marshals a server document (018). An undecodable
+		// create body was already classified above (Execute's decode validates
+		// the JSON), so a failed unmarshal here means valid JSON that is not a
+		// {data: Proposal} document: no id can be lifted, the helper
+		// short-circuits with the id-undeterminable reason, and the create's own
+		// document is emitted unchanged.
+		var created glassfrog.Document[glassfrog.Proposal]
+		id := ""
+		if err := json.Unmarshal(raw, &created); err == nil {
+			id = created.Data.ID
+		}
+		// Post-create read-back (074 ADR-1/ADR-2/ADR-5): when it answered, the
+		// EMITTED document is the read-back's — the later and richer of the two
+		// server documents, and the only one verified to carry the verdict fields
+		// inline. When it did not, the create's document is emitted exactly as
+		// today, and the structured advisory below states the verdict was
+		// unobtainable and why. Either way stdout carries ONE verbatim server
+		// document, no composed envelope, no CLI-added keys.
+		_, readBackRaw, reason := readBackProposalVerdict(cfg.reqCtx, exec, id)
+		emit := raw
+		if reason == "" && readBackRaw != nil {
+			emit = readBackRaw
+		}
+		doc, rerr := output.RenderSuccess(machineFmt, emit)
 		if rerr != nil {
 			// Buffer-then-write: a render failure leaves stdout empty and maps to
 			// RuntimeError(1). The error is token-free (018 contract).
@@ -162,6 +187,7 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 			return RuntimeError, rerr
 		}
 		_, _ = cfg.stdout.Write(doc)
+		writeMachineVerdictAdvisory(cfg.stderr, machineFmt, newVerdictSource(id, reason))
 		return Success, nil
 	}
 
@@ -253,6 +279,30 @@ func (v verdictSource) proseLine() string {
 		return "could not determine the created proposal's id from the create response, so no validity verdict was obtained; the create response is reported above"
 	}
 	return fmt.Sprintf("could not read proposal %s back to obtain its validity verdict: %s; the proposal was created — run %q to read its verdict", v.ProposalID, v.Reason, v.Remedy)
+}
+
+// writeMachineVerdictAdvisory writes the verdict advisory to stderr in the
+// SELECTED machine format (074 ADR-5, amended): {"verdict_source": {…}} rendered
+// through the same structured-render helper the success documents use, so an
+// agent parses the advisory the same way it parses stdout (032's format-aware
+// diagnostic principle). It rides stderr because stdout is occupied by the
+// server's own verbatim document — a CLI-owned diagnostic may have a CLI-owned
+// shape, and that shape never touches the verbatim stream (018). Best-effort by
+// design: the advisory must never become the command's failure (ADR-2), and its
+// payload is a locally-marshalled struct of plain strings, so the error paths
+// are unreachable in practice.
+func writeMachineVerdictAdvisory(stderr io.Writer, f output.Format, v verdictSource) {
+	payload, err := json.Marshal(struct {
+		VerdictSource verdictSource `json:"verdict_source"`
+	}{v})
+	if err != nil {
+		return
+	}
+	doc, err := output.RenderSuccess(f, payload)
+	if err != nil {
+		return
+	}
+	_, _ = stderr.Write(doc)
 }
 
 // readBackProposalVerdict performs the post-create read-back (074): ONE

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/render"
 )
 
@@ -430,6 +431,258 @@ func TestRunProposalCreate_HumanRenderFailureLeavesStdoutEmpty(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Errorf("a render failure must leave stdout empty, got %q", stdout)
+	}
+}
+
+// machineCreateOver drives a machine-format create over the scripted transport
+// and returns (outcome, stdout, stderr).
+func machineCreateOver(t *testing.T, format string, steps []proposalSeqStep) (Outcome, string, string) {
+	t.Helper()
+	tr := &proposalSeqTransport{steps: steps}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: format, transport: tr}}
+	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	return outcome, stdout, stderr
+}
+
+// TestRunProposalCreate_MachineEmitsReadBackVerbatim pins ADR-5's stdout
+// contract: on a successful read-back the emitted document is the READ-BACK's,
+// carrying valid, validation_alerts, and available_transitions as the server
+// sent them — and the bytes are the fixture's own, never re-marshalled (the
+// document equals what the shared structured renderer produces from the
+// fixture's exact bytes, key order preserved).
+func TestRunProposalCreate_MachineEmitsReadBackVerbatim(t *testing.T) {
+	outcome, stdout, stderr := machineCreateOver(t, "json", []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackBody},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	want, err := output.RenderSuccess(output.JSON, json.RawMessage(proposalReadBackBody))
+	if err != nil {
+		t.Fatalf("fixture render: %v", err)
+	}
+	if stdout != string(want) {
+		t.Errorf("stdout must be the read-back's document from its exact bytes:\n got: %s\nwant: %s", stdout, want)
+	}
+	var advisory struct {
+		VerdictSource struct {
+			ReadBack   bool    `json:"read_back"`
+			ProposalID string  `json:"proposal_id"`
+			Reason     *string `json:"reason"`
+			Remedy     *string `json:"remedy"`
+		} `json:"verdict_source"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &advisory); err != nil {
+		t.Fatalf("the machine advisory must be a JSON document, got %q: %v", stderr, err)
+	}
+	vs := advisory.VerdictSource
+	if !vs.ReadBack || vs.ProposalID != "prp_0123" {
+		t.Errorf("advisory = %+v, want read_back true with the proposal id", vs)
+	}
+	if vs.Reason != nil || vs.Remedy != nil {
+		t.Errorf("reason/remedy must be ABSENT when the read-back answered, got %+v", vs)
+	}
+}
+
+// TestRunProposalCreate_MachineFourStateTable pins that the four verdict states
+// are distinguishable from stdout's data.valid plus stderr's
+// verdict_source.read_back ALONE — no prose parsing (interface-cli's
+// four-state reading table).
+func TestRunProposalCreate_MachineFourStateTable(t *testing.T) {
+	type parsed struct {
+		validPresent bool
+		validValue   bool
+		readBack     bool
+		hasReason    bool
+	}
+	cases := []struct {
+		name     string
+		readBack proposalSeqStep
+		want     parsed
+	}{
+		{name: "valid", readBack: proposalSeqStep{status: 200, body: proposalReadBackValidBody},
+			want: parsed{validPresent: true, validValue: true, readBack: true}},
+		{name: "not valid", readBack: proposalSeqStep{status: 200, body: proposalReadBackBody},
+			want: parsed{validPresent: true, validValue: false, readBack: true}},
+		{name: "not reported", readBack: proposalSeqStep{status: 200, body: proposalCreatedBody},
+			want: parsed{readBack: true}},
+		{name: "unavailable", readBack: proposalSeqStep{netErr: errors.New("network unreachable")},
+			want: parsed{hasReason: true}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			outcome, stdout, stderr := machineCreateOver(t, "json", []proposalSeqStep{
+				{status: 201, body: proposalCreatedBody},
+				tc.readBack,
+			})
+			if outcome != Success {
+				t.Fatalf("outcome = %v, want Success in every verdict state", outcome)
+			}
+			var doc struct {
+				Data map[string]json.RawMessage `json:"data"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+				t.Fatalf("stdout must be one server document: %v", err)
+			}
+			validRaw, validPresent := doc.Data["valid"]
+			if validPresent != tc.want.validPresent {
+				t.Errorf("data.valid present = %v, want %v", validPresent, tc.want.validPresent)
+			}
+			if validPresent {
+				var v bool
+				if err := json.Unmarshal(validRaw, &v); err != nil || v != tc.want.validValue {
+					t.Errorf("data.valid = %s, want %v", validRaw, tc.want.validValue)
+				}
+			}
+			var advisory struct {
+				VerdictSource struct {
+					ReadBack bool    `json:"read_back"`
+					Reason   *string `json:"reason"`
+				} `json:"verdict_source"`
+			}
+			if err := json.Unmarshal([]byte(stderr), &advisory); err != nil {
+				t.Fatalf("stderr advisory must be structured in a machine format: %v", err)
+			}
+			if advisory.VerdictSource.ReadBack != tc.want.readBack {
+				t.Errorf("verdict_source.read_back = %v, want %v", advisory.VerdictSource.ReadBack, tc.want.readBack)
+			}
+			if (advisory.VerdictSource.Reason != nil) != tc.want.hasReason {
+				t.Errorf("verdict_source.reason present = %v, want %v", advisory.VerdictSource.Reason != nil, tc.want.hasReason)
+			}
+		})
+	}
+}
+
+// TestRunProposalCreate_MachineFailedReadBackFallsBack pins the fallback: on a
+// failed read-back the emitted document is the CREATE's, unchanged from today,
+// and the structured advisory states the verdict was unobtainable, why, and the
+// remedy.
+func TestRunProposalCreate_MachineFailedReadBackFallsBack(t *testing.T) {
+	outcome, stdout, stderr := machineCreateOver(t, "json", []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 429, body: `{}`},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success — a rate-limited read-back is never the command's failure", outcome)
+	}
+	want, err := output.RenderSuccess(output.JSON, json.RawMessage(proposalCreatedBody))
+	if err != nil {
+		t.Fatalf("fixture render: %v", err)
+	}
+	if stdout != string(want) {
+		t.Errorf("stdout must fall back to the create's document:\n got: %s\nwant: %s", stdout, want)
+	}
+	// 017's retry notices precede the advisory on stderr (a 429 GET is retried);
+	// the advisory is the structured document that follows them.
+	docStart := strings.Index(stderr, "{")
+	if docStart < 0 {
+		t.Fatalf("no structured advisory on stderr:\n%s", stderr)
+	}
+	var advisory struct {
+		VerdictSource verdictSource `json:"verdict_source"`
+	}
+	if err := json.Unmarshal([]byte(stderr[docStart:]), &advisory); err != nil {
+		t.Fatalf("advisory decode: %v\nstderr: %s", err, stderr)
+	}
+	vs := advisory.VerdictSource
+	if vs.ReadBack {
+		t.Error("read_back must be false when the read-back failed")
+	}
+	if vs.ProposalID != "prp_0123" {
+		t.Errorf("proposal_id = %q, want prp_0123", vs.ProposalID)
+	}
+	if vs.Reason != "the read-back was rate limited (the request budget was exhausted)" {
+		t.Errorf("reason = %q", vs.Reason)
+	}
+	if vs.Remedy != "glassfrog proposal get prp_0123" {
+		t.Errorf("remedy = %q", vs.Remedy)
+	}
+}
+
+// TestRunProposalCreate_MachineNoIDNoReadBack pins ADR-6's unliftable-id twin: a
+// 2xx create body carrying no prp_ id emits the create's document, issues NO
+// read-back request, and reports the id-undeterminable reason with no
+// proposal_id and no remedy key (absent means not applicable, never "").
+func TestRunProposalCreate_MachineNoIDNoReadBack(t *testing.T) {
+	noIDBody := `{"data":{"type":"proposal","status":"draft"}}`
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{{status: 201, body: noIDBody}}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: "json", transport: tr}}
+	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	if tr.calls != 1 {
+		t.Errorf("an id-less create body must issue no read-back, got %d calls", tr.calls)
+	}
+	want, _ := output.RenderSuccess(output.JSON, json.RawMessage(noIDBody))
+	if stdout != string(want) {
+		t.Errorf("stdout must be the create's document:\n got: %s\nwant: %s", stdout, want)
+	}
+	var advisory map[string]map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(stderr), &advisory); err != nil {
+		t.Fatalf("advisory decode: %v", err)
+	}
+	vs := advisory["verdict_source"]
+	if string(vs["read_back"]) != "false" {
+		t.Errorf("read_back = %s, want false", vs["read_back"])
+	}
+	var reason string
+	if err := json.Unmarshal(vs["reason"], &reason); err != nil || reason != "the created proposal's id could not be determined" {
+		t.Errorf("reason = %s", vs["reason"])
+	}
+	for _, absent := range []string{"proposal_id", "remedy"} {
+		if _, present := vs[absent]; present {
+			t.Errorf("%s must be ABSENT when no id could be determined, got %s", absent, vs[absent])
+		}
+	}
+}
+
+// TestRunProposalCreate_MachineYAML pins the yaml selection: the emitted stdout
+// document and the stderr advisory are both rendered in the selected format.
+func TestRunProposalCreate_MachineYAML(t *testing.T) {
+	outcome, stdout, stderr := machineCreateOver(t, "yaml", []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackBody},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	want, err := output.RenderSuccess(output.YAML, json.RawMessage(proposalReadBackBody))
+	if err != nil {
+		t.Fatalf("fixture render: %v", err)
+	}
+	if stdout != string(want) {
+		t.Errorf("yaml stdout must be the read-back's document:\n got: %s\nwant: %s", stdout, want)
+	}
+	for _, wantLine := range []string{"read_back: true", "proposal_id: prp_0123"} {
+		if !strings.Contains(stderr, wantLine) {
+			t.Errorf("yaml advisory missing %q:\n%s", wantLine, stderr)
+		}
+	}
+}
+
+// TestRunProposalCreate_MachineUndecodableCreateBody pins that an undecodable
+// create body still classifies as an API error for the CREATE (031's decode
+// classification, unchanged) — and no read-back is attempted for it.
+func TestRunProposalCreate_MachineUndecodableCreateBody(t *testing.T) {
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{{status: 201, body: `{"data": not-json`}}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: "json", transport: tr}}
+	outcome, _, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError for an undecodable create body", outcome)
+	}
+	if tr.calls != 1 {
+		t.Errorf("no read-back may follow an undecodable create body, got %d calls", tr.calls)
 	}
 }
 

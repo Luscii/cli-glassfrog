@@ -116,7 +116,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: A valid created draft reports its verdict with its id", "Scenario: A created-but-invalid draft surfaces the server's refusal", "Scenario: A draft the server states no verdict on is reported as unreported", "Scenario: A valid draft with no transitions keeps the two facts distinct", "Scenario: A conflicted status and a favourable verdict are both reported as given", "Scenario: A valid draft carrying an advisory alert reports both facts", "Scenario: The compact line carries the validity token", "Scenario: A user template written before the verdict still renders"
   - **Interface references**: `interface-cli.md`: "The four verdict states", "stderr"
 
-- [ ] **T006** [US2] [P] Wire the read-back into the create's machine render path
+- [x] **T006** [US2] [P] Wire the read-back into the create's machine render path — 6 tests added incl. the four-case table, fixture-exact-bytes emission, json+yaml, and the no-id / undecodable-body twins
   - **Scope**: `internal/cli/proposal.go` — in `runProposalCreate`'s machine arm: keep the create's raw bytes untouched, unmarshal a copy into `Document[Proposal]` to lift the id, call the helper, and emit the **read-back's** raw `{data}` verbatim — falling back to the create's raw when no read-back produced a body. Write the stderr advisory. No composed envelope and no CLI-added keys.
   - **Acceptance criteria**:
     - On a successful read-back the emitted document is the read-back's, carrying `valid`, `validation_alerts`, and `available_transitions` as the server sent them
