@@ -153,7 +153,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
   - **Scenario references**: circle-routing-guard.feature: "A named read missing from the composed registry fails the build"
   - **Interface references**: interface-spec.md § Error Communication (condition 7 and its stated reverse-direction partiality)
 
-- [ ] **T006** [US3] Re-validate 067 against the widened drafter fence
+- [x] **T006** [US3] Re-validate 067 against the widened drafter fence — no scenario; 4 pinned assertions re-derived in 067 validate.md, invariants confirmed unchanged, re-validation addendum appended; 067 STATUS row stays Complete
   - **Scope**: Re-run 067's validation against the changed `plugin/agents/proposal-drafter.md` command fence and re-examine its STATUS row. This is not a re-implementation — it is confirming that 067's pinned invariants still hold, and recording where they now read differently. No new behaviour.
   - **Acceptance criteria**:
     - 067's validation assertions about the drafter's composed-command fence are re-run against the widened list, and any that pinned the four-leaf list verbatim are updated to the seven-leaf list — **by re-deriving the property each assertion encodes** (the fence permits exactly the path's composed leaves and no others), not by pasting the new list over the old expectation
