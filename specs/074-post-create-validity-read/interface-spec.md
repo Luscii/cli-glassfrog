@@ -83,10 +83,22 @@ type ProposalCreatedView struct {
 // truthy and would render a pointer-to-false as valid. Validity is a label for
 // ONE dimension, not a roll-up — Alerts render separately, and available
 // transitions stay a line of the shared body.
+//
+// Validity and Compact are two renderings of the SAME four states, both produced
+// here so the state vocabulary is single-sourced (plan § Verdict Assembly: the
+// compact format carries "a short verdict token and an alert count"). They are not
+// interchangeable: the full block can afford the server's reason text, and a
+// compact one-liner cannot — appending an arbitrarily long server-derived reason
+// behind a 36-character id would destroy the one-line contract.
 type ProposalVerdict struct {
-	// Validity is one of: "valid", "not valid", "not reported by the server",
-	// or "unavailable — <reason>".
+	// Validity is the `full` block's label: one of "valid", "not valid",
+	// "not reported by the server", or "unavailable — <reason>".
 	Validity string
+	// Compact is the compact line's label: one of "valid", "not valid",
+	// "validity not reported", or "validity unavailable", with " (N alert(s))"
+	// appended when the server stated at least one alert — in EITHER validity
+	// state, so a favourable verdict carrying an advisory alert stays visible.
+	Compact string
 	// Alerts is what the server stated; empty renders no alerts block.
 	Alerts []glassfrog.ValidationAlert
 	// Source is the provenance line's value: the read-back it came from, or an
@@ -95,10 +107,11 @@ type ProposalVerdict struct {
 }
 
 // NewProposalVerdict maps the decoded tri-state (valid pointer, alerts, and an
-// unavailable reason) onto the display labels. It is the SINGLE source of the
-// label vocabulary — the cli package never hand-builds these strings. A non-empty
-// unavailableReason wins: no validity is claimed and no alerts are carried,
-// because none were stated by the server.
+// unavailable reason) onto the display labels. It is the SINGLE source of BOTH
+// label vocabularies — the cli package never hand-builds these strings, and no
+// template composes one from parts. A non-empty unavailableReason wins: no
+// validity is claimed and no alerts are carried, because none were stated by the
+// server, so neither label ever carries an alert count in that state.
 func NewProposalVerdict(valid *bool, alerts []glassfrog.ValidationAlert, unavailableReason string, id string) ProposalVerdict
 ```
 
@@ -114,7 +127,7 @@ Template files, both rendering the body through the shared template from the sin
 
 ```gotemplate
 {{/* proposal-created.compact.tmpl */}}
-{{template "proposal.compact.tmpl" .}}  {{.Verdict.Validity}}
+{{template "proposal.compact.tmpl" .}}  {{.Verdict.Compact}}
 ```
 
 **Unchanged**: `proposal.full.tmpl`, `proposal.compact.tmpl`, `ProposalView`, `ResourceProposal`, `funcMap`, `Render`, `RenderError`, and every other resource key. No conditional verdict line is added to the shared templates — that is the leak ADR-4 exists to prevent.

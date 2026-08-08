@@ -56,6 +56,8 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scope**: `internal/render/render.go` — add `ProposalCreatedView` (embedding the existing `ProposalView`, plus a `Verdict` field), `ProposalVerdict` (`Validity`, `Alerts`, `Source`), and the pure `NewProposalVerdict(valid *bool, alerts, unavailableReason, id)` mapping. This is the single source of the four state labels; no other package composes them.
   - **Acceptance criteria**:
     - `NewProposalVerdict` maps a non-nil true to `valid`, a non-nil false to `not valid`, nil to `not reported by the server`, and a non-empty reason to `unavailable — <reason>`
+    - The same call produces the **compact** label for the same four states — `valid`, `not valid`, `validity not reported`, `validity unavailable` — so both vocabularies have one source and cannot drift
+    - The compact label appends ` (N alert(s))` whenever the server stated at least one alert, in **either** validity state; the full label never carries an alert count
     - A non-empty reason wins over any flag value, and carries no alerts — nothing is claimed that the server did not state
     - `Source` names the read-back and the proposal id when a verdict was obtained, and states that none was obtained otherwise
     - The function is pure: no I/O, no clock, no package-level state, and it is tested without a template or a server
@@ -69,7 +71,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Acceptance criteria**:
     - The full template renders the shared body followed by the `Validity` line, an `Alerts (N):` block only when alerts are present, and the `Verdict source:` line — labels aligned to the existing 16-column field
     - Each alert line renders its severity, path, and the server's message verbatim
-    - The compact template renders the shared compact line plus the validity token; transitions stay absent from compact, as today
+    - The compact template renders the shared compact line plus `.Verdict.Compact` — not the full block's `Validity`, which would put the server's reason text on a one-liner; transitions stay absent from compact, as today
     - All four verdict states render distinctly in both formats
     - A **valid** verdict carrying an alert renders both facts — the validity as `valid` and the alert with its severity, path, and message — so alert presence never reads as an unfavourable verdict
     - `proposal`-keyed output for the same proposal is asserted byte-identical to its current rendering — this is the guard against verdict lines leaking into `proposal get`, `propose`, and `withdraw`
@@ -107,7 +109,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
     - In a human format the advisory is the prose line; the prose and the structured form are derived from one value, so they cannot disagree about whether the CLI asked
     - The pre-request rejection paths are unchanged: a missing/blank/unparseable/type-less `--changes` and a bad `--output` still issue zero requests
     - A user-supplied template written against the pre-change view still renders — every field path that resolved before still resolves, and its output is unchanged by the verdict's addition
-    - The `compact` selection carries the id, status, change count, validity token, and alert count on one line
+    - The `compact` selection carries the id, status, change count, the compact validity label, and the alert count on one line
     - A render failure still maps to the internal-error code with stdout left empty
   - **Dependencies**: T003, T004
   - **Plan reference**: Phase 3: Read-back orchestration; ADR-2, ADR-4

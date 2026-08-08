@@ -17,11 +17,13 @@ This accord pins what a caller of `glassfrog proposal create` sees after this fe
 
 ```
 glassfrog proposal create <tension-id> --changes <json-array|file-path|stdin>
-                                       [--output <json|yaml|path-to-template>]
+                                       [--output <full|compact|json|yaml|stdin|path-to-template>]
                                        [--base-url <url>]
 ```
 
 No flag is added, removed, or renamed by this feature. In particular there is **no** `--no-verify`, `--skip-verdict`, `--verify`, or equivalent: the spec forbids an opt-out of the read-back, so the surface offers none. `--changes` remains required with its three sources (reserved keyword `stdin`, an existing regular file, inline JSON); `--output` and `--base-url` remain the inherited persistent flags.
+
+`--output` accepts the four reserved format tokens (`full`, `compact`, `json`, `yaml` — any casing), the reserved `stdin` for a template read from standard input, or any other value as a template file path (035). All six forms are listed above because this accord specifies output for **each** of them, and the compact section below documents rendering under a token the synopsis must therefore name.
 
 What changes is **what the command prints on success**, and that on the success path it performs a second server exchange.
 
@@ -81,13 +83,27 @@ When the verdict is unavailable, no `Alerts` block is printed — there are no s
 
 ### stdout — human `compact` format
 
-One line, as today, with the validity token appended. Transitions were never in the compact line and are not added here — `compact`'s contract is a scannable summary, and the load-bearing signal (validity) is what this feature adds to it.
+One line, as today, with a **compact validity label** appended. Transitions were never in the compact line and are not added here — `compact`'s contract is a scannable summary, and the load-bearing signal (validity) is what this feature adds to it.
+
+The compact label is a **distinct, shorter rendering of the same four states**, not the `full` block's `Validity` value:
+
+| State | `full` block's `Validity` | compact label |
+|---|---|---|
+| valid | `valid` | `valid` |
+| not valid | `not valid` | `not valid` |
+| not reported | `not reported by the server` | `validity not reported` |
+| unavailable | `unavailable — <reason>` | `validity unavailable` |
+
+`(N alert(s))` is appended whenever the server stated at least one alert, in **either** validity state — so a favourable verdict carrying an advisory alert is visible on the compact line too.
+
+Both labels come from the one mapping function (`interface-spec.md` § Surface), so the four state words are single-sourced and cannot drift apart. What differs is only how much each format spends on them: `full` carries the server's reason text, `compact` cannot — appending an arbitrarily long server-derived reason behind a 36-character id would destroy the one-line contract this section exists to keep.
 
 The id is rendered in full, as the shared compact template already renders it — the examples below are not eliding it.
 
 ```
 prp_5e647e6847b74d0aa1b0bd5c2e2f9a11  [draft]  1 change(s)  0 responses  valid
 prp_c76cdbf1a2934e5d8b7a6c5d4e3f2a1b  [draft]  1 change(s)  0 responses  not valid (1 alert)
+prp_9f8e7d6c5b4a39281706f5e4d3c2b1a0  [draft]  1 change(s)  0 responses  valid (1 alert)
 prp_a1b2c3d4e5f6708192a3b4c5d6e7f801  [draft]  2 change(s)  0 responses  validity not reported
 prp_e5f6071829a3b4c5d6e7f80192a3b4c5  [draft]  1 change(s)  0 responses  validity unavailable
 ```
@@ -254,4 +270,4 @@ Unchanged in every respect. The failure renders through the shared format-aware 
 - **045 (Tension Discard)** is the precedent for a stderr advisory that disambiguates otherwise-indistinguishable success outcomes; the provenance line follows it. **059 (Withdraw Proposal)** deliberately added *no* advisory because it had one success outcome — the contrast is exactly the point: this command now has four.
 - **018 / 020 / 035** are upheld unchanged: a machine format emits one server document verbatim, format selection is resolved before any request, and a user template renders over the command's view. The verdict never introduces a CLI-composed JSON shape.
 - **Exit-code convention (004, extended by 054 to 0–7)**: this feature adds nothing to the registry. The "0–6" band in the older header comment is already stale at `codeStaleWrite = 7`; nothing here depends on that comment.
-- **Vocabulary**: the four state words (`valid`, `not valid`, `not reported`, `unavailable`) are the same in the compact line, the full block, and the stderr advisory. They are presentation labels for one dimension — validity — and are not a roll-up of alerts or transitions, which stay separately rendered.
+- **Vocabulary**: the four state words (`valid`, `not valid`, `not reported`, `unavailable`) are the same in the compact line, the full block, and the stderr advisory. The `full` and compact **renderings** of those states differ in length — `full` carries the server's reason, compact carries an alert count instead — but both are produced by the one mapping function, so the states themselves cannot diverge. They are presentation labels for one dimension, validity, and are not a roll-up of alerts or transitions, which stay separately rendered.
