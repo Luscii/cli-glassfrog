@@ -40,7 +40,7 @@ Feature: Circle Routing Rule — guard enforcement
       Given the record cited "Role.has_subroles" as the circle indicator and "Role.parent_role_id" as the root signal
       When a spec refresh drops either field from the Role schema
       Then the guard will fail naming the missing field and the section citing it
-      And the message will name re-deriving the citation as the resolution path
+      And the message will name re-deriving the citation or retiring the record as the two resolution paths
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md condition 5 (named-read integrity)
     @wip

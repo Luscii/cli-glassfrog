@@ -113,7 +113,9 @@ The trigger is **premise dissolution** — proposal create gaining a circle para
 
 ## Error Communication
 
-The guard is the record's only enforcement surface. Each violation fails the build loudly, naming the invariant, the offending element, **and which resolution path applies** — the design admits exactly two legitimate answers to a premise or citation failure (re-derive against the changed contract, or retire the record), so the message says which rather than leaving the reader to infer it (plan ADR-4). Never silently, never partially.
+The guard is the record's only enforcement surface. Each violation fails the build loudly, naming the invariant, the offending element, **and which resolution path applies**, rather than leaving the reader to infer it (plan ADR-4). Never silently, never partially.
+
+The conditions that check the record **against the published contract** — the premise tripwire and the classification anchors — admit exactly two legitimate answers: **re-derive against the changed contract, or retire the record**. Retirement is always whole-record (plan ADR-5); no condition is ever resolved by deleting a required element from the record, because a record missing a required element fails conditions 1, 2, or 4 instead. The remaining conditions check the record's internal consistency or its agreement with the shipped CLI, and their resolution paths differ accordingly.
 
 | # | Condition | Failure message names | Resolution path named |
 |---|---|---|---|
@@ -125,7 +127,7 @@ The guard is the record's only enforcement surface. Each violation fails the bui
 | 6 | A named read carries a command path the guard cannot anchor | the leaf and the supported forms | Extend the guard or fix the record — never skipped silently |
 | 7 | A named read is absent from `proposal-drafting-commands.txt` | the leaf and the registry path | Add it to the registry (and the agent fence), or drop it from the procedure — the record must not name a read the path is forbidden to run |
 | 8 | `CreateProposalRequest.properties.proposal`'s property set is not exactly `{tension_id, changes}` | both sets, so the added or removed property is readable from the failure | **Re-derive the rule against the new parameter, or retire the record** — a circle parameter dissolves the premise |
-| 9 | `has_subroles` or `parent_role_id` is absent from the `Role` schema | the missing field and the section citing it | Re-derive the citation, or retire the affected field |
+| 9 | `has_subroles` or `parent_role_id` is absent from the `Role` schema | the missing field and the section citing it | **Re-derive the citation against the new anchor, or retire the record** — if the contract can no longer distinguish a circle from a role, the classification test cannot be performed at all |
 
 Condition 8 is the **premise tripwire** and is deliberately a set-equality on the whole property set rather than a search for circle-like key names: a circle parameter could arrive under any spelling, and a name-matching check would miss exactly the change that matters.
 
