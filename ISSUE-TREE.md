@@ -150,3 +150,8 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: AI agent
     + related-to: Organizational Conversation Out of Reach
     + candidate: Gate Scope Decision — decide deliberately whether the write-safety gate widens to cover non-governance writes or states its governance-only boundary explicitly, rather than letting the gap open by omission
+  * Call Shapes Not Packaged — the operating surface pins which commands an agent may run but never how to call them, so every path run interrogates the CLI for each leaf's flags before it can do any work, and the flag knowledge is the one part of the composed surface nothing regenerates on change
+    + affects: AI agent
+    + affects: Maintainer
+    + related-to: Nothing Learned Is Kept
+    + candidate: Generated Call-Shape Snapshot — derive each composed leaf's call shape from the CLI binary being shipped into a co-located generated artifact the agents read instead of asking `--help`, with a drift guard that regenerates and fails on divergence, so flag knowledge becomes exactly as guarded as the command names already are
