@@ -244,7 +244,7 @@ Grounded in the Glassfrog API v5 spec (`spec/glassfrog-api-v5.yaml`): the `403` 
 
 A thin operator layer over the CLI — packaged operating knowledge, operator paths for governance work, and a write-safety guardrail — delivered as a repo-shipped plugin (its own marketplace). It adds no API capability of its own: every path is a guided composition of CLI capabilities that already exist, so its capabilities reach across solutions via `depends-on`. Reflects PROJECT scope "Agent operating surface" and honors VISION Exclusion 2 plus the "knowledge + guardrails, never capability" constraint. Holacracy-practice fluency was deliberately excluded (a separate plugin's concern).
 
-- Operator Orientation — the Claude plugin definition (manifest + orientation skill content) plus packaged knowledge of how to drive the CLI: output formats for parsing, pagination, exit-code reactions, credential setup, and write-safety guidance, pointing at the CLI's own help for per-command detail, so the agent operates it correctly without rediscovery
+- Operator Orientation — the Claude plugin definition (manifest + orientation skill content) plus packaged knowledge of how to drive the CLI: output formats for parsing, pagination, exit-code reactions, credential setup, and write-safety guidance, so the agent operates it correctly without rediscovery; a composed leaf's call shape comes from the generated call-shape artifact rather than the CLI's own help, which orientation keeps for usage-error recovery and credential setup only
 - Write-Safety Guardrail — enforce governance integrity at the operator layer: gate every command that writes to the governance record (tension capture, proposals, responses) behind explicit confirmation, and handle a stale-write refusal (412) by re-reading and re-confirming, never blind retry (VISION principle 2)
   + depends-on: Operator Orientation
   + depends-on: Stale-Write Surfacing
@@ -369,6 +369,23 @@ Grounded in recorded fact F1: `tension create` refuses whenever `--label` or `--
 - Capture-Then-Update Guidance — when a detail cannot be set at capture, name the working path in the refusal itself rather than passing through a length-rule message that misdescribes the cause
   + depends-on: Diagnostic Normalization
   + depends-on: Capture-Time Detail Flags
+
+## Generated Call-Shape Snapshot
+> Problem: Call Shapes Not Packaged — the operating surface pins which commands an agent may run but never how to call them, so every path run interrogates the CLI for each leaf's flags before it can do any work (affects: AI agent, Maintainer)
+
+Closes the gap between guarded command names and unguarded call shapes. The composed-leaf registries pin which commands each path may run and the build guards verify those names still resolve, but nothing has ever asserted *how* to call them — so the agents ask the CLI at runtime, on every run. Because the plugin ships from the same repo as the CLI source, the shape can be derived from the binary being shipped and verified by the same build that verifies the names. This *extends* the surface's own invariant — no artifact asserts what no guard checks — rather than weakening it: the artifact exists only because a guard regenerates and verifies it, so a hand-maintained flags document would be a regression, not a shortcut. Grounded in a live tension-processing run on 2026-08-07 that spent three of eight tool uses on per-leaf help calls before doing any work.
+
+- Call-Shape Generation — derive each composed leaf's invocation shape from the CLI being shipped and write it into a co-located generated artifact, normalized to carry flags, arguments, and defaults rather than rendering noise
+  + produces: co-located call-shape artifact (per-path or shared — open)
+- Call-Shape Drift Guard — regenerate the artifact from the shipped CLI during the build and fail on any divergence, so a flag change that skips regeneration turns the build red, without entangling the names-only registries or the gated/ungated disjointness check they feed
+  + depends-on: Call-Shape Generation
+  + consumes: co-located call-shape artifact
+- Snapshot-Backed Leaf Invocation — the path agents take each leaf's flags from the generated artifact instead of interrogating the CLI per run, with a stated behaviour when the artifact is unreadable, and the artifact stays legible to a practitioner following a path by hand
+  + depends-on: Call-Shape Generation
+  + consumes: co-located call-shape artifact
+- Discovery-Guidance Retirement — retire the per-leaf "ask the CLI for its flags" instruction across the plugin's declarative artifacts while preserving the `--help` guidance that is not per-leaf discovery: usage-error recovery, credential setup, and the flag-not-subcommand fact
+  + depends-on: Snapshot-Backed Leaf Invocation
+  + depends-on: Operator Orientation
 
 ## Shared
 - Change-Set Grammar Facts — the single recorded source of the change-set shapes the published contract does **not** carry: the own-circle policy shape, and the self-targeting role update the server accepts at create but returns invalid with no transitions, each with the symptom it produces — narrowed once the spec began enumerating the change types and stating the nested-only rule, which this cites rather than restates
