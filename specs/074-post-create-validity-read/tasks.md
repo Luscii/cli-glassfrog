@@ -52,7 +52,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 2: Create-specific render path [Shared]
 
-- [ ] **T002** [Shared] Add the created-proposal view, the verdict projection, and the label mapping
+- [x] **T002** [Shared] Add the created-proposal view, the verdict projection, and the label mapping — 6 tests added, all 147 render tests pass
   - **Scope**: `internal/render/render.go` — add `ProposalCreatedView` (embedding the existing `ProposalView`, plus a `Verdict` field), `ProposalVerdict` (`Validity`, `Alerts`, `Source`), and the pure `NewProposalVerdict(valid *bool, alerts, unavailableReason, id)` mapping. This is the single source of the four state labels; no other package composes them.
   - **Acceptance criteria**:
     - `NewProposalVerdict` maps a non-nil true to `valid`, a non-nil false to `not valid`, nil to `not reported by the server`, and a non-empty reason to `unavailable — <reason>`

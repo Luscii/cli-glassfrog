@@ -209,6 +209,84 @@ type ProposalVoteView struct {
 	ProposalVote glassfrog.ProposalVote
 }
 
+// ProposalCreatedView is the data the `proposal-created` templates (074) render:
+// the created proposal PLUS the server's verdict read back from getProposal. It
+// EMBEDS ProposalView, so every field path an existing user template (035) could
+// reference on the create — .Proposal.ID, .Proposal.Status, … — still resolves
+// through Go's field promotion, and the invoked shared template finds .Proposal
+// unchanged. Verdict is a value (not a pointer) because missingkey=error is in
+// force: there is no nil case to guard in the template.
+type ProposalCreatedView struct {
+	ProposalView
+	Verdict ProposalVerdict
+}
+
+// ProposalVerdict is the RENDER projection of the server's verdict (074): display
+// labels resolved in Go, because text/template treats any non-nil pointer as
+// truthy and would render a pointer-to-false as valid. Validity is a label for
+// ONE dimension, not a roll-up — Alerts render separately, and available
+// transitions stay a line of the shared body.
+//
+// Validity and Compact are two renderings of the SAME four states, both produced
+// here so the state vocabulary is single-sourced (plan § Verdict Assembly: the
+// compact format carries "a short verdict token and an alert count"). They are not
+// interchangeable: the full block can afford the server's reason text, and a
+// compact one-liner cannot — appending an arbitrarily long server-derived reason
+// behind a 36-character id would destroy the one-line contract.
+type ProposalVerdict struct {
+	// Validity is the `full` block's label: one of "valid", "not valid",
+	// "not reported by the server", or "unavailable — <reason>".
+	Validity string
+	// Compact is the compact line's label: one of "valid", "not valid",
+	// "validity not reported", or "validity unavailable", with " (N alert(s))"
+	// appended when the server stated at least one alert — in EITHER validity
+	// state, so a favourable verdict carrying an advisory alert stays visible.
+	Compact string
+	// Alerts is what the server stated; empty renders no alerts block.
+	Alerts []glassfrog.ValidationAlert
+	// Source is the provenance line's value: the read-back it came from, or an
+	// explicit statement that no verdict was obtained.
+	Source string
+}
+
+// NewProposalVerdict maps the decoded tri-state (valid pointer, alerts, and an
+// unavailable reason) onto the display labels. It is the SINGLE source of BOTH
+// label vocabularies — the cli package never hand-builds these strings, and no
+// template composes one from parts. A non-empty unavailableReason wins: no
+// validity is claimed and no alerts are carried, because none were stated by the
+// server, so neither label ever carries an alert count in that state. The
+// function is pure: no I/O, no clock, no package-level state.
+func NewProposalVerdict(valid *bool, alerts []glassfrog.ValidationAlert, unavailableReason string, id string) ProposalVerdict {
+	if unavailableReason != "" {
+		return ProposalVerdict{
+			Validity: "unavailable — " + unavailableReason,
+			Compact:  "validity unavailable",
+			Source:   "none — the created proposal is reported from the create response",
+		}
+	}
+	v := ProposalVerdict{
+		Alerts: alerts,
+		Source: "read-back of " + id + " after create",
+	}
+	switch {
+	case valid == nil:
+		v.Validity = "not reported by the server"
+		v.Compact = "validity not reported"
+	case *valid:
+		v.Validity = "valid"
+		v.Compact = "valid"
+	default:
+		v.Validity = "not valid"
+		v.Compact = "not valid"
+	}
+	if n := len(alerts); n == 1 {
+		v.Compact += " (1 alert)"
+	} else if n > 1 {
+		v.Compact += fmt.Sprintf(" (%d alerts)", n)
+	}
+	return v
+}
+
 // TensionsView is the data the role-scoped `tensions` list templates (043) render:
 // the tensions a role carries, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — the plural list sibling
