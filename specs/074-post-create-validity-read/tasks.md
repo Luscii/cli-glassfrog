@@ -35,7 +35,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 1: Verdict model [Shared]
 
-- [ ] **T001** [Shared] Add the verdict fields and the `ValidationAlert` type to the shared proposal model
+- [x] **T001** [Shared] Add the verdict fields and the `ValidationAlert` type to the shared proposal model — 4 decode tests added, all 71 model tests pass, gofmt clean
   - **Scope**: `internal/glassfrog/proposal.go` — add `Valid *bool` and `ValidationAlerts []ValidationAlert` to the existing `Proposal` struct, and the new `ValidationAlert` type (`Severity`, `Path`, `Message`, each snake_case-tagged). Comments carry why the pointer deviates from the codebase's nullable-as-empty-string convention and that both fields are undeclared in the vendored contract. No method that summarises the verdict is added.
   - **Acceptance criteria**:
     - `valid: true`, `valid: false`, and an absent `valid` decode to a non-nil true, a non-nil false, and nil respectively — asserted as three distinct cases

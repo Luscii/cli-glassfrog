@@ -35,12 +35,42 @@ type Proposal struct {
 	ResponseSummary       ResponseSummary  `json:"response_summary"`
 	ExpectedResponseCount int              `json:"expected_response_count"`
 	ReceivedResponseCount int              `json:"received_response_count"`
-	AvailableTransitions  []string         `json:"available_transitions"`
-	ProposedAt            string           `json:"proposed_at"`
-	ResponseDeadline      string           `json:"response_deadline"`
-	AcceptedAt            string           `json:"accepted_at"`
-	CreatedAt             string           `json:"created_at"`
-	UpdatedAt             string           `json:"updated_at"`
+
+	// Valid is the server's own verdict on this proposal. It is a POINTER, not a
+	// bool — a deliberate divergence from the model's nullable-as-empty-string
+	// convention (TensionID, Tension.RoleID): an empty string stands in fine for
+	// an absent id because no id is ever legitimately empty, whereas `false` is a
+	// legitimate value of valid, so the absent case needs its own representation.
+	// The field is NOT declared in spec/glassfrog-api-v5.yaml, so it may be
+	// absent; nil means the server stated no verdict — it never means valid and
+	// never means invalid. Observed carried by getProposal and NOT by
+	// listProposals (074 probe).
+	Valid *bool `json:"valid"`
+
+	// ValidationAlerts carries the server's blocking and advisory alerts on this
+	// proposal. Also undeclared in the vendored contract. A nil slice means the
+	// key was absent or null; a non-nil empty slice means the server stated an
+	// empty list — both mean "no alerts", and neither is a validity verdict on
+	// its own (an entry carries its own severity).
+	ValidationAlerts []ValidationAlert `json:"validation_alerts"`
+
+	AvailableTransitions []string `json:"available_transitions"`
+	ProposedAt           string   `json:"proposed_at"`
+	ResponseDeadline     string   `json:"response_deadline"`
+	AcceptedAt           string   `json:"accepted_at"`
+	CreatedAt            string   `json:"created_at"`
+	UpdatedAt            string   `json:"updated_at"`
+}
+
+// ValidationAlert is one entry of a proposal's validation_alerts. Undeclared in
+// the v5 contract and observed live (074 probe): a three-key object carrying the
+// severity, the element path the alert concerns, and the server's own message.
+// Typed rather than a free-form map because all three keys are rendered; decoding
+// stays forward-compatible, so an added key is ignored rather than fatal.
+type ValidationAlert struct {
+	Severity string `json:"severity"`
+	Path     string `json:"path"`
+	Message  string `json:"message"`
 }
 
 // ProposalChange is the RESPONSE decode of each element of a proposal's change set: a
