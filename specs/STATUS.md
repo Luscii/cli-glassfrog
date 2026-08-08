@@ -75,3 +75,4 @@
 | 071-drafter-config-migration | Complete | validate | 2026-08-03T22:40:11 |
 | 072-change-set-grammar-facts | Complete | validate | 2026-08-08T12:37:38 |
 | 073-circle-routing-rule | Complete | validate | 2026-08-08T14:30:15 |
+| 074-post-create-validity-read | Analyzed | analyze | 2026-08-08T18:05:00 |
