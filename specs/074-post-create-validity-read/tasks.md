@@ -100,7 +100,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: An unreachable read-back still reports the created id", "Scenario: A rate-limited read-back reports the exhausted budget with the created id"
   - **Interface references**: `interface-spec.md`: "`internal/cli` — one helper, one changed call site"
 
-- [ ] **T005** [US1] [P] Wire the read-back into the create's human render path
+- [x] **T005** [US1] [P] Wire the read-back into the create's human render path — 7 tests added; the two existing one-exchange assertions (unit + 055 BDD step) re-anchored on the POST exchange (write-once property stated explicitly)
   - **Scope**: `internal/cli/proposal.go` — in `runProposalCreate`'s human arm, after a successful create: take the id from the already-decoded `Document[Proposal]`, call the helper, build the verdict through `render.NewProposalVerdict`, render through `render.ResourceProposalCreated` over a `ProposalCreatedView`, and write the stderr advisory. The outcome stays `Success` for every verdict state.
   - **Acceptance criteria**:
     - A valid, an invalid, a no-verdict, and an unavailable read-back each render their state and exit 0

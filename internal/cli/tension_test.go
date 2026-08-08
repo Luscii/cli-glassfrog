@@ -31,6 +31,15 @@ type tensionTransport struct {
 	status          int
 	body            string
 	netErr          error
+
+	// Per-call records (074): the create success path now performs TWO exchanges
+	// (POST then read-back GET), so a test asserting the POST's shape must read the
+	// call it targets, not the last one. Indexed by call order; last* stay for the
+	// single-exchange tests.
+	methods      []string
+	paths        []string
+	bodies       []string
+	contentTypes []string
 }
 
 func (c *tensionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -39,10 +48,18 @@ func (c *tensionTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	c.lastPath = req.URL.Path
 	c.lastContentType = req.Header.Get("Content-Type")
 	c.lastIfMatch = req.Header.Get("If-Match")
+	body := ""
 	if req.Body != nil {
 		b, _ := io.ReadAll(req.Body)
-		c.lastBody = string(b)
+		body = string(b)
+		// lastBody keeps the last body-carrying request (a body-less GET does not
+		// clear it), preserving the pre-074 single-exchange assertions.
+		c.lastBody = body
 	}
+	c.methods = append(c.methods, req.Method)
+	c.paths = append(c.paths, req.URL.Path)
+	c.bodies = append(c.bodies, body)
+	c.contentTypes = append(c.contentTypes, c.lastContentType)
 	if c.netErr != nil {
 		return nil, c.netErr
 	}

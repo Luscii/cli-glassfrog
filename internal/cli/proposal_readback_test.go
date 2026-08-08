@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/render"
 )
 
 // proposalReadBackBody is a representative getProposal 200 body: the same
@@ -197,6 +199,267 @@ func TestReadBackProposalVerdict_ValidJSONWrongShape(t *testing.T) {
 	}
 	if raw != nil {
 		t.Errorf("an unreadable body must return nil raw, got %s", raw)
+	}
+}
+
+// proposalSeqStep is one scripted exchange for proposalSeqTransport: a canned
+// response, or a wire error.
+type proposalSeqStep struct {
+	status int
+	body   string
+	netErr error
+}
+
+// proposalSeqTransport is the two-exchange fake base transport the 074 create
+// tests need: scripted responses per call (the POST's 201, then the read-back
+// GET's reply), recording EVERY request's method and path. Calls beyond the
+// script repeat the last step, so a retried read-back keeps seeing its scripted
+// failure.
+type proposalSeqTransport struct {
+	calls   int
+	methods []string
+	paths   []string
+	bodies  []string
+	steps   []proposalSeqStep
+}
+
+func (s *proposalSeqTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	s.calls++
+	s.methods = append(s.methods, req.Method)
+	s.paths = append(s.paths, req.URL.Path)
+	body := ""
+	if req.Body != nil {
+		b, _ := io.ReadAll(req.Body)
+		body = string(b)
+	}
+	s.bodies = append(s.bodies, body)
+	i := s.calls - 1
+	if i >= len(s.steps) {
+		i = len(s.steps) - 1
+	}
+	step := s.steps[i]
+	if step.netErr != nil {
+		return nil, step.netErr
+	}
+	return &http.Response{
+		StatusCode: step.status,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(step.body)),
+	}, nil
+}
+
+// proposalReadBackValidBody is a read-back 200 whose verdict is favourable: a
+// stated valid, a present-and-empty alerts list, and the transitions as read at
+// the same instant.
+const proposalReadBackValidBody = `{"data":{"id":"prp_0123","type":"proposal","status":"draft","tension_id":"ten_0123","circle_id":"role_0123","proposer_id":"per_0123","changes":[{"id":"chg_1","type":"CreateRole","name":"Scribe"}],"response_summary":{"total":0,"no_objection":0,"bring_to_meeting":0},"expected_response_count":0,"received_response_count":0,"valid":true,"validation_alerts":[],"available_transitions":["propose","withdraw"],"proposed_at":null,"response_deadline":null,"accepted_at":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
+
+// TestRunProposalCreate_HumanVerdictStates pins the human full path for all four
+// verdict states: each renders its state, exits 0 (Success — the read-back's
+// content or absence never changes the outcome, ADR-2), and writes the stderr
+// advisory derived from the same value in every state.
+func TestRunProposalCreate_HumanVerdictStates(t *testing.T) {
+	cases := []struct {
+		name         string
+		readBack     proposalSeqStep
+		wantValidity string
+		wantSource   string
+		wantAdvisory string
+	}{
+		{
+			name:         "valid",
+			readBack:     proposalSeqStep{status: 200, body: proposalReadBackValidBody},
+			wantValidity: "  Validity:       valid\n",
+			wantSource:   "  Verdict source: read-back of prp_0123 after create\n",
+			wantAdvisory: "the validity verdict was read back from proposal prp_0123 after the create",
+		},
+		{
+			name:         "not valid",
+			readBack:     proposalSeqStep{status: 200, body: proposalReadBackBody},
+			wantValidity: "  Validity:       not valid\n",
+			wantSource:   "  Verdict source: read-back of prp_0123 after create\n",
+			wantAdvisory: "the validity verdict was read back from proposal prp_0123 after the create",
+		},
+		{
+			name:         "not reported",
+			readBack:     proposalSeqStep{status: 200, body: proposalCreatedBody},
+			wantValidity: "  Validity:       not reported by the server\n",
+			wantSource:   "  Verdict source: read-back of prp_0123 after create\n",
+			wantAdvisory: "the validity verdict was read back from proposal prp_0123 after the create",
+		},
+		{
+			name:         "unavailable",
+			readBack:     proposalSeqStep{netErr: errors.New("network unreachable")},
+			wantValidity: "  Validity:       unavailable — the proposal could not be read back (",
+			wantSource:   "  Verdict source: none — the created proposal is reported from the create response\n",
+			wantAdvisory: `could not read proposal prp_0123 back to obtain its validity verdict: the proposal could not be read back (`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &proposalSeqTransport{steps: []proposalSeqStep{
+				{status: 201, body: proposalCreatedBody},
+				tc.readBack,
+			}}
+			seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
+			outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+				tensionID:    "ten_0123",
+				changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+			})
+			if outcome != Success {
+				t.Fatalf("outcome = %v, want Success in every verdict state\nstderr: %s", outcome, stderr)
+			}
+			if !strings.Contains(stdout, tc.wantValidity) {
+				t.Errorf("stdout missing %q:\n%s", tc.wantValidity, stdout)
+			}
+			if !strings.Contains(stdout, tc.wantSource) {
+				t.Errorf("stdout missing %q:\n%s", tc.wantSource, stdout)
+			}
+			if !strings.Contains(stdout, "prp_0123") {
+				t.Errorf("the created id must be reported in every state:\n%s", stdout)
+			}
+			if !strings.Contains(stderr, tc.wantAdvisory) {
+				t.Errorf("stderr advisory missing %q:\n%s", tc.wantAdvisory, stderr)
+			}
+		})
+	}
+}
+
+// TestRunProposalCreate_InvalidDraftFullOutput pins the created-but-invalid
+// rendering end to end: the id, the not-valid verdict, the alert with its
+// severity and path, and that no transitions are available — all from the
+// read-back's document, and still exit-code 0 (the sibling Invalid-Create
+// Outcome capability owns turning this into a failure exit).
+func TestRunProposalCreate_InvalidDraftFullOutput(t *testing.T) {
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackBody},
+	}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
+	outcome, stdout, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	for _, want := range []string{
+		"prp_0123  [draft]",
+		"  Validity:       not valid\n",
+		"  Alerts (1):\n",
+		"    - [error] name: Can't update the Cloud Foundations role during this meeting.\n",
+		"  Transitions:    (none)\n",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// TestRunProposalCreate_CompactCarriesVerdict pins the compact selection: one
+// line carrying the id, status, change count, the compact validity label, and
+// the alert count.
+func TestRunProposalCreate_CompactCarriesVerdict(t *testing.T) {
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackBody},
+	}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: "compact", transport: tr}}
+	outcome, stdout, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	want := "prp_0123  [draft]  1 change(s)  0 responses  not valid (1 alert)\n"
+	if stdout != want {
+		t.Errorf("compact line = %q, want %q", stdout, want)
+	}
+}
+
+// TestRunProposalCreate_PreChangeUserTemplateStillRenders pins ADR-4's promotion
+// guarantee at the call site: a user template written against the pre-074 view
+// (.Proposal.* field paths) still renders, and its output is unchanged by the
+// verdict's addition.
+func TestRunProposalCreate_PreChangeUserTemplateStillRenders(t *testing.T) {
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackValidBody},
+	}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{
+		ctx:       validMeContext(),
+		transport: tr,
+		tmplFiles: map[string]string{"pre074.tmpl": "{{.Proposal.ID}} {{.Proposal.Status}} {{len .Proposal.Changes}}"},
+	}}
+	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:     "ten_0123",
+		changesValue:  `[{"type":"CreateRole","name":"Scribe"}]`,
+		outputFlag:    "pre074.tmpl",
+		outputPresent: true,
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	}
+	if stdout != "prp_0123 draft 1" {
+		t.Errorf("pre-change template output = %q, want %q", stdout, "prp_0123 draft 1")
+	}
+}
+
+// TestRunProposalCreate_HumanRenderFailureLeavesStdoutEmpty pins that a render
+// failure on the new key still maps to the internal-error code with stdout left
+// empty (buffer-then-write) — and no advisory is written for output that never
+// appeared.
+func TestRunProposalCreate_HumanRenderFailureLeavesStdoutEmpty(t *testing.T) {
+	orig := renderFn
+	defer func() { renderFn = orig }()
+	renderFn = func(render.Resource, render.Format, any) (string, error) {
+		return "", &render.RenderError{Resource: render.ResourceProposalCreated, Format: render.FormatFull, Err: errors.New("boom")}
+	}
+
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackValidBody},
+	}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
+	outcome, stdout, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != RuntimeError {
+		t.Fatalf("outcome = %v, want RuntimeError", outcome)
+	}
+	if stdout != "" {
+		t.Errorf("a render failure must leave stdout empty, got %q", stdout)
+	}
+}
+
+// TestVerdictSource_ProseLine pins the three advisory lines (interface-cli §
+// stderr) and that they derive from the same value the structured form encodes.
+func TestVerdictSource_ProseLine(t *testing.T) {
+	obtained := newVerdictSource("prp_0123", "")
+	if got, want := obtained.proseLine(), "the validity verdict was read back from proposal prp_0123 after the create"; got != want {
+		t.Errorf("obtained prose = %q, want %q", got, want)
+	}
+	if !obtained.ReadBack || obtained.ProposalID != "prp_0123" || obtained.Reason != "" || obtained.Remedy != "" {
+		t.Errorf("obtained structured form = %+v", obtained)
+	}
+
+	failed := newVerdictSource("prp_0123", "the read-back was rate limited (the request budget was exhausted)")
+	wantFailed := `could not read proposal prp_0123 back to obtain its validity verdict: the read-back was rate limited (the request budget was exhausted); the proposal was created — run "glassfrog proposal get prp_0123" to read its verdict`
+	if got := failed.proseLine(); got != wantFailed {
+		t.Errorf("failed prose = %q, want %q", got, wantFailed)
+	}
+	if failed.ReadBack || failed.Remedy != "glassfrog proposal get prp_0123" {
+		t.Errorf("failed structured form = %+v", failed)
+	}
+
+	noID := newVerdictSource("", "the created proposal's id could not be determined")
+	wantNoID := "could not determine the created proposal's id from the create response, so no validity verdict was obtained; the create response is reported above"
+	if got := noID.proseLine(); got != wantNoID {
+		t.Errorf("no-id prose = %q, want %q", got, wantNoID)
+	}
+	if noID.ReadBack || noID.ProposalID != "" || noID.Remedy != "" {
+		t.Errorf("the no-id advisory must name no proposal and no remedy, got %+v", noID)
 	}
 }
 

@@ -68,24 +68,30 @@ func TestRunProposalCreate_PostsProposalVerbatim(t *testing.T) {
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
 	}
-	if tr.calls != 1 {
-		t.Fatalf("a create is exactly one request, got %d", tr.calls)
+	// The success path performs exactly two exchanges (074 ADR-1): the one POST,
+	// then the read-back GET for the created id. The POST is still issued exactly
+	// once — the read-back adds a read, never a second write.
+	if tr.calls != 2 {
+		t.Fatalf("a successful create is exactly two exchanges (POST + read-back GET), got %d", tr.calls)
 	}
-	if tr.lastMethod != http.MethodPost {
-		t.Errorf("method = %q, want POST", tr.lastMethod)
+	if tr.methods[0] != http.MethodPost {
+		t.Errorf("first exchange method = %q, want POST", tr.methods[0])
 	}
-	if !strings.HasSuffix(tr.lastPath, "/proposals") {
-		t.Errorf("path = %q, want a /proposals suffix", tr.lastPath)
+	if !strings.HasSuffix(tr.paths[0], "/proposals") {
+		t.Errorf("first exchange path = %q, want a /proposals suffix", tr.paths[0])
 	}
-	if tr.lastContentType != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", tr.lastContentType)
+	if tr.contentTypes[0] != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", tr.contentTypes[0])
 	}
 	if tr.lastIfMatch != "" {
 		t.Errorf("a create must send NO If-Match, got %q", tr.lastIfMatch)
 	}
 	want := `{"proposal":{"tension_id":"ten_0123","changes":[{"type":"CreateRole","name":"Scribe"}]}}`
-	if tr.lastBody != want {
-		t.Errorf("body = %s, want %s", tr.lastBody, want)
+	if tr.bodies[0] != want {
+		t.Errorf("body = %s, want %s", tr.bodies[0], want)
+	}
+	if tr.methods[1] != http.MethodGet || !strings.HasSuffix(tr.paths[1], "/proposals/prp_0123") {
+		t.Errorf("second exchange = %s %s, want GET /proposals/prp_0123", tr.methods[1], tr.paths[1])
 	}
 	for _, w := range []string{"prp_0123", "draft"} {
 		if !strings.Contains(stdout, w) {

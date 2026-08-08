@@ -169,10 +169,90 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 	if _, err := exec.Execute(cfg.reqCtx, req, &doc); err != nil {
 		return reportFailure(cfg.stdout, cfg.stderr, rt.format, err)
 	}
-	view := render.ProposalView{Proposal: doc.Data}
+
+	// 7. Post-create read-back (074 ADR-1/ADR-2): one GET /proposals/{id} for the id
+	//    the create returned, through the SAME retrying executor (a GET is
+	//    retry-eligible; the POST above never was). Its failure is never the
+	//    command's failure — every path out of the helper leads to reporting the
+	//    created proposal with Success, so the prp_ id is never withheld. When the
+	//    read-back answered, ITS document renders the body: available_transitions
+	//    and status are verdict dimensions read at the same instant as the flag,
+	//    and the detail read is the surface verified to carry the verdict fields.
+	readBack, _, reason := readBackProposalVerdict(cfg.reqCtx, exec, doc.Data.ID)
+	verdict := render.NewProposalVerdict(readBack.Valid, readBack.ValidationAlerts, reason, doc.Data.ID)
+	proposal := doc.Data
+	if reason == "" {
+		proposal = readBack
+	}
+	view := render.ProposalCreatedView{
+		ProposalView: render.ProposalView{Proposal: proposal},
+		Verdict:      verdict,
+	}
 	// writeHuman renders through the selected user template (035) or the built-in
-	// `proposal` template (019), buffer-then-write.
-	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProposal, rt.format, view)
+	// `proposal-created` template (074 ADR-4 — the shared proposal body plus the
+	// verdict block), buffer-then-write. Every field path a pre-074 user template
+	// referenced still resolves: ProposalCreatedView embeds ProposalView.
+	outcome, oerr = writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProposalCreated, rt.format, view)
+	if outcome != Success {
+		return outcome, oerr
+	}
+	// The stderr advisory: the verdict's provenance, or the reason it is
+	// unavailable plus the remedy (045's disambiguating-advisory precedent). In a
+	// human format it is the prose line derived from the same value the machine
+	// formats serialize structurally (T006), so the two renderings cannot disagree.
+	fmt.Fprintln(cfg.stderr, newVerdictSource(doc.Data.ID, reason).proseLine())
+	return Success, nil
+}
+
+// verdictSource is the CLI-owned advisory the create writes to stderr (074). It is
+// rendered as prose in a human format and structurally in a machine format,
+// following the format-aware diagnostic convention (032). It is a CLI shape, not a
+// server shape — which is what keeps 018's verbatim contract untouched: the server's
+// document on stdout is never reshaped, and this never rides stdout.
+//
+// ReadBack answers "did the CLI manage to ask?" — the one question the emitted
+// document cannot answer, and therefore the field that makes all four verdict states
+// machine-distinguishable. ProposalID is omitted when no id could be determined,
+// Reason is omitted when the read-back answered, and Remedy is omitted when there is
+// none to name: an absent key means "not applicable", never an empty string.
+type verdictSource struct {
+	ReadBack   bool   `json:"read_back"`
+	ProposalID string `json:"proposal_id,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Remedy     string `json:"remedy,omitempty"`
+}
+
+// newVerdictSource builds the advisory from the read-back's outcome. It is the single
+// source of the advisory's content in BOTH renderings — the prose line is derived
+// from the same value the structured form encodes, so the two can never disagree
+// about whether the CLI asked. An empty id with a reason is the id-undeterminable
+// case: no ProposalID and no Remedy, because without an id there is nothing to
+// re-read and naming a command the caller cannot run would fabricate a next step.
+func newVerdictSource(id string, unavailableReason string) verdictSource {
+	if unavailableReason == "" {
+		return verdictSource{ReadBack: true, ProposalID: id}
+	}
+	v := verdictSource{Reason: unavailableReason}
+	if id != "" {
+		v.ProposalID = id
+		v.Remedy = "glassfrog proposal get " + id
+	}
+	return v
+}
+
+// proseLine renders the advisory for the human formats (interface-cli § stderr):
+// one line naming the read that produced the verdict, or the cause and the remedy
+// when it could not be obtained. The no-id line names no remedy — without an id
+// there is nothing to re-read, and that is the honest thing to say. Derived from
+// the same fields the structured form serializes, so the two cannot disagree.
+func (v verdictSource) proseLine() string {
+	if v.ReadBack {
+		return fmt.Sprintf("the validity verdict was read back from proposal %s after the create", v.ProposalID)
+	}
+	if v.ProposalID == "" {
+		return "could not determine the created proposal's id from the create response, so no validity verdict was obtained; the create response is reported above"
+	}
+	return fmt.Sprintf("could not read proposal %s back to obtain its validity verdict: %s; the proposal was created — run %q to read its verdict", v.ProposalID, v.Reason, v.Remedy)
 }
 
 // readBackProposalVerdict performs the post-create read-back (074): ONE

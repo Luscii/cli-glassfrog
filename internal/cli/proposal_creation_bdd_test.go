@@ -231,18 +231,37 @@ func (w *proposalCreationWorld) runCommand(invocation string) error {
 
 // --- Then implementations ---
 
+// postExchange returns the index of the single POST exchange the transport saw.
+// The create success path performs two exchanges since 074 (the POST, then the
+// read-back GET), so the POST-shape assertions must target the exchange they
+// pin, not the last one — and the load-bearing write-safety property is stated
+// directly: the POST is issued exactly once, whatever reads follow.
+func (w *proposalCreationWorld) postExchange() (int, error) {
+	idx := -1
+	for i, m := range w.transport.methods {
+		if m == "POST" {
+			if idx != -1 {
+				return -1, fmt.Errorf("the create must POST exactly once, saw a second POST (exchange %d)", i+1)
+			}
+			idx = i
+		}
+	}
+	if idx == -1 {
+		return -1, fmt.Errorf("no POST exchange was issued (%d calls)", w.transport.calls)
+	}
+	return idx, nil
+}
+
 func (w *proposalCreationWorld) requestPostedToProposalsEndpoint() error {
-	if w.transport.calls != 1 {
-		return fmt.Errorf("a create is exactly one request, got %d", w.transport.calls)
+	i, err := w.postExchange()
+	if err != nil {
+		return err
 	}
-	if w.transport.lastMethod != "POST" {
-		return fmt.Errorf("the create should POST, got method %q", w.transport.lastMethod)
+	if !strings.HasSuffix(w.transport.paths[i], "/proposals") {
+		return fmt.Errorf("the request should target /proposals, got %q", w.transport.paths[i])
 	}
-	if !strings.HasSuffix(w.transport.lastPath, "/proposals") {
-		return fmt.Errorf("the request should target /proposals, got %q", w.transport.lastPath)
-	}
-	if w.transport.lastContentType != "application/json" {
-		return fmt.Errorf("the body should be sent as application/json, got %q", w.transport.lastContentType)
+	if w.transport.contentTypes[i] != "application/json" {
+		return fmt.Errorf("the body should be sent as application/json, got %q", w.transport.contentTypes[i])
 	}
 	if w.transport.lastIfMatch != "" {
 		return fmt.Errorf("a create must send NO If-Match, got %q", w.transport.lastIfMatch)
@@ -251,11 +270,15 @@ func (w *proposalCreationWorld) requestPostedToProposalsEndpoint() error {
 }
 
 func (w *proposalCreationWorld) bodyCarriesAnchorAndChanges(anchorField string) error {
-	if !strings.Contains(w.transport.lastBody, fmt.Sprintf(`"%s":"ten_0123"`, anchorField)) {
-		return fmt.Errorf("the body should carry the anchor %q, got %s", anchorField, w.transport.lastBody)
+	i, err := w.postExchange()
+	if err != nil {
+		return err
 	}
-	if !strings.Contains(w.transport.lastBody, `"changes":[{"type":"CreateRole","name":"Scribe"}]`) {
-		return fmt.Errorf("the body should carry the changes array verbatim, got %s", w.transport.lastBody)
+	if !strings.Contains(w.transport.bodies[i], fmt.Sprintf(`"%s":"ten_0123"`, anchorField)) {
+		return fmt.Errorf("the body should carry the anchor %q, got %s", anchorField, w.transport.bodies[i])
+	}
+	if !strings.Contains(w.transport.bodies[i], `"changes":[{"type":"CreateRole","name":"Scribe"}]`) {
+		return fmt.Errorf("the body should carry the changes array verbatim, got %s", w.transport.bodies[i])
 	}
 	return nil
 }
@@ -264,8 +287,12 @@ func (w *proposalCreationWorld) bodyCarriesInjectedChanges() error {
 	if w.wantChanges == "" {
 		return fmt.Errorf("no injected change source was set up by the Given")
 	}
-	if !strings.Contains(w.transport.lastBody, `"changes":`+w.wantChanges) {
-		return fmt.Errorf("the body should carry the injected changes %q verbatim, got %s", w.wantChanges, w.transport.lastBody)
+	i, err := w.postExchange()
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(w.transport.bodies[i], `"changes":`+w.wantChanges) {
+		return fmt.Errorf("the body should carry the injected changes %q verbatim, got %s", w.wantChanges, w.transport.bodies[i])
 	}
 	return nil
 }
