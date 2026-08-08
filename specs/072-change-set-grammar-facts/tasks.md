@@ -58,7 +58,7 @@ Totals: **12 executed** (T001 6, T002 6), **3 held for validate**, **1 process-i
 
 ## Phase 1: The record + guard + supersession
 
-- [ ] **T001** [US1] Author the grammar-facts record under the proposal-drafting skill
+- [x] **T001** [US1] Author the grammar-facts record under the proposal-drafting skill — 6 scenarios, record + record-side parser (grammarfacts.go)
   - **Scope**: Create `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md` (the shipped plugin's first `references/` directory) with the full anatomy interface-spec.md pins, in order — empirical-marker blockquote, document header (Owner, Contract citations, and the `Live facts` manifest), contract-citations section, and the two fact sections. No other plugin file changes: drafting's SKILL.md and the drafter agent stay untouched, so the record ships inert and 067's validate-pinned prompt fences are unaffected.
   - **Acceptance criteria**:
     - The `Live facts` manifest declares `CSG-1, CSG-2` and set-equals the actual fact sections; fact sections are headed `## CSG-<n> — <title>`
