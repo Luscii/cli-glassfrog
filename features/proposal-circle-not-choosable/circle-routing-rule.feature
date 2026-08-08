@@ -27,7 +27,6 @@ Feature: Circle Routing Rule
     # operator's tensions can anchor it there, named by id.
 
     # Source: 073-circle-routing-rule — Scenario: A change to a circle's own governance routes to the parent
-    @wip
     Scenario: An own-circle change routes to the parent circle
       Given the recorded routing content
       When it is consulted for a change to a circle's own domain or policy
@@ -35,7 +34,6 @@ Feature: Circle Routing Rule
       And its Mechanism field will state the proposal lands in the circle of whichever tension anchors it
 
     # Source: 073-circle-routing-rule — Proposed: interface-spec.md anatomy row 2 (document header)
-    @wip
     Scenario: The document header names its owner and the consumption rule
       Given the recorded routing content
       When its document header is read
@@ -44,7 +42,6 @@ Feature: Circle Routing Rule
       And its Contract citations line will name the vendored API specification
 
     # Source: 073-circle-routing-rule — Scenario: The content states how to tell the two cases apart
-    @wip
     Scenario: The classification test distinguishes the two cases
       Given the recorded routing content
       When its classification-test section is read
@@ -52,7 +49,6 @@ Feature: Circle Routing Rule
       And its "Resolved by" field will name "Role.has_subroles" as what resolves whether a target is a circle
 
     # Source: 073-circle-routing-rule — Scenario: The procedure names the reads and how to state the answer
-    @wip
     Scenario: The procedure names its reads in the order they run
       Given the recorded routing content
       When its named-reads block is read
@@ -60,7 +56,6 @@ Feature: Circle Routing Rule
       And its "Answer shape" field will require the target circle named by its role_ id and each eligible anchor named by its ten_ id
 
     # Source: 073-circle-routing-rule — Scenario: The Circle Lead exception is stated
-    @wip
     Scenario: The circle-role itself anchors when the operator is Circle Lead
       Given the recorded routing content
       When it is consulted for a circle's own governance where the operator fills that circle's Circle Lead role
@@ -68,7 +63,6 @@ Feature: Circle Routing Rule
       And it will not send the operator to the parent circle to find one
 
     # Source: 073-circle-routing-rule — Scenario: An ordinary change needs no parent hop
-    @wip
     Scenario: A change to a role inside a circle routes without a parent hop
       Given the recorded routing content
       When it is consulted for a change to a role inside a circle rather than to the circle itself
@@ -76,7 +70,6 @@ Feature: Circle Routing Rule
       And no separate case will have to be looked up for it
 
     # Source: 073-circle-routing-rule — Scenario: The target circle has no parent
-    @wip
     Scenario: A circle with no parent yields a stated limit, not a default
       Given the recorded routing content
       When it is consulted for a change to the governance of a circle whose "parent_role_id" is null
@@ -91,7 +84,6 @@ Feature: Circle Routing Rule
     # to capture a tension on, and how certain that conclusion is.
 
     # Source: 073-circle-routing-rule — Scenario: The procedure prescribes what to say when no tension is sensed
-    @wip
     Scenario: A missing anchor is reported with the capture that would close it
       Given the recorded routing content
       When its "Gap reporting" field is read
@@ -99,7 +91,6 @@ Feature: Circle Routing Rule
       And it will require naming capture on that specific role in that specific circle as the step that closes the gap
 
     # Source: 073-circle-routing-rule — Scenario: An absence that cannot be proven must be reported as unproven
-    @wip
     Scenario: An unprovable absence is reported as none found, not none existing
       Given the recorded routing content
       When its Uncertainty field is read
@@ -107,7 +98,6 @@ Feature: Circle Routing Rule
       And it will require marking the conclusion uncertain because the own-roles read does not follow pagination
 
     # Source: 073-circle-routing-rule — Scenario: Nothing the content prescribes stops a write
-    @wip
     Scenario: A routing gap does not stop the operator writing anyway
       Given the recorded routing content was read end to end
       When it is inspected for what it would have a consumer refuse

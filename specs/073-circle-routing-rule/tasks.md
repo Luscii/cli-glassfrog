@@ -75,7 +75,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
 
 ## Phase 1: The record, its guard, and the supersession
 
-- [ ] **T001** [Shared] Author the circle-routing record under the proposal-drafting skill
+- [x] **T001** [Shared] Author the circle-routing record under the proposal-drafting skill — 10 scenarios, record-side parsers landed in `internal/build/circleroutingrule.go` (T002 extends the same file with the guard)
   - **Scope**: Create `plugin/skills/proposal-drafting/references/circle-routing-rule.md` — the `references/` directory's second member, sibling to `change-set-grammar-facts.md` — with the full anatomy interface-spec.md pins, in order: empirical-marker blockquote carrying the cite-versus-observe split, document header (Owner, Contract citations), contract-citations section, rule section, classification-test section, and procedure section with its named-reads block. No other plugin file changes in this task: the registry, the drafter agent, and drafting's SKILL.md stay untouched here, so the record lands before anything claims to run its reads.
   - **Acceptance criteria**:
     - The marker states that the *absent circle parameter* is published contract while *where the proposal lands* is observed behaviour — the split, not a single blanket claim
