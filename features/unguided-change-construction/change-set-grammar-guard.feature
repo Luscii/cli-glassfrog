@@ -23,8 +23,8 @@ Feature: Change-Set Grammar Facts — guard enforcement
     # In order to build the downstream grammar reference and typed change
     # builders against one authority instead of scattered notes,
     # as a developer implementing the write-path fidelity solutions,
-    # I want a single recorded source that says exactly which residual shapes
-    # are verified and which are merely published contract.
+    # I want to work from a single recorded source that says exactly which
+    # residual shapes are verified and which are merely published contract.
 
     # Source: 072-change-set-grammar-facts — Proposed: plan ADR-3 citation-integrity tripwire on spec refresh
     @wip

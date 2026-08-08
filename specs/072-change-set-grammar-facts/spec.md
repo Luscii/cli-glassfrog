@@ -47,7 +47,7 @@ Change-Set Grammar Facts is the **single recorded source** for exactly those res
 
 **In order to** build the downstream grammar reference and typed change builders against one authority instead of scattered notes,
 **as a** developer implementing the write-path fidelity solutions,
-**I want to** a single recorded source that says exactly which residual shapes are verified and which are merely published contract.
+**I want to** work from a single recorded source that says exactly which residual shapes are verified and which are merely published contract.
 
 **In order to** keep the record honest as the API moves,
 **as the** maintainer,
