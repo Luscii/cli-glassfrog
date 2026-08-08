@@ -155,3 +155,8 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: Maintainer
     + related-to: Nothing Learned Is Kept
     + candidate: Generated Call-Shape Snapshot — derive each composed leaf's call shape from the CLI binary being shipped into a co-located generated artifact the agents read instead of asking `--help`, with a drift guard that regenerates and fails on divergence, so flag knowledge becomes exactly as guarded as the command names already are
+  * Payloads Outsize the Work — the operating surface's composed reads pull each record's whole payload into the agent's context even when a traversal uses only a few fields, so every path spends far more of its limited context on unused data than the work needs
+    + affects: AI agent
+    + related-to: Unconsumable Output
+    + related-to: Call Shapes Not Packaged
+    + candidate: Templated Read Projections — render the composed read leaves through the CLI's `-o`/`--output` template feature (035) to project each payload to the minimal shape a path needs before it enters the subagent's context, in place of raw `--output json`

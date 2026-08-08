@@ -10,7 +10,7 @@ The three organizational parent areas — *Project Foundation*, *Client Foundati
 
 ## Now
 
-The landed foundation and client-hardening, the broad read surface, the output and pipeline legibility work still in the pipeline, the write path whose fidelity is the live frontier, and two reads whose absence diverges from what the API already serves.
+The landed foundation and client-hardening, the broad read surface, the output and pipeline legibility work still in the pipeline, the write path whose fidelity is the live frontier, two reads whose absence diverges from what the API already serves, and an operating-surface refinement that trims the context each read spends.
 
 1. **No Runnable CLI** *(Project Foundation)* — nothing can be built or run until the CLI exists as a runnable skeleton with a command framework; hard prerequisite for every other problem. (addressed)
 2. **Unauthenticated Access** *(Client Foundation)* — every command depends on a proven org + person identity; without it nothing reaches the API. (addressed)
@@ -37,6 +37,7 @@ The landed foundation and client-hardening, the broad read surface, the output a
 23. **Tension Details Rejected at Capture** *(Endpoint Commands)* — supplying a tension's agenda label or meeting type at capture is refused with a message naming a rule that doesn't apply, on a feature that has otherwise landed; the contract refresh leaves tension creation untouched, confirming this was not fixed upstream. Clusters with *Tension Capture*.
 24. **Proposals Touching My Roles Unfindable** *(Endpoint Commands)* — proposals cannot be filtered by what their changes affect, so finding which ones bear on the roles the operator fills means reading every proposal's change set; clusters with the write-path fidelity problems above it, and it is the find step the impact-review path rests on. Relates to *Self-Service Reads*.
 25. **Focus and Election Invisible** *(Endpoint Commands)* — the operator cannot see which focus a filler holds or whether they were elected and until when; a divergence rather than a missing feature, since the API serves this and the CLI's own closed include set is what refuses it. Clusters with *Actors Disconnected from Governance*.
+26. **Payloads Outsize the Work** *(Agent Operating Surface)* — the composed reads pull whole payloads into the agent's context when a traversal uses only a few fields, so every path costs more context than the work needs; a felt-every-run efficiency gap on the operating surface, pulled into Now ahead of its three sibling gaps, which remain in Next. Relates to *Unconsumable Output*, whose landed `--output`/template work is the building block, and *Call Shapes Not Packaged*.
 
 ## Next
 
