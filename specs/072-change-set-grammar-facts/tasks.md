@@ -86,7 +86,7 @@ Totals: **12 executed** (T001 6, T002 6), **3 held for validate**, **1 process-i
   - **Interface references**: interface-spec.md § Surface — Guard coupling; § Error Communication (conditions 1–8 with resolution paths)
   - **Risk**: ⚠️ Largest task in the decomposition — eight conditions, two parser sides, six scenarios. Deliberately not split: the natural seam (internal-consistency vs citation-integrity invariants) runs through the same two files, so splitting would produce two PRs touching the same pair.
 
-- [ ] **T003** [US3] Record the LEARNINGS supersession via /score:deprecate
+- [x] **T003** [US3] Record the LEARNINGS supersession via /score:deprecate — 1 DEPRECATION.md entry (F5→CSG-1, F6→CSG-2); scenario held for validate
   - **Scope**: One `/score:deprecate` entry in `.score/memory/DEPRECATION.md` recording that LEARNINGS 2026-08-05 F5/F6 are superseded by the record at `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md`. No edit to the LEARNINGS entry itself — it already carries the forward pointer, and git history is the changelog.
   - **Acceptance criteria**:
     - The entry names both superseded facts (F5, F6), the superseding record path and fact IDs (CSG-1, CSG-2), and the origin (072-change-set-grammar-facts)
