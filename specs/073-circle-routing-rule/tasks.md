@@ -124,7 +124,7 @@ Every element interface-spec.md defines now has either a scenario or an explicit
 
 ## Phase 2: The composed-surface widening and 067 re-validation
 
-- [ ] **T004** [US3] Widen the drafting path's composed surface to the three routing reads
+- [x] **T004** [US3] Widen the drafting path's composed surface to the three routing reads — 1 scenario; registry + fence + four-way `CheckProposalDraftingDrift` in one commit; stale "four composed leaves" counts in the agent description and SKILL.md swept in the same change
   - **Scope**: Three coupled edits that must land as one commit, because the existing 067 guard is red if any lands alone. (1) `plugin/agents/proposal-drafting-commands.txt` gains `me roles`, `tension list`, `roles`, with a comment annotating them as routing reads the path may run once #77 consults the record. (2) `plugin/agents/proposal-drafter.md` `## Composed commands` gains the same three with the same annotation, preserving the fence's "only these … and it is these and no others" wording. (3) `internal/build/proposaldrafting.go` — `CheckProposalDraftingDrift` gains `liveTop` and `liveMe` parameters and a four-way leaf resolution (top-level, `me <sub>`, `tension`/`proposal <sub>`, unanchorable-default), transplanted from 065's `CheckConstraintDrift`; the guard test supplies `LiveTopLevelCommands()` and `LiveMeSubcommands()`.
   - **Acceptance criteria**:
     - All three edits in one commit; `go test ./...` green — in particular `TestProposalDraftingDriftGuard`, which fails on the registry addition alone (check (a) rejects `me roles` on the group whitelist and `roles` on arity, check (d) requires the agent to name every composed leaf)

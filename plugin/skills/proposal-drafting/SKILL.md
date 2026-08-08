@@ -107,7 +107,7 @@ proposal (or whether the practitioner is allowed to act) is a question for the
 rule on whether the governance record permits an action, and it does not advise on
 governance craft or coach Holacracy practice.
 
-That write fence holds in layers: the drafter agent's prompt is scoped to the four
+That write fence holds in layers: the drafter agent's prompt is scoped to the seven
 composed leaves and forbids any other `proposal` write, and 063's `PreToolUse`
 write gate (`plugin/hooks/glassfrog-write-gate.sh`) is the backstop that
 interposes the human confirmation on `proposal create` — and would gate any other

@@ -83,7 +83,6 @@ Feature: Circle Routing Rule — guard enforcement
       And a record missing that marker will fail the guard
 
     # Source: 073-circle-routing-rule — Proposed: plan ADR-3 gated-membership posture preserved
-    @wip
     Scenario: Widening the composed surface leaves the gate posture unchanged
       Given the three routing reads joined the drafting path's composed surface
       When the gated-membership invariant is checked

@@ -215,6 +215,12 @@ type circleRoutingGuardWorld struct {
 	wantResolve   string   // the resolution phrase the outline example expects
 	violations    []string
 	ran           bool
+	// The widening scenario's state: the real composed registry, 063's gated
+	// set, the drafting drift result, and the write leaf the scenario names.
+	draftComposed []string
+	draftGated    []string
+	draftDrift    []string
+	gatedWrite    string
 }
 
 func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
@@ -245,6 +251,7 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the record named a read carrying a command path of three tokens$`, w.givenThreeTokenRead)
 	sc.Step(`^a record missing (a required section|a required field label|the named-reads block)$`, w.givenRecordMissing)
 	sc.Step(`^the record's landing behaviour was observed rather than published$`, w.givenRealRecord)
+	sc.Step(`^the three routing reads joined the drafting path's composed surface$`, w.givenRoutingReadsComposed)
 
 	// Whens
 	sc.Step(`^a spec refresh adds any property to that object beyond "tension_id" and "changes"$`, w.whenSpecAddsProperty)
@@ -253,6 +260,7 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the guard resolves the named-reads block$`, w.whenGuardRuns)
 	sc.Step(`^the guard evaluates the record$`, w.whenGuardRuns)
 	sc.Step(`^the record is checked for its leading marker$`, w.whenMarkerChecked)
+	sc.Step(`^the gated-membership invariant is checked$`, w.whenGatedMembershipChecked)
 
 	// Thens
 	sc.Step(`^the guard will fail naming both property sets so the addition is readable from the failure$`, w.thenFailNamingBothPropertySets)
@@ -267,6 +275,8 @@ func (w *circleRoutingGuardWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^the message will name supplying the missing element as the resolution path$`, w.thenNameSupplyResolution)
 	sc.Step(`^the marker will state that the absent circle parameter is contract while the landing is observed behaviour$`, w.thenRealMarkerStatesSplit)
 	sc.Step(`^a record missing that marker will fail the guard$`, w.thenStrippedMarkerFailsGuard)
+	sc.Step(`^"([^"]*)" will remain the only composed leaf in the write-safety gated registry$`, w.thenWriteRemainsSoleGated)
+	sc.Step(`^every other composed leaf will remain absent from it$`, w.thenOtherLeavesUngated)
 }
 
 // run evaluates the guard over the current fixture + sides, once.
@@ -352,6 +362,33 @@ func (w *circleRoutingGuardWorld) givenRealRecord() error {
 	return nil
 }
 
+// givenRoutingReadsComposed grounds the widening: every read the committed
+// record's named-reads block declares is present in the drafting path's
+// composed-leaf registry. The reads are derived from the record, never
+// hard-coded — the record is the single source of what the procedure names.
+func (w *circleRoutingGuardWorld) givenRoutingReadsComposed() error {
+	raw, err := ReadCircleRoutingRuleRecord()
+	if err != nil {
+		return fmt.Errorf("record did not load: %w", err)
+	}
+	named := ParseCircleRoutingRuleRecord(raw).NamedReads
+	if len(named) == 0 {
+		return fmt.Errorf("the record declares no named reads")
+	}
+	composed, err := ReadProposalDraftingCommands()
+	if err != nil {
+		return fmt.Errorf("could not read the composed-leaf registry: %w", err)
+	}
+	composedSet := toStringSet(composed)
+	for _, read := range named {
+		if !composedSet[read] {
+			return fmt.Errorf("named read %q has not joined the composed registry %s", read, ProposalDraftingCommandsPath)
+		}
+	}
+	w.draftComposed = composed
+	return nil
+}
+
 // --- Whens ---
 
 func (w *circleRoutingGuardWorld) whenSpecAddsProperty() error {
@@ -398,6 +435,30 @@ func (w *circleRoutingGuardWorld) whenMarkerChecked() error {
 	if w.realRaw == "" {
 		return fmt.Errorf("the real record was not loaded by the Given")
 	}
+	return nil
+}
+
+// whenGatedMembershipChecked runs the widened drafting drift check over the
+// real registry, live surfaces, gated set, and agent — the posture assertion
+// is that the widening left it green.
+func (w *circleRoutingGuardWorld) whenGatedMembershipChecked() error {
+	if len(w.draftComposed) == 0 {
+		return fmt.Errorf("the composed registry was not loaded by the Given")
+	}
+	liveProposal, err := LiveProposalSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's proposal subcommand surface: %w", err)
+	}
+	gated, err := ReadGatedRegistry()
+	if err != nil {
+		return fmt.Errorf("could not read 063's gated-command registry: %w", err)
+	}
+	agent, err := ReadProposalDrafterAgent()
+	if err != nil {
+		return fmt.Errorf("could not read the proposal-drafter agent: %w", err)
+	}
+	w.draftGated = gated
+	w.draftDrift = CheckProposalDraftingDrift(w.draftComposed, w.liveTop, w.liveMe, w.liveTension, liveProposal, gated, agent)
 	return nil
 }
 
@@ -526,6 +587,46 @@ func (w *circleRoutingGuardWorld) thenRealMarkerStatesSplit() error {
 	marker := parseLeadingMarker(w.realRaw)
 	if !RoutingMarkerIsWellFormed(marker) {
 		return fmt.Errorf("the committed record's marker does not state the cite-versus-observe split: %q", marker)
+	}
+	return nil
+}
+
+// thenWriteRemainsSoleGated asserts the gate posture survived the widening:
+// the drift check is green over the seven-leaf registry, the scenario's write
+// leaf agrees with the checked-in contract anchor, and it is the only composed
+// leaf that is a member of 063's gated set.
+func (w *circleRoutingGuardWorld) thenWriteRemainsSoleGated(write string) error {
+	if len(w.draftDrift) != 0 {
+		return fmt.Errorf("the widening changed the gate posture:\n  - %s", strings.Join(w.draftDrift, "\n  - "))
+	}
+	if write != ProposalDraftingGatedWrite {
+		return fmt.Errorf("the scenario names %q but the path's gated write anchor is %q", write, ProposalDraftingGatedWrite)
+	}
+	gatedSet := toStringSet(w.draftGated)
+	var gatedComposed []string
+	for _, leaf := range w.draftComposed {
+		if gatedSet[leaf] {
+			gatedComposed = append(gatedComposed, leaf)
+		}
+	}
+	if len(gatedComposed) != 1 || gatedComposed[0] != write {
+		return fmt.Errorf("the gated composed leaves are %v, want exactly [%s]", gatedComposed, write)
+	}
+	w.gatedWrite = write
+	return nil
+}
+
+// thenOtherLeavesUngated asserts the read side of the posture: every composed
+// leaf other than the one gated write stays absent from 063's gated set.
+func (w *circleRoutingGuardWorld) thenOtherLeavesUngated() error {
+	if w.gatedWrite == "" {
+		return fmt.Errorf("the sole-gated-write assertion did not run first")
+	}
+	gatedSet := toStringSet(w.draftGated)
+	for _, leaf := range w.draftComposed {
+		if leaf != w.gatedWrite && gatedSet[leaf] {
+			return fmt.Errorf("composed read %q entered 063's gated set", leaf)
+		}
 	}
 	return nil
 }

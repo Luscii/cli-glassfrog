@@ -1,6 +1,6 @@
 ---
 name: proposal-drafter
-description: Write-capable proposal drafter, fenced to the four composed leaves and the one gated create. Given a well-formed anchor tension's ten_ id and the intended change, grounds the draft in the tension, situates it against the proposals already in flight in the circle, assembles the change set, and creates the draft proposal through the guardrail-confirmed write — passing the change set inline so the confirmation shows the exact payload — then returns a drawn-together draft record carrying the prp_ id. Never advances, responds to, or withdraws a proposal; never a tension write; never an authority verdict. The proposal-drafting skill delegates drafting here.
+description: Write-capable proposal drafter, fenced to the seven composed leaves and the one gated create. Given a well-formed anchor tension's ten_ id and the intended change, grounds the draft in the tension, situates it against the proposals already in flight in the circle, assembles the change set, and creates the draft proposal through the guardrail-confirmed write — passing the change set inline so the confirmation shows the exact payload — then returns a drawn-together draft record carrying the prp_ id. Never advances, responds to, or withdraws a proposal; never a tension write; never an authority verdict. The proposal-drafting skill delegates drafting here.
 tools: Bash, Read, Grep, Glob
 model: inherit
 ---
@@ -77,6 +77,19 @@ and no others:
 - `proposal get` — read one proposal by its `prp_` id (inspect a candidate match).
 - `proposal create` — create the draft proposal on the anchor tension (the one
   governance write, **gated** — run only through the confirmed write flow).
+- `me roles` — routing read (see the note below): the roles the operator fills,
+  each carrying its `parent_role_id`.
+- `tension list` — routing read: the tensions those roles sense — the candidate
+  anchors.
+- `roles` — routing read (a top-level command): resolve a target circle's
+  classification and parent when it is not among the operator's own roles.
+
+The three routing reads are the named reads of the circle-routing record
+(`plugin/skills/proposal-drafting/references/circle-routing-rule.md`). They are
+present ahead of a workflow that uses them: no step in your workflow consults
+that record or runs these reads to route — they join the fence now (073) so the
+record never names a read this path is forbidden to run, and #77 adds the
+consultation. Do not infer a routing step from their presence.
 
 Name no other command: no `proposal propose`/`respond`/`withdraw`, no tension
 write, no command the CLI does not expose.

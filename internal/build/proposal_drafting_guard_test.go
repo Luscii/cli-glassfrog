@@ -7,10 +7,11 @@ import "testing"
 // registry (plugin/agents/proposal-drafting-commands.txt) to three machine
 // sources at once:
 //
-//   - the CLI's actual `tension` and `proposal` subcommand surfaces, so a renamed
-//     or dropped command cannot leave the drafting artifacts naming a command the
-//     CLI no longer exposes — a silent-drift artifact reads as authoritative while
-//     being wrong;
+//   - the CLI's actual command surfaces (top-level, `me`, `tension`, and
+//     `proposal` — the four-way resolution 073's routing reads widened the check
+//     to), so a renamed or dropped command cannot leave the drafting artifacts
+//     naming a command the CLI no longer exposes — a silent-drift artifact reads
+//     as authoritative while being wrong;
 //   - 063's gated proposal-write registry (plugin/hooks/gated-commands.txt), so
 //     the gated-membership invariant ADR-3 depends on cannot silently break: the
 //     one write (`proposal create`) must stay a member of the gated set, and the
@@ -25,8 +26,9 @@ import "testing"
 // that into a build failure.
 //
 // The three registries are derived from source — the composed leaves from
-// proposal-drafting-commands.txt, the live surfaces from newTensionCommand /
-// newProposalCommand, the gated set from 063's registry — so the guard hard-codes
+// proposal-drafting-commands.txt, the live surfaces from the CLI sources
+// (LiveTopLevelCommands, LiveMeSubcommands, LiveTensionSubcommands,
+// LiveProposalSubcommands), the gated set from 063's registry — so the guard hard-codes
 // none of the SETS. The one thing it must name is the identity of the gated write
 // (ProposalDraftingGatedWrite): a situating read and the create share the
 // `proposal` group, so the write cannot be derived as "the single composed leaf
@@ -38,8 +40,9 @@ import "testing"
 // guarded sets, not the one anchor those sets cannot express).
 //
 // COVERAGE (explicitly partial, per plan ADR-5 — stated, not silent):
-//   - every composed leaf (tension get; proposal list/get/create) is a `<group>
-//     <sub>` pair whose subcommand still resolves on the CLI's matching command;
+//   - every composed leaf (tension get/list; proposal list/get/create; me roles;
+//     roles) still resolves on the CLI through the four-way leaf resolution, with
+//     an unanchorable path reported rather than skipped;
 //   - the one gated write (ProposalDraftingGatedWrite) is named in the composed
 //     list and is a member of 063's gated set; every other composed leaf (the
 //     situating reads) is absent from it — the gated-membership invariant, both
@@ -64,6 +67,22 @@ func TestProposalDraftingDriftGuard(t *testing.T) {
 	// vacuously pass while the artifacts name commands nobody checked.
 	if len(composed) == 0 {
 		t.Fatalf("the composed-leaf registry %s lists no leaves — the guard would check nothing", ProposalDraftingCommandsPath)
+	}
+
+	liveTop, err := LiveTopLevelCommands()
+	if err != nil {
+		t.Fatalf("could not extract the CLI's top-level command surface: %v", err)
+	}
+	if len(liveTop) == 0 {
+		t.Fatal("extracted no top-level commands — the top-level surface anchor could not be read")
+	}
+
+	liveMe, err := LiveMeSubcommands()
+	if err != nil {
+		t.Fatalf("could not extract the CLI's me subcommand surface: %v", err)
+	}
+	if len(liveMe) == 0 {
+		t.Fatal("extracted no me subcommands — the me surface anchor could not be read")
 	}
 
 	liveTension, err := LiveTensionSubcommands()
@@ -98,7 +117,7 @@ func TestProposalDraftingDriftGuard(t *testing.T) {
 		t.Fatalf("could not read the proposal-drafter agent %s: %v", ProposalDrafterAgentPath, err)
 	}
 
-	if drift := CheckProposalDraftingDrift(composed, liveTension, liveProposal, gated, agent); len(drift) != 0 {
+	if drift := CheckProposalDraftingDrift(composed, liveTop, liveMe, liveTension, liveProposal, gated, agent); len(drift) != 0 {
 		t.Fatalf("the proposal-drafting path drifted from the shipped CLI or the guardrail boundary:\n  - %s", joinDrift(drift))
 	}
 }

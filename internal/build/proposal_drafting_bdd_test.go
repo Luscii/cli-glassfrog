@@ -57,6 +57,8 @@ type proposalDraftingWorld struct {
 	agentRaw     string
 	composed     []string
 	gated        []string
+	liveTop      []string
+	liveMe       []string
 	liveTension  []string
 	liveProposal []string
 	tools        []string
@@ -745,6 +747,14 @@ func (w *proposalDraftingWorld) givenDraftingContent() error {
 }
 
 func (w *proposalDraftingWorld) whenCheckedAgainstCLI() error {
+	liveTop, err := LiveTopLevelCommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's top-level command surface: %w", err)
+	}
+	liveMe, err := LiveMeSubcommands()
+	if err != nil {
+		return fmt.Errorf("could not extract the CLI's me subcommand surface: %w", err)
+	}
 	liveTension, err := LiveTensionSubcommands()
 	if err != nil {
 		return fmt.Errorf("could not extract the CLI's tension subcommand surface: %w", err)
@@ -753,16 +763,17 @@ func (w *proposalDraftingWorld) whenCheckedAgainstCLI() error {
 	if err != nil {
 		return fmt.Errorf("could not extract the CLI's proposal subcommand surface: %w", err)
 	}
-	if len(liveTension) == 0 || len(liveProposal) == 0 {
-		return fmt.Errorf("extracted no subcommands — a surface anchor could not be read")
+	if len(liveTop) == 0 || len(liveMe) == 0 || len(liveTension) == 0 || len(liveProposal) == 0 {
+		return fmt.Errorf("extracted no commands — a surface anchor could not be read")
 	}
+	w.liveTop, w.liveMe = liveTop, liveMe
 	w.liveTension, w.liveProposal = liveTension, liveProposal
 	gated, err := ReadGatedRegistry()
 	if err != nil {
 		return fmt.Errorf("could not read 063's gated-command registry: %w", err)
 	}
 	w.gated = gated
-	w.drift = CheckProposalDraftingDrift(w.composed, w.liveTension, w.liveProposal, w.gated, w.agent)
+	w.drift = CheckProposalDraftingDrift(w.composed, w.liveTop, w.liveMe, w.liveTension, w.liveProposal, w.gated, w.agent)
 	return nil
 }
 
@@ -770,14 +781,27 @@ func (w *proposalDraftingWorld) thenEachExists() error {
 	if len(w.drift) != 0 {
 		return fmt.Errorf("a composed leaf no longer resolves in the shipped CLI (or violates the gated-membership invariant):\n  - %s", joinDrift(w.drift))
 	}
+	// The same four-way resolution the drift check applies (top-level / me <sub>
+	// / tension <sub> / proposal <sub>), re-run here so this step fails on the
+	// specific leaf rather than only on the aggregate.
 	liveByGroup := map[string]map[string]bool{
+		"me":       setOf(w.liveMe),
 		"tension":  setOf(w.liveTension),
 		"proposal": setOf(w.liveProposal),
 	}
+	topSet := setOf(w.liveTop)
 	for _, leaf := range w.composed {
-		fields := strings.Fields(leaf)
-		if len(fields) != 2 || !liveByGroup[fields[0]][fields[1]] {
-			return fmt.Errorf("composed leaf %q does not exist as a subcommand of the CLI's %s command", leaf, fields[0])
+		switch fields := strings.Fields(leaf); {
+		case len(fields) == 1:
+			if !topSet[leaf] {
+				return fmt.Errorf("composed leaf %q does not exist as a top-level command in the CLI", leaf)
+			}
+		case len(fields) == 2 && liveByGroup[fields[0]] != nil:
+			if !liveByGroup[fields[0]][fields[1]] {
+				return fmt.Errorf("composed leaf %q does not exist as a subcommand of the CLI's %s command", leaf, fields[0])
+			}
+		default:
+			return fmt.Errorf("composed leaf %q is a command path this check cannot anchor", leaf)
 		}
 	}
 	return nil
