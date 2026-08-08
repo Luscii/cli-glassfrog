@@ -86,7 +86,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 3: Read-back orchestration [US1, US2, US3]
 
-- [ ] **T004** [US3] Add the isolated read-back helper
+- [x] **T004** [US3] Add the isolated read-back helper — 7 tests over the real retrying executor; no-error signature asserted; caller-outcome-untouched assertion lands with the call sites (T005/T006)
   - **Scope**: `internal/cli/proposal.go` — add `readBackProposalVerdict(ctx, exec, id) (glassfrog.Proposal, json.RawMessage, string)`: one `GET /proposals/` + `url.PathEscape(id)` through the supplied executor, returning the decoded proposal, the raw bytes, and a reason string. It returns no error: every failure becomes a reason. An empty id short-circuits with the id-undeterminable reason and issues no request.
   - **Acceptance criteria**:
     - A successful read-back returns an empty reason, the decoded proposal, and the raw bytes

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
@@ -172,6 +173,64 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 	// writeHuman renders through the selected user template (035) or the built-in
 	// `proposal` template (019), buffer-then-write.
 	return writeHuman(cfg.stdout, cfg.stderr, rt.tmpl, render.ResourceProposal, rt.format, view)
+}
+
+// readBackProposalVerdict performs the post-create read-back (074): ONE
+// GET /proposals/{id} through the supplied executor, decoding the server's
+// verdict. Its failures are NEVER the command's failures — it returns a
+// human-readable reason instead of an error, so a failed read-back can never
+// withhold the created proposal's id or produce a non-zero exit (ADR-2). The raw
+// bytes are returned so the machine path can emit the read-back's own document
+// verbatim; they are nil when no read-back produced a body the CLI could read.
+// An empty id short-circuits with the id-undeterminable reason and issues NO
+// request — a path fabricated from an empty id would 404 for nothing (ADR-6).
+// The path is built exactly as `proposal get` builds it: url.PathEscape keeps a
+// malformed id one opaque segment.
+//
+// Returns (proposal, raw, reason): reason is empty when the read-back answered.
+func readBackProposalVerdict(ctx context.Context, exec executor, id string) (glassfrog.Proposal, json.RawMessage, string) {
+	if id == "" {
+		return glassfrog.Proposal{}, nil, "the created proposal's id could not be determined"
+	}
+	req := apiclient.Request{Method: http.MethodGet, Path: "/proposals/" + url.PathEscape(id)}
+	var raw json.RawMessage
+	if _, err := exec.Execute(ctx, req, &raw); err != nil {
+		return glassfrog.Proposal{}, nil, readBackVerdictReason(err)
+	}
+	var doc glassfrog.Document[glassfrog.Proposal]
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return glassfrog.Proposal{}, nil, "the read-back response could not be read"
+	}
+	return doc.Data, raw, ""
+}
+
+// readBackVerdictReason maps a read-back exchange error onto the verdict-
+// unavailable reason vocabulary (interface-cli § "The read-back's failures never
+// reach an exit code"). Every failure family gets a distinct reason; none routes
+// through the shared failure envelope, because the read-back's failure is not
+// the command's failure (ADR-2). The 429 arm names the exhausted request budget
+// — the executor has already retried a safe GET, so a surviving 429 means the
+// per-organization budget is spent, and the operator's move is to re-read later,
+// never to re-create. Text is response-side only, never the token.
+func readBackVerdictReason(err error) string {
+	var responseErr *apiclient.ResponseError
+	if errors.As(err, &responseErr) {
+		if responseErr.StatusCode == http.StatusTooManyRequests {
+			return "the read-back was rate limited (the request budget was exhausted)"
+		}
+		var problemErr *apiclient.ProblemError
+		if errors.As(refineClientError(err), &problemErr) {
+			return "the read-back was refused (" + problemCause(problemErr) + ")"
+		}
+		return fmt.Sprintf("the read-back was refused (status %d)", responseErr.StatusCode)
+	}
+	var decodeErr *apiclient.DecodeError
+	if errors.As(err, &decodeErr) {
+		return "the read-back response could not be read"
+	}
+	// A wire-level failure (*TransportError), or anything unrecognized: the
+	// proposal could not be read back at all, with the underlying cause named.
+	return "the proposal could not be read back (" + err.Error() + ")"
 }
 
 // newProposalCommand assembles the `proposal` command group and its leaves, registered
