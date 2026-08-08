@@ -17,17 +17,17 @@ import (
 // alongside the family's other path constants.
 const GrammarFactsPath = "plugin/skills/proposal-drafting/references/change-set-grammar-facts.md"
 
-// GrammarDispositionVocabulary is the closed set of Disposition values a fact
+// grammarDispositionVocabulary is the closed set of Disposition values a fact
 // may carry (interface-spec § per-fact contract). A value outside this set is a
 // guard violation (condition 5). Recorded here as a checked-in contract fact —
 // it is the closed vocabulary the spec pins, not a value derived from another
 // file, so pinning it is correct rather than a second source of truth.
-var GrammarDispositionVocabulary = []string{"accepted", "rejected", "accepted-but-invalid"}
+var grammarDispositionVocabulary = []string{"accepted", "rejected", "accepted-but-invalid"}
 
-// GrammarRequiredFields is the five labelled fields every fact section must
+// grammarRequiredFields is the five labelled fields every fact section must
 // carry, non-empty (interface-spec § per-fact contract). The labels are the
 // machine anchors; a missing or empty one is guard condition 4.
-var GrammarRequiredFields = []string{"Shape", "Disposition", "Symptom", "Evidence", "Provenance"}
+var grammarRequiredFields = []string{"Shape", "Disposition", "Symptom", "Evidence", "Provenance"}
 
 // GrammarFact is one recorded fact parsed from the record: its id and title
 // (from the `## CSG-<n> — <title>` heading), the five labelled fields keyed by
@@ -436,13 +436,13 @@ func CheckGrammarFacts(rec GrammarFactsRecord, specEnum, specNestedOnly []string
 
 	// Condition 4/5: per-fact required fields and closed disposition vocabulary.
 	for _, f := range rec.Facts {
-		for _, label := range GrammarRequiredFields {
+		for _, label := range grammarRequiredFields {
 			if strings.TrimSpace(f.Fields[label]) == "" {
 				v = append(v, fmt.Sprintf("fact %s is missing or has an empty required field %q — supply the field", f.ID, label))
 			}
 		}
-		if disp := f.Disposition(); disp != "" && !inStringSet(disp, GrammarDispositionVocabulary) {
-			v = append(v, fmt.Sprintf("fact %s carries Disposition %q outside the closed vocabulary — use one of %s", f.ID, disp, strings.Join(GrammarDispositionVocabulary, " / ")))
+		if disp := f.Disposition(); disp != "" && !inStringSet(disp, grammarDispositionVocabulary) {
+			v = append(v, fmt.Sprintf("fact %s carries Disposition %q outside the closed vocabulary — use one of %s", f.ID, disp, strings.Join(grammarDispositionVocabulary, " / ")))
 		}
 	}
 

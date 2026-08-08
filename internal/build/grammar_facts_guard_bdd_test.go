@@ -33,11 +33,12 @@ func TestGrammarFactsGuardFeatures(t *testing.T) {
 // grammarGuardWorld is the per-scenario state: the fixture record, the spec-side
 // sets (loaded real, then mutated to model a refresh), and the guard's findings.
 type grammarGuardWorld struct {
-	record     string
-	specEnum   []string
-	specNested []string
-	violations []string
-	ran        bool
+	record        string
+	specEnum      []string
+	specNested    []string
+	droppedNested string
+	violations    []string
+	ran           bool
 }
 
 func (w *grammarGuardWorld) register(sc *godog.ScenarioContext) {
@@ -126,10 +127,13 @@ func (w *grammarGuardWorld) givenAllAbsorbed() error { return nil }
 
 func (w *grammarGuardWorld) whenSpecRefreshedNested() error {
 	// A refreshed spec drops a nested-only type — the record's citation no longer
-	// set-equals the contract.
+	// set-equals the contract. Capture which type was dropped (derived from the
+	// spec slice, never hard-coded) so the assertion stays correct if the spec
+	// reorders the same set.
 	if len(w.specNested) == 0 {
 		return fmt.Errorf("spec nested-only set is empty; nothing to drop")
 	}
+	w.droppedNested = w.specNested[len(w.specNested)-1]
 	w.specNested = w.specNested[:len(w.specNested)-1]
 	w.run()
 	return nil
@@ -185,9 +189,14 @@ func (w *grammarGuardWorld) thenFailNamingBothSets() error {
 	if !containsFold(joined, "nested-only") {
 		return fmt.Errorf("failure does not name the nested-only invariant: %s", joined)
 	}
-	// Both sets readable from the failure: the dropped type names the difference.
-	if !strings.Contains(joined, "RemoveDomain") {
-		return fmt.Errorf("failure does not make both sets readable (missing the differing type): %s", joined)
+	// Both sets readable from the failure: the type dropped by the refresh (the
+	// difference between the two sets) is named. Derived from the mutation, not
+	// hard-coded, so a spec that reorders the same set does not break this.
+	if w.droppedNested == "" {
+		return fmt.Errorf("no dropped nested-only type was captured; the When did not run")
+	}
+	if !strings.Contains(joined, w.droppedNested) {
+		return fmt.Errorf("failure does not name the differing type %q, so both sets are not readable: %s", w.droppedNested, joined)
 	}
 	return nil
 }

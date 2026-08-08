@@ -299,7 +299,7 @@ func (w *grammarFactsWorld) thenFiveFields() error {
 		return fmt.Errorf("record carries no fact sections")
 	}
 	for _, f := range w.record.Facts {
-		for _, label := range GrammarRequiredFields {
+		for _, label := range grammarRequiredFields {
 			if strings.TrimSpace(f.Fields[label]) == "" {
 				return fmt.Errorf("%s is missing required field %q", f.ID, label)
 			}
