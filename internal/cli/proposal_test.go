@@ -300,6 +300,28 @@ func TestRunProposalCreate_PremiumDeniedIsPlanLimit(t *testing.T) {
 	}
 }
 
+// TestRunProposalCreate_FailedCreateIssuesNoReadBack pins the exchange-count
+// contract (074): a failed create is exactly ONE exchange — the read-back is
+// never attempted for a create that did not succeed, so no proposal read of any
+// kind follows the refusal.
+func TestRunProposalCreate_FailedCreateIssuesNoReadBack(t *testing.T) {
+	tr := &tensionTransport{status: 422, body: `{"detail":"the change set was rejected"}`}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
+
+	outcome, _, _ := runProposalCreateOver(t, seam, proposalCreateConfig{tensionID: "ten_0123", changesValue: `[{"type":"X"}]`})
+	if outcome != APIError {
+		t.Fatalf("outcome = %v, want APIError", outcome)
+	}
+	if tr.calls != 1 {
+		t.Errorf("a failed create is exactly one exchange, got %d", tr.calls)
+	}
+	for i, m := range tr.methods {
+		if m == http.MethodGet {
+			t.Errorf("no read may follow a failed create, saw GET %s", tr.paths[i])
+		}
+	}
+}
+
 func TestRunProposalCreate_UnknownTensionSurfacesAPIStatus(t *testing.T) {
 	tr := &tensionTransport{status: 404, body: `{"detail":"Tension not found"}`}
 	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}

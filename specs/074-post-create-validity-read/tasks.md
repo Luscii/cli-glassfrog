@@ -132,7 +132,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: Structured output carries the verdict alongside the created id", "Scenario: A create response carrying no id yields no read-back"
   - **Interface references**: `interface-cli.md`: "stdout — machine formats"
 
-- [ ] **T007** [Shared] Reconcile the existing create tests and wire the BDD suite
+- [x] **T007** [Shared] Reconcile the existing create tests and wire the BDD suite — 15 scenarios executed (100 steps), 4 `@validation @wip` held per the disposition table; explicit exchange counts pinned (0 / 1 + no-read / 2); `go test ./...` (2302) + `gofmt` + `golangci-lint` clean
   - **Scope**: `internal/cli/proposal_test.go` and a new `internal/cli/post_create_validity_read_bdd_test.go` — update every existing create test whose exchange count changed (the success path now performs two exchanges), and add the godog suite over the new feature file with its step definitions, clearing `@wip` per scenario as each passes.
   - **Acceptance criteria**:
     - Exchange counts are asserted explicitly, not incidentally: zero requests on any pre-request rejection, exactly one on a failed create, exactly two on a successful create whose read-back is attempted
