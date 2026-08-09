@@ -155,7 +155,7 @@ Feature: Post-Create Validity Read
       And a user template referencing only the proposal fields the create rendered before the verdict existed
       When an agent creates a proposal with that template selected
       Then every field path in the template will still resolve
-      And the template's output will be unchanged by the verdict's addition
+      And the template's output will carry the read-back's values through those same paths
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan Risk 3 (the shared singular proposal template is the drift surface ADR-4 routes around)

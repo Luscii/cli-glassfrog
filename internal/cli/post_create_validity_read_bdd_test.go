@@ -140,7 +140,7 @@ func initializePostCreateValidityScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^the compact line will carry the created "([^"]*)" id, its status, and the change count$`, w.compactCarriesIDStatusCount)
 	sc.Step(`^it will carry the validity token and the alert count$`, w.compactCarriesValidityAndAlertCount)
 	sc.Step(`^every field path in the template will still resolve$`, w.templateFieldsResolve)
-	sc.Step(`^the template's output will be unchanged by the verdict's addition$`, w.templateOutputUnchanged)
+	sc.Step(`^the template's output will carry the read-back's values through those same paths$`, w.templateOutputCarriesReadBack)
 	sc.Step(`^none of those results will render a validity, alert, or verdict-source line$`, w.siblingsRenderNoVerdict)
 	sc.Step(`^their output will be unchanged from before the create gained its verdict$`, w.siblingsOutputUnchanged)
 	sc.Step(`^the result will report that the verdict could not be obtained and name the cause$`, w.verdictUnobtainableWithCause)
@@ -214,9 +214,16 @@ func (w *postCreateValidityWorld) createBodyCarriesNoID(_ string) error {
 	return nil
 }
 
+// preVerdictUserTemplate builds a template over ONLY pre-074 field paths. It
+// includes .Proposal.AvailableTransitions deliberately: that is the field on
+// which the create response and the read-back DISAGREE, so the Then step can
+// tell which document supplied the values. A projection limited to id, status,
+// and the change count renders identically either way, which would make the
+// assertion inert (validate.md Round 2, F-1 — the same defect the unit-level
+// pinning test carried).
 func (w *postCreateValidityWorld) preVerdictUserTemplate() error {
 	w.tmplFiles = map[string]string{
-		"pre074.tmpl": "{{.Proposal.ID}} {{.Proposal.Status}} {{len .Proposal.Changes}}",
+		"pre074.tmpl": "{{.Proposal.ID}} {{.Proposal.Status}} {{len .Proposal.Changes}} {{len .Proposal.AvailableTransitions}}",
 	}
 	return nil
 }
@@ -254,10 +261,13 @@ func (w *postCreateValidityWorld) runCreateWithTemplate() error {
 		return fmt.Errorf("no user template was set up by the Given")
 	}
 	if w.readStep.body == proposalCreatedBody {
-		// The scenario cares about the view type, not the verdict's content; a
-		// favourable read-back keeps the template's inputs identical to the
-		// pre-074 rendering.
-		w.readStep = proposalSeqStep{status: 200, body: readBackBodyWith("draft", `"valid":true,"validation_alerts":[],`, `["propose"]`)}
+		// A favourable read-back that DIFFERS from the create response on one
+		// pre-074 field. The transition set is the discriminator: the create
+		// response carries ["propose"], this carries both, so the Then step can
+		// tell which document the template rendered. Rigging the two to agree
+		// (as this fixture originally did) makes the assertion unfalsifiable —
+		// validate.md Round 2, F-1.
+		w.readStep = proposalSeqStep{status: 200, body: readBackBodyWith("draft", `"valid":true,"validation_alerts":[],`, `["propose","withdraw"]`)}
 	}
 	return w.runCommand(`proposal create ten_0123 --changes '[{"type":"CreateRole","name":"Scribe"}]' --output pre074.tmpl`)
 }
@@ -597,13 +607,16 @@ func (w *postCreateValidityWorld) templateFieldsResolve() error {
 	return nil
 }
 
-func (w *postCreateValidityWorld) templateOutputUnchanged() error {
-	// The template projects id/status/change-count — fields whose values are
-	// identical before and after the verdict's addition, so the pre-074 output
-	// is reproducible exactly.
-	want := "prp_0123 draft 1"
+// templateOutputCarriesReadBack pins WHICH document supplied the values a
+// pre-074 template projects. Where the read-back answered, it is the read-back's
+// proposal (ADR-4, plan § Verdict Assembly) — so the transition count is the
+// read-back's two, not the create response's one. The paths themselves are
+// unchanged by the verdict's addition; the values are not promised to be, and
+// asserting otherwise is what made this step inert before.
+func (w *postCreateValidityWorld) templateOutputCarriesReadBack() error {
+	want := "prp_0123 draft 1 2"
 	if w.stdout != want {
-		return fmt.Errorf("template output = %q, want %q (unchanged by the verdict)", w.stdout, want)
+		return fmt.Errorf("template output = %q, want %q (the read-back's transitions, not the create's)", w.stdout, want)
 	}
 	return nil
 }
