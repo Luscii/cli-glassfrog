@@ -57,7 +57,7 @@ Raw-byte pass-through (018) — the document mirrors the response shape exactly:
 
 - Requested + carried: `"legacy_id": 14062695`
 - Requested + null (agent-backed actor): `"legacy_id": null` — no reason field is added
-- Requested + resource is an embed (a role's `fillers`/`subroles`, an actor's `roles`, `me`'s `?include=roles`): **no key**, exactly as the response
+- Requested + the response omitted the key for that resource: **no key**, exactly as the response. This is the case for embedded resources on the reads whose embeds do not carry the number — but it is **not** a property of embedding as such, and this contract makes no per-embed claim. Because the path is raw pass-through, whatever the response did is what the document shows. Observed: the single-role read's five embed families (`subroles`, `assignments`, `fillers`, `accountabilities`, `domains`) omit the key, while the identity read's `?include=roles` **carries** it on every embedded role (LEARNINGS W2/W3).
 - Not requested: **no key anywhere**
 
 `me -o json --legacy-id` therefore carries all three numbers the response carries — `data.actor.legacy_id`, `data.organization.legacy_id`, `data.membership.legacy_id` — with no filtering.
@@ -68,7 +68,7 @@ Raw-byte pass-through (018) — the document mirrors the response shape exactly:
 { "data": { "id": "role_4d8f01d9…", "type": "role", "legacy_id": 14062695, "name": "Cloud Visionary", "fillers": [ { "id": "per_0123…", "name": "Alice Smith" } ] } }
 ```
 
-(`fillers[]` members carry no `legacy_id` key — embeds are excluded by the contract.)
+(`fillers[]` members carry no `legacy_id` key, because this read's response omits it for them — verified, not assumed. Another read's embeds may carry it; the identity read's do.)
 
 ### Human output — shared idioms
 
