@@ -1,6 +1,6 @@
 ---
 name: proposal-drafting
-description: Turn a well-formed tension that is ready to become a governance change into a created draft proposal — grounding the draft in its anchor tension, situating it against the proposals already in flight in the circle, assembling the change set, and creating the draft through the guardrail-confirmed write with the change set shown inline — then returning a draft record carrying its prp_ id, ready to hand to circulation. Reach for this whenever a ready tension should become a draft proposal. It is not for capturing, refining, or retiring a tension (that is the Tension Processing Path), it does not judge whether an action is allowed or needs a proposal (that is the Constraint Discovery Path), it does not explain the governance around a concern (that is governance navigation), and it never advances, responds to, or withdraws a circulating proposal (that is the Proposal Circulation Path).
+description: Turn a well-formed tension that is ready to become a governance change into a created draft proposal — grounding the draft in its anchor tension, situating it against the proposals already in flight in the circle, assembling the change set, and creating the draft through the guardrail-confirmed write with the change set shown inline — then returning a draft record carrying its prp_ id, ready to hand to circulation. Reach for this whenever a ready tension should become a draft proposal. It is not for capturing, refining, or retiring a tension (that is the Tension Processing Path), it does not judge whether an action is allowed or needs a proposal (that is the Constraint Discovery Path), it does not explain the governance around a concern (that is governance navigation), and it never advances or withdraws a circulating proposal (that is the Proposal Circulation Path) or records a response on one (that is the proposal-impact-review path).
 ---
 
 # Drafting a ready tension into a created proposal
@@ -64,8 +64,8 @@ anchor tension's `ten_` id and the intended change:
    governance write the Write-Safety Guardrail confirms — the change set is passed **inline** so the
    confirmation shows the exact payload (see [Gated-write note](#gated-write-note)).
 6. **Hand off** — return the created draft record and hand its `prp_` id to the
-   **Proposal Circulation Path**. Advancing, responding to, or withdrawing
-   the proposal is that path's job, never this one's.
+   **Proposal Circulation Path**. Advancing or withdrawing the proposal is that
+   path's job; recording a response is the response side's. Neither is this one's.
 
 For the exact flags of any one command, ask the CLI:
 `glassfrog proposal <sub> --help` and `glassfrog tension get --help`.
