@@ -155,7 +155,7 @@ Feature: Post-Create Validity Read
       And a user template referencing only the proposal fields the create rendered before the verdict existed
       When an agent creates a proposal with that template selected
       Then every field path in the template will still resolve
-      And the template's output will be unchanged by the verdict's addition
+      And the template's output will carry the read-back's values through those same paths
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan Risk 3 (the shared singular proposal template is the drift surface ADR-4 routes around)
@@ -201,7 +201,8 @@ Feature: Post-Create Validity Read
     # Source: 074-post-create-validity-read — Scenario: Every verdict state is distinguishable in every output format
     @validation @wip
     Scenario: Every verdict state is distinguishable in every output format
-      Given each output format the create supports
+      Given each output format the create itself composes — the two human formats and the two machine formats
       When the server states a favourable verdict, states an unfavourable verdict, states no verdict, and the read-back fails
       Then all four outcomes will be distinguishable from one another in that format without inference
       And in a machine format none of the four will require reading human prose to identify
+      And under a caller-authored template the four states will be available to be distinguished rather than rendered

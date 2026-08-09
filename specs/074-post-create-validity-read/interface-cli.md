@@ -147,6 +147,10 @@ No composed envelope, no added keys, no CLI-invented fields. The document's own 
 
 Renders over the create-specific view. Every field path an existing user template could reference on the create still resolves (the view embeds the one it replaces), and the verdict is additionally available. Field paths are pinned in `interface-spec.md`.
 
+**What this form promises is availability, not rendering.** The command composes the four built-in formats and can therefore guarantee the four verdict states are distinguishable in each; it does not compose a caller-authored template's output, so a template that never references `.Verdict` will not show the verdict, and three of the four states are then indistinguishable on stdout. That is the correct division — the author chose the projection — and it is the only promise this form can honestly carry. The stderr advisory still fires (a template path is not a machine format, so the advisory is the human prose line), but its wording distinguishes only *obtained* from *unavailable*, not the three obtained states from one another. A caller who needs the verdict under a user template references `.Verdict` in it.
+
+Note also that a user template shares the built-in FuncMap, which this feature widens by one helper (`include`). See `interface-spec.md` for the reachability statement and why the data-only sandbox still holds.
+
 ### stderr — the verdict advisory
 
 One advisory on the create success path, in **every** output format — this is how the verdict's provenance, and any reason it is unavailable, reaches a caller whose stdout is a verbatim server document.
@@ -252,7 +256,10 @@ Every read-back failure resolves to the `unavailable` verdict state with a reaso
 | Non-2xx on the read-back | `the read-back was refused (<status-derived cause>)` |
 | 429 after retries | `the read-back was rate limited (the request budget was exhausted)` |
 | Undecodable read-back body | `the read-back response could not be read` |
+| Read-back body that is not the requested proposal | `the read-back response could not be read` |
 | No id in the create response | `the created proposal's id could not be determined` |
+
+The fourth and fifth causes deliberately share one reason text. A 2xx body that decodes cleanly but carries no proposal (`{}`, `{"data":{}}`) or carries a *different* proposal is refused for the same operational purpose as a body that would not parse at all: the CLI did not obtain this proposal's verdict. Keeping the reason **vocabulary** closed is what lets the four verdict states stay distinguishable without prose-scraping, so a sixth cause does not earn a sixth string. The two do suggest different follow-ups, though — a malformed response points at the server, while a well-formed response for the wrong record points at a proxy or gateway in the path — which is why both are enumerated here rather than folded into one row.
 
 These are reasons, not diagnostics: they do not route through the shared failure envelope, they never replace the created id, and they never produce a non-zero exit. A caller that needs the verdict after seeing `unavailable` re-runs `glassfrog proposal get <prp_id>` — the id it needs is in the output it just received.
 

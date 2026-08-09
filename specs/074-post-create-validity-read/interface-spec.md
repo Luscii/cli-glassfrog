@@ -127,10 +127,18 @@ Template files, both rendering the body through the shared template from the sin
 
 ```gotemplate
 {{/* proposal-created.compact.tmpl */}}
-{{template "proposal.compact.tmpl" .}}  {{.Verdict.Compact}}
+{{trimSpace (include "proposal.compact.tmpl" .)}}  {{.Verdict.Compact}}
 ```
 
-**Unchanged**: `proposal.full.tmpl`, `proposal.compact.tmpl`, `ProposalView`, `ResourceProposal`, `funcMap`, `Render`, `RenderError`, and every other resource key. No conditional verdict line is added to the shared templates — that is the leak ADR-4 exists to prevent.
+The compact wrapper delegates through `include`, not `{{template}}`, because `interface-cli.md` contracts the compact form as **one line** and the shared `proposal.compact.tmpl` ends in a newline. `text/template` cannot capture `{{template}}` output, so the shared body has to come back as a string before it can be trimmed. The alternative — a conditional verdict line inside the shared template — is precisely the leak ADR-4 exists to prevent, so the delegation moved into the wrapper instead.
+
+**Changed in `internal/render`, beyond the new view and resource key**:
+
+- `funcMap` gains **one** helper, `include(name string, data any) (string, error)`, which executes a named built-in into a string and returns the engine's error unchanged, so a failure inside the included template still fails the outer render loud. It is pure over its inputs and token-free like every sibling helper. Note the reachability: user templates parse into a clone of the built-in set and therefore **share this FuncMap** (035, ADR-2), so `include` is callable from a caller-authored template. The data-only sandbox still holds by construction — `include` exposes no file, network, or exec surface, and can only render a built-in over data the caller was already handed — but the callable surface is wider than the built-ins, and that is the accord's statement of it.
+- `templates` moves from a declaration-time initializer to assignment in `init()`. `include` refers back to the parsed set, so a declaration-time initializer would make `funcMap` ↔ `templates` an initialization cycle. `init` runs after package-level vars, so `template.Must` still panics a parse failure at package init — the build-time-defect property is unchanged.
+- `userTemplateBase` (usertemplate.go) is assigned in that same `init()`, because its clone must be taken after `templates` exists.
+
+**Unchanged**: `proposal.full.tmpl`, `proposal.compact.tmpl`, `ProposalView`, `ResourceProposal`, `Render`, `RenderError`, and every other resource key. No conditional verdict line is added to the shared templates.
 
 ### `internal/cli` — one helper, one changed call site
 

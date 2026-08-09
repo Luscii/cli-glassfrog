@@ -108,7 +108,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
     - The stderr advisory names the read on success and, when unavailable, states the cause and the remedy (`glassfrog proposal get <prp_id>`) — except where no id could be determined, which names no remedy
     - In a human format the advisory is the prose line; the prose and the structured form are derived from one value, so they cannot disagree about whether the CLI asked
     - The pre-request rejection paths are unchanged: a missing/blank/unparseable/type-less `--changes` and a bad `--output` still issue zero requests
-    - A user-supplied template written against the pre-change view still renders — every field path that resolved before still resolves, and its output is unchanged by the verdict's addition
+    - A user-supplied template written against the pre-change view still renders — every field path that resolved before still resolves, and no field path is removed, renamed, or reshaped by the verdict's addition. Its *values* are not promised unchanged: where the read-back answered, the rendered proposal is the read-back's, so a path like `.Proposal.AvailableTransitions` reflects the second document. That substitution is ADR-4's design, not drift — the invalid-draft scenario needs the empty transition set only the read-back reports — and the pinning test must use a projection on which the two documents *disagree*, or it cannot fail when the promise breaks
     - The `compact` selection carries the id, status, change count, the compact validity label, and the alert count on one line
     - A render failure still maps to the internal-error code with stdout left empty
   - **Dependencies**: T003, T004

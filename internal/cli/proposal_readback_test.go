@@ -476,29 +476,67 @@ func TestRunProposalCreate_CompactCarriesVerdict(t *testing.T) {
 
 // TestRunProposalCreate_PreChangeUserTemplateStillRenders pins ADR-4's promotion
 // guarantee at the call site: a user template written against the pre-074 view
-// (.Proposal.* field paths) still renders, and its output is unchanged by the
-// verdict's addition.
+// (.Proposal.* field paths) still renders — no path is removed, renamed, or
+// reshaped by the verdict's addition.
+//
+// It does NOT pin the rendered VALUES as unchanged, because they are not: where
+// the read-back answered, the human arm renders the READ-BACK's proposal (plan
+// § Verdict Assembly — the invalid-draft scenario needs the empty transition set
+// only the read-back reports). So the projection here deliberately includes
+// .Proposal.AvailableTransitions, the one field on which the two fixtures
+// DISAGREE (create: ["propose"]; read-back: ["propose","withdraw"]), and each
+// case asserts which document supplied it. A projection the two fixtures agree
+// on — id, status, change count — renders identically whichever document is
+// substituted, so it cannot fail when the promise breaks. That was this test's
+// original defect (validate.md Round 2, F-1).
 func TestRunProposalCreate_PreChangeUserTemplateStillRenders(t *testing.T) {
-	tr := &proposalSeqTransport{steps: []proposalSeqStep{
-		{status: 201, body: proposalCreatedBody},
-		{status: 200, body: proposalReadBackValidBody},
-	}}
-	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{
-		ctx:       validMeContext(),
-		transport: tr,
-		tmplFiles: map[string]string{"pre074.tmpl": "{{.Proposal.ID}} {{.Proposal.Status}} {{len .Proposal.Changes}}"},
-	}}
-	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
-		tensionID:     "ten_0123",
-		changesValue:  `[{"type":"CreateRole","name":"Scribe"}]`,
-		outputFlag:    "pre074.tmpl",
-		outputPresent: true,
-	})
-	if outcome != Success {
-		t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+	// Every path below resolved before 074; none is verdict-aware.
+	const pre074 = "{{.Proposal.ID}} {{.Proposal.Status}} {{len .Proposal.Changes}} {{len .Proposal.AvailableTransitions}}"
+
+	cases := []struct {
+		name     string
+		readBack proposalSeqStep
+		want     string
+		why      string
+	}{
+		{
+			name:     "read-back answered: values come from the read-back",
+			readBack: proposalSeqStep{status: 200, body: proposalReadBackValidBody},
+			want:     "prp_0123 draft 1 2",
+			why:      "the read-back's two transitions, not the create's one",
+		},
+		{
+			name:     "read-back failed: values fall back to the create response",
+			readBack: proposalSeqStep{netErr: errors.New("dial tcp: network unreachable")},
+			want:     "prp_0123 draft 1 1",
+			why:      "the create's one transition — a failed read-back substitutes nothing",
+		},
 	}
-	if stdout != "prp_0123 draft 1" {
-		t.Errorf("pre-change template output = %q, want %q", stdout, "prp_0123 draft 1")
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &proposalSeqTransport{steps: []proposalSeqStep{
+				{status: 201, body: proposalCreatedBody},
+				tc.readBack,
+			}}
+			seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{
+				ctx:       validMeContext(),
+				transport: tr,
+				tmplFiles: map[string]string{"pre074.tmpl": pre074},
+			}}
+			outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+				tensionID:     "ten_0123",
+				changesValue:  `[{"type":"CreateRole","name":"Scribe"}]`,
+				outputFlag:    "pre074.tmpl",
+				outputPresent: true,
+			})
+			if outcome != Success {
+				t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+			}
+			if stdout != tc.want {
+				t.Errorf("pre-change template output = %q, want %q (%s)", stdout, tc.want, tc.why)
+			}
+		})
 	}
 }
 
