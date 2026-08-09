@@ -106,6 +106,14 @@ This document defines the enforceable principles that govern how the Glassfrog C
 
 *Detection*: Running the distributed artifact on a clean environment — host OS plus network only, with no language runtime or extra software installed — succeeds. If it fails without some separately-installed dependency, or the build emits an artifact that requires one, that's a violation.
 
+### XIII. Self-Contained Operating Surface
+
+**Every reference inside the shipped operating surface (`plugin/`) MUST resolve within the surface itself or to the CLI it drives. The development repository MUST NOT be referenced in any form — no spec-number ids, no repo paths, no pipeline or portfolio artifacts, and no pathless mention of repo machinery. Pointers flow in one direction only: repository → surface, never back.**
+
+*Rationale*: The surface ships to machines that have the plugin and the CLI — and nothing else. To an operator standing there, every repository reference is a dangling pointer: a spec number with no catalog to look it up in, a guard-test path with no tree to open, a design citation with no document. Self-containment is repository-independence, not world-independence — the GlassFrog API, its published specification as a concept, and Holacracy terms stay legal, because the surface exists to drive them.
+
+*Detection*: The repository's verification run walks every file under `plugin/` — the checked set derived by walking, so new files are covered with no registration — and fails on any development-repository reference, naming the file, line, matched text, and remedy. A missing or empty surface fails loudly rather than passing vacuously.
+
 ---
 
 ## When Principles Conflict
@@ -120,3 +128,10 @@ This document defines the enforceable principles that govern how the Glassfrog C
 ## Governance
 
 This constitution is a living document and supersedes conflicting practices. Amendments require documented justification and a version bump, and follow the same rigor as code changes. Principles marked `[NEEDS DISCUSSION]` MUST be resolved before any code depends on the unresolved behavior. PR review checks changes against these principles; a violation blocks merging.
+
+**Version**: 1.1
+
+*Amendment record*:
+
+- **1.0** — the baseline: the pre-existing twelve principles (I–XII), acknowledged as-is when this marker was established. No principle text changed.
+- **1.1** (2026-08-09) — added Principle XIII (Self-Contained Operating Surface). Justification: the shipped operating surface under `plugin/` had accumulated development-repository references (spec-number ids, guard-test paths, design citations) that dangle for the operator it ships to; the principle records the standing rule so future surface artifacts are authored against it rather than rediscovering it in review, and its detection mechanism (the verification run's surface walk) makes violations observable. This amendment also established the version marker itself, satisfying the version-bump clause above for this and every future amendment.

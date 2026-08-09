@@ -1,6 +1,6 @@
 > **Empirical record.** Every fact below is observed server behavior, captured
 > from live proposal writes against the Glassfrog API. None of it is part of the
-> published Glassfrog API v5 contract (`spec/glassfrog-api-v5.yaml`) — where the
+> published Glassfrog API v5 contract — where the
 > contract already speaks, this record cites it rather than restating it. Treat
 > these as verified observations that may change when the server changes, not as
 > authoritative reference. This is the residue the contract does not carry; a
@@ -11,8 +11,8 @@
 - **Owner**: the proposal-drafting skill. This record lives in that skill's
   `references/` directory as the single source; any other skill that needs it
   consumes it through a symbolic link into its own directory, never a copy.
-- **Contract citations**: `spec/glassfrog-api-v5.yaml` — cited by schema and
-  property name only, never by line number and never by restated values.
+- **Contract citations**: the published Glassfrog API v5 contract — cited by
+  schema and property name only, never by line number and never by restated values.
 - **Live facts**: CSG-1, CSG-2
 
 ## Contract citations
@@ -49,7 +49,7 @@ contract, not restatements of it.
   wrapper by analogy with accountability/domain edits builds a change set the
   server will not take.
 - **Evidence**: `prp_ebe2815f…` — live payload `"changes": [{"type": "CreatePolicy", …}]`.
-- **Provenance**: supersedes LEARNINGS 2026-08-05, F5.
+- **Provenance**: supersedes the provisional field note of 2026-08-05 (F5).
 
 ## CSG-2 — An `UpdateRole` self-targeting the circle from inside its own governance is accepted at create but returned invalid
 
@@ -63,4 +63,4 @@ contract, not restatements of it.
   draft is dead on arrival and can be removed only via the web UI. A consumer
   must not read the created id as a valid change; "created" is not "valid".
 - **Evidence**: `prp_c76cd6bf…` — created, returned `valid: false`, deleted via the web UI.
-- **Provenance**: supersedes LEARNINGS 2026-08-05, F6.
+- **Provenance**: supersedes the provisional field note of 2026-08-05 (F6).

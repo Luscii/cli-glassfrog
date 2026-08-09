@@ -1,6 +1,6 @@
 ---
 name: proposal-drafting
-description: Turn a well-formed tension that is ready to become a governance change into a created draft proposal — grounding the draft in its anchor tension, situating it against the proposals already in flight in the circle, assembling the change set, and creating the draft through the guardrail-confirmed write with the change set shown inline — then returning a draft record carrying its prp_ id, ready to hand to circulation. Reach for this whenever a ready tension should become a draft proposal. It is not for capturing, refining, or retiring a tension (that is the Tension Processing Path), it does not judge whether an action is allowed or needs a proposal (that is the Constraint Discovery Path), it does not explain the governance around a concern (that is governance navigation), and it never advances, responds to, or withdraws a circulating proposal (that is the Proposal Circulation Path).
+description: Turn a well-formed tension that is ready to become a governance change into a created draft proposal — grounding the draft in its anchor tension, situating it against the proposals already in flight in the circle, assembling the change set, and creating the draft through the guardrail-confirmed write with the change set shown inline — then returning a draft record carrying its prp_ id, ready to hand to circulation. Reach for this whenever a ready tension should become a draft proposal. It is not for capturing, refining, or retiring a tension (that is the Tension Processing Path), it does not judge whether an action is allowed or needs a proposal (that is the Constraint Discovery Path), it does not explain the governance around a concern (that is governance navigation), and it never advances or withdraws a circulating proposal (that is the Proposal Circulation Path) or records a response on one (that is the proposal-impact-review path).
 ---
 
 # Drafting a ready tension into a created proposal
@@ -23,13 +23,14 @@ governance change** and you need to assemble the changes and create the draft
 proposal, returning its `prp_` id through a confirmed gated write.
 
 Do **not** reach for it to *capture, refine, or retire a tension* — that is the
-**Tension Processing Path** (066); a ready tension is handed *to* this path, not
+**Tension Processing Path**; a ready tension is handed *to* this path, not
 worked here. Do not use it to answer *"am I allowed to do X?"* or *"does this need
 a proposal?"* — that authority verdict belongs to the **Constraint Discovery
-Path** (065). Do not use it to *understand the governance around a concern* — that
-traversal is the **governance-navigation** skill's job (064). And do not use it to
-*advance, respond to, or withdraw a circulating proposal* — that is the **Proposal
-Circulation Path** (068/069); this path stops at the created draft.
+Path**. Do not use it to *understand the governance around a concern* — that
+traversal is the **governance-navigation** skill's job. And do not use it to
+*advance or withdraw a circulating proposal* — that is the **Proposal Circulation
+Path** — or to *record a response* on one — that is the **response side**, the
+proposal-impact-review path. This path stops at the created draft.
 
 ## The workflow
 
@@ -60,11 +61,11 @@ anchor tension's `ten_` id and the intended change:
 5. **Surface & create** — narrate the anchor tension and the assembled change set
    for confirmation, then create the draft:
    `proposal create <ten-id> --changes '<inline JSON>'`. This is a **gated**
-   governance write 063 confirms — the change set is passed **inline** so the
+   governance write the Write-Safety Guardrail confirms — the change set is passed **inline** so the
    confirmation shows the exact payload (see [Gated-write note](#gated-write-note)).
 6. **Hand off** — return the created draft record and hand its `prp_` id to the
-   **Proposal Circulation Path** (068). Advancing, responding to, or withdrawing
-   the proposal is that path's job, never this one's.
+   **Proposal Circulation Path**. Advancing or withdrawing the proposal is that
+   path's job; recording a response is the response side's. Neither is this one's.
 
 For the exact flags of any one command, ask the CLI:
 `glassfrog proposal <sub> --help` and `glassfrog tension get --help`.
@@ -88,7 +89,7 @@ command is broken by the agent's absence.
 ## Gated-write note
 
 This path's **only** write is `proposal create`, and it is a **governance write
-gated by the Write-Safety Guardrail (063)**: the create always runs through the
+gated by the Write-Safety Guardrail**: the create always runs through the
 **confirmed write flow**. The change set is passed **inline** (`--changes '<inline
 JSON>'`) so the confirmation prompt displays the **exact payload** being
 written — never a file path or `stdin` that would make the human confirm blind. A
@@ -98,19 +99,20 @@ through a hidden file — inline is the only source that keeps the confirmation
 honest.
 
 This path performs **no other write**. It never runs `proposal propose`,
-`proposal respond`, or `proposal withdraw` — advancing, responding to, or
-withdrawing a proposal is the **Proposal Circulation Path** (068/069, gated by 063
-regardless), and the ready `prp_` id is handed there. It never performs a tension
-write (that is the Tension Processing Path, 066), and whether a tension *needs* a
+`proposal respond`, or `proposal withdraw` — advancing and withdrawing belong to
+the **Proposal Circulation Path**, recording a response to the **response side**
+(the proposal-impact-review path), and the guardrail gates those writes
+regardless; the ready `prp_` id is handed to circulation. It never performs a tension
+write (that is the Tension Processing Path), and whether a tension *needs* a
 proposal (or whether the practitioner is allowed to act) is a question for the
-**Constraint Discovery Path** (065). This path drafts the proposal; it does not
+**Constraint Discovery Path**. This path drafts the proposal; it does not
 rule on whether the governance record permits an action, and it does not advise on
 governance craft or coach Holacracy practice.
 
 That write fence holds in layers: the drafter agent's prompt is scoped to the seven
-composed leaves and forbids any other `proposal` write, and 063's `PreToolUse`
+composed leaves and forbids any other `proposal` write, and the guardrail's `PreToolUse`
 write gate (`plugin/hooks/glassfrog-write-gate.sh`) is the backstop that
 interposes the human confirmation on `proposal create` — and would gate any other
 proposal write regardless. In the target host, `PreToolUse` hooks fire for a
 subagent's Bash calls too (the hook input carries an `agent_id` inside a subagent
-call, confirmed by 066), so the gate reaches the drafter.
+call), so the gate reaches the drafter.

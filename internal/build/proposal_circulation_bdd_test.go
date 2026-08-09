@@ -607,8 +607,8 @@ func (w *proposalCirculationWorld) thenNotInventNorAbandon() error {
 // --- Rule: responses belong to the response side ----------------------------------
 
 func (w *proposalCirculationWorld) thenNamesResponseSide() error {
-	if !containsFold(w.combined(), "response side") || !containsFold(w.combined(), "069") {
-		return fmt.Errorf("the artifacts do not name the response side (069) as where a response is recorded")
+	if !containsFold(w.combined(), "response side") || !containsFold(w.combined(), "proposal-impact-review") {
+		return fmt.Errorf("the artifacts do not name the response side (the proposal-impact-review path) as where a response is recorded")
 	}
 	return nil
 }
@@ -669,8 +669,8 @@ func (w *proposalCirculationWorld) thenContainsNoResponseStep() error {
 }
 
 func (w *proposalCirculationWorld) thenResponseRemainsResponseSide() error {
-	if !containsFold(w.combined(), "response side") || !containsFold(w.combined(), "069") {
-		return fmt.Errorf("the artifacts do not leave recording a response to the response side (069)")
+	if !containsFold(w.combined(), "response side") || !containsFold(w.combined(), "proposal-impact-review") {
+		return fmt.Errorf("the artifacts do not leave recording a response to the response side (the proposal-impact-review path)")
 	}
 	return nil
 }
@@ -725,11 +725,11 @@ func (w *proposalCirculationWorld) thenReturnsBackInDraft() error {
 }
 
 func (w *proposalCirculationWorld) thenHandsBackToDrafting() error {
-	if !containsFold(w.combined(), "Proposal Drafting Path") || !containsFold(w.combined(), "067") {
-		return fmt.Errorf("the workflow does not hand the withdrawn draft back to the Proposal Drafting Path (067)")
+	if !containsFold(w.combined(), "Proposal Drafting Path") {
+		return fmt.Errorf("the workflow does not hand the withdrawn draft back to the Proposal Drafting Path by its in-plugin name")
 	}
 	if !containsFold(w.agent, "handoff") || !containsFold(w.agent, "prp_") {
-		return fmt.Errorf("the record has no handoff element carrying the prp_ id back to 067")
+		return fmt.Errorf("the record has no handoff element carrying the prp_ id back to the drafting path")
 	}
 	if !containsFold(w.combined(), "re-editing") {
 		return fmt.Errorf("the artifacts do not hand the prp_ id back for re-editing")
@@ -775,8 +775,8 @@ func (w *proposalCirculationWorld) thenNoAuthorityVerdict() error {
 	if !containsFold(w.combined(), "do not rule") && !containsFold(w.combined(), "does not rule") {
 		return fmt.Errorf("the artifacts do not state they do not rule on the authority question")
 	}
-	if !containsFold(w.combined(), "Constraint Discovery Path") || !containsFold(w.combined(), "065") {
-		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path (065)")
+	if !containsFold(w.combined(), "Constraint Discovery Path") {
+		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path by its in-plugin name")
 	}
 	// No authority verdict may appear: a ruling would read as "you are (not)
 	// allowed / permitted" or "permission granted/denied" stated as a verdict.

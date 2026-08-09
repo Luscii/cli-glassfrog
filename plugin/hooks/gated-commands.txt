@@ -1,9 +1,9 @@
-# Gated-command registry — the proposal write path (063 Write-Safety Guardrail).
+# Gated-command registry — the write-safety gate's proposal write path.
 #
-# THE single source of "what is a governance write", consumed by BOTH:
+# THE single source of "what is a governance write", consumed by:
 #   - the PreToolUse gate script  (plugin/hooks/glassfrog-write-gate.sh)
-#   - the drift tripwire          (internal/build/write_safety_guardrail_guard_test.go)
-# so the two can never disagree about which commands must be gated (plan ADR-4).
+# The script gates exactly what this file lists, so an edit here IS a change to
+# gating behavior — review it as one.
 #
 # Each non-comment, non-blank line is a `glassfrog proposal` write leaf that MUST
 # be gated behind explicit human confirmation before it runs. This file lists
@@ -13,8 +13,7 @@
 #
 # Adding a new proposal write command to the CLI? Add its leaf here. Until you do,
 # the gate fail-closes it (an unrecognized `proposal` subcommand is asked, not
-# waved through) and the drift tripwire turns CI red — a new write cannot silently
-# ship ungated.
+# waved through) — a new write cannot silently ship ungated.
 proposal create
 proposal propose
 proposal respond

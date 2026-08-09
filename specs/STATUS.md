@@ -77,4 +77,4 @@
 | 073-circle-routing-rule | Complete | validate | 2026-08-08T14:30:15 |
 | 074-post-create-validity-read | Complete | validate | 2026-08-09T14:20:00 |
 | 075-legacy-identifier-request | Analyzed | analyze | 2026-08-08T16:05:00 |
-| 076-operating-surface-self-containment | Analyzed | analyze | 2026-08-09T11:41:30 |
+| 076-operating-surface-self-containment | Complete | validate | 2026-08-09T14:45:00 |

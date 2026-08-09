@@ -79,7 +79,7 @@ func (w *grammarFactsWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^it will restate no enum values beyond its citation lists$`, w.thenNoRestatement)
 	sc.Step(`^every fact will carry all five required fields$`, w.thenFiveFields)
 	sc.Step(`^its Evidence will name the live proposal the fact was verified against$`, w.thenEvidenceNamesProposal)
-	sc.Step(`^its Provenance will name the LEARNINGS entry it supersedes$`, w.thenProvenanceNamesLearnings)
+	sc.Step(`^its Provenance will name the provisional note it supersedes$`, w.thenProvenanceNamesLearnings)
 	sc.Step(`^a leading marker will state that every fact is observed behavior and none is part of the published contract$`, w.thenMarkerWellFormed)
 	sc.Step(`^a record missing that marker will fail the guard$`, w.thenMissingMarkerFailsGuard)
 }
@@ -320,8 +320,8 @@ func (w *grammarFactsWorld) thenEvidenceNamesProposal() error {
 func (w *grammarFactsWorld) thenProvenanceNamesLearnings() error {
 	for _, f := range w.record.Facts {
 		prov := f.Fields["Provenance"]
-		if !containsFold(prov, "LEARNINGS") || !strings.Contains(prov, "2026-08-05") {
-			return fmt.Errorf("%s Provenance does not name the LEARNINGS 2026-08-05 entry: %q", f.ID, prov)
+		if !containsFold(prov, "supersedes") || !strings.Contains(prov, "2026-08-05") {
+			return fmt.Errorf("%s Provenance does not name the superseded 2026-08-05 provisional note: %q", f.ID, prov)
 		}
 	}
 	return nil

@@ -14,7 +14,7 @@ directs, and carrying the `ten_` id that reads it again or feeds the next path.
 
 It composes only the operational `tension` commands the `glassfrog` CLI already
 exposes — the six leaves listed in `tension-processing-commands.txt` (under
-`plugin/agents/`, the single source the drift guard also pins). It adds no
+`plugin/agents/`, the single source of the composed leaves). It adds no
 command, flag, or capability of its own, and it never crosses into a governance
 write (see [Write boundary](#write-boundary)).
 
@@ -30,11 +30,11 @@ Reach for tension processing when a practitioner has a **tension to act on**:
   than pushed toward a proposal.
 
 Do **not** reach for it to *understand the governance around a concern* — that
-traversal is the **governance-navigation** skill's job (064). Do not use it to
+traversal is the **governance-navigation** skill's job. Do not use it to
 answer *"am I allowed to do X?"* or *"does this need a proposal?"* — that
-authority verdict belongs to the **Constraint Discovery Path** (065). And do not
+authority verdict belongs to the **Constraint Discovery Path**. And do not
 use it to *draft or circulate a proposal* — a ready tension is handed to the
-**Proposal Drafting Path** (067); this path stops at the record.
+**Proposal Drafting Path**; this path stops at the record.
 
 ## The workflow
 
@@ -61,12 +61,12 @@ tension and its sensing role:
    <ten-id>` retires a tension the practitioner decided is moot rather than
    pushing it toward a proposal.
 5. **Hand off** — when the tension is ready to become a governance change,
-   hand its `ten_` id to the **Proposal Drafting Path** (067). Drafting,
+   hand its `ten_` id to the **Proposal Drafting Path**. Drafting,
    creating, or circulating the proposal is that path's job, never this one's.
 
 For the exact flags of any one command, ask the CLI:
 `glassfrog tension <sub> --help`. For output formats, pagination, and exit-code
-reactions, consult the **orientation** skill (062) rather than restating them
+reactions, consult the **orientation** skill rather than restating them
 here.
 
 ## Delegation
@@ -87,20 +87,19 @@ no CLI command is broken by the agent's absence.
 ## Write boundary
 
 This path performs only **operational tension writes** — `tension create`,
-`tension update`, `tension discard` — which the Write-Safety Guardrail (063)
+`tension update`, `tension discard` — which the Write-Safety Guardrail
 leaves **ungated** by design: they are operational edits, not governance writes,
 so they run without a confirmation gate and this path must not invent one.
 
 It **never performs a proposal write**. It never creates, proposes, responds
 to, or withdraws a proposal — the ready `ten_` id is handed to the Proposal
-Drafting Path (067), and whether a tension *needs* a proposal (or whether the
-practitioner is allowed to act) is a question for the Constraint Discovery Path
-(065). This path processes the tension; it does not rule on whether the
+Drafting Path, and whether a tension *needs* a proposal (or whether the
+practitioner is allowed to act) is a question for the Constraint Discovery Path. This path processes the tension; it does not rule on whether the
 governance record permits an action, and it does not advise on governance craft
 or coach Holacracy practice.
 
 That proposal fence holds in layers: the processor agent's prompt is scoped to
-the six tension leaves and forbids any `proposal` command, and 063's
+the six tension leaves and forbids any `proposal` command, and the guardrail's
 `PreToolUse` write gate (`plugin/hooks/glassfrog-write-gate.sh`) is the backstop
 that would gate any proposal write regardless — in the target host, `PreToolUse`
 hooks fire for a subagent's Bash calls too (the hook input carries an

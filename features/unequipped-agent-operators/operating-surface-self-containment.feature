@@ -22,7 +22,6 @@ Feature: Operating-Surface Self-Containment
     # repository or spec catalog needed to decode it.
 
     # Source: 076-operating-surface-self-containment — Scenario: A handoff reads by name where the operator stands
-    @wip
     Scenario: Handoffs name in-plugin components
       Given the swept operating surface was read on a machine with only the plugin and the CLI
       When the proposal-drafting skill's authority-question deferral is read
@@ -30,7 +29,6 @@ Feature: Operating-Surface Self-Containment
       And no spec number will be needed to follow the handoff
 
     # Source: 076-operating-surface-self-containment — Scenario: Non-reference tokens do not false-positive
-    @wip
     Scenario: Known-safe tokens do not trip the check
       Given a surface file contained the example id "prp_0123", the version string "0.34.1", and the phrase "the v5 spec"
       When the self-containment check runs over that surface
@@ -61,7 +59,6 @@ Feature: Operating-Surface Self-Containment
     # references the development repository, including files that do not exist yet.
 
     # Source: 076-operating-surface-self-containment — Scenario: A conforming surface passes verification
-    @wip
     Scenario: A conforming surface passes verification
       Given every file under the operating surface referenced only in-surface components and the glassfrog CLI
       When the merge-gating verification run executes
@@ -69,7 +66,6 @@ Feature: Operating-Surface Self-Containment
       And it will report zero violations
 
     # Source: 076-operating-surface-self-containment — Scenario: A future file is covered without registration
-    @wip
     Scenario: A future surface file is checked without registration
       Given a new file had been added under the operating surface
       When the merge-gating verification run executes
@@ -77,7 +73,6 @@ Feature: Operating-Surface Self-Containment
       And no list or configuration will have been updated to include it
 
     # Source: 076-operating-surface-self-containment — Scenario: A spec-number reference turns the run red
-    @wip
     Scenario: A spec-number reference fails the run
       Given a surface file contained the reference "(067)"
       When the self-containment check runs over that surface
@@ -86,7 +81,6 @@ Feature: Operating-Surface Self-Containment
       And the report will state the remedy: replace with the in-plugin component name, or remove the reference
 
     # Source: 076-operating-surface-self-containment — Scenario: A repository mention fails even without a path
-    @wip
     Scenario: A pathless repository mention fails the run
       Given a surface file contained the phrase "a drift guard in the source repository"
       When the self-containment check runs over that surface
@@ -94,7 +88,6 @@ Feature: Operating-Surface Self-Containment
       And the report will name the repo-machinery phrase family as the violated rule
 
     # Source: 076-operating-surface-self-containment — Scenario: An empty surface is a failure, not a pass
-    @wip
     Scenario: An empty surface fails rather than passes
       Given an operating surface whose walk found zero files
       When the self-containment check runs
@@ -102,7 +95,6 @@ Feature: Operating-Surface Self-Containment
       And it will not report success over a vacuously clean set
 
     # Source: 076-operating-surface-self-containment — Proposed: in-surface path resolution check from the interface accord (plan ADR-2)
-    @wip
     Scenario: A dangling in-surface path fails the run
       Given a surface file referenced "plugin/hooks/does-not-exist.txt"
       When the self-containment check runs over that surface
