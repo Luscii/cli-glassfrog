@@ -46,8 +46,7 @@ glassfrog me
 ## Missing CLI — the install channels
 
 Direct the operator to any one of the CLI's three existing install channels;
-they all deliver the same released binary. The canonical invocations live in
-the repository's README and install guide — quoted here, owned there:
+they all deliver the same released binary:
 
 - **Install script** (macOS/Linux):
 

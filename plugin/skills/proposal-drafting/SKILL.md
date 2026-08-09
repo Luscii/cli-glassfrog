@@ -28,8 +28,9 @@ worked here. Do not use it to answer *"am I allowed to do X?"* or *"does this ne
 a proposal?"* — that authority verdict belongs to the **Constraint Discovery
 Path**. Do not use it to *understand the governance around a concern* — that
 traversal is the **governance-navigation** skill's job. And do not use it to
-*advance, respond to, or withdraw a circulating proposal* — that is the **Proposal
-Circulation Path**; this path stops at the created draft.
+*advance or withdraw a circulating proposal* — that is the **Proposal Circulation
+Path** — or to *record a response* on one — that is the **response side**, the
+proposal-impact-review path. This path stops at the created draft.
 
 ## The workflow
 
@@ -98,9 +99,10 @@ through a hidden file — inline is the only source that keeps the confirmation
 honest.
 
 This path performs **no other write**. It never runs `proposal propose`,
-`proposal respond`, or `proposal withdraw` — advancing, responding to, or
-withdrawing a proposal is the **Proposal Circulation Path** (gated by the guardrail
-regardless), and the ready `prp_` id is handed there. It never performs a tension
+`proposal respond`, or `proposal withdraw` — advancing and withdrawing belong to
+the **Proposal Circulation Path**, recording a response to the **response side**
+(the proposal-impact-review path), and the guardrail gates those writes
+regardless; the ready `prp_` id is handed to circulation. It never performs a tension
 write (that is the Tension Processing Path), and whether a tension *needs* a
 proposal (or whether the practitioner is allowed to act) is a question for the
 **Constraint Discovery Path**. This path drafts the proposal; it does not
