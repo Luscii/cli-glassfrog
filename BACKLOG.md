@@ -577,8 +577,8 @@
 - **Score**: MoSCoW Must Have
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Replaces the harvest at #78 as the Must-tier answer to the identifier gap: a query parameter on reads that already exist, verified live to return the number the write path needs — the cheapest removal of the blocker that cost a full drafter run. Carries a retirement clock, so it ships alongside the ask at #81 rather than instead of it.
-- **Dependencies**: → requires: Role Reads; → requires: Actor Read
-- **Status**: pending
+- **Dependencies**: → requires: Role Reads; → requires: Actor Read; → requires: Organization Tree; → requires: Actor Directory; → requires: Identity Read
+- **Status**: specified:075-legacy-identifier-request
 
 ### 75. Agent-Facing Grammar Reference
 
