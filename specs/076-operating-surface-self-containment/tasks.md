@@ -78,7 +78,7 @@ Totals: **8 executed** (T002 1, T004 7), **5 held for validate**, **0 inexecutab
   - **Scenario references**: operating-surface-self-containment.feature: "Scenario: Handoffs name in-plugin components"
   - **Risk**: ⚠️ Sequencing — the suite and the scenario it binds must precede the sweep of the artifact it reads, or the RED half is unobservable
 
-- [ ] **T003** [US1] [P] Sweep the drafting reference records' provenance lines
+- [x] **T003** [US1] [P] Sweep the drafting reference records' provenance lines — 0 scenarios; record guards pin only field presence, so the adjusted expectations were the two BDD step defs (vendored-spec path, portfolio-memory name) with their step text
   - **Scope**: `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md` and `plugin/skills/proposal-drafting/references/circle-routing-rule.md` — remove the spec-number and portfolio-document provenance citations; adjust the two `internal/build` record guards' pinned expectations in the same commit. Record content is otherwise byte-identical.
   - **Acceptance criteria**:
     - The deny-lexicon grep over both records returns zero matches
