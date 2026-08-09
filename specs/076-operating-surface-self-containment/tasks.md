@@ -53,7 +53,7 @@ Totals: **8 executed** (T002 1, T004 7), **5 held for validate**, **0 inexecutab
 
 ## Phase 1: Conformance sweep + assertion re-derivation [US1]
 
-- [ ] **T001** [US1] [P] Sweep the write-gate artifacts and single-source registry headers
+- [x] **T001** [US1] [P] Sweep the write-gate artifacts and single-source registry headers — 0 scenarios (header-only sweep); no guard expectations pinned the removed text, so no internal/build changes were needed
   - **Scope**: `plugin/hooks/gated-commands.txt`, `plugin/hooks/glassfrog-write-gate.sh`, and the six `plugin/agents/*-commands.txt` / `*-reads.txt` registries — rewrite headers to the interface accord's instructional contract: keep what the file is, the in-plugin consumer list by `plugin/`-relative path, the editing rule, and the fail-closed consequence stated through the gate's own behavior; delete guard-test pointer lines, plan-ADR citations, spec-number ids, and repo-machinery consequences. Adjust any `internal/build` guard expectations that pin the removed header text, in the same commit.
   - **Acceptance criteria**:
     - The deny-lexicon grep (interface Family A + B) over these eight files returns zero matches
