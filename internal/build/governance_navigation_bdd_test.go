@@ -442,8 +442,8 @@ func (w *navigationWorld) thenPresentsGoverning() error {
 }
 
 func (w *navigationWorld) thenDefersVerdict() error {
-	if !containsFold(w.combined(), "Constraint Discovery Path") || !containsFold(w.combined(), "065") {
-		return fmt.Errorf("the workflow does not defer the authority verdict to the Constraint Discovery Path (065)")
+	if !containsFold(w.combined(), "Constraint Discovery Path") {
+		return fmt.Errorf("the workflow does not defer the authority verdict to the Constraint Discovery Path by its in-plugin name")
 	}
 	if !containsFold(w.combined(), "defer") {
 		return fmt.Errorf("the workflow surfaces governance but never states it defers the verdict")

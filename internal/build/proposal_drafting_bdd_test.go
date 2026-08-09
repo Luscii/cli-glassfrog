@@ -516,11 +516,11 @@ func (w *proposalDraftingWorld) thenNotInventNorAbandon() error {
 // --- Rule: hand off, gated write, no judging -----------------------------------
 
 func (w *proposalDraftingWorld) thenHandsOffId() error {
-	if !containsFold(w.combined(), "Proposal Circulation Path") || !containsFold(w.combined(), "068") {
-		return fmt.Errorf("the workflow does not hand the created draft to the Proposal Circulation Path (068)")
+	if !containsFold(w.combined(), "Proposal Circulation Path") {
+		return fmt.Errorf("the workflow does not hand the created draft to the Proposal Circulation Path by its in-plugin name")
 	}
 	if !containsFold(w.agent, "handoff") || !containsFold(w.agent, "prp_") {
-		return fmt.Errorf("the record has no handoff element carrying the prp_ id for 068")
+		return fmt.Errorf("the record has no handoff element carrying the prp_ id for the circulation path")
 	}
 	return nil
 }
@@ -702,8 +702,8 @@ func (w *proposalDraftingWorld) thenNoAuthorityVerdict() error {
 	if !containsFold(w.combined(), "do not rule") && !containsFold(w.combined(), "does not rule") {
 		return fmt.Errorf("the artifacts do not state they do not rule on the authority question")
 	}
-	if !containsFold(w.combined(), "Constraint Discovery Path") || !containsFold(w.combined(), "065") {
-		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path (065)")
+	if !containsFold(w.combined(), "Constraint Discovery Path") {
+		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path by its in-plugin name")
 	}
 	// No authority verdict may appear: a ruling would read as "you are (not)
 	// allowed / permitted" or "permission granted/denied" stated as a verdict.

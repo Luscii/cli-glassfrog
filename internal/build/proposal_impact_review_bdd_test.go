@@ -508,8 +508,8 @@ func (w *proposalImpactReviewWorld) thenNoAuthorityVerdict() error {
 	if !containsFold(w.combined(), "do not rule") && !containsFold(w.combined(), "does not rule") {
 		return fmt.Errorf("the artifacts do not state they do not rule on the authority question")
 	}
-	if !containsFold(w.combined(), "Constraint Discovery Path") || !containsFold(w.combined(), "065") {
-		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path (065)")
+	if !containsFold(w.combined(), "Constraint Discovery Path") {
+		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path by its in-plugin name")
 	}
 	// No authority verdict may appear: a ruling would read as "you are (not)
 	// allowed / permitted" or "permission granted/denied" stated as a verdict.
@@ -610,8 +610,8 @@ func (w *proposalImpactReviewWorld) thenLeavesCirculationToPath() error {
 	if !containsFold(w.skill, "stops") {
 		return fmt.Errorf("the skill does not stop after the recorded response")
 	}
-	if !containsFold(w.combined(), "Proposal Circulation Path") || !containsFold(w.combined(), "068") {
-		return fmt.Errorf("the artifacts do not leave advancing or withdrawing to the Proposal Circulation Path (068)")
+	if !containsFold(w.combined(), "Proposal Circulation Path") {
+		return fmt.Errorf("the artifacts do not leave advancing or withdrawing to the Proposal Circulation Path by its in-plugin name")
 	}
 	return nil
 }
@@ -840,15 +840,15 @@ func (w *proposalImpactReviewWorld) thenContainsNoCirculationOrCreate() error {
 }
 
 func (w *proposalImpactReviewWorld) thenCirculationRemainsCirculations() error {
-	if !containsFold(w.combined(), "Proposal Circulation Path") || !containsFold(w.combined(), "068") {
-		return fmt.Errorf("the artifacts do not leave advancing and withdrawing to the Proposal Circulation Path (068)")
+	if !containsFold(w.combined(), "Proposal Circulation Path") {
+		return fmt.Errorf("the artifacts do not leave advancing and withdrawing to the Proposal Circulation Path by its in-plugin name")
 	}
 	return nil
 }
 
 func (w *proposalImpactReviewWorld) thenCreationRemainsDraftings() error {
-	if !containsFold(w.combined(), "Proposal Drafting Path") || !containsFold(w.combined(), "067") {
-		return fmt.Errorf("the artifacts do not leave creation to the Proposal Drafting Path (067)")
+	if !containsFold(w.combined(), "Proposal Drafting Path") {
+		return fmt.Errorf("the artifacts do not leave creation to the Proposal Drafting Path by its in-plugin name")
 	}
 	return nil
 }

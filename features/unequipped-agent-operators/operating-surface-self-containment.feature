@@ -22,7 +22,6 @@ Feature: Operating-Surface Self-Containment
     # repository or spec catalog needed to decode it.
 
     # Source: 076-operating-surface-self-containment — Scenario: A handoff reads by name where the operator stands
-    @wip
     Scenario: Handoffs name in-plugin components
       Given the swept operating surface was read on a machine with only the plugin and the CLI
       When the proposal-drafting skill's authority-question deferral is read

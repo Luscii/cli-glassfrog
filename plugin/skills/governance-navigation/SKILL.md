@@ -31,7 +31,7 @@ understand the governance around it before acting:
 Do **not** reach for it to learn *how to drive the CLI* — output formats,
 pagination, exit codes, credentials, write-safety mechanics live in the
 **orientation** skill. And do **not** use it to answer *"am I allowed to do X?"* —
-that authority verdict belongs to the **Constraint Discovery Path** (065). This
+that authority verdict belongs to the **Constraint Discovery Path**. This
 path only surfaces the governing governance; it does not judge it.
 
 ## The workflow
@@ -71,8 +71,8 @@ picture — so the raw `search`/`roles`/`fillers`/`domains`/`policies` output st
 out of your context and never floods it. You pass the concern as natural-language
 input; you get back the picture (roles, fillers, domains, policies, and any
 narrowing or failure notes), with every element carrying the id needed to act on
-it next — reading it again, or feeding it into the Constraint Discovery (065) or
-Tension Processing (066) paths.
+it next — reading it again, or feeding it into the Constraint Discovery or
+Tension Processing paths.
 
 If the navigator agent is absent or unregistered, this workflow above still stands
 as guidance you can follow by hand — the path degrades to guidance, and no CLI
@@ -82,10 +82,10 @@ command is broken by the agent's absence.
 
 - **Read-only.** This path only reads and only *surfaces* governance. It contains
   no write, confirm, or gate step. Capturing the tension into the record is the
-  **Tension Processing Path**'s job (066), not this one.
+  **Tension Processing Path**'s job, not this one.
 - **Surfacing, not judging.** When a concern is really an authority question
   ("may I do X?"), surface the governing domains and policies and **defer the
-  verdict to the Constraint Discovery Path** (065). Never rule on whether an
+  verdict to the Constraint Discovery Path**. Never rule on whether an
   action is permitted.
 - **Mechanics live elsewhere.** For output formats, pagination, exit codes,
   credentials, and write-safety, consult the **orientation** skill rather than
