@@ -104,7 +104,7 @@ Totals: **8 executed** (T002 1, T004 7), **5 held for validate**, **0 inexecutab
   - **Interface references**: interface-spec.md §1 deny lexicon, §2 guard surface, Error Communication condition table
   - **Scenario references**: operating-surface-self-containment.feature: "A conforming surface passes verification", "A future surface file is checked without registration", "A spec-number reference fails the run", "A pathless repository mention fails the run", "An empty surface fails rather than passes", "A dangling in-surface path fails the run", "Known-safe tokens do not trip the check"
 
-- [ ] **T005** [US3] [P] Amend CONSTITUTION.md: Principle XIII + version marker
+- [x] **T005** [US3] [P] Amend CONSTITUTION.md: Principle XIII + version marker — 0 executed scenarios (its scenario is @validation-held); statement/Rationale/Detection in sibling form, version marker established at 1.1 with adjacent justification
   - **Scope**: add `### XIII. Self-Contained Operating Surface` after XII in house form (bold statement per interface §4, *Rationale*, *Detection* naming the verification-run observable); establish the version marker in the Governance section (initial `1.0` acknowledging the pre-existing twelve principles, bumped to `1.1` by this amendment) with the justification recorded adjacent.
   - **Acceptance criteria**:
     - Principle XIII carries all three parts in sibling form
