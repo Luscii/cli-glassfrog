@@ -78,7 +78,7 @@ Totals: **8 executed** (T002 1, T004 7), **5 held for validate**, **0 inexecutab
   - **Scenario references**: operating-surface-self-containment.feature: "Scenario: Handoffs name in-plugin components"
   - **Risk**: ⚠️ Sequencing — the suite and the scenario it binds must precede the sweep of the artifact it reads, or the RED half is unobservable
 
-- [ ] **T003** [US1] [P] Sweep the drafting reference records' provenance lines
+- [x] **T003** [US1] [P] Sweep the drafting reference records' provenance lines — 0 scenarios; record guards pin only field presence, so the adjusted expectations were the two BDD step defs (vendored-spec path, portfolio-memory name) with their step text
   - **Scope**: `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md` and `plugin/skills/proposal-drafting/references/circle-routing-rule.md` — remove the spec-number and portfolio-document provenance citations; adjust the two `internal/build` record guards' pinned expectations in the same commit. Record content is otherwise byte-identical.
   - **Acceptance criteria**:
     - The deny-lexicon grep over both records returns zero matches
@@ -90,7 +90,7 @@ Totals: **8 executed** (T002 1, T004 7), **5 held for validate**, **0 inexecutab
 
 ## Phase 2: Guard + constitution [US2/US3]
 
-- [ ] **T004** [US2] Build the self-containment walker, lexicon, guard test, and its detection scenarios
+- [x] **T004** [US2] Build the self-containment walker, lexicon, guard test, and its detection scenarios — 7 scenarios (each observed red against a stubbed scan, then green; @wip removed); live tripwire green over the real plugin/
   - **Scope**: new `internal/build/surfaceselfcontainment.go` (walker over `plugin/` from the repo root, two-family deny lexicon with per-entry property comment + example, scan producing violations, `plugin/…`-path resolution check) and `internal/build/surface_self_containment_guard_test.go` (fixture unit tests + the live tripwire), plus the seven detection scenarios' step definitions added to the suite T002 opened — driving these production functions against `t.TempDir()` fixture surfaces only, never mutating the real plugin. TDD inside the task: fixture tests and step definitions written first (red on seeded Family A/B violations, a dangling path, an empty surface, and each known-safe token class), implementation second, live tripwire last.
   - **Acceptance criteria**:
     - Every detection scenario's step definitions are observed red before the implementation that satisfies them, then green; `@wip` removed from each as it passes; the five `@validation` scenarios keep their tags (driven by tag, never by count)
