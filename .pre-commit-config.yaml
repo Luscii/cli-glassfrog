@@ -1,0 +1,148 @@
+# pre-commit configuration — local pre-flight for the PR Validation gate.
+#
+# This mirrors, on your machine, the checks ci.yml (spec 024) runs on every PR
+# so failures surface before you push, not after. CI remains the authoritative,
+# pinned gate; this is the fast local pre-flight. The lint categories here are
+# the same four ci.yml's `lint` job uses (gofmt, go vet, golangci-lint,
+# shellcheck), plus the `go test ./...` suite (test.yml, spec 029) and the npm
+# channel's `node --test` (spec 037).
+#
+# Install (one-time, in a clone with the pre-commit tool available):
+#   pre-commit install
+# Run against everything on demand:
+#   pre-commit run --all-files
+#
+# The Go and Node hooks are `language: system`: they invoke the toolchain the
+# repo already requires (go 1.26 per go.mod, Node for the npm channel) rather
+# than having pre-commit build a second copy. golangci-lint is the exception —
+# it is pinned to the SAME version ci.yml pins (v2.11.4) so a local run and the
+# CI run apply an identical linter set.
+
+# The whitespace/format fixers below skip two sets of paths via a per-hook
+# `exclude` (NOT a top-level one) so that ONLY the in-place fixers skip them —
+# non-modifying safety checks like check-yaml (which usefully validates the
+# vendored spec) and check-merge-conflict still cover these paths.
+#   - spec/glassfrog-api-v5.yaml is the vendored OpenAPI spec, re-fetched
+#     verbatim by scripts/refresh-spec.sh; its git history is the changelog, so
+#     an editor pass would introduce drift from upstream.
+#   - internal/render/templates/*.tmpl are whitespace-SENSITIVE render
+#     templates: end-of-file-fixer appending a trailing newline adds a blank
+#     line to CLI output and breaks the golden render tests. They are
+#     deliberately stored without a trailing newline.
+# The regex is defined once as a YAML anchor on the first fixer and referenced
+# by the other two (a top-level anchor key is not valid pre-commit config).
+
+repos:
+  # ---------------------------------------------------------------------------
+  # Generic hygiene — file-level checks that need no language toolchain.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        # Markdown hard line breaks (two trailing spaces) are preserved.
+        args: [--markdown-linebreak-ext=md]
+        exclude: &fixer-exclude |
+          (?x)^(
+            spec/glassfrog-api-v5\.yaml|
+            internal/render/templates/.*\.tmpl
+          )$
+      - id: end-of-file-fixer
+        exclude: *fixer-exclude
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: *fixer-exclude
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        # Largest tracked file today is ~320 KB (the vendored spec); 800 KB
+        # leaves headroom while still catching an accidentally committed binary.
+        args: [--maxkb=800]
+      - id: check-yaml
+      - id: check-json
+
+  # ---------------------------------------------------------------------------
+  # golangci-lint — pinned to the version ci.yml uses (see .golangci.yml for the
+  # enabled-linter policy). Two hooks: the aggregate linter over the whole
+  # module, and a validator for the config file itself.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.11.4
+    hooks:
+      - id: golangci-lint-full
+      - id: golangci-lint-config-verify
+
+  # ---------------------------------------------------------------------------
+  # Go toolchain checks — the fast, dependency-light categories ci.yml runs
+  # explicitly alongside golangci-lint, plus the test suite.
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      # gofmt as a formatter: -w fixes in place (re-stage and commit again),
+      # -l names what it touched. This is the local counterpart of ci.yml's
+      # `gofmt -l .` check — here it repairs rather than just reports, which
+      # prevents the CI gofmt step from ever going red.
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -w -l
+        language: system
+        types: [go]
+
+      # `go vet ./...` — run once over the whole module. pre-commit execs the
+      # entry directly (no shell), so `go` is invoked without a bash dependency.
+      # Triggered by any .go change AND by go.mod/go.sum, since a dependency
+      # bump can change vet results without touching a .go file. (types and
+      # files AND together in pre-commit, so this uses files alone rather than
+      # `types: [go]`.)
+      - id: go-vet
+        name: go vet
+        entry: go vet ./...
+        language: system
+        files: '(\.go$|^go\.(mod|sum)$)'
+        pass_filenames: false
+        require_serial: true
+
+      # `go test ./...` — the same invocation test.yml runs. Covers the unit
+      # tests, every godog BDD suite, and the internal/build config-guard tests.
+      # Same trigger rationale as go vet: also re-run on go.mod/go.sum changes.
+      - id: go-test
+        name: go test
+        entry: go test ./...
+        language: system
+        files: '(\.go$|^go\.(mod|sum)$)'
+        pass_filenames: false
+        require_serial: true
+
+      # The npm acquisition channel (spec 037): Node's built-in test runner over
+      # the hermetic suite in npm/. Only runs when something under npm/ changes.
+      # A shell `cd` is required to match CI's `working-directory: npm`: Node's
+      # test runner discovers test files relative to the cwd, and `node --test
+      # npm/` does NOT reproduce that discovery (verified on Node 24). pre-commit
+      # has no per-hook working-directory, so this uses POSIX `sh` — not bash —
+      # to keep the wrapper portable while preserving exact CI parity.
+      - id: npm-node-test
+        name: node --test (npm channel)
+        entry: sh -c 'cd npm && node --test'
+        language: system
+        files: '^npm/'
+        pass_filenames: false
+        require_serial: true
+
+  # ---------------------------------------------------------------------------
+  # shellcheck — over every tracked shell script (install.sh plus the bash
+  # helpers). Dialect comes from each file's shebang, so install.sh
+  # (#!/bin/sh) is checked as POSIX sh and bashisms are caught, matching
+  # ci.yml's `shellcheck --shell=sh install.sh` intent while covering more.
+  # Uses the shellcheck already on PATH (as CI does); no Docker.
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+        # plugin/hooks/glassfrog-write-gate.sh has pre-existing info-level nits
+        # (SC1003/SC2295) that predate this config and are outside its scope;
+        # CI does not shellcheck it. Fix those, then drop this exclusion to
+        # bring the write-gate hook under the same check as everything else.
+        exclude: '^plugin/hooks/glassfrog-write-gate\.sh$'
