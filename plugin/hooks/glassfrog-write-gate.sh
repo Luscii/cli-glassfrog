@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 #
-# glassfrog-write-gate.sh — the Write-Safety Guardrail's PreToolUse gate (063).
+# glassfrog-write-gate.sh — the Write-Safety Guardrail's PreToolUse gate.
 #
 # The Claude Code plugin host runs this before every `Bash` tool call. It reads
 # the tool-call JSON on stdin, and when the shell command is a governance write on
 # the proposal write path it returns permissionDecision:"ask" — routing the call
 # to the host's human-confirmation prompt so the agent cannot self-authorize the
-# write (plan ADR-1/ADR-2). Reads and operational `tension` edits pass through
-# ungated.
+# write. Reads and operational `tension` edits pass through ungated.
 #
-# Design commitments (plan/interface):
+# Design commitments:
 #   - Deterministic. The decision keys ONLY on the parsed command path against the
 #     single-sourced registry (gated-commands.txt) — never on the agent's stated
 #     intent or the command's flags. This is a `type:"command"` hook, not a
@@ -26,9 +25,10 @@
 #     builtins only.
 #   - No stale-write recovery. The hook adds NO special path for a 412/exit-7
 #     stale write: a retry is itself a proposal-path write, so it is simply gated
-#     again (plan ADR-5). The re-read guidance stays in Operator Orientation (062).
+#     again. The re-read guidance stays in the orientation skill
+#     (plugin/skills/orientation/SKILL.md).
 #
-# Accepted residual (plan R1, stated not hidden): a write reaching the shell in an
+# Accepted residual (stated, not hidden): a write reaching the shell in an
 # exotic form the parser does not resolve — inside a command substitution
 # `$(glassfrog proposal …)`, an alias, or a wrapper script — can evade the gate.
 # Over-gating (asking on a read) is mere friction and safe; under-gating a write
@@ -177,8 +177,8 @@ is_gated() { case " $GATED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # Recognized proposal READS pass ungated. These are script-internal knowledge, not
 # part of the gated registry (which lists writes only). Over-gating a not-yet-known
-# read is safe friction; the drift tripwire guards the overall proposal surface, so
-# a newly-added read is caught and reclassified rather than silently mis-gated.
+# read is safe friction — it is asked, not waved through — until the read is
+# deliberately reclassified here; nothing is silently mis-gated.
 PROPOSAL_READS=" list get "
 is_proposal_read() { case "$PROPOSAL_READS" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
@@ -223,7 +223,7 @@ classify_segment() {
   # still not treated as running glassfrog); for each we also skip its leading
   # `-flags` and `VAR=val` assignments. Wrappers with positional/option-arg
   # grammars (`timeout <dur>`, `sudo -u NAME`, `xargs`) are NOT fully handled and
-  # remain accepted residual (plan R1) — partial handling only ever gates more,
+  # remain accepted residual — partial handling only ever gates more,
   # never regresses.
   while [ $i -lt "$n" ]; do
     case ${toks[i]} in

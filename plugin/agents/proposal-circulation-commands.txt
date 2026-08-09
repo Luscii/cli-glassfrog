@@ -1,36 +1,32 @@
-# Composed-leaf registry — the commands the Proposal Circulation Path composes
-# (068 Proposal Circulation Path).
+# Composed-leaf registry — the commands the Proposal Circulation Path composes.
 #
 # THE single source of "which glassfrog leaves the circulator composes", consumed
-# by BOTH:
+# by:
 #   - the proposal-circulator agent  (plugin/agents/proposal-circulator.md)
 #     — its "Composed commands" section names exactly these leaves and no others
-#   - the drift guard             (internal/build/proposal_circulation_guard_test.go)
-#     — it checks every leaf here still resolves to a subcommand in the shipped
-#       CLI, AND that the gated-membership invariant holds: `proposal propose`
-#       and `proposal withdraw` are EACH a member of 063's gated proposal-write
-#       registry (plugin/hooks/gated-commands.txt) — both confirmed-write-flow
-#       promises pinned structurally — and the two reads (proposal get, proposal
-#       list) are absent from it
-# so the artifact prose and the guard can never disagree about the composed
-# surface or its gate posture (plan ADR-5, mirroring 063's gated-commands.txt,
-# 064's composed-reads.txt, 066's tension-processing-commands.txt, and 067's
-# proposal-drafting-commands.txt).
+# so the artifact prose and this registry can never disagree about the composed
+# surface or its gate posture (mirroring the write-safety gate's
+# gated-commands.txt, plugin/hooks/gated-commands.txt, and the sibling
+# composed-leaf registries in plugin/agents/).
 #
 # Each non-comment, non-blank line is ONE `glassfrog` leaf the circulator may
-# invoke, written as the two-token `<group> <sub>` pair (matching how 063's
-# registry writes its `proposal <sub>` leaves, so the membership check compares
-# like with like). Two are grounding/situating reads (proposal get, proposal
-# list); two are the gated bodyless governance transitions 063 confirms by design
-# (proposal propose, proposal withdraw), each run only through the confirmed
-# write flow and each confirmed independently. No other proposal write ever
-# appears here — the path never creates a proposal (that is drafting, 067) and
-# never records a response (that is the response side, 069).
+# invoke, written as the two-token `<group> <sub>` pair (matching how the
+# write-safety gate's registry writes its `proposal <sub>` leaves, so the two
+# read like with like). Two are grounding/situating reads (proposal get, proposal
+# list); two are the gated bodyless governance transitions the write-safety gate
+# confirms by design (proposal propose, proposal withdraw), each run only through
+# the confirmed write flow and each confirmed independently. No other proposal
+# write ever appears here — the path never creates a proposal (that is the
+# proposal-drafting path) and never records a response (that is the
+# proposal-impact-review path).
 #
-# Renaming or dropping one of these commands in the CLI — or pulling `proposal
-# propose` or `proposal withdraw` OUT of 063's gated set, or pulling a read INTO
-# it — turns the drift guard red; the artifacts cannot silently name a command
-# the CLI lacks or a transition the guardrail stops confirming.
+# The gate posture this registry promises holds only while `proposal propose`
+# and `proposal withdraw` are EACH listed in the write-safety gate's registry
+# (plugin/hooks/gated-commands.txt) and the two reads are absent from it — so a
+# rename or drop in the CLI, or an edit to either registry's membership, means
+# revisiting both files and the agent artifact together; the artifacts must
+# never name a command the CLI lacks or a transition the guardrail stops
+# confirming.
 proposal get
 proposal list
 proposal propose
