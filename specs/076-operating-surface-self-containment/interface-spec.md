@@ -72,9 +72,14 @@ Patterns are given as Go (RE2) syntax in fenced blocks rather than table cells: 
     # Enforcement machinery is repo-side; the surface never names its own watchers.
     # Violation: "the drift tripwire turns CI red"
 
-(?i)(?:source|development|parent)\s+repositor(?:y|ies)
-    # The repo, named without a path. Violation: "a build-time guard in the
-    # source repository"
+(?i)\brepositor(?:y|ies)\b
+    # The repo, named without a path, qualified or not. Deliberately
+    # unqualified: this entry once required a source|development|parent
+    # qualifier, and a possessive mention slipped past a green guard into the
+    # shipped surface. The operating world the surface describes — the
+    # GlassFrog API, Holacracy, the CLI — has no repositories, so any
+    # occurrence of the bare noun is a reference to the development repo.
+    # Violation: "the canonical invocations live in the repository's README"
 
 \bCI\b
     # Merge gating is repo machinery. Case-sensitive and \b-anchored so "CLI"

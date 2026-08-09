@@ -136,10 +136,16 @@ var SurfaceDenyLexicon = []SurfaceLexiconEntry{
 	},
 	{
 		Family:   surfaceFamilyMachinery,
-		Property: "the repo, named without a path — the strict ban does not acknowledge the development repository in any form",
-		Example:  "a build-time guard in the source repository",
+		Property: "the repo, named without a path, qualified or not — the strict ban does not acknowledge the development repository in any form",
+		Example:  "the canonical invocations live in the repository's README",
 		Remedy:   surfaceRemedyMachinery,
-		Pattern:  regexp.MustCompile(`(?i)(?:source|development|parent)\s+repositor(?:y|ies)`),
+		// Deliberately unqualified. This entry once required a source|development|
+		// parent qualifier, and a possessive mention ("the repository's README and
+		// install guide") shipped in the surface past a green guard because of it.
+		// The bare noun is safe to ban outright: the operating world this surface
+		// describes — the GlassFrog API, Holacracy, the CLI — has no repositories,
+		// so any occurrence is a reference to the development repo.
+		Pattern: regexp.MustCompile(`(?i)\brepositor(?:y|ies)\b`),
 	},
 	{
 		Family:   surfaceFamilyMachinery,

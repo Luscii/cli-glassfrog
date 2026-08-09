@@ -132,7 +132,9 @@ func TestScanOperatingSurfaceSeededViolations(t *testing.T) {
 		{"family A spec-number id", `plugin/skills/leaky/SKILL.md:1: forbidden reference "067" (family A — resolvable reference:`},
 		{"family A remedy", "Remedy: replace with the in-plugin component name, or remove the reference."},
 		{"family B drift-guard phrase", `forbidden reference "drift guard" (family B — repo-machinery phrase:`},
-		{"family B source-repository phrase", `forbidden reference "source repository" (family B — repo-machinery phrase:`},
+		// The matched text is the bare noun, not the qualifier: the entry bans any
+		// mention of the repository, so "source " is context rather than match.
+		{"family B repository phrase", `forbidden reference "repository" (family B — repo-machinery phrase:`},
 		{"family B remedy", "Remedy: reword to state the rule through the surface's own consequences, or remove the mention."},
 		{"dangling path", `plugin/skills/leaky/SKILL.md:3: dangling in-surface path "plugin/hooks/does-not-exist.txt"`},
 		{"dangling remedy", "Remedy: correct the path to the existing in-surface file, or remove the reference."},
@@ -177,6 +179,30 @@ func TestScanOperatingSurfaceDerivedWalk(t *testing.T) {
 	joined := strings.Join(scan.Violations, "\n")
 	if !strings.Contains(joined, "plugin/skills/future/SKILL.md:1") {
 		t.Fatalf("the added file's violation was not caught without registration; got:\n%s", joined)
+	}
+}
+
+// TestScanOperatingSurfaceCatchesUnqualifiedRepositoryMention is the regression
+// fixture for the Family B widening. Both phrasings below must be caught: the
+// qualified form the entry originally matched, and the possessive form that
+// escaped it and shipped in the surface past a green guard. Narrowing the
+// pattern back to a qualified shape turns this red rather than silently
+// reopening the hole.
+func TestScanOperatingSurfaceCatchesUnqualifiedRepositoryMention(t *testing.T) {
+	for _, phrasing := range []string{
+		"the canonical invocations live in the repository's README and install guide",
+		"a build-time guard in the source repository watches this",
+		"see the parent repositories for the change log",
+	} {
+		root := writeFixtureSurface(t, map[string]string{"skills/leaky/SKILL.md": phrasing + "\n"})
+		scan, err := ScanOperatingSurface(root)
+		if err != nil {
+			t.Fatalf("scan errored on %q: %v", phrasing, err)
+		}
+		joined := strings.Join(scan.Violations, "\n")
+		if !strings.Contains(joined, "repo-machinery phrase") {
+			t.Errorf("the repository mention %q was not caught as a Family B violation; got:\n%s", phrasing, joined)
+		}
 	}
 }
 
