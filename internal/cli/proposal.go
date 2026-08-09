@@ -311,7 +311,9 @@ func writeMachineVerdictAdvisory(stderr io.Writer, f output.Format, v verdictSou
 // human-readable reason instead of an error, so a failed read-back can never
 // withhold the created proposal's id or produce a non-zero exit (ADR-2). The raw
 // bytes are returned so the machine path can emit the read-back's own document
-// verbatim; they are nil when no read-back produced a body the CLI could read.
+// verbatim; they are nil when no read-back produced a body the CLI could read —
+// which includes a 2xx body that decodes cleanly but carries no proposal, or a
+// different one (see the id guard below).
 // An empty id short-circuits with the id-undeterminable reason and issues NO
 // request — a path fabricated from an empty id would 404 for nothing (ADR-6).
 // The path is built exactly as `proposal get` builds it: url.PathEscape keeps a
@@ -329,6 +331,20 @@ func readBackProposalVerdict(ctx context.Context, exec executor, id string) (gla
 	}
 	var doc glassfrog.Document[glassfrog.Proposal]
 	if err := json.Unmarshal(raw, &doc); err != nil {
+		return glassfrog.Proposal{}, nil, "the read-back response could not be read"
+	}
+	// A clean unmarshal is not yet an answer. A 200 carrying `{}`, `{"data":{}}`,
+	// or any document without the proposal decodes without error into a ZERO
+	// Proposal — and both call sites treat an empty reason as "the read-back
+	// answered", so that zero value would replace the created proposal: the
+	// human body would render an empty id, and the machine path would emit the
+	// empty document in place of the create's. That withholds the created prp_
+	// id, which the spec forbids without qualification. Requiring the returned
+	// id to be the one asked for also rejects a document for a DIFFERENT
+	// proposal, whose verdict would otherwise be reported as this create's.
+	// Rejecting is the safe direction: a false reject still reports the created
+	// proposal with a reason, while accepting a mismatch loses the handle.
+	if doc.Data.ID != id {
 		return glassfrog.Proposal{}, nil, "the read-back response could not be read"
 	}
 	return doc.Data, raw, ""

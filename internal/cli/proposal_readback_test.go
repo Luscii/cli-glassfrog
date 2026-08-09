@@ -187,19 +187,115 @@ func TestReadBackProposalVerdict_PathEscapesID(t *testing.T) {
 }
 
 // TestReadBackProposalVerdict_ValidJSONWrongShape pins the local decode guard:
-// a body that is valid JSON but not a {data: Proposal} document returns the
-// undecodable reason and nil raw — the machine path must never emit a document
-// the CLI could not read a proposal from.
+// a body that is valid JSON but not a readable {data: Proposal} document for the
+// proposal that was asked for returns the undecodable reason and nil raw — the
+// machine path must never emit a document the CLI could not read this proposal
+// from, and the human path must never render one in place of the created draft.
+//
+// The last three cases decode CLEANLY into a zero (or foreign) Proposal, so a
+// decode-error check alone would wave them through as an answered read-back.
 func TestReadBackProposalVerdict_ValidJSONWrongShape(t *testing.T) {
-	tr := &tensionTransport{status: 200, body: `{"data": [1, 2, 3]}`}
-	exec := newReadBackExecutor(t, tr)
-
-	_, raw, reason := readBackProposalVerdict(context.Background(), exec, "prp_0123")
-	if reason != "the read-back response could not be read" {
-		t.Errorf("reason = %q, want the undecodable reason", reason)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "data is not an object", body: `{"data": [1, 2, 3]}`},
+		{name: "empty document", body: `{}`},
+		{name: "empty data object", body: `{"data":{}}`},
+		{name: "no data key at all", body: `{"meta":{"pagination":{}}}`},
+		{name: "a different proposal", body: `{"data":{"id":"prp_9999","status":"draft","valid":true}}`},
 	}
-	if raw != nil {
-		t.Errorf("an unreadable body must return nil raw, got %s", raw)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &tensionTransport{status: 200, body: tc.body}
+			exec := newReadBackExecutor(t, tr)
+
+			p, raw, reason := readBackProposalVerdict(context.Background(), exec, "prp_0123")
+			if reason != "the read-back response could not be read" {
+				t.Errorf("reason = %q, want the undecodable reason", reason)
+			}
+			if raw != nil {
+				t.Errorf("an unreadable body must return nil raw, got %s", raw)
+			}
+			if p.ID != "" {
+				t.Errorf("an unreadable body must return a zero proposal, got %+v", p)
+			}
+		})
+	}
+}
+
+// TestRunProposalCreate_EmptyReadBackKeepsCreatedID is the regression for the
+// spec's unqualified non-behavior — the created prp_ id is never withheld
+// because the read-back failed. A 200 whose body decodes to no proposal is a
+// failed read-back: the human body must still render the CREATED proposal (id
+// and status intact), not the empty one the read-back returned.
+func TestRunProposalCreate_EmptyReadBackKeepsCreatedID(t *testing.T) {
+	for _, body := range []string{`{}`, `{"data":{}}`, `{"meta":{"x":1}}`, `{"data":{"id":"prp_9999"}}`} {
+		t.Run(body, func(t *testing.T) {
+			tr := &proposalSeqTransport{steps: []proposalSeqStep{
+				{status: 201, body: proposalCreatedBody},
+				{status: 200, body: body},
+			}}
+			seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
+			outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+				tensionID:    "ten_0123",
+				changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+			})
+			if outcome != Success {
+				t.Fatalf("outcome = %v, want Success\nstderr: %s", outcome, stderr)
+			}
+			if !strings.Contains(stdout, "prp_0123  [draft]") {
+				t.Errorf("the CREATED proposal must render with its id and status:\n%s", stdout)
+			}
+			if strings.Contains(stdout, "prp_9999") {
+				t.Errorf("a foreign proposal must never be reported as the created one:\n%s", stdout)
+			}
+			if !strings.Contains(stdout, "  Validity:       unavailable — the read-back response could not be read\n") {
+				t.Errorf("the verdict must read as unavailable with its reason:\n%s", stdout)
+			}
+			if !strings.Contains(stderr, "could not read proposal prp_0123 back") {
+				t.Errorf("the advisory must name the failed read-back:\n%s", stderr)
+			}
+		})
+	}
+}
+
+// TestRunProposalCreate_MachineEmptyReadBackFallsBackToCreate is the machine-arm
+// half of the same regression: an unreadable read-back must fall back to the
+// create's document, never emit the empty one — which would drop the created
+// prp_ id from stdout entirely, the exact loss the spec forbids.
+func TestRunProposalCreate_MachineEmptyReadBackFallsBackToCreate(t *testing.T) {
+	outcome, stdout, stderr := machineCreateOver(t, "json", []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: `{"data":{}}`},
+	})
+	if outcome != Success {
+		t.Fatalf("outcome = %v, want Success", outcome)
+	}
+	want, err := output.RenderSuccess(output.JSON, json.RawMessage(proposalCreatedBody))
+	if err != nil {
+		t.Fatalf("fixture render: %v", err)
+	}
+	if stdout != string(want) {
+		t.Errorf("stdout must fall back to the create's document:\n got: %s\nwant: %s", stdout, want)
+	}
+	if !strings.Contains(stdout, "prp_0123") {
+		t.Errorf("the created id must never be dropped from stdout:\n%s", stdout)
+	}
+	var advisory struct {
+		VerdictSource verdictSource `json:"verdict_source"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &advisory); err != nil {
+		t.Fatalf("advisory decode: %v\nstderr: %s", err, stderr)
+	}
+	if advisory.VerdictSource.ReadBack {
+		t.Error("read_back must be false when the read-back produced no readable proposal")
+	}
+	if advisory.VerdictSource.Reason != "the read-back response could not be read" {
+		t.Errorf("reason = %q", advisory.VerdictSource.Reason)
+	}
+	if advisory.VerdictSource.ProposalID != "prp_0123" || advisory.VerdictSource.Remedy != "glassfrog proposal get prp_0123" {
+		t.Errorf("the advisory must keep the id and name the remedy, got %+v", advisory.VerdictSource)
 	}
 }
 
