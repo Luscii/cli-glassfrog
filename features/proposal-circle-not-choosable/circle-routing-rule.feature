@@ -39,7 +39,7 @@ Feature: Circle Routing Rule
       When its document header is read
       Then its Owner line will name the proposal-drafting skill as the owning skill
       And it will name symlink consumption as how any other skill would consume the record
-      And its Contract citations line will name the vendored API specification
+      And its Contract citations line will name the published API specification
 
     # Source: 073-circle-routing-rule — Scenario: The content states how to tell the two cases apart
     Scenario: The classification test distinguishes the two cases

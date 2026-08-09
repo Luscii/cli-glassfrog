@@ -13,8 +13,8 @@
 - **Owner**: the proposal-drafting skill. This record lives in that skill's
   `references/` directory as the single source; any other skill that needs it
   consumes it through a symbolic link into its own directory, never a copy.
-- **Contract citations**: `spec/glassfrog-api-v5.yaml` — cited by schema and
-  property name only, never by line number and never by restated values.
+- **Contract citations**: the published Glassfrog API v5 contract — cited by
+  schema and property name only, never by line number and never by restated values.
 
 ## Contract citations
 
@@ -41,8 +41,8 @@ restating it. These are pointers into the contract, not restatements of it.
   governance — the circle-role itself, or a domain or policy it holds — must
   be anchored in that circle's **parent** circle, on a tension sensed by a
   role the operator fills there.
-- **Circle Lead exception**: *(observed; carried as recorded from LEARNINGS
-  2026-08-05 F7, not independently re-verified)* where the operator fills the
+- **Circle Lead exception**: *(observed; carried as recorded from the
+  provisional field note of 2026-08-05 (F7), not independently re-verified)* where the operator fills the
   target circle's own Circle Lead role, the circle-role itself is a valid
   anchor site — the operator need not go to the parent circle to find one.
 - **Root circle**: where the target circle's `Role.parent_role_id` is null,

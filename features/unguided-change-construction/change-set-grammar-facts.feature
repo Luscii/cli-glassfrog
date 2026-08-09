@@ -81,7 +81,7 @@ Feature: Change-Set Grammar Facts
       When each fact section is read
       Then every fact will carry all five required fields
       And its Evidence will name the live proposal the fact was verified against
-      And its Provenance will name the LEARNINGS entry it supersedes
+      And its Provenance will name the provisional note it supersedes
 
   Rule: Retire a fact the moment the published contract absorbs it
     # In order to keep the record honest as the API moves,

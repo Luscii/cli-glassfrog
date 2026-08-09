@@ -70,7 +70,7 @@ func (w *circleRoutingWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^its Mechanism field will state the proposal lands in the circle of whichever tension anchors it$`, w.thenMechanismLands)
 	sc.Step(`^its Owner line will name the proposal-drafting skill as the owning skill$`, w.thenOwnerNamesSkill)
 	sc.Step(`^it will name symlink consumption as how any other skill would consume the record$`, w.thenOwnerNamesSymlink)
-	sc.Step(`^its Contract citations line will name the vendored API specification$`, w.thenHeaderNamesSpec)
+	sc.Step(`^its Contract citations line will name the published API specification$`, w.thenHeaderNamesSpec)
 	sc.Step(`^its Test field will distinguish a change to a circle's own governance from a change to a role inside a circle$`, w.thenTestDistinguishes)
 	sc.Step(`^its "Resolved by" field will name "([^"]*)" as what resolves whether a target is a circle$`, w.thenResolvedByNames)
 	sc.Step(`^it will name "([^"]*)", "([^"]*)" and "([^"]*)" in the order the procedure runs them$`, w.thenNamedReadsInOrder)
@@ -188,8 +188,8 @@ func (w *circleRoutingWorld) thenHeaderNamesSpec() error {
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(f, "spec/glassfrog-api-v5.yaml") {
-		return fmt.Errorf("Contract citations line does not name the vendored spec: %q", f)
+	if !containsFold(f, "Glassfrog API v5") {
+		return fmt.Errorf("Contract citations line does not name the published API specification: %q", f)
 	}
 	return nil
 }
