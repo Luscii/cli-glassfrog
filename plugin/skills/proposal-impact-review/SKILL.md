@@ -29,14 +29,14 @@ that change lands on the operator's own governance — and then, when the operat
 has decided, to **record their explicitly chosen response**.
 
 Do **not** reach for it to *advance, monitor, or withdraw* a proposal — those
-circulation acts belong to the **Proposal Circulation Path** (068). Do not use
+circulation acts belong to the **Proposal Circulation Path**. Do not use
 it to *assemble changes or create the draft* — that is the **Proposal Drafting
-Path** (067). Do not use it to answer *"am I allowed to do X?"* or *"does this
+Path**. Do not use it to answer *"am I allowed to do X?"* or *"does this
 need a proposal?"* — that authority verdict belongs to the **Constraint
-Discovery Path** (065). Do not use it to *capture, refine, or retire a
-tension* — that is the **Tension Processing Path** (066). And do not use it to
+Discovery Path**. Do not use it to *capture, refine, or retire a
+tension* — that is the **Tension Processing Path**. And do not use it to
 *understand the governance around a concern* at large — that traversal is the
-**governance-navigation** skill's job (064).
+**governance-navigation** skill's job.
 
 ## The workflow
 
@@ -68,7 +68,7 @@ pending-list question):
 5. **Record the response (on an explicit choice only)** — narrate the proposal
    and the chosen value, then run
    `glassfrog proposal respond <prp-id> --response <value>` — a **gated**
-   governance write 063 confirms, issued **in the caller's context** (see
+   governance write the Write-Safety Guardrail confirms, issued **in the caller's context** (see
    [Decision-and-respond note](#decision-and-respond-note)) — and present the
    recorded response: its `prr_` id, the value, and the parent proposal's
    status at the time of response. A parent status of `accepted` means this
@@ -76,7 +76,7 @@ pending-list question):
    surfaced from the record, never computed client-side. A recorded
    `bring_to_meeting` persists on the proposal and blocks auto-acceptance; the
    path then **stops** — advancing or withdrawing the proposal stays with the
-   **Proposal Circulation Path** (068).
+   **Proposal Circulation Path**.
 
 For the exact flags of any one command, ask the CLI:
 `glassfrog <cmd> --help` (e.g. `glassfrog proposal respond --help`).
@@ -102,7 +102,7 @@ and no CLI command is broken by the agent's absence.
 ## Decision-and-respond note
 
 Recording a consent response is a **governance write gated by the Write-Safety
-Guardrail (063)**: it always runs through the **confirmed write flow**, and it
+Guardrail**: it always runs through the **confirmed write flow**, and it
 is issued **in the caller's context** — the reviewer agent cannot and must not
 run it. The one-token value rides inline on the command line
 (`--response no_objection` / `--response bring_to_meeting`) so the confirmation
@@ -123,13 +123,13 @@ state the **record does not contain**. It adds no retry — a retry is itself a
 gated write needing fresh confirmation.
 
 This path's **only** write is `proposal respond`. It never runs
-`proposal create` — drafting is the **Proposal Drafting Path** (067) — and never
+`proposal create` — drafting is the **Proposal Drafting Path** — and never
 `proposal propose` or `proposal withdraw` — advancing and withdrawing are the
-**Proposal Circulation Path**'s acts (068); 063 gates those writes regardless.
-It never performs a tension write (that is the Tension Processing Path, 066),
+**Proposal Circulation Path**'s acts; the guardrail gates those writes regardless.
+It never performs a tension write (that is the Tension Processing Path),
 it does not rule on whether the change is within the proposer's authority (that
-is the Constraint Discovery Path, 065), and it does not advise on how to weigh
+is the Constraint Discovery Path), and it does not advise on how to weigh
 an objection or coach Holacracy practice.
 
 For output shapes, pagination mechanics, and exit-code reactions, see the
-orientation skill (062) — this path does not restate them.
+orientation skill — this path does not restate them.

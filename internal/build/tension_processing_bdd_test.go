@@ -464,11 +464,11 @@ func (w *tensionProcessingWorld) thenNotInventNorAbandon() error {
 // --- Rule: handoff, operational writes only, ungated side, no judging ----------
 
 func (w *tensionProcessingWorld) thenHandsOffId() error {
-	if !containsFold(w.combined(), "Proposal Drafting Path") || !containsFold(w.combined(), "067") {
-		return fmt.Errorf("the workflow does not hand the ready tension to the Proposal Drafting Path (067)")
+	if !containsFold(w.combined(), "Proposal Drafting Path") {
+		return fmt.Errorf("the workflow does not hand the ready tension to the Proposal Drafting Path by its in-plugin name")
 	}
 	if !containsFold(w.agent, "handoff") || !containsFold(w.agent, "ten_") {
-		return fmt.Errorf("the record has no handoff element carrying the ten_ id for 067")
+		return fmt.Errorf("the record has no handoff element carrying the ten_ id for the drafting path")
 	}
 	return nil
 }
@@ -609,8 +609,8 @@ func (w *tensionProcessingWorld) thenNoAuthorityVerdict() error {
 	if !containsFold(w.combined(), "needs a proposal") || !containsFold(w.combined(), "do not rule") && !containsFold(w.combined(), "does not rule") {
 		return fmt.Errorf("the artifacts do not explicitly disclaim ruling on whether a tension needs a proposal")
 	}
-	if !containsFold(w.combined(), "Constraint Discovery Path") || !containsFold(w.combined(), "065") {
-		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path (065)")
+	if !containsFold(w.combined(), "Constraint Discovery Path") {
+		return fmt.Errorf("the artifacts do not hand the authority question to the Constraint Discovery Path by its in-plugin name")
 	}
 	// No authority verdict may appear: a ruling would read as "you are (not)
 	// allowed / permitted" or "this needs / does not need a proposal" stated as a

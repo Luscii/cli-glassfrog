@@ -107,8 +107,8 @@ no CLI command is broken by the agent's absence.
 ## Boundaries
 
 - **Read-only.** This path only reads. It contains no write, confirm, or gate
-  step, and it names no write command. (065 is a read path and drives no
-  write, so it does not depend on the write-safety `PreToolUse` gate (063);
+  step, and it names no write command. (This is a read path and drives no
+  write, so it does not depend on the write-safety `PreToolUse` gate;
   regardless, the navigator's prompt is strictly read-only.)
 - **Surface and characterize, never rule.** The path surfaces the governing
   domains and policies **drawn from the record** and characterizes the

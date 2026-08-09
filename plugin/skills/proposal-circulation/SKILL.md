@@ -25,14 +25,12 @@ acceptance, or a **circulating proposal must be withdrawn back to draft** so it
 can be amended.
 
 Do **not** reach for it to *assemble changes or create the draft* — that is the
-**Proposal Drafting Path** (067); a created draft's `prp_` id is handed *to* this
+**Proposal Drafting Path**; a created draft's `prp_` id is handed *to* this
 path, not drafted here. Do not use it to *record a no-objection or
-bring-to-meeting response* — that is the **response side** (069). Do not use it to
-*capture, refine, or retire a tension* — that is the **Tension Processing Path**
-(066). Do not use it to answer *"am I allowed to do X?"* or *"does this need a
-proposal?"* — that authority verdict belongs to the **Constraint Discovery Path**
-(065). And do not use it to *understand the governance around a concern* — that
-traversal is the **governance-navigation** skill's job (064).
+bring-to-meeting response* — that is the **response side**, the proposal-impact-review path. Do not use it to
+*capture, refine, or retire a tension* — that is the **Tension Processing Path**. Do not use it to answer *"am I allowed to do X?"* or *"does this need a
+proposal?"* — that authority verdict belongs to the **Constraint Discovery Path**. And do not use it to *understand the governance around a concern* — that
+traversal is the **governance-navigation** skill's job.
 
 ## The workflow
 
@@ -50,7 +48,7 @@ proposal's `prp_` id and the intent (advance / monitor / withdraw):
    guidance) — never a silent single-page cap.
 3. **Act by intent**:
    - **Advance** — narrate the proposal and what `propose` will do, then run
-     `proposal propose <prp-id>` — a **gated** governance write 063 confirms. On
+     `proposal propose <prp-id>` — a **gated** governance write the Write-Safety Guardrail confirms. On
      success the server returns the proposal in `proposed_outside_meeting`,
      carrying the server-set `response_deadline` and the proposer's implicit
      `no_objection` in the `response_summary`.
@@ -64,9 +62,9 @@ proposal's `prp_` id and the intent (advance / monitor / withdraw):
      `proposed_at`/`response_deadline` cleared and prior responses deleted —
      reflected in the returned record.
 4. **Return the circulation record** and hand off: after a withdraw, hand the
-   `prp_` id back to the **Proposal Drafting Path** (067) for re-editing; consent
+   `prp_` id back to the **Proposal Drafting Path** for re-editing; consent
    responses (`no_objection` / `bring_to_meeting`) belong to the **response side**
-   (069), never this path.
+   (the proposal-impact-review path), never this path.
 
 The reads **inform, never gate**: the `available_transitions` snapshot is
 narration for the proposer — it shows where the proposal stands — **never a
@@ -96,7 +94,7 @@ and no CLI command is broken by the agent's absence.
 ## Gated-writes note
 
 This path's **only** writes are `proposal propose` and `proposal withdraw`, and
-each is a **governance write gated by the Write-Safety Guardrail (063)**: every
+each is a **governance write gated by the Write-Safety Guardrail**: every
 transition runs through the **confirmed write flow**. Both transitions are
 **bodyless** — the confirmed command line (`glassfrog proposal propose prp_…` /
 `glassfrog proposal withdraw prp_…`) *is* the complete payload, so the
@@ -106,20 +104,20 @@ withdraws crosses the gate twice, and the confirmations are **never batched or
 pre-authorized**. A **declined** confirmation means **no transition** happens.
 
 This path performs **no other write**. It never runs `proposal create` —
-assembling and creating the draft is the **Proposal Drafting Path** (067) — and
-never `proposal respond` — recording a response is the **response side** (069);
-063 gates those writes regardless. It never performs a tension write (that is the
-Tension Processing Path, 066), it does not rule on whether the change is within
-authority (that is the Constraint Discovery Path, 065), and it does not advise on
+assembling and creating the draft is the **Proposal Drafting Path** — and
+never `proposal respond` — recording a response is the **response side**, the
+proposal-impact-review path; the guardrail gates those writes regardless. It never performs a tension write (that is the
+Tension Processing Path), it does not rule on whether the change is within
+authority (that is the Constraint Discovery Path), and it does not advise on
 governance craft or coach Holacracy practice.
 
 That write fence holds in layers: the circulator agent's prompt is scoped to the
-four composed leaves and forbids any other `proposal` write, and 063's
+four composed leaves and forbids any other `proposal` write, and the guardrail's
 `PreToolUse` write gate (`plugin/hooks/glassfrog-write-gate.sh`) interposes the
 human confirmation on `proposal propose` and `proposal withdraw` — and would gate
 any other proposal write regardless. In the target host, `PreToolUse` hooks fire
 for a subagent's Bash calls too (the hook input carries an `agent_id` inside a
-subagent call, confirmed by 066), so the gate reaches the circulator.
+subagent call), so the gate reaches the circulator.
 
 For output shapes, pagination mechanics, and exit-code reactions, see the
-orientation skill (062) — this path does not restate them.
+orientation skill — this path does not restate them.
