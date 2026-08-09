@@ -25,24 +25,64 @@ The normative contract every file under `plugin/` satisfies — the artifact set
 
 **Family A — resolvable references** (a pointer an operator without the repository cannot follow):
 
-| Pattern | Case | Property it protects | Example violation |
-|---|---|---|---|
-| `\b0\d{2}\b` | — | No development-spec catalog exists where the operator stands; spec numbers are repo ids, not surface names | `(067)`, `063's gated set` |
-| `\bspecs?/` | insensitive | Repo spec-directory and vendored-spec paths don't ship | `specs/067-…`, `spec/glassfrog-api-v5.yaml` |
-| `\b(internal\|features\|docs\|scripts)/` | insensitive | Repo source/test/docs trees don't ship | `internal/build/…_guard_test.go` |
-| `\b\.score/` | insensitive | Pipeline memory doesn't ship | `.score/memory/LEARNINGS.md` |
-| `\b[\w-]+\.go\b` (includes `_test.go`) | insensitive | Go source is repo implementation, invisible to the operator | `write_safety_guardrail_guard_test.go` |
-| `\b(plan\|tasks\|spec)\.md\b`, `\binterface-[\w-]+\.md\b` | insensitive | Pipeline artifacts don't ship | `plan.md ADR-4` |
-| `\bADR-\d+\b` | sensitive | Design history lives in the repo, not the surface | `(plan ADR-5)` |
-| `FEATURE-MODEL`, `ROADMAP`, `BACKLOG`, `ISSUE-TREE`, `LEARNINGS`, `DECISIONS`, `DEPRECATION`, `PROJECT.md`, `VISION.md`, `CONSTITUTION.md`, `STATUS.md` | **sensitive** (exact tokens) | Portfolio documents don't ship; case-sensitivity keeps ordinary words ("decisions", "learnings") legal | `supersedes LEARNINGS 2026-08-05, F5` |
+Patterns are given as Go (RE2) syntax in fenced blocks rather than table cells: a `|` inside a table cell must be written `\|`, which RE2 reads as a *literal* pipe, so a transcribed pattern would silently stop matching. Each entry carries the property it protects and a concrete example — the same shape the guard source keeps, so the two can be read against each other. Case-insensitivity is expressed inline with `(?i)`.
+
+```
+\b0\d{2}\b
+    # Spec-number id. No development-spec catalog exists where the operator
+    # stands, so a number is a repo id, never a surface name.
+    # Violation: "(067)", "063's gated set"
+
+(?i)\bspecs?/
+    # Repo spec directory and vendored-spec path.
+    # Violation: "specs/067-…", "spec/glassfrog-api-v5.yaml"
+
+(?i)\b(?:internal|features|docs|scripts)/
+    # Repo source, test, docs, and script trees.
+    # Violation: "internal/build/…_guard_test.go"
+
+(?i)\.score/
+    # Pipeline memory. No \b prefix: "." is a non-word character, so \b would
+    # require a word character immediately before it and miss ".score/" at the
+    # start of a line or after a space.
+    # Violation: ".score/memory/LEARNINGS.md"
+
+(?i)\b[\w-]+\.go\b
+    # Go source, including _test.go — repo implementation, invisible to the operator.
+    # Violation: "write_safety_guardrail_guard_test.go"
+
+(?i)\b(?:plan|tasks|spec)\.md\b
+(?i)\binterface-[\w-]+\.md\b
+    # Pipeline artifacts. Violation: "plan.md ADR-4", "interface-spec.md"
+
+\bADR-\d+\b
+    # Design history lives in the repo, not the surface. Case-sensitive.
+    # Violation: "(plan ADR-5)"
+
+\b(?:FEATURE-MODEL|ROADMAP|BACKLOG|ISSUE-TREE|LEARNINGS|DECISIONS|DEPRECATION|STATUS\.md|PROJECT\.md|VISION\.md|CONSTITUTION\.md)\b
+    # Portfolio documents. Case-SENSITIVE on purpose, so ordinary prose words
+    # ("decisions", "learnings", "roadmap") stay legal in the surface.
+    # Violation: "supersedes LEARNINGS 2026-08-05, F5"
+```
 
 **Family B — repo-machinery phrases** (the strict ban: the development repository is not acknowledged even pathlessly):
 
-| Pattern | Case | Property it protects | Example violation |
-|---|---|---|---|
-| `drift (guard\|tripwire)` | insensitive | Enforcement machinery is repo-side; the surface never names its own watchers | `the drift tripwire turns CI red` |
-| `(source\|development\|parent) repositor(y\|ies)` | insensitive | The repo is not acknowledged in any form | `a build-time guard in the source repository` |
-| `\bCI\b` | sensitive | Merge gating is repo machinery (`\b` keeps "CLI" safe; case keeps prose safe) | `turns CI red` |
+```
+(?i)drift\s+(?:guard|tripwire)
+    # Enforcement machinery is repo-side; the surface never names its own watchers.
+    # Violation: "the drift tripwire turns CI red"
+
+(?i)(?:source|development|parent)\s+repositor(?:y|ies)
+    # The repo, named without a path. Violation: "a build-time guard in the
+    # source repository"
+
+\bCI\b
+    # Merge gating is repo machinery. Case-sensitive and \b-anchored so "CLI"
+    # and lowercase prose stay safe.
+    # Violation: "turns CI red"
+```
+
+The pattern set above was checked against Go's `regexp` before landing: all entries compile, every example violation matches, and none of the known-safe tokens below matches. That corpus is what T004's fixtures should encode, so the check is standing rather than one-off.
 
 **Known-safe tokens** — non-matching by construction, each pinned as a guard fixture so a lexicon edit cannot silently widen: `prp_0123` / `ten_…` / `role_…` example ids (no word boundary after `_`), version strings (`0.34.1`), exit codes `0`–`7`, `--per-page 500`, "the v5 spec" / "specification" (only slash-form paths and id-form numbers match), "CLI".
 
