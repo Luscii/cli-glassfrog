@@ -176,7 +176,14 @@ func ScanOperatingSurface(root string) (*SurfaceScan, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if d.IsDir() {
+		// Regular files only. WalkDir does not follow symlinks, so a symlink
+		// reports IsDir() == false even when it points at a directory — but
+		// os.ReadFile below DOES follow it. Admitting non-regular entries would
+		// therefore scan a symlink target's bytes under a plugin/ path it does
+		// not occupy, fail the whole walk on a directory symlink, and block
+		// forever on a FIFO with no writer, hanging the merge gate. Returning
+		// nil (not fs.SkipDir) keeps the descent into real directories.
+		if !d.Type().IsRegular() {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)

@@ -180,6 +180,52 @@ func TestScanOperatingSurfaceDerivedWalk(t *testing.T) {
 	}
 }
 
+// TestScanOperatingSurfaceSkipsNonRegularEntries pins the walk to regular files.
+// WalkDir does not follow symlinks, so a symlink reports IsDir() == false even
+// when it points at a directory — but os.ReadFile follows it. Were non-regular
+// entries admitted, a symlink pointing outside the surface would have its
+// target's bytes scanned and reported under a plugin/ path (the traversal this
+// pins shut), and a directory symlink would error the whole walk. The repo
+// consumes shared reference artifacts via symlinks by convention, so this is a
+// shape the surface is expected to grow, not a hypothetical.
+func TestScanOperatingSurfaceSkipsNonRegularEntries(t *testing.T) {
+	root := writeFixtureSurface(t, map[string]string{
+		"skills/example/SKILL.md": "ask the CLI for the exact flags\n",
+	})
+
+	// A file OUTSIDE the surface, carrying a violation the scan must never see.
+	outside := filepath.Join(root, "outside-the-surface.md")
+	if err := os.WriteFile(outside, []byte("the gated write path (067) leaks\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkToOutside := filepath.Join(root, OperatingSurfaceRoot, "skills", "example", "linked.md")
+	if err := os.Symlink(outside, linkToOutside); err != nil {
+		t.Skipf("symlinks unavailable on this platform: %v", err)
+	}
+
+	// A symlink to a directory: admitted, os.ReadFile would error and fail the walk.
+	linkToDir := filepath.Join(root, OperatingSurfaceRoot, "skills", "linked-dir")
+	if err := os.Symlink(filepath.Join(root, OperatingSurfaceRoot, "skills", "example"), linkToDir); err != nil {
+		t.Skipf("symlinks unavailable on this platform: %v", err)
+	}
+
+	scan, err := ScanOperatingSurface(root)
+	if err != nil {
+		t.Fatalf("the walk failed on a surface containing symlinks: %v", err)
+	}
+	for _, f := range scan.Files {
+		if strings.Contains(f, "linked") {
+			t.Errorf("a non-regular entry was walked as a surface file: %q (files: %v)", f, scan.Files)
+		}
+	}
+	if len(scan.Files) != 1 {
+		t.Errorf("want only the 1 regular file walked, got %d: %v", len(scan.Files), scan.Files)
+	}
+	if joined := strings.Join(scan.Violations, "\n"); strings.Contains(joined, "067") {
+		t.Errorf("content from outside the surface was scanned via symlink traversal:\n%s", joined)
+	}
+}
+
 // TestScanOperatingSurfaceEmptyOrMissing pins the loud failure: zero files or
 // a missing surface directory is an error naming the condition — no skip path,
 // no warning tier, no vacuous pass.
