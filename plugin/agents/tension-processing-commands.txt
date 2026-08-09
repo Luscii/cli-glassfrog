@@ -1,29 +1,28 @@
 # Composed-leaf registry — the tension commands the Tension Processing Path
-# composes (066 Tension Processing Path).
+# composes.
 #
 # THE single source of "which glassfrog tension leaves the processor composes",
-# consumed by BOTH:
+# consumed by:
 #   - the tension-processor agent  (plugin/agents/tension-processor.md)
 #     — its "Composed commands" section names exactly these leaves and no others
-#   - the drift guard              (internal/build/tension_processing_guard_test.go)
-#     — it checks every leaf here still resolves to a `tension` subcommand in the
-#       shipped CLI, AND that no leaf here appears in 063's gated proposal-write
-#       registry (plugin/hooks/gated-commands.txt) — the ungated-writes invariant
-# so the artifact prose and the guard can never disagree about the composed
-# surface (plan ADR-5, mirroring 063's gated-commands.txt and 064's
-# composed-reads.txt).
+# so the artifact prose and this registry can never disagree about the composed
+# surface (mirroring the write-safety gate's gated-commands.txt,
+# plugin/hooks/gated-commands.txt, and the sibling composed-leaf registries in
+# plugin/agents/).
 #
 # Each non-comment, non-blank line is ONE `glassfrog tension` leaf the processor
-# may invoke, written as the two-token `tension <sub>` pair (matching how 063's
-# registry writes its `proposal <sub>` leaves, so the disjointness check compares
-# like with like). Three are situating reads (list, get, subroles); three are the
-# operational writes 063 leaves ungated by design (create, update, discard). No
-# `proposal` leaf ever appears here — the path never crosses into a governance
-# write (spec non-behavior; ADR-3).
+# may invoke, written as the two-token `tension <sub>` pair (matching how the
+# write-safety gate's registry writes its `proposal <sub>` leaves, so the two
+# read like with like). Three are situating reads (list, get, subroles); three
+# are the operational writes the write-safety gate leaves ungated by design
+# (create, update, discard). No `proposal` leaf ever appears here — the path
+# never crosses into a governance write.
 #
-# Renaming or dropping one of these commands in the CLI — or pulling one into
-# 063's gated set — turns the drift guard red; the artifacts cannot silently
-# name a command the CLI lacks or a write the guardrail gates.
+# The ungated posture this registry promises holds only while no leaf here
+# appears in the write-safety gate's registry (plugin/hooks/gated-commands.txt)
+# — so a rename or drop in the CLI, or an edit to either registry's membership,
+# means revisiting both files and the agent artifact together; the artifacts
+# must never name a command the CLI lacks or a write the guardrail gates.
 tension list
 tension get
 tension subroles

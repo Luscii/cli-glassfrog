@@ -1,49 +1,42 @@
-# Composed-leaf registry — the commands the Proposal Drafting Path composes
-# (067 Proposal Drafting Path).
+# Composed-leaf registry — the commands the Proposal Drafting Path composes.
 #
-# THE single source of "which glassfrog leaves the drafter composes", consumed by
-# BOTH:
+# THE single source of "which glassfrog leaves the drafter composes", consumed by:
 #   - the proposal-drafter agent  (plugin/agents/proposal-drafter.md)
 #     — its "Composed commands" section names exactly these leaves and no others
-#   - the drift guard             (internal/build/proposal_drafting_guard_test.go)
-#     — it checks every leaf here still resolves to a subcommand in the shipped
-#       CLI, AND that the gated-membership invariant holds: exactly one leaf here
-#       is a member of 063's gated proposal-write registry
-#       (plugin/hooks/gated-commands.txt) — the one gated create — and the rest
-#       (the situating reads) are absent from it
-# so the artifact prose and the guard can never disagree about the composed
-# surface or its gate posture (plan ADR-5, mirroring 063's gated-commands.txt,
-# 064's composed-reads.txt, and 066's tension-processing-commands.txt).
+# so the artifact prose and this registry can never disagree about the composed
+# surface or its gate posture (mirroring the write-safety gate's
+# gated-commands.txt, plugin/hooks/gated-commands.txt, and the sibling
+# composed-leaf registries in plugin/agents/).
 #
 # Each non-comment, non-blank line is ONE `glassfrog` leaf the drafter may
 # invoke, written as the two-token `<group> <sub>` pair — or a single token for
-# a top-level command (matching the *-commands.txt token grammar, so the
-# membership checks compare like with like). Three are situating/grounding
-# reads (tension get, proposal list, proposal get); one is the single
-# governance write 063 gates by design (proposal create), run only through the
+# a top-level command (matching the token grammar of the sibling registries, so
+# they read like with like). Three are situating/grounding reads (tension get,
+# proposal list, proposal get); one is the single governance write the
+# write-safety gate confirms by design (proposal create), run only through the
 # confirmed write flow; three are routing reads (me roles, tension list, roles
 # — see the annotated block below). No other proposal write ever appears here —
-# the path never advances, responds to, or withdraws a proposal (that is
-# circulation, 068/069).
+# the path never advances, responds to, or withdraws a proposal (that is the
+# proposal-circulation and proposal-impact-review paths).
 #
-# Renaming or dropping one of these commands in the CLI — or pulling `proposal
-# create` OUT of 063's gated set, or pulling a situating read INTO it — turns the
-# drift guard red; the artifacts cannot silently name a command the CLI lacks or
-# a write the guardrail stops confirming.
+# The gate posture this registry promises holds only while `proposal create` is
+# listed in the write-safety gate's registry (plugin/hooks/gated-commands.txt)
+# and the situating reads are absent from it — so a rename or drop in the CLI,
+# or an edit to either registry's membership, means revisiting both files and
+# the agent artifact together; the artifacts must never name a command the CLI
+# lacks or a write the guardrail stops confirming.
 tension get
 proposal list
 proposal get
 proposal create
 
-# Routing reads (073 Circle Routing Rule). The three reads below are the named
-# reads of the routing record's procedure
+# Routing reads. The three reads below are the named reads of the circle-routing
+# rule record's procedure
 # (plugin/skills/proposal-drafting/references/circle-routing-rule.md). The path
-# MAY run them once #77 (Pre-Assembly Grammar Consultation) wires consultation
-# of that record into the drafting workflow — no workflow step consults the
-# record or runs these reads to route yet. They join the composed surface now
-# so the record never names a read the path is forbidden to run (073 plan
-# ADR-3, an announced divergence from "wiring added by the spec that adds the
-# consumption") — their presence is NOT an implied routing step.
+# MAY run them once consultation of that record is wired into the drafting
+# workflow — no workflow step consults the record or runs these reads to route
+# yet. They join the composed surface now so the record never names a read the
+# path is forbidden to run — their presence is NOT an implied routing step.
 me roles
 tension list
 roles
