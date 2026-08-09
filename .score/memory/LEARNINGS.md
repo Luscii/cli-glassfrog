@@ -6,6 +6,27 @@ Operational patterns discovered during implementation. Each entry records a non-
 
 ## Findings
 
+### 2026-08-09 — a regex contract written inside a markdown table is corrupted by the table's own escaping; verify a documented pattern set by running it
+(Found during PR #198 triage — Copilot review of [076](../../specs/076-operating-surface-self-containment/interface-spec.md), three accepted threads)
+
+- **Type**: convention / contract-integrity
+- **Location**: `specs/076-operating-surface-self-containment/interface-spec.md` § deny lexicon (Family A/B pattern tables)
+- **Severity**: high — an interface accord is what the Builder implements to, and the lexicon as written could not match what it claimed to match.
+- **Description**: the deny-lexicon patterns lived in markdown table cells. GFM requires a literal `|` inside a cell to be escaped as `\|`, so every alternation was written `\b(internal\|features\|docs\|scripts)/`. Go's RE2 (and PCRE) read `\|` as a **literal pipe**, so that pattern matches the string `internal|features|docs|scripts/` and nothing else. The trap is doubly quiet: GFM *renders* `\|` back to `|`, so reviewing the rendered PR page shows a correct-looking pattern, while the raw source — which is what an implementer's editor, and any agent consuming the artifact, actually reads — carries the broken form.
+- **Second bug found while rewriting**: `\b\.score/` can never match at a line start or after a space. `\b` asserts a word/non-word transition, and `.` is a non-word character, so it requires a word character immediately before the dot. Any pattern beginning with a non-word character (`.`, `-`, `/`) should not carry a leading `\b`.
+- **Suggested action**: never put a regex contract in a markdown table cell — use a fenced block, where no escaping applies and the pattern can be copied verbatim. Keep each pattern's property and an example violation as comments in the same block, matching the shape the guard source will hold, so the two can be diffed by eye. **Then run it**: compile every pattern, assert each example violation matches, and assert a known-safe corpus matches nothing (here: 12 patterns, 16 violations, 13 safe tokens — the safe list caught nothing, but the exercise found the `\b\.score/` bug). Promote that corpus into the guard's fixtures so the check is standing rather than one-off.
+- **Companion — spec artifacts are read literally**: two smaller findings in the same review shared this root. A task scope wrote one record as `plugin/skills/proposal-drafting/references/change-set-grammar-facts.md` and its sibling as a bare `references/circle-routing-rule.md`, which resolves to nothing from the repo root. And a scope saying "five `plugin/agents/*.md`" while the glob matches six reads as a miscount even though five was right — write "five of the six; the sixth, `constraint-navigator.md`, already conforms", so the exclusion is stated rather than inferred.
+
+### 2026-08-09 — `@wip` on a specification-only PR's scenarios is the correct state, and a reviewer will read it as a defect
+(Found during PR #198 triage — Copilot review of [076](../../features/unequipped-agent-operators/operating-surface-self-containment.feature), one rejected thread)
+
+- **Type**: convention / review-response
+- **Location**: any new `features/**/*.feature` landed by `/score:scenarios` before implementation; sibling godog suites in `internal/build` all filter `Tags: "~@wip"`
+- **Severity**: low for the artifact, medium for the response — accepting the suggestion would turn the build red mid-phase.
+- **Description**: Copilot flagged that every driving scenario carries `@wip` while the suites run `Tags: "~@wip"`, concluding the scenarios would be skipped and could never be observed RED→GREEN, and suggested leaving driving scenarios untagged. That inverts the tag lifecycle: `@wip` means "step definitions not yet written", which is exactly true on a specification-only PR. Sibling feature files are untagged *today* only because the implement step removed the tags as each scenario was bound.
+- **Why the suggestion is actively harmful here**: untagging at specify time means every behavioral scenario executes the moment the suite is created — including scenarios a *later* task implements. In 076 that is 7 of 8 scenarios failing on undefined steps, leaving the build red for the rest of the phase, against CONSTITUTION VII (every commit must validate and build) and defeating incremental binding across tasks.
+- **Suggested action**: expect this comment on every spec-only PR that ships a feature file. Answer with the lifecycle *and* the concrete build consequence rather than "that's the convention". When tasks bind scenarios across more than one task, state the per-task un-`@wip`-ing in the acceptance criteria (076's T002/T004 do) — that is the artifact evidence that the RED→GREEN observation is planned, and it is what makes the rejection checkable.
+
 ### 2026-08-08 — when a rendered example and its pinned producer disagree, find the outlier via the PLAN before "aligning the examples"; and re-check every token of an example a guard already flagged once
 (Found during PR #192 triage — Copilot review of [074](../../specs/074-post-create-validity-read/interface-cli.md), two threads, both accepted)
 
