@@ -608,7 +608,7 @@
 
 - **Score**: MoSCoW Should Have
 - **Framework**: MoSCoW (Should Have)
-- **Rationale**: Demoted from Must by the spec refresh: the read route at #74 now covers the role, actor, and identity reads, leaving this the accountability, domain, and policy residue no read exposes — real, but narrower and no longer the write path's blocker. The residue is confirmed rather than inferred: a live probe during #74's guard round found the number present on a role but absent from every one of that read's embedded accountabilities and domains (LEARNINGS 2026-08-08, W3), which is exactly the gap this item serves.
+- **Rationale**: Demoted from Must by the spec refresh: the read route at #74 now covers the role, actor, tree, and identity reads, leaving this the accountability, domain, and policy residue no read exposes — real, but narrower and no longer the write path's blocker. The residue is confirmed rather than inferred: a live probe during #74's guard round found the number present on a role but absent from every one of that read's embedded accountabilities and domains, which is exactly the gap this item serves.
 - **Dependencies**: → requires: Proposal Reads
 - **Status**: pending
 
