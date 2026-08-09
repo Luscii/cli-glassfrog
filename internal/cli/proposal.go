@@ -352,9 +352,12 @@ func readBackProposalVerdict(ctx context.Context, exec executor, id string) (gla
 
 // readBackVerdictReason maps a read-back exchange error onto the verdict-
 // unavailable reason vocabulary (interface-cli § "The read-back's failures never
-// reach an exit code"). Every failure family gets a distinct reason; none routes
-// through the shared failure envelope, because the read-back's failure is not
-// the command's failure (ADR-2). The 429 arm names the exhausted request budget
+// reach an exit code"). Every exchange-failure family mapped HERE gets a
+// distinct reason; the two body-side causes handled by the caller (undecodable,
+// and a clean decode that is not the requested proposal) deliberately share one
+// reason, because the vocabulary is closed on purpose. None routes through the
+// shared failure envelope, because the read-back's failure is not the command's
+// failure (ADR-2). The 429 arm names the exhausted request budget
 // — the executor has already retried a safe GET, so a surviving 429 means the
 // per-organization budget is spent, and the operator's move is to re-read later,
 // never to re-create. Text is response-side only, never the token.

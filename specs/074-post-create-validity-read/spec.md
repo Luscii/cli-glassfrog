@@ -112,7 +112,7 @@ And it states that no transitions are available on the draft
 Given a machine-readable output format is selected
 When the operator creates the proposal
 Then the emitted document carries the validity verdict, the validation alerts, and the available transitions alongside the id
-And it carries the provenance of the verdict — that a read of that record produced it
+And the reported result carries the provenance of the verdict — that a read of that record produced it — in a machine-readable form alongside the emitted document, which stays the server's own
 And no part of the verdict is available only in human-formatted text
 
 ### Error scenarios
@@ -178,10 +178,11 @@ When it is read for any instruction to decide validity from the change set, the 
 Then no such instruction is present, and every verdict statement is attributed to the server
 
 **Scenario: Every verdict state is distinguishable in every output format**
-Given each output format the create supports
+Given each output format the create itself composes — the two human formats and the two machine formats
 When the server states a favourable verdict, states an unfavourable verdict, states no verdict, and the read-back fails, in turn
 Then all four are distinguishable from one another in that format without inference
 And in a machine format none of the four requires reading human prose to identify
+And under a caller-authored template the four states are *available* to be distinguished rather than rendered, because the command does not compose that output — a template that never references the verdict cannot be made to show it
 
 **Scenario: No undeclared field is presented as contract**
 Given the specification's treatment of the `valid` flag and the `validation_alerts` entries

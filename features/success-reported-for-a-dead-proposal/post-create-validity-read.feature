@@ -201,7 +201,8 @@ Feature: Post-Create Validity Read
     # Source: 074-post-create-validity-read — Scenario: Every verdict state is distinguishable in every output format
     @validation @wip
     Scenario: Every verdict state is distinguishable in every output format
-      Given each output format the create supports
+      Given each output format the create itself composes — the two human formats and the two machine formats
       When the server states a favourable verdict, states an unfavourable verdict, states no verdict, and the read-back fails
       Then all four outcomes will be distinguishable from one another in that format without inference
       And in a machine format none of the four will require reading human prose to identify
+      And under a caller-authored template the four states will be available to be distinguished rather than rendered
