@@ -209,6 +209,84 @@ type ProposalVoteView struct {
 	ProposalVote glassfrog.ProposalVote
 }
 
+// ProposalCreatedView is the data the `proposal-created` templates (074) render:
+// the created proposal PLUS the server's verdict read back from getProposal. It
+// EMBEDS ProposalView, so every field path an existing user template (035) could
+// reference on the create — .Proposal.ID, .Proposal.Status, … — still resolves
+// through Go's field promotion, and the invoked shared template finds .Proposal
+// unchanged. Verdict is a value (not a pointer) because missingkey=error is in
+// force: there is no nil case to guard in the template.
+type ProposalCreatedView struct {
+	ProposalView
+	Verdict ProposalVerdict
+}
+
+// ProposalVerdict is the RENDER projection of the server's verdict (074): display
+// labels resolved in Go, because text/template treats any non-nil pointer as
+// truthy and would render a pointer-to-false as valid. Validity is a label for
+// ONE dimension, not a roll-up — Alerts render separately, and available
+// transitions stay a line of the shared body.
+//
+// Validity and Compact are two renderings of the SAME four states, both produced
+// here so the state vocabulary is single-sourced (plan § Verdict Assembly: the
+// compact format carries "a short verdict token and an alert count"). They are not
+// interchangeable: the full block can afford the server's reason text, and a
+// compact one-liner cannot — appending an arbitrarily long server-derived reason
+// behind a 36-character id would destroy the one-line contract.
+type ProposalVerdict struct {
+	// Validity is the `full` block's label: one of "valid", "not valid",
+	// "not reported by the server", or "unavailable — <reason>".
+	Validity string
+	// Compact is the compact line's label: one of "valid", "not valid",
+	// "validity not reported", or "validity unavailable", with " (N alert(s))"
+	// appended when the server stated at least one alert — in EITHER validity
+	// state, so a favourable verdict carrying an advisory alert stays visible.
+	Compact string
+	// Alerts is what the server stated; empty renders no alerts block.
+	Alerts []glassfrog.ValidationAlert
+	// Source is the provenance line's value: the read-back it came from, or an
+	// explicit statement that no verdict was obtained.
+	Source string
+}
+
+// NewProposalVerdict maps the decoded tri-state (valid pointer, alerts, and an
+// unavailable reason) onto the display labels. It is the SINGLE source of BOTH
+// label vocabularies — the cli package never hand-builds these strings, and no
+// template composes one from parts. A non-empty unavailableReason wins: no
+// validity is claimed and no alerts are carried, because none were stated by the
+// server, so neither label ever carries an alert count in that state. The
+// function is pure: no I/O, no clock, no package-level state.
+func NewProposalVerdict(valid *bool, alerts []glassfrog.ValidationAlert, unavailableReason string, id string) ProposalVerdict {
+	if unavailableReason != "" {
+		return ProposalVerdict{
+			Validity: "unavailable — " + unavailableReason,
+			Compact:  "validity unavailable",
+			Source:   "none — the created proposal is reported from the create response",
+		}
+	}
+	v := ProposalVerdict{
+		Alerts: alerts,
+		Source: "read-back of " + id + " after create",
+	}
+	switch {
+	case valid == nil:
+		v.Validity = "not reported by the server"
+		v.Compact = "validity not reported"
+	case *valid:
+		v.Validity = "valid"
+		v.Compact = "valid"
+	default:
+		v.Validity = "not valid"
+		v.Compact = "not valid"
+	}
+	if n := len(alerts); n == 1 {
+		v.Compact += " (1 alert)"
+	} else if n > 1 {
+		v.Compact += fmt.Sprintf(" (%d alerts)", n)
+	}
+	return v
+}
+
 // TensionsView is the data the role-scoped `tensions` list templates (043) render:
 // the tensions a role carries, walked to completion. It mirrors ProjectsView's
 // shape (a single .Data slice the templates range over) — the plural list sibling
@@ -469,6 +547,14 @@ const (
 	// (056 not landed), grown by 056 to render changes by type. No plural sibling in 055
 	// (the proposals list is 056's concern).
 	ResourceProposal Resource = "proposal"
+	// ResourceProposalCreated is the create-specific projection (074): the created
+	// proposal PLUS the server's verdict read back from getProposal. Distinct from
+	// ResourceProposal, which stays the shared singular projection used by
+	// proposal get (056), propose (057), and withdraw (059) — the verdict is
+	// confined to the create result, so it may not ride the shared key. Its
+	// templates render the body by invoking the shared proposal templates, so there
+	// is exactly one source for the body's lines.
+	ResourceProposalCreated Resource = "proposal-created"
 	// ResourceProposals is the global proposal list read (056): GET /proposals
 	// rendered as a ProposalsView ([]glassfrog.Proposal). Plural — the list sibling of
 	// the singular ResourceProposal (055), added by Proposal Reads (056) since the
@@ -544,7 +630,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposals, ResourceProposalResponse}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposalCreated, ResourceProposals, ResourceProposalResponse}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 
@@ -574,6 +660,20 @@ var funcMap = template.FuncMap{
 			depth = 0
 		}
 		return strings.Repeat("  ", depth)
+	},
+	// include executes the named built-in template into a string, so a delegating
+	// template can post-process the shared body before appending to it —
+	// text/template cannot capture {{template}} output, and the shared compact
+	// line ends with a newline that the one-line proposal-created.compact wrapper
+	// must trim (074). The engine's error is returned unchanged, so a failure
+	// inside the included template still fails the outer render loud. Pure over
+	// its inputs, like every sibling helper.
+	"include": func(name string, data any) (string, error) {
+		var buf bytes.Buffer
+		if err := templates.ExecuteTemplate(&buf, name, data); err != nil {
+			return "", err
+		}
+		return buf.String(), nil
 	},
 	// changeProps renders a proposal change's command-specific properties (the
 	// free-form keys beyond id/type) as compact JSON, so `proposal.full` can show
@@ -611,12 +711,25 @@ var funcMap = template.FuncMap{
 // rendering as <no value>, backstopping a typo'd key (the data-fidelity guard,
 // ADR-3). A parse failure is a build-time defect, so template.Must panics it at
 // package init rather than surfacing it per render.
-var templates = template.Must(
-	template.New("render").
-		Funcs(funcMap).
-		Option("missingkey=error").
-		ParseFS(templatesFS, "templates/*.tmpl"),
-)
+//
+// Assigned in init rather than in the declaration because funcMap's include
+// helper (074) refers back to the parsed set — a declaration-time initializer
+// would make funcMap ↔ templates an initialization cycle. init runs after
+// package-level vars, so Must still panics a parse failure at package init.
+// userTemplateBase (usertemplate.go) is assigned here too: its clone must be
+// taken after templates exists, and one init makes that ordering explicit
+// rather than leaning on cross-file init sequencing.
+var templates *template.Template
+
+func init() {
+	templates = template.Must(
+		template.New("render").
+			Funcs(funcMap).
+			Option("missingkey=error").
+			ParseFS(templatesFS, "templates/*.tmpl"),
+	)
+	userTemplateBase = template.Must(templates.Clone())
+}
 
 // RenderError is the typed failure Render returns: an unknown resource/format
 // key (no matching built-in) or a template execution error (a missing key under

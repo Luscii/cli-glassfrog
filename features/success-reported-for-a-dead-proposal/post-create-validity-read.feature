@@ -21,7 +21,6 @@ Feature: Post-Create Validity Read
     # I want to see the server's own verdict on the draft in the result of the create I approved.
 
     # Source: 074-post-create-validity-read — Scenario: A valid draft reports its verdict alongside its id
-    @wip
     Scenario: A valid created draft reports its verdict with its id
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
@@ -33,7 +32,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: A created-but-invalid draft surfaces the server's refusal
-    @wip
     Scenario: A created-but-invalid draft surfaces the server's refusal
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
@@ -46,7 +44,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: The create itself is rejected
-    @wip
     Scenario: A rejected create is reported without a read-back
       Given a complete connection context with a stored token
       And the proposals endpoint rejects the create
@@ -56,7 +53,6 @@ Feature: Post-Create Validity Read
       And the command will exit with a non-zero API-error code
 
     # Source: 074-post-create-validity-read — Scenario: The server reports no verdict at all
-    @wip
     Scenario: A draft the server states no verdict on is reported as unreported
       Given a complete connection context with a stored token
       And the created proposal reads back carrying no validity field
@@ -66,7 +62,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: A valid draft with no available transitions
-    @wip
     Scenario: A valid draft with no transitions keeps the two facts distinct
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with no available transitions
@@ -77,7 +72,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: A status that disagrees with the verdict
-    @wip
     Scenario: A conflicted status and a favourable verdict are both reported as given
       Given a complete connection context with a stored token
       And the created proposal reads back with status "draft_with_conflicts" and as valid
@@ -88,7 +82,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: A valid draft carrying an alert reports both as they stand
-    @wip
     Scenario: A valid draft carrying an advisory alert reports both facts
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with one alert of severity "warning"
@@ -127,7 +120,6 @@ Feature: Post-Create Validity Read
     # I want to read the created draft's validity, its alerts, and its available transitions out of the create output I already parse.
 
     # Source: 074-post-create-validity-read — Scenario: An agent parses the verdict out of machine-readable output
-    @wip
     Scenario: Structured output carries the verdict alongside the created id
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -138,7 +130,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan ADR-5 amendment (the advisory is format-aware, so no state needs prose)
-    @wip
     Scenario: An unobtainable verdict is machine-readable in a machine format
       Given a complete connection context with a stored token
       And the create succeeds but the read of the created proposal cannot reach the server
@@ -150,7 +141,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: interface-cli.md § "stdout — human compact format" (a defined surface with no scenario)
-    @wip
     Scenario: The compact line carries the validity token
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -160,7 +150,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan ADR-4 § Consequences (the view type changes under an existing user template)
-    @wip
     Scenario: A user template written before the verdict still renders
       Given a complete connection context with a stored token
       And a user template referencing only the proposal fields the create rendered before the verdict existed
@@ -170,7 +159,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan Risk 3 (the shared singular proposal template is the drift surface ADR-4 routes around)
-    @wip
     Scenario: The sibling proposal commands render no verdict
       Given a complete connection context with a stored token
       When an agent reads, advances, and withdraws a proposal whose read carries a validity field
@@ -183,7 +171,6 @@ Feature: Post-Create Validity Read
     # I want to still receive the prp_ id, together with an explicit statement that the verdict is unknown.
 
     # Source: 074-post-create-validity-read — Scenario: The read-back cannot reach the server
-    @wip
     Scenario: An unreachable read-back still reports the created id
       Given a complete connection context with a stored token
       And the create succeeds but the read of the created proposal cannot reach the server
@@ -194,7 +181,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: The read-back exhausts the hour's request budget
-    @wip
     Scenario: A rate-limited read-back reports the exhausted budget with the created id
       Given a complete connection context with a stored token
       And the create succeeds but the read of the created proposal is rate-limited after its retries
@@ -204,7 +190,6 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: plan ADR-6 consequence (a 2xx create body from which no prp_ id can be lifted)
-    @wip
     Scenario: A create response carrying no id yields no read-back
       Given a complete connection context with a stored token
       And the create answers with a success body carrying no "prp_" id

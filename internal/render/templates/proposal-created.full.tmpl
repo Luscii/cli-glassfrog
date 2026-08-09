@@ -1,0 +1,4 @@
+{{template "proposal.full.tmpl" .}}  Validity:       {{.Verdict.Validity}}
+{{if .Verdict.Alerts}}  Alerts ({{len .Verdict.Alerts}}):
+{{range .Verdict.Alerts}}    - [{{.Severity}}] {{.Path}}: {{.Message}}
+{{end}}{{end}}  Verdict source: {{.Verdict.Source}}

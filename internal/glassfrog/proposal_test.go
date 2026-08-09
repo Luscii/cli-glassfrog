@@ -107,6 +107,102 @@ func TestProposalChange_PreservesFreeFormKeys(t *testing.T) {
 	}
 }
 
+// TestProposal_Decode_ValidTriState pins the verdict flag's three states as three
+// distinct decoded values: `valid: true` → non-nil true, `valid: false` → non-nil
+// false, and an absent key → nil. The pointer is what keeps "the server said the
+// draft is invalid" distinguishable from "the server said nothing" — a plain bool
+// would collapse the two (074 ADR-3).
+func TestProposal_Decode_ValidTriState(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		wantNil bool
+		want    bool
+	}{
+		{name: "valid true", body: `{"data":{"id":"prp_1","valid":true}}`, wantNil: false, want: true},
+		{name: "valid false", body: `{"data":{"id":"prp_1","valid":false}}`, wantNil: false, want: false},
+		{name: "valid absent", body: `{"data":{"id":"prp_1"}}`, wantNil: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var doc Document[Proposal]
+			if err := json.Unmarshal([]byte(tc.body), &doc); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			got := doc.Data.Valid
+			if tc.wantNil {
+				if got != nil {
+					t.Errorf("want nil Valid, got %v", *got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("want non-nil Valid %v, got nil", tc.want)
+			}
+			if *got != tc.want {
+				t.Errorf("want Valid %v, got %v", tc.want, *got)
+			}
+		})
+	}
+}
+
+// TestProposal_Decode_ValidNullIsNil pins that an explicit `"valid": null` decodes
+// to nil — indistinguishable from an absent key, and that is the intent: in both
+// shapes the server stated no verdict.
+func TestProposal_Decode_ValidNullIsNil(t *testing.T) {
+	var doc Document[Proposal]
+	if err := json.Unmarshal([]byte(`{"data":{"id":"prp_1","valid":null}}`), &doc); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if doc.Data.Valid != nil {
+		t.Errorf("explicit null valid should decode to nil, got %v", *doc.Data.Valid)
+	}
+}
+
+// TestProposal_Decode_ValidationAlertsEmptyVersusAbsent pins the slice's two
+// no-alert shapes as distinguishable: `"validation_alerts": []` decodes to a
+// non-nil empty slice (the key was present), while an absent key decodes to nil.
+func TestProposal_Decode_ValidationAlertsEmptyVersusAbsent(t *testing.T) {
+	var doc Document[Proposal]
+	if err := json.Unmarshal([]byte(`{"data":{"id":"prp_1","validation_alerts":[]}}`), &doc); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if doc.Data.ValidationAlerts == nil {
+		t.Error("present-and-empty validation_alerts should decode to a non-nil empty slice, got nil")
+	}
+	if len(doc.Data.ValidationAlerts) != 0 {
+		t.Errorf("want 0 alerts, got %d", len(doc.Data.ValidationAlerts))
+	}
+
+	var absent Document[Proposal]
+	if err := json.Unmarshal([]byte(`{"data":{"id":"prp_1"}}`), &absent); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if absent.Data.ValidationAlerts != nil {
+		t.Errorf("absent validation_alerts should decode to nil, got %v", absent.Data.ValidationAlerts)
+	}
+}
+
+// TestValidationAlert_Decode_BindsAllKeysAndToleratesExtras pins that a populated
+// alert binds all three observed keys, and that an alert object carrying an extra
+// unknown key still decodes cleanly (forward-compatible, like every sibling model).
+func TestValidationAlert_Decode_BindsAllKeysAndToleratesExtras(t *testing.T) {
+	body := `{"data":{"id":"prp_1","valid":false,"validation_alerts":[
+	  {"severity":"blocking","path":"changes[0].role_id","message":"Role not found","future_key":1}
+	]}}`
+	var doc Document[Proposal]
+	if err := json.Unmarshal([]byte(body), &doc); err != nil {
+		t.Fatalf("alert with an extra key should decode cleanly, got %v", err)
+	}
+	if len(doc.Data.ValidationAlerts) != 1 {
+		t.Fatalf("want 1 alert, got %d", len(doc.Data.ValidationAlerts))
+	}
+	a := doc.Data.ValidationAlerts[0]
+	if a.Severity != "blocking" || a.Path != "changes[0].role_id" || a.Message != "Role not found" {
+		t.Errorf("alert keys mis-bound: %+v", a)
+	}
+}
+
 // TestProposal_Decode_UnknownFieldsTolerated pins forward-compatible decoding: an
 // unknown/extra top-level field decodes cleanly without error.
 func TestProposal_Decode_UnknownFieldsTolerated(t *testing.T) {

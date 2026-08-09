@@ -35,7 +35,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 1: Verdict model [Shared]
 
-- [ ] **T001** [Shared] Add the verdict fields and the `ValidationAlert` type to the shared proposal model
+- [x] **T001** [Shared] Add the verdict fields and the `ValidationAlert` type to the shared proposal model — 4 decode tests added, all 71 model tests pass, gofmt clean
   - **Scope**: `internal/glassfrog/proposal.go` — add `Valid *bool` and `ValidationAlerts []ValidationAlert` to the existing `Proposal` struct, and the new `ValidationAlert` type (`Severity`, `Path`, `Message`, each snake_case-tagged). Comments carry why the pointer deviates from the codebase's nullable-as-empty-string convention and that both fields are undeclared in the vendored contract. No method that summarises the verdict is added.
   - **Acceptance criteria**:
     - `valid: true`, `valid: false`, and an absent `valid` decode to a non-nil true, a non-nil false, and nil respectively — asserted as three distinct cases
@@ -52,7 +52,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 2: Create-specific render path [Shared]
 
-- [ ] **T002** [Shared] Add the created-proposal view, the verdict projection, and the label mapping
+- [x] **T002** [Shared] Add the created-proposal view, the verdict projection, and the label mapping — 6 tests added, all 147 render tests pass
   - **Scope**: `internal/render/render.go` — add `ProposalCreatedView` (embedding the existing `ProposalView`, plus a `Verdict` field), `ProposalVerdict` (`Validity`, `Alerts`, `Source`), and the pure `NewProposalVerdict(valid *bool, alerts, unavailableReason, id)` mapping. This is the single source of the four state labels; no other package composes them.
   - **Acceptance criteria**:
     - `NewProposalVerdict` maps a non-nil true to `valid`, a non-nil false to `not valid`, nil to `not reported by the server`, and a non-empty reason to `unavailable — <reason>`
@@ -66,7 +66,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Plan reference**: Phase 2: Create-specific render path; ADR-3, ADR-4
   - **Interface references**: `interface-spec.md`: "`internal/render` — one resource key, one view, one verdict projection, two templates"
 
-- [ ] **T003** [Shared] Register the `proposal-created` resource and add the two delegating templates
+- [x] **T003** [Shared] Register the `proposal-created` resource and add the two delegating templates — 6 tests added incl. the byte-identical leak guard; compact delegation needed a pure `include` FuncMap helper (interface sketch assumed no trailing newline), noted in LEARNINGS.md
   - **Scope**: `internal/render/render.go` + `internal/render/templates/` — add the `ResourceProposalCreated` const with its doc comment, append it to `builtinResources`, and add `proposal-created.full.tmpl` and `proposal-created.compact.tmpl`. Both render the body by invoking the existing `proposal.<format>.tmpl` from the single parsed set; neither restates a body line. The shared `proposal` templates are not modified.
   - **Acceptance criteria**:
     - The full template renders the shared body followed by the `Validity` line, an `Alerts (N):` block only when alerts are present, and the `Verdict source:` line — labels aligned to the existing 16-column field
@@ -86,7 +86,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
 
 ## Phase 3: Read-back orchestration [US1, US2, US3]
 
-- [ ] **T004** [US3] Add the isolated read-back helper
+- [x] **T004** [US3] Add the isolated read-back helper — 7 tests over the real retrying executor; no-error signature asserted; caller-outcome-untouched assertion lands with the call sites (T005/T006)
   - **Scope**: `internal/cli/proposal.go` — add `readBackProposalVerdict(ctx, exec, id) (glassfrog.Proposal, json.RawMessage, string)`: one `GET /proposals/` + `url.PathEscape(id)` through the supplied executor, returning the decoded proposal, the raw bytes, and a reason string. It returns no error: every failure becomes a reason. An empty id short-circuits with the id-undeterminable reason and issues no request.
   - **Acceptance criteria**:
     - A successful read-back returns an empty reason, the decoded proposal, and the raw bytes
@@ -100,7 +100,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: An unreachable read-back still reports the created id", "Scenario: A rate-limited read-back reports the exhausted budget with the created id"
   - **Interface references**: `interface-spec.md`: "`internal/cli` — one helper, one changed call site"
 
-- [ ] **T005** [US1] [P] Wire the read-back into the create's human render path
+- [x] **T005** [US1] [P] Wire the read-back into the create's human render path — 7 tests added; the two existing one-exchange assertions (unit + 055 BDD step) re-anchored on the POST exchange (write-once property stated explicitly)
   - **Scope**: `internal/cli/proposal.go` — in `runProposalCreate`'s human arm, after a successful create: take the id from the already-decoded `Document[Proposal]`, call the helper, build the verdict through `render.NewProposalVerdict`, render through `render.ResourceProposalCreated` over a `ProposalCreatedView`, and write the stderr advisory. The outcome stays `Success` for every verdict state.
   - **Acceptance criteria**:
     - A valid, an invalid, a no-verdict, and an unavailable read-back each render their state and exit 0
@@ -116,7 +116,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: A valid created draft reports its verdict with its id", "Scenario: A created-but-invalid draft surfaces the server's refusal", "Scenario: A draft the server states no verdict on is reported as unreported", "Scenario: A valid draft with no transitions keeps the two facts distinct", "Scenario: A conflicted status and a favourable verdict are both reported as given", "Scenario: A valid draft carrying an advisory alert reports both facts", "Scenario: The compact line carries the validity token", "Scenario: A user template written before the verdict still renders"
   - **Interface references**: `interface-cli.md`: "The four verdict states", "stderr"
 
-- [ ] **T006** [US2] [P] Wire the read-back into the create's machine render path
+- [x] **T006** [US2] [P] Wire the read-back into the create's machine render path — 6 tests added incl. the four-case table, fixture-exact-bytes emission, json+yaml, and the no-id / undecodable-body twins
   - **Scope**: `internal/cli/proposal.go` — in `runProposalCreate`'s machine arm: keep the create's raw bytes untouched, unmarshal a copy into `Document[Proposal]` to lift the id, call the helper, and emit the **read-back's** raw `{data}` verbatim — falling back to the create's raw when no read-back produced a body. Write the stderr advisory. No composed envelope and no CLI-added keys.
   - **Acceptance criteria**:
     - On a successful read-back the emitted document is the read-back's, carrying `valid`, `validation_alerts`, and `available_transitions` as the server sent them
@@ -132,7 +132,7 @@ Phases 1 and 2 change no user-visible behaviour (nothing reads the new fields un
   - **Scenario references**: `post-create-validity-read.feature`: "Scenario: Structured output carries the verdict alongside the created id", "Scenario: A create response carrying no id yields no read-back"
   - **Interface references**: `interface-cli.md`: "stdout — machine formats"
 
-- [ ] **T007** [Shared] Reconcile the existing create tests and wire the BDD suite
+- [x] **T007** [Shared] Reconcile the existing create tests and wire the BDD suite — 15 scenarios executed (100 steps), 4 `@validation @wip` held per the disposition table; explicit exchange counts pinned (0 / 1 + no-read / 2); `go test ./...` (2302) + `gofmt` + `golangci-lint` clean
   - **Scope**: `internal/cli/proposal_test.go` and a new `internal/cli/post_create_validity_read_bdd_test.go` — update every existing create test whose exchange count changed (the success path now performs two exchanges), and add the godog suite over the new feature file with its step definitions, clearing `@wip` per scenario as each passes.
   - **Acceptance criteria**:
     - Exchange counts are asserted explicitly, not incidentally: zero requests on any pre-request rejection, exactly one on a failed create, exactly two on a successful create whose read-back is attempted
