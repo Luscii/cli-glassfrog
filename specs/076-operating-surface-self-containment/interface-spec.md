@@ -105,7 +105,7 @@ Post-sweep shape of the seven instructional artifacts (`hooks/gated-commands.txt
 - **What the file is** — the registry's role as the single source of its command set.
 - **The in-plugin consumer list** — every consumer named by `plugin/`-relative path (e.g. the gate script, the agent artifact that composes the leaves).
 - **The editing rule** — what a line is, what belongs and what never does (reads vs. gated writes), and what to do when the CLI's surface grows.
-- **The fail-closed consequence, stated through the surface's own behavior** — e.g. "an unrecognized `proposal` subcommand is asked, not waved through; an edited registry and the gate can disagree about what is gated" — never through repo machinery.
+- **The fail-closed consequence, stated through the surface's own behavior** — e.g. "an unrecognized `proposal` subcommand is asked, not waved through; the gate gates exactly what the registry lists, so an edit here is itself a change to gating behavior" — never through repo machinery. State the consequence with the parties it actually has: where the registry's only consumer is the component that *decides* from it, the two cannot disagree, and a "they could drift apart" framing is self-contradictory. That framing fits a registry mirrored by a second in-surface artifact, not one read by its own decider.
 
 And contains nothing the lexicon matches: no guard-test paths, no plan-ADR citations, no "turns CI red" consequences, no spec-number ids. The hook script keeps its one-sentence rationales where an ADR citation sat beside them; only the citation goes.
 

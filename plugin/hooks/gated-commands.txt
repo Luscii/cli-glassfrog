@@ -2,8 +2,8 @@
 #
 # THE single source of "what is a governance write", consumed by:
 #   - the PreToolUse gate script  (plugin/hooks/glassfrog-write-gate.sh)
-# The script decides from this file alone, so an edited registry and the gate
-# can disagree about what is gated — edits here ARE gate-behavior changes.
+# The script gates exactly what this file lists, so an edit here IS a change to
+# gating behavior — review it as one.
 #
 # Each non-comment, non-blank line is a `glassfrog proposal` write leaf that MUST
 # be gated behind explicit human confirmation before it runs. This file lists
