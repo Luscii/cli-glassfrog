@@ -44,14 +44,20 @@ offline.
 
 This boundary is part of the contract, not a limitation to be worked around:
 
-- The command **takes no input**. There is no way to hand it a change set. A
-  positional argument — including a path like `changes.json` — is refused as a
-  usage error before any of the command's own code runs, and the refusal says
-  nothing about the change set's validity because nothing looked at it.
+- **No argument or flag takes a change set.** A positional argument — including a
+  path like `changes.json` — is refused as a usage error before any of the
+  command's own code runs, and the refusal says nothing about the change set's
+  validity, because nothing looked at it.
 - The command **renders no verdict**. The server remains the only judge of whether
   a change set is valid. Reading the grammar reduces the chance of a refused
   round-trip; it does not replace one.
 - Nothing tracks whether the reference was consulted. It has no state.
+
+One thing not to misread: `-o stdin` reads piped text as **your output template**,
+as it does on every read. Piping a change set to it is therefore not a check — the
+document is rendered as a template (JSON with no `{{` renders as itself), so you get
+your own file back and exit `0`. That zero means "the template rendered", never "the
+change set is acceptable". There is no invocation that evaluates a change set.
 
 A related trap the reference itself records: for one recorded shape the server
 *accepts* the create and returns a `prp_` id, then reports the proposal invalid.

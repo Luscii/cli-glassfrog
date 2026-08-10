@@ -144,6 +144,99 @@ func TestGrammarArtifactGuardCatchesAContractRefreshWithoutRegeneration(t *testi
 	}
 }
 
+// TestGrammarArtifactGuardCatchesANestedOnlyMembershipShift — the contract's
+// nested-only MEMBERSHIP moved while its enum stayed exactly the same. spec.md §
+// Sync names this as a trigger in its own right ("a type added, removed, or
+// renamed, OR the nested-only membership shifting"), and it is the one a
+// guard that compared enums alone would wave through: no type appears or
+// disappears, only a placement changes.
+//
+// Both sides are derived from source — the shifted set is the real nested-only
+// set minus one of its own members, so no type name is hard-coded and the case
+// survives a contract refresh that renames types.
+func TestGrammarArtifactGuardCatchesANestedOnlyMembershipShift(t *testing.T) {
+	committed, _, manifest := grammarArtifactSides(t)
+	enum, nestedOnly, description, err := func() ([]string, []string, string, error) {
+		raw, rerr := readRepoFile(VendoredSpecPath)
+		if rerr != nil {
+			return nil, nil, "", rerr
+		}
+		return ParseSpecChangeTypes(raw)
+	}()
+	if err != nil {
+		t.Fatalf("reading the contract's sets: %v", err)
+	}
+	if len(nestedOnly) < 2 {
+		t.Skipf("this case needs at least two nested-only types; the contract names %v", nestedOnly)
+	}
+	wrappers, err := grammarWrapperTypes(description, enum)
+	if err != nil {
+		t.Fatalf("deriving the wrapper pair: %v", err)
+	}
+
+	// The shift: one type leaves the nested-only set. The ENUM is passed through
+	// untouched, so the only difference a fresh derivation can produce is that
+	// type's placement.
+	promoted := nestedOnly[0]
+	shifted := append([]string(nil), nestedOnly[1:]...)
+	changeTypes, err := grammarChangeTypes(enum, shifted, wrappers)
+	if err != nil {
+		t.Fatalf("re-deriving the vocabulary after the shift: %v", err)
+	}
+
+	// The derivation must actually follow the membership — otherwise the guard
+	// below would be pinning a difference that never occurs.
+	var sawPromotion bool
+	for _, ct := range changeTypes {
+		if ct.Type != promoted {
+			continue
+		}
+		sawPromotion = true
+		if ct.Placement != grammar.PlacementTopLevel {
+			t.Fatalf("%q left the nested-only set but still renders as %q", promoted, ct.Placement)
+		}
+		if len(ct.Wrappers) != 0 {
+			t.Fatalf("%q left the nested-only set but still names wrappers %v", promoted, ct.Wrappers)
+		}
+	}
+	if !sawPromotion {
+		t.Fatalf("%q vanished from the vocabulary entirely; the shift should only change its placement", promoted)
+	}
+
+	regenerated, err := MarshalGrammarArtifact(grammar.Artifact{
+		Generated: grammarGeneratedMarker,
+		Grammar:   grammar.Grammar{ChangeTypes: changeTypes, Facts: grammarCommittedFacts(t, committed)},
+	})
+	if err != nil {
+		t.Fatalf("encoding the shifted derivation: %v", err)
+	}
+
+	findings := CheckGrammarArtifact(committed, regenerated, manifest)
+	if len(findings) == 0 {
+		t.Fatal("the guard accepted a nested-only membership shift that outran the artifact")
+	}
+	joined := strings.Join(findings, " ")
+	if !strings.Contains(joined, "CONTRACT-DERIVED vocabulary differs") || !strings.Contains(joined, VendoredSpecPath) {
+		t.Fatalf("the guard did not name the contract as the diverged half: %v", findings)
+	}
+	// The residue did not move, so blaming the record would send the reader to the
+	// wrong file.
+	if strings.Contains(joined, "RECORD-DERIVED residue differs") {
+		t.Fatalf("the guard blamed the record for a contract-side membership shift: %v", findings)
+	}
+}
+
+// grammarCommittedFacts lifts the committed artifact's residue, so a
+// contract-side perturbation changes only the vocabulary half.
+func grammarCommittedFacts(t *testing.T, committed []byte) []grammar.Fact {
+	t.Helper()
+	var artifact grammar.Artifact
+	if err := json.Unmarshal(committed, &artifact); err != nil {
+		t.Fatalf("decoding the committed artifact: %v", err)
+	}
+	return artifact.Grammar.Facts
+}
+
 // TestGrammarArtifactGuardCatchesAMissingMarker — the envelope's do-not-edit
 // marker was stripped. The invariant is independent of byte-equality, so the
 // finding must name the envelope by itself.

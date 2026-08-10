@@ -218,7 +218,39 @@ The gaps are incremental, not fundamental, so this is Issues rather than Not Rea
 
 ---
 
-## Next Steps
+## Resolution Log (fix round, post-round-1)
+
+Appended after round 1 rather than replacing it — the findings above stay as the
+record of what round 1 found. This section records only what was done about them. It
+is not a round-2 verdict; re-run `/score:validate` for that.
+
+| Finding | Disposition | Change |
+|---|---|---|
+| F-1 | Wording amended; behavior deliberately unchanged | spec.md § Non-Behaviors now scopes the claim to "no argument or flag of its own takes one" and states that the inherited output-template source is not an exception. The same absolute phrasing was swept from interface-cli.md, `proposal_grammar.go`, two test comments, and the reference doc — all four had repeated it. Pinned by `TestProposalGrammar_APipedChangeSetIsRenderedAsATemplateNotJudged`, which asserts the piped text renders verbatim, that no validity vocabulary appears, and that the caller's template *replaces* the built-in rendering (the fact that makes "its only effect is rendering knowledge" imprecise for that one invocation). |
+| F-2 | Fixed | `TestGrammarArtifactGuardCatchesANestedOnlyMembershipShift` added: one type leaves the contract's nested-only set with the **enum untouched**, and the guard must name the contract half and not the record half. Both sides derive from source (the shifted set is the real set minus one of its own members), so no type name is hard-coded. Verified red before trusting it — with the vocabulary-half comparison disabled it fails, and fails with the misleading "the ENCODING diverged" message, which is exactly the wrong-file blame the test guards against. |
+| F-3 | Wording amended; architecture unchanged, as plan R1 prescribed | **Round 1 overstated this finding's scope.** The concretized scenario in the feature file already read "renders from the record **through the generated artifact**" and "no fact's text will be **hand-maintained** outside the record" — both literally satisfied. Only spec.md retained "lives a second life outside it". spec.md was aligned to the scenarios stage's existing phrasing; plan.md ADR-1 and Risk R1 quoted the old text and were updated so they no longer misquote, with a note that the recorded decision is unchanged. |
+| F-4 | Fixed | The Short now carries all four elements the accord names for it — the change-set grammar, *before assembling*, *contract-published* types with placement, and *verified empirical observations* — at 121 characters, inside the CLI's existing 126-character maximum. `TestProposalGrammar_HelpStatesItInformsAndNeverValidates` gained a Short-specific assertion (the help-text sweep above it is satisfied by either field, so it could not have caught this) plus a length bound. |
+
+**Correction to round 1**: F-3's finding text attributed the literal wording to "the
+held-out scenario" generally. That was wrong — the feature file's concretization was
+already correct, and only spec.md carried the absolute phrasing. The finding's
+substance (two committed copies of the fact text) stands; its scope was narrower than
+reported.
+
+**Not changed, deliberately**: the `json` envelope deviation (recorded in the
+accord's Consistency Notes) and the credential-file boundary recorded in
+`.score/memory/LEARNINGS.md` — the latter is an accord over-claim whose fix is also a
+wording change, but it was reported as a LEARNINGS entry during implementation rather
+than as a round-1 finding, and it is listed here so it is not lost: **interface-cli.md
+§ Interactions still promises the command works "with a malformed one [credential
+file]", which is not achievable** because the credential shares `.glassfrogrc` with
+the `output` setting. Suggested wording: "a malformed credential *value*".
+
+---
+
+## Next Steps (as recorded at round 1)
+
+Superseded by the Resolution Log above — kept as round 1's handoff record.
 
 4 findings to address. Suggested split:
 

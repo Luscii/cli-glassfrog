@@ -154,9 +154,9 @@ func TestProposalGrammar_AnUnparseableSettingsFileFailsAsEveryCommandDoes(t *tes
 	}
 }
 
-// TestProposalGrammar_RejectsEveryPositionalAsUsage: there is no input path, so a
-// change set offered for checking is refused before any code of ours runs — and the
-// refusal carries no verdict on the change set.
+// TestProposalGrammar_RejectsEveryPositionalAsUsage: no argument of this command
+// takes a change set, so one offered for checking is refused before any code of ours
+// runs — and the refusal carries no verdict on the change set.
 func TestProposalGrammar_RejectsEveryPositionalAsUsage(t *testing.T) {
 	for _, args := range [][]string{
 		{"proposal", "grammar", "changes.json"},
@@ -319,6 +319,66 @@ func TestProposalGrammar_AUserTemplateAppliesOverTheStructure(t *testing.T) {
 	}
 }
 
+// TestProposalGrammar_APipedChangeSetIsRenderedAsATemplateNotJudged pins the one
+// path that consumes caller bytes, found during validation round 1 (F-1).
+//
+// The inherited `-o stdin` template source will happily read a change set — a JSON
+// document with no `{{` is a valid text/template that renders itself — so the run
+// exits 0 with the change set echoed back. That is deliberately NOT treated as an
+// exception to the no-judgment boundary: nothing parses it as governance, nothing
+// compares it against the grammar, and no verdict is expressed. Refusing stdin
+// templates here would make this the only command whose --output behaves
+// differently, which the Conduct accord ("renders the way other reads do") forbids.
+//
+// Pinned so the boundary is a recorded decision rather than a latent surprise, and
+// so a future change that started INTERPRETING the piped bytes would fail here.
+func TestProposalGrammar_APipedChangeSetIsRenderedAsATemplateNotJudged(t *testing.T) {
+	const changeSet = `[{"type":"CreatePolicy","name":"Own-circle policy"}]`
+	seam := &grammarOutputSeam{
+		selection:    output.Selection{Format: output.DefaultFormat, Template: &output.TemplateRef{Kind: output.TemplateStdin}},
+		selectionSet: true,
+	}
+	var out, errb bytes.Buffer
+	outcome, _ := runProposalGrammar(proposalGrammarConfig{
+		seam:   &grammarStdinTemplateSeam{grammarOutputSeam: seam, piped: changeSet},
+		stdout: &out,
+		stderr: &errb,
+	})
+
+	// It succeeds, because a template that contains no actions renders itself.
+	if outcome != Success {
+		t.Fatalf("outcome %v, want Success; stderr: %s", outcome, errb.String())
+	}
+	if got := out.String(); got != changeSet {
+		t.Errorf("the piped text must be rendered as the caller's template, verbatim;\nwant %q\ngot  %q", changeSet, got)
+	}
+
+	// And nothing judged it: no validity vocabulary anywhere, on either stream.
+	combined := strings.ToLower(errb.String())
+	for _, verdict := range []string{"invalid", "malformed", "rejected", "not accepted", "well-formed", "schema", "accepted"} {
+		if strings.Contains(combined, verdict) {
+			t.Errorf("the run expressed the validity vocabulary %q about the piped change set: %s", verdict, errb.String())
+		}
+	}
+	// The grammar itself was NOT rendered — the caller's template replaced it, which
+	// is what makes "its only effect is rendering knowledge" imprecise for this one
+	// invocation. Asserted so the imprecision stays visible rather than assumed away.
+	if strings.Contains(out.String(), "Change-set grammar") || strings.Contains(out.String(), "published-contract") {
+		t.Errorf("a caller template must replace the built-in rendering, not append to it: %s", out.String())
+	}
+}
+
+// grammarStdinTemplateSeam feeds piped text through the production
+// readTemplateSourceFrom stdin branch, with isTTY false (a real pipe present).
+type grammarStdinTemplateSeam struct {
+	*grammarOutputSeam
+	piped string
+}
+
+func (s *grammarStdinTemplateSeam) readTemplateSource(ref output.TemplateRef) (string, error) {
+	return readTemplateSourceFrom(ref, nil, false, strings.NewReader(s.piped))
+}
+
 // TestProposalGrammar_ProducesOnlyTheDocumentedExitCodes: the accord states codes
 // 3–7 as a contract fact rather than an aspiration — no request path exists to
 // produce them. Sweeping every reachable invocation shape is how that stays true.
@@ -384,6 +444,28 @@ func TestProposalGrammar_HelpStatesItInformsAndNeverValidates(t *testing.T) {
 		if !strings.Contains(help, claim) {
 			t.Errorf("the help text does not state %q:\n%s", claim, cmd.Short+"\n"+cmd.Long)
 		}
+	}
+
+	// The SHORT specifically must carry the accord's four elements, because
+	// `glassfrog proposal --help` shows the Short alone — an agent scanning the
+	// subcommand list never sees Long. Asserted separately from the help-text
+	// sweep above, which is satisfied by either field.
+	short := strings.ToLower(cmd.Short)
+	for _, claim := range []string{
+		"change-set grammar",     // the surface
+		"before assembling",      // when to consult it
+		"contract-published",     // the first provenance standing
+		"placement",              // the placement rules
+		"empirical observations", // the second provenance standing
+	} {
+		if !strings.Contains(short, claim) {
+			t.Errorf("the Short help does not name %q, which the accord lists for it: %q", claim, cmd.Short)
+		}
+	}
+	// House range: the longest Short in the CLI is 126 characters. A Short that
+	// outgrows the family wraps badly in cobra's subcommand list.
+	if len(cmd.Short) > 126 {
+		t.Errorf("the Short help is %d characters, beyond the longest in the CLI (126): %q", len(cmd.Short), cmd.Short)
 	}
 }
 

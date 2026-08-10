@@ -27,10 +27,17 @@ import (
 // selection slice only (selectionSeam — resolve the selection, read a user
 // template's text), never the client-building one.
 //
-// It also never judges. There is no input path at all: cobra rejects any
-// positional, so a change set offered for checking fails as a usage error before
-// any code of ours runs, and the failure carries no validity language. The server
-// stays the only judge of a change set's validity.
+// It also never judges. No argument or flag of this command takes a change set:
+// cobra rejects any positional, so one offered for checking fails as a usage error
+// before any code of ours runs, and the failure carries no validity language. The
+// server stays the only judge of a change set's validity.
+//
+// The inherited output-template source (`-o <file>` / `-o stdin`) is the one path
+// that consumes caller bytes, and it is deliberately not an exception: it renders
+// the caller's template and evaluates nothing, exactly as it does on every read.
+// Refusing it here would make this the only command whose --output behaves
+// differently, which the Conduct accord ("renders the way other reads do")
+// forbids.
 
 // proposalGrammarConfig carries everything runProposalGrammar needs, gathered by
 // the leaf's RunE. There is no baseURL field and no request context: the command
@@ -115,8 +122,16 @@ func runProposalGrammar(cfg proposalGrammarConfig) (Outcome, error) {
 // a connection this command must never have.
 func newProposalGrammarCommand(seam selectionSeam) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "grammar",
-		Short: "Show the change-set grammar: the change types, where each may appear, and the known dead shapes",
+		Use: "grammar",
+		// The Short carries all four elements the accord names for it (interface-cli
+		// § Surface > The command): the change-set grammar, consulted BEFORE
+		// assembling, the contract-published types with their placement, and the
+		// verified empirical observations. The two provenance standings belong here
+		// rather than only in Long, because `glassfrog proposal --help` shows the
+		// Short alone — an agent scanning the subcommand list would otherwise get no
+		// signal that the reference mixes two standings, which is this feature's
+		// second user scenario.
+		Short: "Show the change-set grammar before assembling: contract-published types and placement, plus verified empirical observations",
 		Long: "grammar prints the change-set grammar for a proposal's changes[] array — consult it " +
 			"BEFORE assembling a change set. It renders every change type the published Glassfrog " +
 			"API v5 contract enumerates with its placement (top-level, or nested-only inside a " +

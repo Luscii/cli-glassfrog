@@ -809,7 +809,7 @@ func (w *grammarRefWorld) thenFailsAsUsageErrorWithCode(code int) error {
 }
 
 // thenFailureExpressesNoVerdict is the accord's refusal boundary: a change set
-// offered for checking is refused because there is no input path, NOT because the
+// offered for checking is refused because no argument takes one, NOT because the
 // CLI judged it. Any validity vocabulary in the failure would be exactly the
 // verdict the command must never express.
 func (w *grammarRefWorld) thenFailureExpressesNoVerdict() error {
