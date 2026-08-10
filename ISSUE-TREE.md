@@ -193,6 +193,7 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Traversal Runs in Lockstep — the operator paths issue independent reads one after another, so a traversal's wall-clock is the sum of every read it makes rather than the depth of its dependency chain, and the practitioner waits minutes for work the network could have done in seconds
     + affects: Practitioner
     + affects: AI agent
+    + related-to: Payloads Outsize the Work
     + candidate: Independent-Read Fan-Out — name which composed reads are independent, so a fan-out is issued together rather than in sequence, stating how a concurrent fan-out sits with the per-organization rate limit rather than leaving burst shape unaddressed
   * Void Steps Traversed Anyway — a prescribed traversal step can be structurally incapable of yielding anything in a given record, and the path has no way to notice or to carry that forward, so it runs the step against every candidate and re-runs it next session
     + affects: AI agent
@@ -203,6 +204,7 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
   * Clarification Gates Searchability, Not Scope — the clarify step only asks whether the action is specific enough to search for, so dimensions that would prune most of the traversal go unasked, and the path discovers them only by returning a superset and asking for them afterwards
     + affects: Practitioner
     + affects: AI agent
+    + related-to: Vocabulary-Blind Search
     + candidate: Pruning Dimensions Asked Up Front — ask for the dimensions that prune the traversal in the same exchange that establishes searchability, deriving them from the record the traversal reads rather than from a fixed checklist, which would drift toward the governance advice the project excludes
   * Completeness Mandated Before Relevance — the paths require paging a result set to completion before narrowing to what is relevant, so the maximum payload is pulled in order to discard most of it, and the mandate is unsatisfiable where the underlying read cannot enumerate at all; it carries only the first arm of the size-aware principle it descends from, which requires paging through results *or* clearly signalling the boundary, so where completion is impossible the mandate reads as satisfied instead of signalling
     + affects: AI agent
@@ -214,3 +216,4 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: Practitioner
     + affects: AI agent
     + related-to: Completeness Mandated Before Relevance
+    + related-to: Truncated Ranked Search
