@@ -42,6 +42,11 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: AI agent
     + affects: Practitioner
     + candidate: --output flag — caller selects the output format per invocation: human-readable (full/compact), JSON, possibly YAML
+    * Template Fields Undiscoverable — authoring an output template requires knowing the payload's field vocabulary, which no surface exposes, so an author infers it from raw JSON output that underreports it (null and omitted fields never appear) or from the source
+      + affects: AI agent
+      + affects: Practitioner
+      + related-to: Payloads Outsize the Work
+      + candidate: CLI-Served Field Listing — an informational read that renders each read's template-addressable field vocabulary from the binary's own output shapes, in sync by construction, so a template author (and the projection drift guard) consults the CLI rather than inferring fields from observed payloads
   * Opaque Failures — when a call fails, the caller can't tell what went wrong or what to do next
     + affects: AI agent
     + affects: Practitioner
@@ -77,7 +82,7 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
       + affects: Practitioner
       + affects: AI agent
       + candidate: Typed Change Builders — a CLI command (or flag set) per change type that shapes the proposal `changes[]` payload so each command's fields are explicit rather than hand-written free-form JSON
-      + candidate: Verified Change-Set Grammar Reference — a grammar reference the drafting path loads before assembling: the part shapes the server accepts (a role-operation wrapper carrying `Create*`/`Update*`/`Remove*` children; a top-level `CreatePolicy` for a circle's own policy) and the shapes it rejects (top-level `Add*`; a role update self-targeting the circle from inside its own governance), so the shape is known before the write rather than discovered by refused round-trips
+      + candidate: Verified Change-Set Grammar Reference — a dedicated informational CLI read command that renders the change-set grammar consulted before assembly: the part shapes the server accepts and the wrong shapes with the symptom each produces, contract-derived shapes drift-guarded against the vendored spec and empirical residue marked as observation, so the shape is known before the write rather than discovered by refused round-trips; informs, never validates
     * Success Reported for a Dead Proposal — the CLI reports a created proposal and its id as a success while the server has already marked the draft invalid with no available transitions, so the operator confirms a gated write that produced an object nothing can move forward and finds out only later
       + affects: Practitioner
       + affects: AI agent
