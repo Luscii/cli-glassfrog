@@ -19,7 +19,7 @@ Agent-Facing Grammar Reference closes that gap by putting the grammar in the art
 ### Content
 
 - When the command runs, it renders every change type the published contract enumerates, each classified by where it may appear in a change set: top-level, or nested-only as the child of a role operation.
-- When the command renders the empirical residue, each fact carries the shape to use, the wrong shape, the observable symptom of getting it wrong, and its explicit disposition — **accepted** or **accepted-but-invalid** — as the recorded grammar facts state them.
+- When the command renders the empirical residue, each fact carries the shape to use, its explicit disposition, and the observable symptom of getting it wrong — the symptom being where the wrong shape is named, as the recorded grammar facts state it. The disposition is drawn from the record's own closed vocabulary and reproduced verbatim, so "the server took it" is never conflated with "the server considers it valid"; the accord does not fix which values that vocabulary holds.
 - When any shape renders, it carries its provenance — **published contract** or **empirical observation** — so a consumer can always tell which standing a shape has.
 - When the record gains or retires a fact, the rendered reference follows it; the command renders what is known and never carries per-type field guidance beyond what the record verifies.
 
