@@ -64,6 +64,31 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: Practitioner
   * Clobbered Changes — concurrent governance edits overwrite each other when writes skip version checks
     + affects: Practitioner
+  * Truncated Ranked Search — search documents itself as walking every page to completion yet returns a capped, page-size-dependent subset with no boundary signal, so a caller building a full picture silently works from a partial one and can reach a false "no governing policy" verdict on an authority question
+    + affects: AI agent
+    + affects: Practitioner
+    + related-to: Silent Truncation
+  * Unenumerable Governance Corpus — no read path lists all policies in an organization (org-level policies hang off no role, and search is ranked and capped), so completeness over the constraint surface cannot be established by any sequence of reads — an enumeration gap in the API itself, so any CLI-side answer is bounded by the spec
+    + affects: AI agent
+    + affects: Practitioner
+    + related-to: Truncated Ranked Search
+    + related-to: Undiscoverable Governance
+    + candidate: Org-Scoped List Path — an org-scoped policy list alongside the role-scoped one; needs API support the v5 spec does not define, flagged against "Bounded by the API surface" and CONSTITUTION I
+  * Vocabulary-Blind Search — search matches literal text, so a caller using ordinary domain synonyms gets zero policy or domain hits from a record that does govern the topic under different words, and the clean zero is indistinguishable from "no such governance exists"
+    + affects: AI agent
+    + affects: Practitioner
+    + related-to: Unenumerable Governance Corpus
+    + related-to: Undiscoverable Governance
+    + candidate: Near-Miss Surfacing — surface near-misses, or expose the record's own term index; needs API support the spec does not define (same API-boundedness flag)
+  * Indistinguishable Empty Results — an empty list reads identically whether the role genuinely has none or the resource is unreachable by that access path in this record (org-level policies are reachable through no role-scoped read), so the caller keeps probing role after role for zero signal
+    + affects: AI agent
+    + related-to: Unenumerable Governance Corpus
+    + candidate: None-Here vs None-Reachable — distinguish "this role has none" from "none is reachable this way"
+  * No Triage-Grade Output — the compact output level carries no cross-command contract (a one-line triage row on search, a body-stripped record on the single-policy read), so an agent must know per command what compact discards and cannot predictably ask for titles for a hundred hits and bodies for ten
+    + affects: AI agent
+    + related-to: Unconsumable Output
+    + related-to: Payloads Outsize the Work
+    + candidate: Predictable Compact Contract — a uniform, documented meaning for each output level across commands, so what a level keeps and drops is knowable without per-command inspection
 * Endpoint Commands — expose each in-scope v5 operation as a command (the endgoal)
   * Governance Reads — read roles, circles, accountabilities, domains, policies, and projects
     + affects: Practitioner
