@@ -125,7 +125,9 @@ func TestProposalGrammar_AMalformedTokenValueDoesNotBlockTheRead(t *testing.T) {
 }
 
 // TestProposalGrammar_AnUnparseableSettingsFileFailsAsEveryCommandDoes records a
-// real boundary of the accord's "works with a malformed credential file" claim.
+// real boundary of the accord's credential-free conduct. The accord originally
+// promised the command works "with a malformed one [credential file]"; that was
+// amended to a malformed credential *value* after this test established why.
 // The credential lives in .glassfrogrc — the SAME file the --output setting lives
 // in — so a file that does not parse at all fails output resolution, exactly as it
 // does for every other command (020/040 fail loud rather than fall through). What

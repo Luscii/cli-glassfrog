@@ -21,9 +21,17 @@ import (
 //
 // That is not an optimization — it is the capability. The reference has to be
 // consultable on any machine that has the CLI: before `auth login` has ever run,
-// with a malformed credential file present, and with no network. Those accords hold
+// with a malformed credential VALUE present, and with no network. Those accords hold
 // by construction here rather than by a check, because there is no code path that
-// could read a credential or open a socket. The seam it takes is the OUTPUT
+// could read a credential or open a socket.
+//
+// The precise boundary, because it is easy to over-promise here: the credential
+// lives in `.glassfrogrc`, which is also where the `output` setting lives, and
+// output resolution fails loud on a file that does not parse at all (020/040 — no
+// fall-through). So a garbage token cannot block this command, while an unparseable
+// settings file fails it exactly as it fails every other command. Faking immunity
+// by softening the shared format resolution here would make this the only command
+// that tolerated a broken settings file, which is the worse surprise. The seam it takes is the OUTPUT
 // selection slice only (selectionSeam — resolve the selection, read a user
 // template's text), never the client-building one.
 //
@@ -59,7 +67,9 @@ type proposalGrammarConfig struct {
 //     selector, or a missing/unparseable user template, is a fail-fast usage error.
 //     This is the ONLY configuration the command touches; token and base-URL
 //     resolution are never invoked, not invoked-and-ignored, so a malformed
-//     credential file cannot block the reference.
+//     credential value cannot block the reference. An unparseable `.glassfrogrc`
+//     still fails here, because that file carries the `output` setting too — see
+//     the boundary note in the package comment above.
 //  2. Load the embedded grammar. A decode failure is a corrupt build — the drift
 //     guard makes a bad artifact unshippable — so it classifies as the CLI-internal
 //     runtime fault (exit 1), never as an API or network category: no request

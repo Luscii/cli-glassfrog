@@ -8,7 +8,7 @@
 # Governance Proposals Reference
 
 Complete reference for the `glassfrog proposal` command group — the governance
-write flow (create, advance, respond, withdraw) and its two API reads (list,
+write flow (create, propose, respond, withdraw) and its two API reads (list,
 get). The group also hosts the client-less `grammar` knowledge read, documented
 separately in [Change-Set Grammar](change-set-grammar.md).
 
