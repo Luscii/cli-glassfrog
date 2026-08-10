@@ -331,21 +331,6 @@ func (w *grammarRefWorld) whenRenderedInDefaultHumanFormat() error {
 	return w.renderIn(humanFormat(output.DefaultFormat))
 }
 
-// whenRenderedInNamedHumanFormat resolves the invocation's --output value through
-// the production selection chain and renders in the format it names. It goes
-// through render rather than the cobra leaf because these three scenarios pin the
-// human formats' CONTENT, which is the rendering's contract; the command's own
-// dispatch — that `--output full` reaches this renderer, that a positional is a
-// usage error, that no request is made — is asserted by the command scenarios,
-// which run the real leaf end to end.
-func (w *grammarRefWorld) whenRenderedInNamedHumanFormat(name string) error {
-	format, err := output.ParseFormat(name)
-	if err != nil {
-		return fmt.Errorf("parsing the --output value %q: %w", name, err)
-	}
-	return w.renderIn(humanFormat(format))
-}
-
 func grammarFactIDs(g grammar.Grammar) []string {
 	ids := make([]string, 0, len(g.Facts))
 	for _, f := range g.Facts {

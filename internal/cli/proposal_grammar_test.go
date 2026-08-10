@@ -31,13 +31,10 @@ type grammarOutputSeam struct {
 	tmplText     map[string]string
 
 	selectionCalls int
-	flagSeen       string
-	presentSeen    bool
 }
 
-func (s *grammarOutputSeam) resolveSelection(flagValue string, flagPresent bool) (output.Selection, error) {
+func (s *grammarOutputSeam) resolveSelection(_ string, _ bool) (output.Selection, error) {
 	s.selectionCalls++
-	s.flagSeen, s.presentSeen = flagValue, flagPresent
 	if s.selErr != nil {
 		return output.Selection{Format: output.DefaultFormat}, s.selErr
 	}
