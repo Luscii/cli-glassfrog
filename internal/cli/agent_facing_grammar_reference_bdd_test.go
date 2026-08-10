@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -62,6 +66,31 @@ type grammarRefWorld struct {
 	payloadSet  bool
 	humanOutput string
 	rendered    bool
+
+	// The command scenarios: the seam the run drives (its transport is a tripwire —
+	// no scenario here may reach it), the invocation, and what the run produced.
+	seam       *fakeProposalSeam
+	invocation string
+	outcome    Outcome
+	outcomeSet bool
+	exitCode   int
+	stdout     string
+	stderr     string
+	outputs    []string // stdout per run, for the repeatability comparison
+
+	// The fact a structured-output scenario read back.
+	readFact    grammar.Fact
+	readFactSet bool
+
+	// The write-gate scenario: armed by its Given, evaluated by the run.
+	gateInstalled bool
+	gateRan       bool
+	gateDecision  string
+	gateMessage   string
+
+	// The retirement scenario's rewritten record.
+	editedRecord    string
+	editedRecordSet bool
 }
 
 func initializeGrammarReferenceScenario(sc *godog.ScenarioContext) {
@@ -82,7 +111,6 @@ func initializeGrammarReferenceScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^the record carried the facts "([^"]*)" and "([^"]*)"$`, w.givenRecordCarriesFacts)
 	sc.Step(`^the grammar record carried no live facts$`, w.givenRecordCarriesNoLiveFacts)
 	sc.Step(`^the reference is rendered in the default human format$`, w.whenRenderedInDefaultHumanFormat)
-	sc.Step(`^a practitioner runs "glassfrog proposal grammar --output (full|compact)"$`, w.whenRenderedInNamedHumanFormat)
 	sc.Step(`^every change type will appear with its placement class$`, w.thenEveryTypeCarriesItsPlacement)
 	sc.Step(`^the nesting rule will be stated once with its wrapper types$`, w.thenNestingRuleStatedOnce)
 	sc.Step(`^each fact will carry its title, shape, disposition, and symptom$`, w.thenEachFactCarriesEveryField)
@@ -91,6 +119,38 @@ func initializeGrammarReferenceScenario(sc *godog.ScenarioContext) {
 	sc.Step(`^each fact will appear as one line carrying its id, disposition, and title$`, w.thenEachFactOnOneLine)
 	sc.Step(`^the contract-derived change-type vocabulary will still render in full$`, w.thenVocabularyStillRendersInFull)
 	sc.Step(`^the output will state that no empirical residue is currently recorded$`, w.thenStatesNoEmpiricalResidue)
+
+	// --- The command and its conduct (T005) ---
+	sc.Step(`^an AI agent was about to assemble a change set$`, w.givenNothingStaged)
+	sc.Step(`^the implemented "glassfrog proposal grammar" command$`, w.givenNothingStaged)
+	sc.Step(`^a machine with the CLI installed and no credential configured$`, w.givenNoCredentialConfigured)
+	sc.Step(`^the operating surface's write gate was installed$`, w.givenWriteGateInstalled)
+	sc.Step(`^a successful "glassfrog ([^"]*)" run$`, w.givenSuccessfulRun)
+	sc.Step(`^(?:a practitioner|an agent|it) runs "glassfrog (.+)"$`, w.whenRunsInvocation)
+	sc.Step(`^the same binary runs the same command again$`, w.whenRunsTheSameCommandAgain)
+	sc.Step(`^a consumer reads the rendered fact "([^"]*)"$`, w.whenConsumerReadsFact)
+	sc.Step(`^a consumer reads the rendered structure$`, w.whenConsumerReadsStructure)
+	sc.Step(`^the "change_types" array will carry every change type the vendored contract enumerates, each with its placement$`, w.thenStructuredVocabularyMatchesTheContract)
+	sc.Step(`^the "facts" array will carry "([^"]*)" and "([^"]*)" with the symptom each produces$`, w.thenStructuredFactsCarrySymptoms)
+	sc.Step(`^no API request will have been made to learn either$`, w.thenNoAPIRequestMade)
+	sc.Step(`^no API request will be attempted$`, w.thenNoAPIRequestMade)
+	sc.Step(`^the run will fail as a usage error with exit code (\d+)$`, w.thenFailsAsUsageErrorWithCode)
+	sc.Step(`^the failure will express no verdict on the change set's validity$`, w.thenFailureExpressesNoVerdict)
+	sc.Step(`^its disposition will read "([^"]*)" rather than "([^"]*)"$`, w.thenFactDispositionReads)
+	sc.Step(`^its symptom will state that a returned prp_ id is a dead draft, not a successful change$`, w.thenFactSymptomStatesDeadDraft)
+	sc.Step(`^every "change_types" entry will carry the provenance token "([^"]*)"$`, w.thenEveryChangeTypeCarriesToken)
+	sc.Step(`^every "facts" entry will carry the provenance token "([^"]*)"$`, w.thenEveryFactCarriesToken)
+	sc.Step(`^the full reference will render successfully$`, w.thenFullReferenceRendered)
+	sc.Step(`^the gate will pass the command ungated as a recognized proposal read$`, w.thenGatePassesUngated)
+	sc.Step(`^no confirmation will be asked$`, w.thenNoConfirmationAsked)
+	sc.Step(`^the structured output will be identical across the two runs$`, w.thenStructuredOutputIdenticalAcrossRuns)
+
+	// --- The retired-fact edge (T005, exercising T001's regeneration) ---
+	sc.Step(`^the fact "([^"]*)" retired from the record together with its manifest entry$`, w.givenFactRetiredFromTheRecord)
+	sc.Step(`^the grammar artifact was regenerated$`, w.givenArtifactRegenerated)
+	sc.Step(`^the reference next renders$`, w.whenReferenceNextRenders)
+	sc.Step(`^"([^"]*)" will no longer appear among the rendered facts$`, w.thenFactNoLongerRendered)
+	sc.Step(`^the "([^"]*)" type will remain in the contract-derived vocabulary$`, w.thenTypeRemainsInVocabulary)
 }
 
 // --- The drift guard (T003) -------------------------------------------------
@@ -517,6 +577,613 @@ func (w *grammarRefWorld) thenStatesNoEmpiricalResidue() error {
 		return fmt.Errorf("the output does not state %q:\n%s", statement, w.humanOutput)
 	}
 	return nil
+}
+
+// --- The command and its conduct (T005) -------------------------------------
+
+// givenNothingstaged is the no-op premise a few scenarios open with: the command
+// is the landed one and nothing needs staging, because it reads no credential, no
+// file, and no network.
+func (w *grammarRefWorld) givenNothingStaged() error { return nil }
+
+// givenNoCredentialConfigured stages the credential-free machine: the connection
+// context carries no usable token and the transport is a tripwire that records any
+// use. Neither can affect the outcome — the command never assembles a connection —
+// which is exactly what the Thens assert.
+func (w *grammarRefWorld) givenNoCredentialConfigured() error {
+	w.seam = &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{
+		ctx:       noTokenContext(),
+		transport: &cannedTransport{status: 500, body: `{"detail":"the grammar read must never reach a transport"}`},
+	}}
+	return nil
+}
+
+// givenWriteGateInstalled asserts the shipped gate script is present, and arms the
+// run step to evaluate it alongside the command — modelling an agent running the
+// command on a machine where the operating surface's gate is installed.
+func (w *grammarRefWorld) givenWriteGateInstalled() error {
+	if _, err := build.ReadGateScript(); err != nil {
+		return fmt.Errorf("the write gate script is not readable: %w", err)
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		return fmt.Errorf("bash is not on PATH — the gate is a bash hook: %w", err)
+	}
+	w.gateInstalled = true
+	return nil
+}
+
+// grammarSeam returns the seam the run uses, defaulting to one whose transport is a
+// tripwire: every scenario in this suite must reach exit 0 (or a usage error)
+// WITHOUT a request, so a default that would answer a request could hide a
+// regression that started making one.
+func (w *grammarRefWorld) grammarSeam() *fakeProposalSeam {
+	if w.seam == nil {
+		w.seam = &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{
+			ctx:       validMeContext(),
+			transport: &cannedTransport{status: 500, body: `{"detail":"the grammar read must never reach a transport"}`},
+		}}
+	}
+	return w.seam
+}
+
+// whenRunsInvocation dispatches the invocation through a real root with the real
+// `proposal` group attached — the landed leaf, its cobra argument validation, the
+// output-format resolution, and the render dispatch, end to end. Nothing is stubbed
+// but the seam, which exists so the run never touches the real ~/.glassfrogrc or a
+// real socket.
+func (w *grammarRefWorld) whenRunsInvocation(invocation string) error {
+	root := NewRootCommand()
+	seam := w.grammarSeam()
+	MustRegister(root, newProposalCommand(seam))
+
+	var out, errb bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errb)
+	outcome, _ := Run(root, strings.Fields(invocation))
+
+	w.invocation = invocation
+	w.outcome, w.outcomeSet = outcome, true
+	w.exitCode = ExitCode(outcome)
+	w.stdout, w.stderr = out.String(), errb.String()
+	w.outputs = append(w.outputs, w.stdout)
+	// The human-format Thens (T004) read the rendered text, so a human invocation
+	// feeds them the command's own stdout rather than a re-render.
+	if !strings.Contains(invocation, "json") && !strings.Contains(invocation, "yaml") {
+		w.humanOutput, w.rendered = w.stdout, true
+	}
+
+	if w.gateInstalled {
+		decision, message, err := grammarRunGateScript("glassfrog " + invocation)
+		if err != nil {
+			return fmt.Errorf("running the write gate on %q: %w", invocation, err)
+		}
+		w.gateDecision, w.gateMessage, w.gateRan = decision, message, true
+	}
+	return nil
+}
+
+// givenSuccessfulRun is the same run, with success asserted as the premise — the
+// scenarios that read the structured document open with it.
+func (w *grammarRefWorld) givenSuccessfulRun(invocation string) error {
+	if err := w.whenRunsInvocation(invocation); err != nil {
+		return err
+	}
+	if w.exitCode != 0 {
+		return fmt.Errorf("the run %q was not successful: exit %d, stderr %q", invocation, w.exitCode, w.stderr)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) whenRunsTheSameCommandAgain() error {
+	if w.invocation == "" {
+		return fmt.Errorf("no earlier invocation to repeat")
+	}
+	return w.whenRunsInvocation(w.invocation)
+}
+
+// structured decodes the run's stdout as the rendered grammar structure, asserting
+// the accord's top-level shape: exactly the two keys, both present.
+func (w *grammarRefWorld) structured() (grammar.Grammar, error) {
+	if !w.outcomeSet {
+		return grammar.Grammar{}, fmt.Errorf("no invocation has run")
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(w.stdout), &raw); err != nil {
+		return grammar.Grammar{}, fmt.Errorf("the structured output is not a JSON object (%w): %s", err, w.stdout)
+	}
+	for _, key := range []string{"change_types", "facts"} {
+		if _, ok := raw[key]; !ok {
+			return grammar.Grammar{}, fmt.Errorf("the structured output omits the %q key: %s", key, w.stdout)
+		}
+	}
+	var g grammar.Grammar
+	if err := json.Unmarshal([]byte(w.stdout), &g); err != nil {
+		return grammar.Grammar{}, fmt.Errorf("the structured output does not decode as the grammar structure (%w): %s", err, w.stdout)
+	}
+	return g, nil
+}
+
+func (w *grammarRefWorld) whenConsumerReadsStructure() error {
+	_, err := w.structured()
+	return err
+}
+
+func (w *grammarRefWorld) whenConsumerReadsFact(id string) error {
+	g, err := w.structured()
+	if err != nil {
+		return err
+	}
+	for _, f := range g.Facts {
+		if f.ID == id {
+			w.readFact, w.readFactSet = f, true
+			return nil
+		}
+	}
+	return fmt.Errorf("the structured output carries no fact %q; it carries %v", id, grammarFactIDs(g))
+}
+
+// thenStructuredVocabularyMatchesTheContract set-compares the rendered vocabulary
+// against the vendored contract's enum, derived from the contract at assertion time
+// — the rendered side must not be checked against itself, and a hard-coded expected
+// list would become a third source of truth.
+func (w *grammarRefWorld) thenStructuredVocabularyMatchesTheContract() error {
+	g, err := w.structured()
+	if err != nil {
+		return err
+	}
+	enum, nestedOnly, _, err := grammarContractSides()
+	if err != nil {
+		return err
+	}
+	rendered := map[string]string{}
+	for _, ct := range g.ChangeTypes {
+		if ct.Placement == "" {
+			return fmt.Errorf("rendered change type %q carries no placement", ct.Type)
+		}
+		rendered[ct.Type] = ct.Placement
+	}
+	for _, t := range enum {
+		if _, ok := rendered[t]; !ok {
+			return fmt.Errorf("the contract enumerates %q but the rendered vocabulary omits it", t)
+		}
+	}
+	for t := range rendered {
+		if !grammarContains(enum, t) {
+			return fmt.Errorf("the rendered vocabulary carries %q, which the contract does not enumerate", t)
+		}
+	}
+	// Each type's placement must be the one the contract's own rule implies.
+	for _, t := range enum {
+		want := grammar.PlacementTopLevel
+		if grammarContains(nestedOnly, t) {
+			want = grammar.PlacementNestedOnly
+		}
+		if rendered[t] != want {
+			return fmt.Errorf("rendered change type %q carries placement %q, want %q per the contract's nested-only rule", t, rendered[t], want)
+		}
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenStructuredFactsCarrySymptoms(first, second string) error {
+	g, err := w.structured()
+	if err != nil {
+		return err
+	}
+	for _, want := range []string{first, second} {
+		found := false
+		for _, f := range g.Facts {
+			if f.ID != want {
+				continue
+			}
+			found = true
+			if strings.TrimSpace(f.Symptom) == "" {
+				return fmt.Errorf("fact %q carries no symptom", want)
+			}
+		}
+		if !found {
+			return fmt.Errorf("the rendered residue omits fact %q; it carries %v", want, grammarFactIDs(g))
+		}
+	}
+	return nil
+}
+
+// thenNoAPIRequestMade asserts the client-less conduct from three independent
+// angles: the connection was never assembled, no client was ever built, and the
+// tripwire transport was never used. Any one of them alone could pass while the
+// command had started making a request some other way.
+func (w *grammarRefWorld) thenNoAPIRequestMade() error {
+	seam := w.grammarSeam()
+	if seam.assembleCalled {
+		return fmt.Errorf("the command assembled a connection context — it must resolve no base URL and no token")
+	}
+	if seam.newClientCalled {
+		return fmt.Errorf("the command built an API client — the grammar read is client-less")
+	}
+	tr, ok := seam.transport.(*cannedTransport)
+	if !ok {
+		return fmt.Errorf("this scenario's transport does not record calls")
+	}
+	if tr.calls != 0 {
+		return fmt.Errorf("the command sent %d request(s); the grammar read must send none", tr.calls)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenFailsAsUsageErrorWithCode(code int) error {
+	if !w.outcomeSet {
+		return fmt.Errorf("no invocation has run")
+	}
+	if w.outcome != UsageError {
+		return fmt.Errorf("the run produced outcome %v, want a usage error", w.outcome)
+	}
+	if w.exitCode != code {
+		return fmt.Errorf("the run exited %d, want %d", w.exitCode, code)
+	}
+	return nil
+}
+
+// thenFailureExpressesNoVerdict is the accord's refusal boundary: a change set
+// offered for checking is refused because there is no input path, NOT because the
+// CLI judged it. Any validity vocabulary in the failure would be exactly the
+// verdict the command must never express.
+func (w *grammarRefWorld) thenFailureExpressesNoVerdict() error {
+	combined := strings.ToLower(w.stdout + w.stderr)
+	for _, verdict := range []string{"invalid", "valid", "malformed", "rejected", "not accepted", "well-formed", "schema"} {
+		if strings.Contains(combined, verdict) {
+			return fmt.Errorf("the usage failure uses the validity vocabulary %q, which reads as a verdict on the change set:\nstdout: %s\nstderr: %s", verdict, w.stdout, w.stderr)
+		}
+	}
+	if strings.TrimSpace(w.stderr) == "" {
+		return fmt.Errorf("the usage failure said nothing on stderr")
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenFactDispositionReads(want, notWant string) error {
+	if !w.readFactSet {
+		return fmt.Errorf("no fact was read")
+	}
+	if w.readFact.Disposition != want {
+		return fmt.Errorf("fact %s carries disposition %q, want %q (and not %q)", w.readFact.ID, w.readFact.Disposition, want, notWant)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenFactSymptomStatesDeadDraft() error {
+	if !w.readFactSet {
+		return fmt.Errorf("no fact was read")
+	}
+	symptom := grammarCollapse(w.readFact.Symptom)
+	for _, want := range []string{"prp_", "not", "successful governance change"} {
+		if !strings.Contains(symptom, want) {
+			return fmt.Errorf("fact %s's symptom does not state that a returned prp_ id is not a successful change (missing %q): %q", w.readFact.ID, want, symptom)
+		}
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenEveryChangeTypeCarriesToken(token string) error {
+	g, err := w.structured()
+	if err != nil {
+		return err
+	}
+	if len(g.ChangeTypes) == 0 {
+		return fmt.Errorf("the rendered vocabulary is empty, so no entry carries a token")
+	}
+	for _, ct := range g.ChangeTypes {
+		if ct.Provenance != token {
+			return fmt.Errorf("change type %q carries provenance %q, want %q", ct.Type, ct.Provenance, token)
+		}
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenEveryFactCarriesToken(token string) error {
+	g, err := w.structured()
+	if err != nil {
+		return err
+	}
+	if len(g.Facts) == 0 {
+		return fmt.Errorf("the rendered residue is empty, so no entry carries a token")
+	}
+	for _, f := range g.Facts {
+		if f.Provenance != token {
+			return fmt.Errorf("fact %q carries provenance %q, want %q", f.ID, f.Provenance, token)
+		}
+	}
+	return nil
+}
+
+// thenFullReferenceRendered asserts the whole reference arrived — both halves, not
+// merely a zero exit with empty output.
+func (w *grammarRefWorld) thenFullReferenceRendered() error {
+	if w.exitCode != 0 {
+		return fmt.Errorf("the run exited %d, want 0; stderr: %s", w.exitCode, w.stderr)
+	}
+	if err := w.thenEveryTypeCarriesItsPlacement(); err != nil {
+		return err
+	}
+	return w.thenEachFactCarriesEveryField()
+}
+
+func (w *grammarRefWorld) thenGatePassesUngated() error {
+	if !w.gateRan {
+		return fmt.Errorf("the gate was never evaluated")
+	}
+	if w.gateDecision != "" {
+		return fmt.Errorf("the gate returned permissionDecision %q for a read (%s); it must pass through: %s", w.gateDecision, w.invocation, w.gateMessage)
+	}
+	// Pass-through alone is not enough: an unrecognized subcommand fails CLOSED to
+	// `ask`, so a silent pass-through would mean the leaf was recognized. Assert the
+	// recognition is deliberate — the leaf is in the script's read set.
+	script, err := build.ReadGateScript()
+	if err != nil {
+		return err
+	}
+	reads, ok := grammarGateReadSet(script)
+	if !ok {
+		return fmt.Errorf("could not read PROPOSAL_READS out of the gate script")
+	}
+	if !grammarContains(reads, "grammar") {
+		return fmt.Errorf("the gate script's recognized-read set is %v — it does not list `grammar`, so the pass-through is accidental rather than deliberate", reads)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenNoConfirmationAsked() error {
+	if !w.gateRan {
+		return fmt.Errorf("the gate was never evaluated")
+	}
+	if w.gateDecision == "ask" || strings.TrimSpace(w.gateMessage) != "" {
+		return fmt.Errorf("the gate asked for confirmation on a read: decision %q, message %q", w.gateDecision, w.gateMessage)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenStructuredOutputIdenticalAcrossRuns() error {
+	if len(w.outputs) < 2 {
+		return fmt.Errorf("only %d invocation(s) ran; the comparison needs two", len(w.outputs))
+	}
+	first, second := w.outputs[len(w.outputs)-2], w.outputs[len(w.outputs)-1]
+	if first != second {
+		return fmt.Errorf("two runs of the same command produced different output:\nfirst:  %q\nsecond: %q", first, second)
+	}
+	if strings.TrimSpace(first) == "" {
+		return fmt.Errorf("both runs produced empty output, which would make them trivially identical")
+	}
+	return nil
+}
+
+// --- The retired-fact edge (T005, exercising T001's regeneration) -------------
+
+// givenFactRetiredFromTheRecord rewrites the record in memory the way a retirement
+// rewrites it on disk: the fact's section is deleted AND its id leaves the
+// Live-facts manifest. Both halves matter — 072's guard rejects either one alone.
+func (w *grammarRefWorld) givenFactRetiredFromTheRecord(id string) error {
+	recordRaw, err := build.ReadGrammarFactsRecord()
+	if err != nil {
+		return fmt.Errorf("reading the grammar record: %w", err)
+	}
+	if !strings.Contains(recordRaw, "## "+id) {
+		return fmt.Errorf("the record carries no %q section to retire", id)
+	}
+	edited, err := grammarRetireFact(recordRaw, id)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(edited, "## "+id) {
+		return fmt.Errorf("the %q section survived the retirement edit", id)
+	}
+	w.editedRecord, w.editedRecordSet = edited, true
+	return nil
+}
+
+// givenArtifactRegenerated re-derives the artifact from the UNCHANGED contract and
+// the rewritten record, through the same derivation the generator and the drift
+// guard use. That is what makes this scenario an exercise of the regeneration step
+// rather than a hand-built payload.
+func (w *grammarRefWorld) givenArtifactRegenerated() error {
+	if !w.editedRecordSet {
+		return fmt.Errorf("no record edit was staged, so there is nothing to regenerate from")
+	}
+	specRaw, err := grammarContractBytes()
+	if err != nil {
+		return err
+	}
+	artifact, err := build.BuildGrammarFromSources(specRaw, w.editedRecord)
+	if err != nil {
+		return fmt.Errorf("regenerating the artifact from the rewritten record: %w", err)
+	}
+	w.payload, w.payloadSet = artifact.Grammar, true
+	return nil
+}
+
+func (w *grammarRefWorld) whenReferenceNextRenders() error {
+	return w.renderIn(humanFormat(output.DefaultFormat))
+}
+
+func (w *grammarRefWorld) thenFactNoLongerRendered(id string) error {
+	g, err := w.grammarPayload()
+	if err != nil {
+		return err
+	}
+	for _, f := range g.Facts {
+		if f.ID == id {
+			return fmt.Errorf("fact %q is still in the rendered residue", id)
+		}
+	}
+	if err := w.requireRendered(); err != nil {
+		return err
+	}
+	if strings.Contains(w.humanOutput, id) {
+		return fmt.Errorf("fact %q still appears in the rendering:\n%s", id, w.humanOutput)
+	}
+	return nil
+}
+
+func (w *grammarRefWorld) thenTypeRemainsInVocabulary(changeType string) error {
+	g, err := w.grammarPayload()
+	if err != nil {
+		return err
+	}
+	for _, ct := range g.ChangeTypes {
+		if ct.Type != changeType {
+			continue
+		}
+		if err := w.requireRendered(); err != nil {
+			return err
+		}
+		if !strings.Contains(w.humanOutput, changeType) {
+			return fmt.Errorf("type %q is in the payload but not in the rendering:\n%s", changeType, w.humanOutput)
+		}
+		return nil
+	}
+	return fmt.Errorf("type %q left the contract-derived vocabulary when a fact retired", changeType)
+}
+
+// --- Suite helpers ----------------------------------------------------------
+
+// grammarRetireFact removes a fact's section and its manifest entry from the
+// record's text, modelling the retirement edit a human makes.
+func grammarRetireFact(recordRaw, id string) (string, error) {
+	start := strings.Index(recordRaw, "## "+id)
+	if start < 0 {
+		return "", fmt.Errorf("no %q section in the record", id)
+	}
+	end := len(recordRaw)
+	if next := strings.Index(recordRaw[start+1:], "\n## "); next >= 0 {
+		end = start + 1 + next + 1
+	}
+	edited := recordRaw[:start] + recordRaw[end:]
+
+	// Drop the id from the Live-facts manifest line, leaving the remaining ids.
+	const manifestLabel = "**Live facts**:"
+	at := strings.Index(edited, manifestLabel)
+	if at < 0 {
+		return "", fmt.Errorf("the record has no Live-facts manifest line")
+	}
+	lineEnd := strings.Index(edited[at:], "\n")
+	if lineEnd < 0 {
+		lineEnd = len(edited) - at
+	}
+	line := edited[at : at+lineEnd]
+	var kept []string
+	for _, part := range strings.Split(strings.TrimPrefix(line, manifestLabel), ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" && trimmed != id {
+			kept = append(kept, trimmed)
+		}
+	}
+	return edited[:at] + manifestLabel + " " + strings.Join(kept, ", ") + edited[at+lineEnd:], nil
+}
+
+// grammarContractBytes reads the vendored contract from the repository root — the
+// unchanged side of the retirement scenario.
+func grammarContractBytes() ([]byte, error) {
+	root, err := build.RepoRoot()
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(filepath.Join(root, filepath.FromSlash(build.VendoredSpecPath)))
+}
+
+// grammarContractSides derives the contract's enum and nested-only set at
+// assertion time, so a scenario compares the rendering against the contract rather
+// than against a checked-in expectation.
+func grammarContractSides() (enum, nestedOnly []string, description string, err error) {
+	raw, err := grammarContractBytes()
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return build.ParseSpecChangeTypes(raw)
+}
+
+// grammarGateReadSet extracts the gate script's recognized-read leaves from its
+// PROPOSAL_READS assignment, so the gate scenario reads the script's own set rather
+// than restating it.
+func grammarGateReadSet(script string) ([]string, bool) {
+	const label = "PROPOSAL_READS="
+	at := strings.Index(script, label)
+	if at < 0 {
+		return nil, false
+	}
+	rest := script[at+len(label):]
+	open := strings.Index(rest, `"`)
+	if open < 0 {
+		return nil, false
+	}
+	rest = rest[open+1:]
+	close := strings.Index(rest, `"`)
+	if close < 0 {
+		return nil, false
+	}
+	return strings.Fields(rest[:close]), true
+}
+
+// grammarRunGateScript feeds the real gate script a Bash tool call carrying command
+// and returns the permission decision ("" when the gate passes through) plus the
+// message the host would show.
+func grammarRunGateScript(command string) (decision, message string, err error) {
+	root, err := build.RepoRoot()
+	if err != nil {
+		return "", "", err
+	}
+	script := filepath.Join(root, filepath.FromSlash(build.GateScriptPath))
+	raw, err := json.Marshal(struct {
+		ToolName  string `json:"tool_name"`
+		ToolInput struct {
+			Command string `json:"command"`
+		} `json:"tool_input"`
+	}{ToolName: "Bash", ToolInput: struct {
+		Command string `json:"command"`
+	}{Command: command}})
+	if err != nil {
+		return "", "", err
+	}
+	cmd := exec.Command("bash", script)
+	cmd.Stdin = bytes.NewReader(raw)
+	var out, errBuf bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	if runErr := cmd.Run(); runErr != nil {
+		return "", "", fmt.Errorf("gate script failed: %v (stderr: %s)", runErr, errBuf.String())
+	}
+	trimmed := strings.TrimSpace(out.String())
+	if trimmed == "" {
+		return "", "", nil // pass-through
+	}
+	var g struct {
+		HookSpecificOutput struct {
+			PermissionDecision       string `json:"permissionDecision"`
+			PermissionDecisionReason string `json:"permissionDecisionReason"`
+		} `json:"hookSpecificOutput"`
+		SystemMessage string `json:"systemMessage"`
+	}
+	if uerr := json.Unmarshal([]byte(trimmed), &g); uerr != nil {
+		return "", "", fmt.Errorf("gate emitted non-JSON output %q: %w", trimmed, uerr)
+	}
+	msg := g.SystemMessage
+	if msg == "" {
+		msg = g.HookSpecificOutput.PermissionDecisionReason
+	}
+	return g.HookSpecificOutput.PermissionDecision, msg, nil
+}
+
+func grammarContains(set []string, want string) bool {
+	for _, s := range set {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
+// grammarCollapse drops markdown emphasis and collapses whitespace, so a phrase
+// reads the same whether or not the record's author bolded a word inside it.
+func grammarCollapse(s string) string {
+	s = strings.NewReplacer("*", "", "`", "").Replace(s)
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // grammarLineWith reports whether any single line carries every one of the given

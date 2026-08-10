@@ -388,14 +388,16 @@ func readBackVerdictReason(err error) string {
 // so the guard's ">=1 child" rule holds at attach time (the tension/auth shape, plan
 // ADR-1). The `proposal` namespace parents the write `create` (055), the `propose`
 // transition (057), the `respond` consume/respond write (058), and the reads `list` /
-// `get` (056), and the `withdraw` transition (059). The group, the
+// `get` (056), the `withdraw` transition (059), and the client-less `grammar`
+// knowledge read (077). The group, the
 // glassfrog.Proposal model, and the
 // singular `proposal` render key are SHARED across the proposal family under
 // first-to-land-creates: 055 created the group here; siblings (056 reads, 057 propose)
 // attach their leaves to the existing group and grow the shared model/render rather than
 // duplicating them. The seam is injected so tests drive a fake one; production passes
-// productionSeam{} from Assemble. All leaves share the one proposalSeam — the reads touch
-// only the embedded tensionSeam half.
+// productionSeam{} from Assemble. All leaves share the one proposalSeam — the API reads
+// touch only the embedded tensionSeam half, and `grammar` narrows further still: it
+// takes the selectionSeam (output selection only), because it makes no request at all.
 func newProposalCommand(seam proposalSeam) *cobra.Command {
 	group := &cobra.Command{
 		Use:   "proposal",
@@ -407,6 +409,7 @@ func newProposalCommand(seam proposalSeam) *cobra.Command {
 	MustRegister(group, newProposalRespondCommand(seam))
 	MustRegister(group, newProposalListCommand(seam))
 	MustRegister(group, newProposalGetCommand(seam))
+	MustRegister(group, newProposalGrammarCommand(seam))
 	return group
 }
 

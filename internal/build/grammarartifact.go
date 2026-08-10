@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"sigs.k8s.io/yaml"
-
 	"github.com/Luscii/cli-glassfrog/internal/grammar"
 )
 
@@ -123,13 +121,29 @@ func grammarWrapperTypes(description string, enum []string) ([]string, error) {
 // record's live-facts manifest order, and the wrapper list is sorted. The same
 // two source files always yield the same bytes.
 func BuildGrammarArtifact() (grammar.Artifact, error) {
-	enum, nestedOnly, err := LoadSpecChangeTypes()
+	specRaw, err := readRepoFile(VendoredSpecPath)
 	if err != nil {
 		return grammar.Artifact{}, err
 	}
-	description, err := grammarProposalChangeDescription()
+	recordRaw, err := ReadGrammarFactsRecord()
 	if err != nil {
 		return grammar.Artifact{}, err
+	}
+	return BuildGrammarFromSources(specRaw, recordRaw)
+}
+
+// BuildGrammarFromSources is BuildGrammarArtifact over injected source bytes — the
+// whole derivation, pure over its inputs. Splitting the file reads off lets a test
+// (or an acceptance scenario) derive from a perturbed contract or a rewritten
+// record — modelling a refresh or a fact retirement — without writing a file, and
+// it keeps the derivation itself free of I/O.
+func BuildGrammarFromSources(specRaw []byte, recordRaw string) (grammar.Artifact, error) {
+	enum, nestedOnly, description, err := ParseSpecChangeTypes(specRaw)
+	if err != nil {
+		return grammar.Artifact{}, err
+	}
+	if strings.TrimSpace(description) == "" {
+		return grammar.Artifact{}, fmt.Errorf("%s: the ProposalChange schema carries no description — the nested-only rule's source does not resolve", VendoredSpecPath)
 	}
 	wrappers, err := grammarWrapperTypes(description, enum)
 	if err != nil {
@@ -139,16 +153,10 @@ func BuildGrammarArtifact() (grammar.Artifact, error) {
 	if err != nil {
 		return grammar.Artifact{}, err
 	}
-
-	raw, err := ReadGrammarFactsRecord()
+	facts, err := grammarFactEntries(ParseGrammarFactsRecord(recordRaw))
 	if err != nil {
 		return grammar.Artifact{}, err
 	}
-	facts, err := grammarFactEntries(ParseGrammarFactsRecord(raw))
-	if err != nil {
-		return grammar.Artifact{}, err
-	}
-
 	return grammar.Artifact{
 		Generated: grammarGeneratedMarker,
 		Grammar: grammar.Grammar{
@@ -156,27 +164,6 @@ func BuildGrammarArtifact() (grammar.Artifact, error) {
 			Facts:       facts,
 		},
 	}, nil
-}
-
-// grammarProposalChangeDescription reads the ProposalChange schema description
-// from the vendored contract — the prose the nested-only rule and its wrapper
-// pair live in. Split out from LoadSpecChangeTypes (which returns the two derived
-// SETS 072 needs) so this feature can read the sentence itself without changing
-// 072's contract.
-func grammarProposalChangeDescription() (string, error) {
-	raw, err := readRepoFile(VendoredSpecPath)
-	if err != nil {
-		return "", err
-	}
-	var doc proposalChangeSchema
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return "", fmt.Errorf("parsing %s: %w", VendoredSpecPath, err)
-	}
-	description := doc.Components.Schemas.ProposalChange.Description
-	if strings.TrimSpace(description) == "" {
-		return "", fmt.Errorf("%s: the ProposalChange schema carries no description — the nested-only rule's source does not resolve", VendoredSpecPath)
-	}
-	return description, nil
 }
 
 // grammarChangeTypes projects the contract's enum onto the rendered vocabulary:

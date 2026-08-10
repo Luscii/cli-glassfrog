@@ -179,7 +179,7 @@ is_gated() { case " $GATED " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 # part of the gated registry (which lists writes only). Over-gating a not-yet-known
 # read is safe friction — it is asked, not waved through — until the read is
 # deliberately reclassified here; nothing is silently mis-gated.
-PROPOSAL_READS=" list get "
+PROPOSAL_READS=" list get grammar "
 is_proposal_read() { case "$PROPOSAL_READS" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # --- Command classification -------------------------------------------------
