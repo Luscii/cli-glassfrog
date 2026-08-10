@@ -78,4 +78,4 @@
 | 074-post-create-validity-read | Complete | validate | 2026-08-09T14:20:00 |
 | 075-legacy-identifier-request | Analyzed | analyze | 2026-08-08T16:05:00 |
 | 076-operating-surface-self-containment | Complete | validate | 2026-08-09T14:45:00 |
-| 077-agent-facing-grammar-reference | Implemented | implement | 2026-08-10T10:15:00 |
+| 077-agent-facing-grammar-reference | Needs fixes | validate | 2026-08-10T11:00:00 |
