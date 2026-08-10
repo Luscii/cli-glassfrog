@@ -92,7 +92,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
 
 ## Phase 2: The command and its rendering [US1, US2, US3]
 
-- [ ] **T004** [US1, US2] Grammar render resource and human-format templates
+- [x] **T004** [US1, US2] Grammar render resource and human-format templates — 3 scenarios, 10 render tests (golden full/compact + empty-residue variants)
   - **Scope**: A grammar resource in `internal/render` with `grammar.full.tmpl` and `grammar.compact.tmpl` in the embedded template set, rendering the accessor's structure.
   - **Acceptance criteria**:
     - `full` presents the vocabulary with each type's placement, the nesting rule stated once, every fact with title/shape/disposition/symptom, and visible provenance marking separating contract from observation.

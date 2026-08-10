@@ -51,7 +51,6 @@ Feature: Agent-Facing Grammar Reference
       And its symptom will state that a returned prp_ id is a dead draft, not a successful change
 
     # Source: 077-agent-facing-grammar-reference — Proposed: interface-cli.md § The human formats — full content with residue present
-    @wip
     Scenario: The full format presents the vocabulary, the nesting rule, and every fact
       Given the record carried the facts "CSG-1" and "CSG-2"
       When a practitioner runs "glassfrog proposal grammar --output full"
@@ -61,7 +60,6 @@ Feature: Agent-Facing Grammar Reference
       And the contract-derived content will be visibly separated from the empirical observations
 
     # Source: 077-agent-facing-grammar-reference — Proposed: interface-cli.md § The human formats — compact form
-    @wip
     Scenario: The compact format condenses each type and fact to one line
       Given the record carried the facts "CSG-1" and "CSG-2"
       When a practitioner runs "glassfrog proposal grammar --output compact"
@@ -69,7 +67,6 @@ Feature: Agent-Facing Grammar Reference
       And each fact will appear as one line carrying its id, disposition, and title
 
     # Source: 077-agent-facing-grammar-reference — Scenario: No live residue
-    @wip
     Scenario: The contract vocabulary renders even with no live residue
       Given the grammar record carried no live facts
       When the reference is rendered in the default human format

@@ -1,0 +1,12 @@
+Change-set grammar — the shapes a proposal's changes[] may carry.
+  Change types ({{len .ChangeTypes}}) — provenance: {{.ContractProvenance}}
+{{range .ChangeTypes}}    {{.Type}}  [{{.Placement}}]
+{{end}}{{if .NestedOnly}}  Nesting rule — provenance: {{.ContractProvenance}}
+    A nested-only type must appear as a child of {{join .Wrappers " or "}}, never as a top-level change.
+    Nested-only types: {{join .NestedOnly ", "}}
+{{end}}  Empirical residue ({{len .Facts}}) — provenance: {{.ObservedProvenance}}
+{{range .Facts}}    {{.ID}}  [{{.Disposition}}]  {{.Title}}
+      Shape:    {{.Shape}}
+      Symptom:  {{.Symptom}}
+{{else}}    no empirical residue is currently recorded
+{{end}}
