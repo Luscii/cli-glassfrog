@@ -121,7 +121,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Interface references**: interface-cli.md: "The command", "Interactions", "Error Communication"
   - **Scenario references**: agent-facing-grammar-reference.feature: "An assembler reads the full grammar in one invocation", "A change set offered for checking is refused as usage, not judged", "Accepted-but-invalid stays distinct from accepted in the rendering", "The contract vocabulary renders even with no live residue", "Every rendered shape carries its provenance token", "A retired fact leaves the rendering with the record", "The grammar renders with no credentials and no network", "The write gate passes the grammar read ungated", "Repeated invocations render identical structured output"
 
-- [ ] **T006** [Shared] Reference documentation
+- [x] **T006** [Shared] Reference documentation — new `docs/reference/change-set-grammar.md`; swept the now-stale leaf counts and the `{data: …}` claim in the sibling `proposals.md`
   - **Scope**: The command's page under `docs/reference/`, following the house reference-doc conventions.
   - **Acceptance criteria**:
     - Documents the command, its formats, the structured output's keys and token vocabularies, and the exit-code envelope (0/2/1, with codes 3–7 stated as unproducible).
