@@ -100,7 +100,6 @@ Feature: Agent-Facing Grammar Reference
       And every "facts" entry will carry the provenance token "empirical-observation"
 
     # Source: 077-agent-facing-grammar-reference — Scenario: The contract vocabulary drifts from the rendering
-    @wip
     Scenario: A contract refresh that outruns the rendering fails the build
       Given a vendored-contract refresh changed the change-type enum
       And the committed grammar artifact was not regenerated

@@ -58,7 +58,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
 
 ## Phase 1: Grammar data foundation [Shared]
 
-- [ ] **T001** [Shared] Generator and the committed grammar artifact
+- [x] **T001** [Shared] Generator and the committed grammar artifact — wrapper pair derived from contract prose (self-checking against the enum), 12 derivation unit tests
   - **Scope**: A dev-time generator (its own small `main` package, invoked through a `go:generate` directive in `internal/grammar`) that derives the committed artifact from both sources mechanically, plus the committed artifact itself in `internal/grammar/`. Nothing hand-maintained: the change-type vocabulary via `internal/build.LoadSpecChangeTypes()`, the facts via `internal/build.ReadGrammarFactsRecord()` + `ParseGrammarFactsRecord()`.
   - **Acceptance criteria**:
     - The artifact is the `{generated, grammar}` envelope from interface-cli.md: `generated` carries a do-not-edit marker naming the regeneration step; `grammar` carries `change_types` and `facts` exactly per the accord's field tables.
@@ -70,7 +70,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Plan reference**: Phase 1; ADR-1, ADR-2, ADR-3
   - **Interface references**: interface-cli.md: "The rendered structure", "The embedded artifact"
 
-- [ ] **T002** [Shared] [P] The `internal/grammar` package — embed and typed accessor
+- [x] **T002** [Shared] [P] The `internal/grammar` package — embed and typed accessor — 13 accessor unit tests incl. the corrupt-embed decode path
   - **Scope**: `//go:embed` of the committed artifact and a typed accessor that decodes once and returns the `grammar` payload (never the envelope) for the render layer and the command.
   - **Acceptance criteria**:
     - The accessor's types mirror the accord's field tables; the envelope's `generated` marker is not reachable through it.
@@ -80,7 +80,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Plan reference**: Phase 1; ADR-1, ADR-3
   - **Interface references**: interface-cli.md: "The rendered structure"
 
-- [ ] **T003** [Shared] [P] Drift guard — regenerate-and-compare plus invariants
+- [x] **T003** [Shared] [P] Drift guard — regenerate-and-compare plus invariants — 1 scenario, 11 guard tests (one red case per divergence class)
   - **Scope**: An `internal/build` guard (helpers in production source, tests beside them, house convention) that regenerates the artifact in-memory via the same derivation functions and byte-compares against the committed file, plus the five named invariants: decodes, non-empty `change_types`, fact ids equal the record's live-facts manifest, a provenance token on every entry, the generated marker present.
   - **Acceptance criteria**:
     - Each divergence class has a red-case test: hand-edited artifact, record edited without regeneration, vendored-spec enum change without regeneration, missing marker, manifest/fact mismatch.
