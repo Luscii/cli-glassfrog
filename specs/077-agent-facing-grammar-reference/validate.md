@@ -1,13 +1,183 @@
 # Validate: Agent-Facing Grammar Reference
 
 **Feature**: 077-agent-facing-grammar-reference
-**Round**: 1 of 3
+**Round**: 2 of 3
 **Date**: 2026-08-10
-**Verdict**: Issues
-**Artifacts loaded**: spec.md, plan.md (§ System Architecture, Architecture Decisions, Integration Design, Risks), tasks.md (6 of 6 tasks complete), interface-cli.md, `features/unguided-change-construction/agent-facing-grammar-reference.feature`, PROJECT.md
+**Verdict**: Ready
+**Artifacts loaded**: spec.md (amended after round 1), plan.md (§ System Architecture, Architecture Decisions, Integration Design, Cross-cutting Concerns, Risks — amended), tasks.md (6 of 6 tasks complete — amended), interface-cli.md (amended), `features/unguided-change-construction/agent-facing-grammar-reference.feature`, PROJECT.md
 **Implementation files**: 11 — `internal/grammar/` (artifact.go, grammar.go, grammar.json, gen/main.go), `internal/build/` (grammarartifact.go, grammarfacts.go, writesafetyguardrail.go), `internal/cli/` (proposal_grammar.go, proposal.go), `internal/render/` (grammar.go, render.go, templates/grammar.{full,compact}.tmpl), `plugin/hooks/glassfrog-write-gate.sh`, `docs/reference/change-set-grammar.md`
 
+Round 1's record is preserved in full below. Four artifacts were amended between
+the rounds, so every dimension was re-inspected against the amended text rather
+than carried forward — a round-1 trace against superseded wording proves nothing
+about the current state.
+
 ---
+
+# Round 2 (2026-08-10) — Ready
+
+## Conformance Summary
+
+| Dimension | Status | Findings |
+|---|---|---|
+| Driving scenario coverage | ✓ Pass | 0 |
+| Acceptance criteria | ✓ Pass | 0 |
+| Interface contract conformance | ✓ Pass | 0 |
+| Non-behavior absence | ✓ Pass | 0 |
+| @wip lifecycle completion | ✓ Pass | 0 |
+| **Validation scenarios** | ✓ Satisfied (3 of 3) | 0 |
+
+**Total**: 5 dimensions checked, 5 passed, 0 findings
+
+One advisory note is recorded below (A-1). It is not a finding: it concerns the
+precision of one artifact clause relative to its amended sibling in the same
+artifact, not anything the implementation does or fails to do.
+
+## Driving Scenario Coverage
+
+**Status**: Pass (8 of 8 scenarios covered)
+
+Re-executed at the current head: **12 scenarios, 52 steps, 0 failures**. The
+concretized feature file is unchanged since round 1; the spec's driving scenarios
+are also unchanged (the round-1 amendments touched § Non-Behaviors and § Validation
+Scenarios only), so round 1's per-scenario traces stand and were confirmed green.
+
+## Acceptance Criteria
+
+**Status**: Pass (6 of 6 tasks complete, all criteria met)
+
+| Task | Status | Change since round 1 |
+|---|---|---|
+| T001 Generator + committed artifact | ✓ Met | — |
+| T002 Embed + typed accessor | ✓ Met | — |
+| T003 Drift guard | ✓ **Now met** | The spec's nested-only-membership trigger gained its red case (`TestGrammarArtifactGuardCatchesANestedOnlyMembershipShift`). Verified by execution, and verified *red* with the vocabulary-half comparison disabled — where it fails with the misleading "the ENCODING diverged" message, which is the wrong-file blame the assertions guard against. |
+| T004 Render resource + templates | ✓ Met | — |
+| T005 Command + both guardrail edits | ✓ Met | The criterion itself was amended (malformed credential *value*). Re-verified against the amended text, including the **no-credential-file-present** case over the real settings-file walk — an empty directory resolves to `full` and the full reference renders at exit 0. Round 1 had traced only the no-token-context variant. |
+| T006 Reference documentation | ✓ Met | — |
+
+## Interface Contract Conformance
+
+**Status**: Pass (9 of 9 surface clauses conformant)
+
+| Surface clause (interface-cli.md) | Status | Change since round 1 |
+|---|---|---|
+| `glassfrog proposal grammar` — read leaf under the `proposal` group | ✓ Conformant | — |
+| Arguments: none; cobra rejects any positional as usage | ✓ Conformant | Clause amended to name the inherited template source as a non-exception; implementation matches |
+| Command-local flags: none | ✓ Conformant | — |
+| Inherited `--output` participates fully; `--base-url` parses and is inert | ✓ Conformant | — |
+| Short help names the surface honestly | ✓ **Now conformant** | The Short carries all four elements the clause names — the change-set grammar, *before assembling*, *contract-published* types with placement, *verified empirical observations* — at 121 characters, inside the CLI's existing 126 maximum. A Short-specific assertion and a length bound now pin it; the pre-existing help sweep was satisfied by either field and could not have caught it. |
+| Rendered structure: two keys, field tables, provenance tokens, deterministic order | ✓ Conformant | — |
+| Human formats (`full`/`compact`) content requirements | ✓ Conformant | — |
+| Error communication: 0 / 2 / 1, codes 3–7 unproducible | ✓ Conformant | — |
+| Credential-free conduct | ✓ Conformant | Clause amended to a malformed credential *value*, with the shared-file boundary stated. Both halves pinned by named tests. |
+
+The `json` envelope deviation remains a recorded interface decision, not a finding
+(round 1 § Interface Contract Conformance).
+
+## Non-Behavior Absence
+
+**Status**: Pass (6 of 6 non-behaviors absent)
+
+The first non-behavior was amended after round 1 and now reads: "no argument or
+flag of its own takes one … The output-template source every read inherits is not
+an exception: it renders a caller's template and evaluates nothing, so it is not a
+change-set input path."
+
+Against that text the implementation conforms exactly, and the boundary is pinned
+rather than asserted: `TestProposalGrammar_APipedChangeSetIsRenderedAsATemplateNotJudged`
+executes the piped-change-set path and asserts the text renders verbatim, that no
+validity vocabulary appears on either stream, and that the caller's template
+*replaces* the built-in rendering. Nothing parses the bytes as governance, compares
+them against the grammar, or produces a verdict.
+
+The other five non-behaviors were re-checked and remain absent; round 1's evidence
+(provenance tokens on every entry, no per-type field list, no routing/identifier
+content, no write path, no drafting-path rewiring) is unchanged.
+
+## @wip Lifecycle Completion
+
+**Status**: Pass
+
+Three `@wip` tags remain, all carrying `@validation` — correctly held out. No
+scenario referenced by a checked task retains `@wip`.
+
+## Validation Scenario Results
+
+**Status**: Satisfied (3 of 3)
+
+Re-traced independently at the current head, not carried forward from round 1.
+
+| Scenario | Status | Trace |
+|---|---|---|
+| The rendered vocabulary equals the contract's | ✓ Satisfied | Set comparison re-run against the vendored contract: **21 rendered types = 21 contract types, 6 nested-only = 6 nested-only, zero missing and zero extra in either direction**. Every `wrappers` member is itself an enum member. |
+| No judgment path exists | ✓ Satisfied | The operative clause — "no invocation evaluates, filters, or scores a change set" — holds by construction and is now pinned by execution on the one path that consumes caller bytes. See advisory A-1 on the scenario's closing clause. |
+| One source for the residue | ✓ Satisfied **literally** | The scenario was amended to "renders from the record, through whatever generated projection the binary carries" and "no fact's text is **hand-maintained** outside the record". Both are literally true: all four rendered fields of both facts are byte-identical to the record parser's output, the artifact is machine-generated and header-marked, and a hand edit to a fact's symptom is rejected by the guard naming the record. Round 1's reliance on plan ADR-1's reading is no longer needed. |
+
+## Advisory
+
+### A-1: `Then its only effect is rendering knowledge` was not amended alongside its sibling clause
+
+- **Type**: advisory — artifact wording, no implementation gap
+- **Location**: `spec.md:150` (§ Validation Scenarios, "No judgment path exists") and its concretized twin at `features/…/agent-facing-grammar-reference.feature:79`
+- **Why this is not a finding**: round 1's F-1 cited two sites — § Non-Behaviors and this closing clause. The fix amended the former and left the latter, so spec.md now states the same boundary at two precision levels: the non-behavior explicitly acknowledges the inherited template source, while this clause still asserts that rendering knowledge is the only effect. For the one invocation where a caller's template ignores the grammar data, the effect is rendering *that template*. The implementation conforms to the amended non-behavior, and the spec has now told a reader how to read the boundary, so the clause reads as a summary of the effect class (a rendering, never a judgment or a mutation) rather than an independent claim.
+- **Recommended resolution**: whenever spec.md is next edited, scope the clause the way the non-behavior now is — e.g. "its only effect is rendering, never judging". The concretized twin is the Verifier's artifact; validate does not modify `.feature` scenario content, so aligning it is a scenarios-stage touch-up. **No implementation change is recommended, and this does not block merge.**
+- **Pattern worth noting**: this is the third instance in this feature of one wording fix leaving a sibling copy behind (F-1's four code/doc sites, F-3's plan quotes, and now this clause). The lesson is recorded in `.score/memory/LEARNINGS.md` — sweep the phrase, not the file.
+
+## Verdict: Ready
+
+All 5 conformance dimensions pass and all 3 validation scenarios are satisfied. The
+implementation conforms to its specification.
+
+**Why not Issues**, stated so the boundary is auditable: the verdict tree gives
+Issues when a conformance check fails. None does. A-1 is not a failed check — it
+describes one artifact clause being less precise than its amended sibling in the
+same artifact, which is cross-artifact wording consistency rather than
+implementation conformance, and the implementation matches every artifact under the
+spec's own now-explicit reading. Recording it as a finding would report an
+implementation gap that does not exist.
+
+**Independent corroboration worth recording**: between the rounds, an automated
+reviewer (Copilot, PR #204) flagged five items on this feature. Three were the same
+defects round 1 found — the Short help's missing provenances (F-4), the docs'
+"takes no input" over-claim (F-1), and the absent nested-only-membership red case
+(F-2) — reached without seeing the validation pass. One (the credential over-claim
+surviving in the command's own comments) showed round 1's fix had been applied
+incompletely. One was new and outside round 1's scope (a leaf named "advance" in a
+sibling doc's overview). Two independent passes converging on the same three
+defects is evidence the round-1 findings were real rather than manufactured; the
+fourth is evidence that a wording fix needs a phrase sweep, not a file edit.
+
+## Changes Since Previous Run
+
+**Round**: 2 (previous: Round 1 — Issues, 4 findings)
+
+### Resolved (4 of 4 findings)
+
+- **F-1** (Non-behavior absence) — *resolved by amendment, implementation deliberately unchanged*. spec.md § Non-Behaviors now scopes the claim to "no argument or flag of its own takes one" and names the inherited template source as a non-exception. The same absolute phrasing was swept from interface-cli.md, the command's package comment, its step comment, plan.md, tasks.md, two test comments, and the reference doc. The behaviour is now pinned by execution rather than asserted.
+- **F-2** (Acceptance criteria, T003) — *resolved*. The nested-only-membership red case exists, derives both sides from source, and was verified red before being trusted.
+- **F-3** (Validation scenario, "One source for the residue") — *resolved by amendment*. spec.md was aligned to the phrasing the scenarios stage had already concretized; plan.md ADR-1 and Risk R1 were updated so their quotes are not misquotes. The scenario is now satisfied literally, without recourse to ADR-1's reading. Round 1 also **overstated this finding's scope** — the feature file's concretization was already correct — and that correction is recorded in the Resolution Log below.
+- **F-4** (Interface contract conformance) — *resolved*. The Short carries the accord's four elements within the house length range, pinned by a Short-specific assertion and a length bound.
+
+### Remaining (0 findings)
+
+### New (0 findings; 1 advisory)
+
+- **A-1** — the un-amended closing clause of the "No judgment path exists" scenario. Advisory, not a finding: see above.
+
+## Next Steps
+
+Implementation conforms to the specification. Suggest PR review and merge — PR
+[#204](https://github.com/Luscii/cli-glassfrog/pull/204), 9 CI checks green, all
+review threads resolved.
+
+Two optional touch-ups, neither blocking: A-1's clause wording (spec.md and its
+feature-file twin), and the three `@validation` scenarios remain `@wip` by design —
+they are inexecutable as written (they inspect the landed surface rather than drive
+it) and were traced by inspection here.
+
+---
+
+# Round 1 (2026-08-10) — Issues
 
 ## Conformance Summary
 
