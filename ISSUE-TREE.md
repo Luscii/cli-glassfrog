@@ -189,4 +189,31 @@ Problems for the Glassfrog v5 CLI, decomposed into a project foundation, a share
     + affects: AI agent
     + related-to: Unconsumable Output
     + related-to: Call Shapes Not Packaged
-    + candidate: Templated Read Projections — render the composed read leaves through the CLI's `-o`/`--output` template feature (035) to project each payload to the minimal shape a path needs before it enters the subagent's context, in place of raw `--output json`
+    + candidate: Templated Read Projections — render the composed read leaves through the CLI's `-o`/`--output` template feature (035) to project each payload to the minimal shape a path needs before it enters the subagent's context, in place of raw `--output json`; whether one projection per leaf suffices or a leaf needs one per use is open, since a triage pass over a read wants the hit list alone while a hydration pass over the same read wants the body the hit list omits
+  * Traversal Runs in Lockstep — the operator paths issue independent reads one after another, so a traversal's wall-clock is the sum of every read it makes rather than the depth of its dependency chain, and the practitioner waits minutes for work the network could have done in seconds
+    + affects: Practitioner
+    + affects: AI agent
+    + related-to: Payloads Outsize the Work
+    + candidate: Independent-Read Fan-Out — name which composed reads are independent, so a fan-out is issued together rather than in sequence, stating how a concurrent fan-out sits with the per-organization rate limit rather than leaving burst shape unaddressed
+  * Void Steps Traversed Anyway — a prescribed traversal step can be structurally incapable of yielding anything in a given record, and the path has no way to notice or to carry that forward, so it runs the step against every candidate and re-runs it next session
+    + affects: AI agent
+    + affects: Practitioner
+    + related-to: Nothing Learned Is Kept
+    + related-to: Indistinguishable Empty Results
+    + candidate: Record-Shape Note — a note the paths consult before traversing, carrying which access paths are void in this record; the session-local early-exit half stands on its own, while any cross-session persistence meets VISION Exclusion 4 and the live-client constraint, so it wants the bootstrapped-not-learned treatment already taken elsewhere or a deliberate exception
+  * Clarification Gates Searchability, Not Scope — the clarify step only asks whether the action is specific enough to search for, so dimensions that would prune most of the traversal go unasked, and the path discovers them only by returning a superset and asking for them afterwards
+    + affects: Practitioner
+    + affects: AI agent
+    + related-to: Vocabulary-Blind Search
+    + candidate: Pruning Dimensions Asked Up Front — ask for the dimensions that prune the traversal in the same exchange that establishes searchability, deriving them from the record the traversal reads rather than from a fixed checklist, which would drift toward the governance advice the project excludes
+  * Completeness Mandated Before Relevance — the paths require paging a result set to completion before narrowing to what is relevant, so the maximum payload is pulled in order to discard most of it, and the mandate is unsatisfiable where the underlying read cannot enumerate at all; it carries only the first arm of the size-aware principle it descends from, which requires paging through results *or* clearly signalling the boundary, so where completion is impossible the mandate reads as satisfied instead of signalling
+    + affects: AI agent
+    + related-to: Payloads Outsize the Work
+    + related-to: Truncated Ranked Search
+    + related-to: Unenumerable Governance Corpus
+    + related-to: Void Steps Traversed Anyway
+  * Traversal Coverage Unreported — the returned picture says whether it was narrowed but never how much it covered or what it cost, so the practitioner can't tell a shallow answer from an exhaustive one, or judge whether "narrowed" dropped three matches or three hundred
+    + affects: Practitioner
+    + affects: AI agent
+    + related-to: Completeness Mandated Before Relevance
+    + related-to: Truncated Ranked Search
