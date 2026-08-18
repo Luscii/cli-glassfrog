@@ -26,7 +26,6 @@ Feature: Agent-Facing Grammar Reference
     # may appear, and the known dead shapes with their symptoms — before I build.
 
     # Source: 077-agent-facing-grammar-reference — Scenario: An assembler reads the grammar before building
-    @wip
     Scenario: An assembler reads the full grammar in one invocation
       Given an AI agent was about to assemble a change set
       When it runs "glassfrog proposal grammar --output json"
@@ -35,7 +34,6 @@ Feature: Agent-Facing Grammar Reference
       And no API request will have been made to learn either
 
     # Source: 077-agent-facing-grammar-reference — Scenario: A change set offered for judgment is refused as usage, not judged
-    @wip
     Scenario: A change set offered for checking is refused as usage, not judged
       Given the implemented "glassfrog proposal grammar" command
       When a practitioner runs "glassfrog proposal grammar changes.json"
@@ -43,7 +41,6 @@ Feature: Agent-Facing Grammar Reference
       And the failure will express no verdict on the change set's validity
 
     # Source: 077-agent-facing-grammar-reference — Scenario: "Accepted" is not "valid" survives the rendering
-    @wip
     Scenario: Accepted-but-invalid stays distinct from accepted in the rendering
       Given a successful "glassfrog proposal grammar --output json" run
       When a consumer reads the rendered fact "CSG-2"
@@ -51,7 +48,6 @@ Feature: Agent-Facing Grammar Reference
       And its symptom will state that a returned prp_ id is a dead draft, not a successful change
 
     # Source: 077-agent-facing-grammar-reference — Proposed: interface-cli.md § The human formats — full content with residue present
-    @wip
     Scenario: The full format presents the vocabulary, the nesting rule, and every fact
       Given the record carried the facts "CSG-1" and "CSG-2"
       When a practitioner runs "glassfrog proposal grammar --output full"
@@ -61,7 +57,6 @@ Feature: Agent-Facing Grammar Reference
       And the contract-derived content will be visibly separated from the empirical observations
 
     # Source: 077-agent-facing-grammar-reference — Proposed: interface-cli.md § The human formats — compact form
-    @wip
     Scenario: The compact format condenses each type and fact to one line
       Given the record carried the facts "CSG-1" and "CSG-2"
       When a practitioner runs "glassfrog proposal grammar --output compact"
@@ -69,7 +64,6 @@ Feature: Agent-Facing Grammar Reference
       And each fact will appear as one line carrying its id, disposition, and title
 
     # Source: 077-agent-facing-grammar-reference — Scenario: No live residue
-    @wip
     Scenario: The contract vocabulary renders even with no live residue
       Given the grammar record carried no live facts
       When the reference is rendered in the default human format
@@ -92,7 +86,6 @@ Feature: Agent-Facing Grammar Reference
     # shape and a verified observation are never confused.
 
     # Source: 077-agent-facing-grammar-reference — Scenario: Provenance is visible on every shape
-    @wip
     Scenario: Every rendered shape carries its provenance token
       Given a successful "glassfrog proposal grammar --output json" run
       When a consumer reads the rendered structure
@@ -100,7 +93,6 @@ Feature: Agent-Facing Grammar Reference
       And every "facts" entry will carry the provenance token "empirical-observation"
 
     # Source: 077-agent-facing-grammar-reference — Scenario: The contract vocabulary drifts from the rendering
-    @wip
     Scenario: A contract refresh that outruns the rendering fails the build
       Given a vendored-contract refresh changed the change-type enum
       And the committed grammar artifact was not regenerated
@@ -109,7 +101,6 @@ Feature: Agent-Facing Grammar Reference
       And the failure will name regeneration as the remedy
 
     # Source: 077-agent-facing-grammar-reference — Scenario: A recorded fact retires
-    @wip
     Scenario: A retired fact leaves the rendering with the record
       Given the fact "CSG-1" retired from the record together with its manifest entry
       And the grammar artifact was regenerated
@@ -140,7 +131,6 @@ Feature: Agent-Facing Grammar Reference
     # only one install layout carries.
 
     # Source: 077-agent-facing-grammar-reference — Scenario: The grammar renders without credentials
-    @wip
     Scenario: The grammar renders with no credentials and no network
       Given a machine with the CLI installed and no credential configured
       When a practitioner runs "glassfrog proposal grammar"
@@ -148,7 +138,6 @@ Feature: Agent-Facing Grammar Reference
       And no API request will be attempted
 
     # Source: 077-agent-facing-grammar-reference — Proposed: plan Integration Design — the write gate's recognized-read set gains "grammar"
-    @wip
     Scenario: The write gate passes the grammar read ungated
       Given the operating surface's write gate was installed
       When an agent runs "glassfrog proposal grammar"
@@ -156,7 +145,6 @@ Feature: Agent-Facing Grammar Reference
       And no confirmation will be asked
 
     # Source: 077-agent-facing-grammar-reference — Proposed: interface determinism contract — output ordering is pinned
-    @wip
     Scenario: Repeated invocations render identical structured output
       Given a successful "glassfrog proposal grammar --output json" run
       When the same binary runs the same command again

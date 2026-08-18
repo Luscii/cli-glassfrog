@@ -7,11 +7,13 @@
 //
 // It ships two built-in templates per result type — full (field-equivalent to
 // each read's pre-019 projection) and compact (a denser, one-line-per-record
-// variant) — embedded as files via //go:embed. It depends only on
-// internal/glassfrog (the result structs it renders) and the stdlib; it must
-// never import internal/cli or internal/apiclient (it owns no commands, no
-// transport, and no exit codes — the same "lower layers never import cli"
-// layering apiclient follows).
+// variant) — embedded as files via //go:embed. It depends only on the packages
+// carrying the structures it renders — internal/glassfrog (the decoded server
+// results) and, since 077, internal/grammar (the embedded change-set grammar,
+// which is source data rather than a response) — plus the stdlib; it must never
+// import internal/cli or internal/apiclient (it owns no commands, no transport,
+// and no exit codes — the same "lower layers never import cli" layering apiclient
+// follows).
 //
 // Rendering operates on response-side result structs only — the token is an
 // X-Auth-Token request header, never a result field — so the secret-never-emitted
@@ -620,6 +622,14 @@ const (
 	// FILLED ROLE (id/name + purpose/parent context) rather than the filling actor
 	// (plan ADR-2).
 	ResourceAssignments Resource = "assignments"
+	// ResourceGrammar is the change-set grammar reference (077): the embedded
+	// grammar artifact rendered as a GrammarView. The first render key whose data
+	// is NOT a server response — there is no request behind it, so the embedded
+	// structure IS the source data (plan ADR-4), and the json/yaml formats
+	// serialize that structure directly rather than a response envelope.
+	// Singular-only: one invocation returns the whole reference, so there is no
+	// plural list sibling and no pagination.
+	ResourceGrammar Resource = "grammar"
 
 	FormatFull    Format = "full"
 	FormatCompact Format = "compact"
@@ -630,7 +640,7 @@ const (
 // resolve (a dropped or misnamed template fails loud, not silently at runtime —
 // PR #10 LEARNINGS).
 var (
-	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposalCreated, ResourceProposals, ResourceProposalResponse}
+	builtinResources = []Resource{ResourceMe, ResourceRoles, ResourceActions, ResourceProjects, ResourceOrgRoles, ResourceRole, ResourceTree, ResourceSubroles, ResourceDomains, ResourceDomain, ResourcePolicies, ResourcePolicy, ResourceProject, ResourceSearch, ResourceActors, ResourceActor, ResourceFillers, ResourceAssignments, ResourceTension, ResourceTensions, ResourceTensionDiscard, ResourceProposal, ResourceProposalCreated, ResourceProposals, ResourceProposalResponse, ResourceGrammar}
 	builtinFormats   = []Format{FormatFull, FormatCompact}
 )
 

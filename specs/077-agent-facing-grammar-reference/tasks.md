@@ -58,7 +58,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
 
 ## Phase 1: Grammar data foundation [Shared]
 
-- [ ] **T001** [Shared] Generator and the committed grammar artifact
+- [x] **T001** [Shared] Generator and the committed grammar artifact — wrapper pair derived from contract prose (self-checking against the enum), 12 derivation unit tests
   - **Scope**: A dev-time generator (its own small `main` package, invoked through a `go:generate` directive in `internal/grammar`) that derives the committed artifact from both sources mechanically, plus the committed artifact itself in `internal/grammar/`. Nothing hand-maintained: the change-type vocabulary via `internal/build.LoadSpecChangeTypes()`, the facts via `internal/build.ReadGrammarFactsRecord()` + `ParseGrammarFactsRecord()`.
   - **Acceptance criteria**:
     - The artifact is the `{generated, grammar}` envelope from interface-cli.md: `generated` carries a do-not-edit marker naming the regeneration step; `grammar` carries `change_types` and `facts` exactly per the accord's field tables.
@@ -70,7 +70,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Plan reference**: Phase 1; ADR-1, ADR-2, ADR-3
   - **Interface references**: interface-cli.md: "The rendered structure", "The embedded artifact"
 
-- [ ] **T002** [Shared] [P] The `internal/grammar` package — embed and typed accessor
+- [x] **T002** [Shared] [P] The `internal/grammar` package — embed and typed accessor — 13 accessor unit tests incl. the corrupt-embed decode path
   - **Scope**: `//go:embed` of the committed artifact and a typed accessor that decodes once and returns the `grammar` payload (never the envelope) for the render layer and the command.
   - **Acceptance criteria**:
     - The accessor's types mirror the accord's field tables; the envelope's `generated` marker is not reachable through it.
@@ -80,7 +80,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Plan reference**: Phase 1; ADR-1, ADR-3
   - **Interface references**: interface-cli.md: "The rendered structure"
 
-- [ ] **T003** [Shared] [P] Drift guard — regenerate-and-compare plus invariants
+- [x] **T003** [Shared] [P] Drift guard — regenerate-and-compare plus invariants — 1 scenario, 11 guard tests (one red case per divergence class)
   - **Scope**: An `internal/build` guard (helpers in production source, tests beside them, house convention) that regenerates the artifact in-memory via the same derivation functions and byte-compares against the committed file, plus the five named invariants: decodes, non-empty `change_types`, fact ids equal the record's live-facts manifest, a provenance token on every entry, the generated marker present.
   - **Acceptance criteria**:
     - Each divergence class has a red-case test: hand-edited artifact, record edited without regeneration, vendored-spec enum change without regeneration, missing marker, manifest/fact mismatch.
@@ -92,7 +92,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
 
 ## Phase 2: The command and its rendering [US1, US2, US3]
 
-- [ ] **T004** [US1, US2] Grammar render resource and human-format templates
+- [x] **T004** [US1, US2] Grammar render resource and human-format templates — 3 scenarios, 10 render tests (golden full/compact + empty-residue variants)
   - **Scope**: A grammar resource in `internal/render` with `grammar.full.tmpl` and `grammar.compact.tmpl` in the embedded template set, rendering the accessor's structure.
   - **Acceptance criteria**:
     - `full` presents the vocabulary with each type's placement, the nesting rule stated once, every fact with title/shape/disposition/symptom, and visible provenance marking separating contract from observation.
@@ -105,10 +105,10 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Interface references**: interface-cli.md: "The human formats (`full` / `compact`)"
   - **Scenario references**: agent-facing-grammar-reference.feature: "The full format presents the vocabulary, the nesting rule, and every fact", "The compact format condenses each type and fact to one line", "The contract vocabulary renders even with no live residue"
 
-- [ ] **T005** [US1, US2, US3] The `proposal grammar` command, its conduct, and the gate's recognized-read edit
+- [x] **T005** [US1, US2, US3] The `proposal grammar` command, its conduct, and the gate's recognized-read edit — 8 scenarios (12 of 12 non-@validation now green), 11 unit tests; accord boundary on "malformed credential file" recorded in LEARNINGS.md
   - **Scope**: The client-less cobra leaf under the `proposal` group — no positional arguments, no command-local flags, no seam, no token or base-url resolution — rendering the accessor's structure through the selected format (`full`/`compact` via T004; `json`/`yaml` serialize the structure directly; user templates apply over it). Bundled with **both** guardrail edits the new leaf requires, on two different anchors (plan § Integration Design): `expectedProposalSurface` in `internal/build/writesafetyguardrail.go` gains `"grammar"` (without it `TestWriteSafetyRegistryDriftGuard` fails the build — this is the CI forcing function), and `PROPOSAL_READS` in `plugin/hooks/glassfrog-write-gate.sh` gains `grammar` (without it the gate over-asks on a read at runtime — no build failure, so this one is on the builder and the scenario below). The gated registry (`gated-commands.txt`) is **not** touched: it lists writes only.
   - **Acceptance criteria**:
-    - Succeeds (exit 0) with no credential file present, with a malformed one, and with no network — token resolution is never invoked.
+    - Succeeds (exit 0) with no credential file present, with a malformed credential *value*, and with no network — token resolution is never invoked. (An unparseable `.glassfrogrc` is a different condition: that file also carries the `output` setting, so it fails output resolution as it does for every command — interface-cli § Interactions records the boundary.)
     - Any positional argument fails as a usage error, exit 2, with cobra's usage text and no validity language; unknown flags likewise; exit codes 3–7 are unproducible (no request path exists).
     - `--output json` emits the `grammar` structure verbatim — top-level `change_types` and `facts`, `facts` present as `[]` when empty; `yaml` is the same document; repeated runs are byte-identical.
     - `--base-url` parses and is inert; help text states the command informs and never validates.
@@ -121,7 +121,7 @@ Fifteen scenarios exist in `agent-facing-grammar-reference.feature`. Twelve are 
   - **Interface references**: interface-cli.md: "The command", "Interactions", "Error Communication"
   - **Scenario references**: agent-facing-grammar-reference.feature: "An assembler reads the full grammar in one invocation", "A change set offered for checking is refused as usage, not judged", "Accepted-but-invalid stays distinct from accepted in the rendering", "The contract vocabulary renders even with no live residue", "Every rendered shape carries its provenance token", "A retired fact leaves the rendering with the record", "The grammar renders with no credentials and no network", "The write gate passes the grammar read ungated", "Repeated invocations render identical structured output"
 
-- [ ] **T006** [Shared] Reference documentation
+- [x] **T006** [Shared] Reference documentation — new `docs/reference/change-set-grammar.md`; swept the now-stale leaf counts and the `{data: …}` claim in the sibling `proposals.md`
   - **Scope**: The command's page under `docs/reference/`, following the house reference-doc conventions.
   - **Acceptance criteria**:
     - Documents the command, its formats, the structured output's keys and token vocabularies, and the exit-code envelope (0/2/1, with codes 3–7 stated as unproducible).

@@ -8,12 +8,15 @@
 # Governance Proposals Reference
 
 Complete reference for the `glassfrog proposal` command group — the governance
-write flow (create, advance, respond, withdraw) and its two reads (list, get).
+write flow (create, propose, respond, withdraw) and its two API reads (list,
+get). The group also hosts the client-less `grammar` knowledge read, documented
+separately in [Change-Set Grammar](change-set-grammar.md).
 
 ## Overview
 
 `glassfrog proposal` is a non-runnable command group. Running `glassfrog
-proposal` with no subcommand prints help. It hosts six verb leaves:
+proposal` with no subcommand prints help. It hosts six verb leaves that call the
+API:
 
 | Command | API operation | Purpose |
 |---|---|---|
@@ -24,10 +27,17 @@ proposal` with no subcommand prints help. It hosts six verb leaves:
 | `proposal respond <prp-id>` | `POST /proposals/{id}/responses` | Record a consent response |
 | `proposal withdraw <prp-id>` | `POST /proposals/{id}/withdraw` | Return a circulating proposal to draft |
 
+plus one leaf that calls nothing:
+
+| Command | API operation | Purpose |
+|---|---|---|
+| `proposal grammar` | **none** | Show what a proposal's `changes[]` may say — see [Change-Set Grammar](change-set-grammar.md) |
+
 **Premium gating**: the four write verbs (`create`, `propose`, `respond`,
 `withdraw`) require the async-proposals Premium feature. When it is not enabled,
 the API answers `403` and the command surfaces it as a permission failure. The
-two reads (`list`, `get`) are **not** Premium-gated and answer on any plan.
+two API reads (`list`, `get`) are **not** Premium-gated and answer on any plan,
+and `grammar` reaches no endpoint at all.
 
 Codebase enrichment skipped — not attempted. This reference is based on the
 interface contracts only.
@@ -213,7 +223,7 @@ proposal.
 
 ## Inherited flags
 
-All six leaves inherit the persistent root flags by cobra inheritance:
+Every leaf inherits the persistent root flags by cobra inheritance:
 
 | Flag | Owner | Description |
 |---|---|---|
@@ -225,6 +235,11 @@ Successful output is rendered by Output Format Selection in the resolved format:
 render the human projection. The raw API envelope is never emitted under a human
 format, and no command defines its own format flag. Each command produces
 structured data and synthesizes no fields the server did not return.
+
+`grammar` is the one exception to the envelope sentence, and deliberately so: it
+has no server response to mirror, so its `json`/`yaml` output is the reference
+structure itself. Its `--base-url` also parses and is inert. See
+[Change-Set Grammar](change-set-grammar.md).
 
 ## Proposal status lifecycle
 
@@ -257,6 +272,9 @@ includes the token. No proposal command introduces its own exit code.
 | Async proposals not enabled (`403`), other permission (`401`) | PermissionError | 4 |
 | Rate limited (`429`) — write verbs are not auto-retried | RateLimited | 5 |
 | Could not reach the wire | NetworkUnavailable | 6 |
+
+The table above covers the six API leaves. `grammar` can produce only `0`, `2`,
+and `1`; codes `3`–`6` are unproducible for it because it issues no request.
 
 The Premium `403` classifies as `PermissionError` (4) with the server's detail
 surfaced. The command adds no plan-aware "not available on your plan"

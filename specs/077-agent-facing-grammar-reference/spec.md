@@ -55,7 +55,7 @@ Agent-Facing Grammar Reference closes that gap by putting the grammar in the art
 
 ## Non-Behaviors
 
-- The command must not accept a change set to judge — no input path for one exists, and an attempt fails as a usage error, never as a validity verdict. **Why**: local governance judgment is VISION Exclusion 2; the server is the single judge, and the step from "renders the shapes" to "checks your shape" is exactly the erosion this boundary exists to stop.
+- The command must not accept a change set to judge — no argument or flag of its own takes one, and an attempt fails as a usage error, never as a validity verdict. The output-template source every read inherits is not an exception: it renders a caller's template and evaluates nothing, so it is not a change-set input path. **Why**: local governance judgment is VISION Exclusion 2; the server is the single judge, and the step from "renders the shapes" to "checks your shape" is exactly the erosion this boundary exists to stop.
 - The command must not present an empirical fact as contract-authoritative. **Why**: VISION Principle 1 — nothing outside the published spec may be presented as spec-authoritative; an unmarked fact invites trust past the point the server changes beneath it.
 - The command must not invent per-type field guidance the record does not verify. **Why**: the contract defines no per-type field schema, so a field list beyond recorded observation would be a fabricated authority claim; content grows only as the record grows.
 - The command must not carry routing or identifier facts. **Why**: inherited from the record's own boundary — where a proposal lands belongs to the circle-routing record, identifier resolution to the identifier capabilities; folding them in blurs what "grammar" means.
@@ -152,8 +152,8 @@ And its only effect is rendering knowledge.
 **Scenario: One source for the residue**
 Given the landed command and the grammar-facts record
 When the origin of each rendered empirical fact is traced
-Then each renders from the record
-And no fact's text lives a second life outside it.
+Then each renders from the record, through whatever generated projection the binary carries
+And no fact's text is hand-maintained outside the record.
 
 ---
 

@@ -1,0 +1,154 @@
+{
+  "generated": "DO NOT EDIT. Generated from spec/glassfrog-api-v5.yaml and plugin/skills/proposal-drafting/references/change-set-grammar-facts.md. Regenerate with `go generate ./internal/grammar`; hand edits are rejected by the drift guard in internal/build/grammarartifact.go (BuildGrammarArtifact).",
+  "grammar": {
+    "change_types": [
+      {
+        "type": "CreateAccountability",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "CreateDomain",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "CreateLinkedRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "CreatePolicy",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "CreateRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "CreateRoleNote",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "ElectRoleFiller",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "MoveItems",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "MovePolicy",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "MoveRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "RemoveAccountability",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "RemoveDomain",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "RemovePolicy",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "RemoveRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "RemoveRoleNote",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdateAccountability",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdateDomain",
+        "placement": "nested-only",
+        "wrappers": [
+          "CreateRole",
+          "UpdateRole"
+        ],
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdateLinkedRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdatePolicy",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdateRole",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      },
+      {
+        "type": "UpdateRoleNote",
+        "placement": "top-level",
+        "provenance": "published-contract"
+      }
+    ],
+    "facts": [
+      {
+        "id": "CSG-1",
+        "title": "An own-circle policy is a top-level `CreatePolicy` part with no `UpdateRole` wrapper",
+        "shape": "a proposal that creates or changes a circle's own policy carries a **top-level** `CreatePolicy` part — `{\"type\": \"CreatePolicy\", …}` sitting directly in the `changes[]` array, not wrapped in an `UpdateRole`. The web UI generates exactly this top-level form.",
+        "disposition": "accepted",
+        "symptom": "wrapping the policy change as a child of an `UpdateRole` part is refused; the accepted shape is the unwrapped top-level `CreatePolicy`, which is the form the web UI itself emits. An assembler that reaches for an `UpdateRole` wrapper by analogy with accountability/domain edits builds a change set the server will not take.",
+        "provenance": "empirical-observation"
+      },
+      {
+        "id": "CSG-2",
+        "title": "An `UpdateRole` self-targeting the circle from inside its own governance is accepted at create but returned invalid",
+        "shape": "an `UpdateRole` part whose target is the circle itself, proposed from inside that circle's own governance.",
+        "disposition": "accepted-but-invalid",
+        "symptom": "the server **accepts the create** and returns a created `prp_` id, but the proposal comes back `valid: false` with a blocking alert (e.g. *\"Can't update the … role during this meeting.\"*) and `available_transitions: []`. A returned `prp_` id here is **not** a successful governance change — the draft is dead on arrival and can be removed only via the web UI. A consumer must not read the created id as a valid change; \"created\" is not \"valid\".",
+        "provenance": "empirical-observation"
+      }
+    ]
+  }
+}

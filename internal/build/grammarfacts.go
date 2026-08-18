@@ -361,16 +361,27 @@ func LoadSpecChangeTypes() (enum []string, nestedOnly []string, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	enum, nestedOnly, _, err = ParseSpecChangeTypes(raw)
+	return enum, nestedOnly, err
+}
+
+// ParseSpecChangeTypes is LoadSpecChangeTypes over injected bytes, additionally
+// returning the ProposalChange schema's raw description — the prose that carries
+// the nested-only rule and the wrapper parts (077's derivation reads it; 072's
+// guard needs only the two sets). Pure over its input, so a consumer can derive
+// from a perturbed contract without writing a file.
+func ParseSpecChangeTypes(raw []byte) (enum []string, nestedOnly []string, description string, err error) {
 	var doc proposalChangeSchema
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
-		return nil, nil, fmt.Errorf("parsing %s: %w", VendoredSpecPath, err)
+		return nil, nil, "", fmt.Errorf("parsing %s: %w", VendoredSpecPath, err)
 	}
 	enum = doc.Components.Schemas.ProposalChange.Properties.Type.Enum
 	if len(enum) == 0 {
-		return nil, nil, fmt.Errorf("%s: ProposalChange.properties.type.enum is empty or absent — the record's enum citation anchor does not resolve", VendoredSpecPath)
+		return nil, nil, "", fmt.Errorf("%s: ProposalChange.properties.type.enum is empty or absent — the record's enum citation anchor does not resolve", VendoredSpecPath)
 	}
-	nestedOnly = specNestedOnlyTypes(doc.Components.Schemas.ProposalChange.Description)
-	return enum, nestedOnly, nil
+	description = doc.Components.Schemas.ProposalChange.Description
+	nestedOnly = specNestedOnlyTypes(description)
+	return enum, nestedOnly, description, nil
 }
 
 // specNestedOnlyRE captures the parenthesized nested-only type list from the

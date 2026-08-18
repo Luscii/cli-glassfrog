@@ -212,8 +212,8 @@ const proposalSurfaceSource = "internal/cli/proposal.go (newProposalCommand)"
 // guard: the gated registry (create/propose/respond/withdraw) covers the WRITES;
 // this pins the whole surface so an added/renamed leaf — read OR write — breaks
 // the build until a human reclassifies it and, if it is a write, adds it to the
-// registry. Reads (get/list) live here but not in the registry.
-var expectedProposalSurface = []string{"create", "get", "list", "propose", "respond", "withdraw"}
+// registry. Reads (get/list/grammar) live here but not in the registry.
+var expectedProposalSurface = []string{"create", "get", "grammar", "list", "propose", "respond", "withdraw"}
 
 // LiveProposalSubcommands extracts the current `proposal` subcommand leaves from
 // the CLI source: it reads the leaves newProposalCommand registers, then resolves

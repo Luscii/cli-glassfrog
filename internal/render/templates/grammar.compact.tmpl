@@ -1,0 +1,4 @@
+{{range .Groups}}{{.Placement}}{{if .Wrappers}} (inside {{join .Wrappers " or "}}){{end}}: {{join .Types ", "}}
+{{end}}{{range .Facts}}{{.ID}}  [{{.Disposition}}]  {{.Title}}
+{{else}}no empirical residue is currently recorded
+{{end}}
