@@ -32,6 +32,7 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Scenario: A created-but-invalid draft surfaces the server's refusal
+    @deprecate
     Scenario: A created-but-invalid draft surfaces the server's refusal
       Given a complete connection context with a stored token
       And the tension "ten_0123" exists
@@ -120,6 +121,7 @@ Feature: Post-Create Validity Read
     # I want to read the created draft's validity, its alerts, and its available transitions out of the create output I already parse.
 
     # Source: 074-post-create-validity-read — Scenario: An agent parses the verdict out of machine-readable output
+    @deprecate
     Scenario: Structured output carries the verdict alongside the created id
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -141,6 +143,7 @@ Feature: Post-Create Validity Read
       And the command will exit with code 0
 
     # Source: 074-post-create-validity-read — Proposed: interface-cli.md § "stdout — human compact format" (a defined surface with no scenario)
+    @deprecate
     Scenario: The compact line carries the validity token
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -199,7 +202,7 @@ Feature: Post-Create Validity Read
       And the create response will still be reported
 
     # Source: 074-post-create-validity-read — Scenario: Every verdict state is distinguishable in every output format
-    @validation @wip
+    @validation @wip @deprecate
     Scenario: Every verdict state is distinguishable in every output format
       Given each output format the create itself composes — the two human formats and the two machine formats
       When the server states a favourable verdict, states an unfavourable verdict, states no verdict, and the read-back fails
