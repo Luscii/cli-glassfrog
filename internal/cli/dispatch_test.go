@@ -261,6 +261,16 @@ func TestOutcome_String_RuntimeError(t *testing.T) {
 	}
 }
 
+// InvalidCreate (078) must render its own name, not the default arm's
+// "Outcome(8)". String() has no table test to catch a missing arm, and the
+// default is non-fatal — an omitted arm would only ever show up as a puzzling
+// label in a test-failure message, so it is pinned here explicitly.
+func TestOutcome_String_InvalidCreate(t *testing.T) {
+	if got := InvalidCreate.String(); got != "InvalidCreate" {
+		t.Fatalf("InvalidCreate.String() = %q, want %q", got, "InvalidCreate")
+	}
+}
+
 func TestOutcome_String_UnknownPreservesValue(t *testing.T) {
 	got := Outcome(99).String()
 	if got != "Outcome(99)" {

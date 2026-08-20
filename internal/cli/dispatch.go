@@ -51,16 +51,17 @@ func (e *outcomeError) Unwrap() error { return e.err }
 // category to a process code via ExitCode (exitcode.go) without re-deriving it
 // from an untyped error (ADR-1).
 //
-// The category named outcomes with a producer today: Success, UsageError, and
+// The categories named here all have a producer today: Success, UsageError, and
 // RuntimeError were the original three; Identity Read (011) is the first
 // consuming command, so it adds the operational categories its API-client
 // errors produce — NetworkUnavailable and APIError (codes 6 and 3, which 004
-// reserved). The remaining reserved categories (permission/rate-limit, codes
-// 4/5) gain an Outcome value when their producer lands (API Error Extraction
-// 015 / Rate-Limit Handling 017), splitting APIError without renumbering.
-// Stale-Write Surfacing (054) adds StaleWrite (code 7) — the first category
-// beyond 004's originally-published 0–6 band — branching the 412 out of the
-// generic APIError bucket at the same status-driven classifier.
+// reserved). API Error Extraction (015) filled the last two categories 004 had
+// reserved (permission/rate-limit, codes 4/5) by splitting APIError on the
+// status, without renumbering. Stale-Write Surfacing (054) adds StaleWrite
+// (code 7) — the first category beyond 004's originally-published 0–6 band —
+// branching the 412 out of the generic APIError bucket at the same status-driven
+// classifier. Invalid-Create Outcome (078) adds InvalidCreate (code 8), the
+// first category produced by a *completed* exchange rather than a failed one.
 type Outcome int
 
 const (
@@ -108,6 +109,15 @@ const (
 	// If-Match header or which command produced it (the producer of the 412 is
 	// Guarded Writes, 053).
 	StaleWrite
+	// InvalidCreate means the server accepted a create and the created object is
+	// dead on arrival: the read-back carried an explicit unfavourable verdict.
+	// Produced by Invalid-Create Outcome (078) classifying the *invalidCreateError
+	// `glassfrog proposal create` raises when the created draft reads back
+	// `valid: false`; Exit-Code Convention maps it to code 8. Unlike every
+	// category above it, no exchange failed — both the POST and the read-back
+	// succeeded — so it is classified by the server's stated verdict alone, never
+	// by a status code, the transition set, or the presence of alerts.
+	InvalidCreate
 )
 
 // String renders the category name for legibility in logs and test failures.
@@ -129,6 +139,8 @@ func (o Outcome) String() string {
 		return "RateLimited"
 	case StaleWrite:
 		return "StaleWrite"
+	case InvalidCreate:
+		return "InvalidCreate"
 	default:
 		// Preserve the underlying value for an unexpected Outcome (e.g. a future
 		// enum extension) rather than collapsing it to a constant — keeps logs
