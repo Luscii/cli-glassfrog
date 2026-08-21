@@ -176,8 +176,9 @@ func TestRenderError_JSONAndYAMLEncodeIdenticalData(t *testing.T) {
 
 func TestRenderError_EachKindRendersWithoutError(t *testing.T) {
 	// The renderer is taxonomy-agnostic — every kind term renders. Covers the
-	// four 018 categories plus the 015-widened permission / rate-limit.
-	for _, kind := range []string{"api", "network", "usage", "runtime", "permission", "rate-limit"} {
+	// four 018 categories, the 015-widened permission / rate-limit, the 054-added
+	// stale-write, and the 078-added invalid-create.
+	for _, kind := range []string{"api", "network", "usage", "runtime", "permission", "rate-limit", "stale-write", "invalid-create"} {
 		for _, f := range []Format{JSON, YAML} {
 			doc, err := RenderError(f, ErrorEnvelope{Error: ErrorDetail{Message: "x", Kind: kind}})
 			if err != nil {

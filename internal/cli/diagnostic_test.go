@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 )
@@ -44,6 +45,9 @@ func TestDiagnose_Category_Table(t *testing.T) {
 		{"rcfile-read-error-is-usage", &rcfile.ReadError{}, UsageError},
 		{"rcfile-format-error-is-usage", &rcfile.FormatError{}, UsageError},
 		{"format-error-is-usage", &output.FormatError{}, UsageError},
+		// 078: the one family that is not an exchange failure — both the create and
+		// the read-back succeeded, and the server's own verdict is what fails it.
+		{"invalid-create-is-invalid-create", &invalidCreateError{ProposalID: "prp_0123"}, InvalidCreate},
 		{"unknown-error-is-runtime-failsafe", errors.New("something unexpected"), RuntimeError},
 	}
 
@@ -64,7 +68,7 @@ func TestDiagnose_Category_Table(t *testing.T) {
 	// produce. If a future edit adds a category but no row, or drops a category's
 	// only row, this list and the produced set diverge and the test fails loud
 	// (the comma-ok half names a missing category explicitly).
-	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite}
+	wantProduced := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite, InvalidCreate}
 	if len(produced) != len(wantProduced) {
 		t.Errorf("Diagnose produced %d distinct categories across the table, want %d (a category lost or gained coverage)", len(produced), len(wantProduced))
 	}
@@ -438,5 +442,94 @@ func TestFeatureGateDisplayName_Exhaustive(t *testing.T) {
 	}
 	if got := featureGateDisplayName(apiclient.GateAIIntegration); got != "AI Integration" {
 		t.Errorf("featureGateDisplayName(GateAIIntegration) = %q, want %q", got, "AI Integration")
+	}
+}
+
+// The invalid-create arm (078 ADR-2/ADR-5): one Diagnose call sets the category,
+// the interface-pinned cause and remedy, AND the two carried facts from the same
+// matched value — so the envelope's `proposal_id` / `validation_alerts` can never
+// disagree with the `message` about which draft failed.
+func TestDiagnose_InvalidCreate_CauseNextStepAndCarriedFacts(t *testing.T) {
+	alerts := []glassfrog.ValidationAlert{
+		{Severity: "error", Path: "name", Message: "Can't update the Cloud Foundations role during this meeting."},
+		{Severity: "warning", Path: "changes/0", Message: "Second."},
+	}
+	d := Diagnose(&invalidCreateError{ProposalID: "prp_0123", Alerts: alerts})
+
+	if d.Category != InvalidCreate {
+		t.Errorf("Category = %v, want InvalidCreate", d.Category)
+	}
+	wantCause := "the server accepted the create but reports proposal prp_0123 not valid (read back after the create)"
+	if d.Cause != wantCause {
+		t.Errorf("Cause = %q, want %q", d.Cause, wantCause)
+	}
+	wantNextStep := `review the alerts, check "glassfrog proposal grammar" for documented invalid shapes, and create a corrected proposal from the same tension; the invalid draft can be deleted in the GlassFrog web UI`
+	if d.NextStep != wantNextStep {
+		t.Errorf("NextStep = %q, want %q", d.NextStep, wantNextStep)
+	}
+	if d.ProposalID != "prp_0123" {
+		t.Errorf("ProposalID = %q, want prp_0123 — the id is never withheld on this failure", d.ProposalID)
+	}
+	if len(d.ValidationAlerts) != len(alerts) {
+		t.Fatalf("ValidationAlerts carried %d entries, want %d", len(d.ValidationAlerts), len(alerts))
+	}
+	for i, a := range alerts {
+		if d.ValidationAlerts[i] != a {
+			t.Errorf("ValidationAlerts[%d] = %+v, want %+v (server order, verbatim)", i, d.ValidationAlerts[i], a)
+		}
+	}
+	// The cause must NOT enumerate the alerts: it becomes the envelope's `message`,
+	// which has its own dedicated `validation_alerts` key beside it.
+	for _, a := range alerts {
+		if strings.Contains(d.Cause, a.Message) {
+			t.Errorf("Cause enumerates alert %q — the alerts are their own element:\n%s", a.Message, d.Cause)
+		}
+	}
+	// The remedy names no command the caller cannot run: there is no draft-discard
+	// command, so cleanup is the web UI (ADR-5).
+	if strings.Contains(d.NextStep, "proposal discard") || strings.Contains(d.NextStep, "proposal delete") {
+		t.Errorf("NextStep names a command the CLI does not have:\n%s", d.NextStep)
+	}
+}
+
+// The human diagnostic's one multi-line shape (078, interface-cli § "stderr —
+// human formats"): the alert lines sit between the cause and the next step, in the
+// server's order, two-space indented as "<severity> <path>: <message>".
+func TestRenderDiagnostic_InvalidCreate_AlertLinesBetweenCauseAndNextStep(t *testing.T) {
+	d := Diagnose(&invalidCreateError{
+		ProposalID: "prp_0123",
+		Alerts: []glassfrog.ValidationAlert{
+			{Severity: "error", Path: "name", Message: "Can't update the Cloud Foundations role during this meeting."},
+			{Severity: "warning", Path: "changes/0", Message: "Second."},
+		},
+	})
+	want := "the server accepted the create but reports proposal prp_0123 not valid (read back after the create)\n" +
+		"  error name: Can't update the Cloud Foundations role during this meeting.\n" +
+		"  warning changes/0: Second.\n" +
+		` — review the alerts, check "glassfrog proposal grammar" for documented invalid shapes, and create a corrected proposal from the same tension; the invalid draft can be deleted in the GlassFrog web UI`
+	if got := renderDiagnostic(d); got != want {
+		t.Errorf("renderDiagnostic mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
+// An invalid draft the server attached NO alerts to renders exactly as every other
+// single-line failure does: "cause — next step", with no alert block and no stray
+// blank line. Both no-alert decode shapes are covered — a nil slice (the key was
+// absent) and a non-nil empty slice (the server stated an empty list) — because the
+// model distinguishes them and the rendering must not.
+func TestRenderDiagnostic_InvalidCreate_NoAlertsStaysSingleLine(t *testing.T) {
+	want := "the server accepted the create but reports proposal prp_0123 not valid (read back after the create)" +
+		` — review the alerts, check "glassfrog proposal grammar" for documented invalid shapes, and create a corrected proposal from the same tension; the invalid draft can be deleted in the GlassFrog web UI`
+	for name, alerts := range map[string][]glassfrog.ValidationAlert{
+		"nil-slice-absent-key": nil,
+		"empty-slice-stated":   {},
+	} {
+		got := renderDiagnostic(Diagnose(&invalidCreateError{ProposalID: "prp_0123", Alerts: alerts}))
+		if got != want {
+			t.Errorf("[%s] renderDiagnostic mismatch\n got: %q\nwant: %q", name, got, want)
+		}
+		if strings.Contains(got, "\n") {
+			t.Errorf("[%s] the no-alert diagnostic must be a single line:\n%q", name, got)
+		}
 	}
 }
