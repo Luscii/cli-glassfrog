@@ -186,3 +186,36 @@ Fix via `/score:implement`, then re-validate. Suggested grouping — one commit,
 Both are prose-only; the existing test suite should remain green without modification, which is itself worth confirming rather than assuming.
 
 **Note for the next cycle**: this round's independence was compromised (same context implemented and validated). If a second round runs, consider invoking it from a fresh session, or via the `score:guardian-agent` subagent, so the `@validation` scenarios recover their held-out property.
+
+---
+
+## Resolution of Round-1 Findings
+
+Applied after this round's verdict, before the PR. **This is a record of the fix, not a round-2 verdict** — no second validation pass has been run, and the independence caveat above still stands for everything this document asserts.
+
+### F-1 — resolved
+
+All three sites now lead with the mechanism rather than a range, so the next exchange-derived code is covered without an edit:
+
+- `internal/cli/proposal_grammar.go` — *"Every exit code that requires an exchange is unproducible here by construction: this command sends no request and creates nothing…"*, followed by the current set (`3–8`, naming `invalid-create`) and an explicit statement that the rule is the absent request path, not the list. The "nothing here can produce…" clause gained the accepted-but-invalid create.
+- `docs/reference/change-set-grammar.md` — heading claim rephrased the same way; `InvalidCreate` (8) joins the explicit category list, whose existing *"all require a request"* mechanism already covered it.
+- `docs/reference/proposals.md` — the incomplete *"`3`–`6` and `8`"* replaced by *"every exchange-derived code — `3`–`8`"*, which closes the omission of `7` that this round found. (`0`, `2`, and `1` also normalized to `0`, `1`, `2`.)
+
+The three sites now agree in form and in content.
+
+### F-2 — resolved
+
+All five comments were re-derived to describe the mechanism instead of enumerating members, since any enumeration would go stale on the next outcome:
+
+- `internal/cli/dispatch.go` (type doc) — *"generalizes it to EVERY operational category a resolved action classifies into … with no per-category enrolment here"*; the *"(3/6)"* code pair replaced by *"that category's own code"*.
+- `internal/cli/dispatch.go` (unwrap arm) — the *"(APIError, NetworkUnavailable)"* parenthetical removed; the comment now states the arm is category-agnostic on purpose and that a new Outcome needs no edit there.
+- `internal/cli/me.go` (`outcomeToDispatchError` doc) — *"EVERY other category — the operational ones, whichever they are"*, naming the `default:` arm as what makes the mapping total.
+
+### Verification
+
+- `grep` for both finding families (`3/6`, `APIError, NetworkUnavailable`, `codes 3–6`/`3–7`, `Exit codes 3–7`) across `internal/`, `docs/`, and `plugin/` returns nothing.
+- `gofmt -l .` clean, `go vet ./...` clean, `go test -count=1 ./...` green — confirmed rather than assumed, since both fixes were prose-only and the suite should have been unaffected.
+
+### Still open
+
+A round-2 validation from a context that did not implement the feature. The four `@validation` scenarios remain un-held-out for round 1, and re-running from a fresh session (or via the `score:guardian-agent` subagent) is the only way to recover that property.

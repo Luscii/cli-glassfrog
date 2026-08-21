@@ -227,10 +227,12 @@ is nothing to paginate.
 Usage errors follow every command's existing conduct: the cause and a help pointer
 go to stderr, stdout stays empty, and no diagnostic ever includes the token.
 
-**Exit codes 3–7 are unproducible by this command.** That is a contract fact, not
-an aspiration: `APIError` (3), `PermissionError` (4), `RateLimited` (5),
-`NetworkUnavailable` (6), and `StaleWrite` (7) all require a request, and no
-request path exists here.
+**Every exit code that requires an exchange is unproducible by this command.** That
+is a contract fact, not an aspiration: `APIError` (3), `PermissionError` (4),
+`RateLimited` (5), `NetworkUnavailable` (6), `StaleWrite` (7), and `InvalidCreate`
+(8) all require a request, and no request path exists here. The rule is the absent
+request path rather than the list, so an exchange-derived code added later is
+unproducible here for the same reason.
 
 One clarification about the credential-free conduct: no *credential* is ever read,
 so a garbage token cannot block this command. The credential is stored in

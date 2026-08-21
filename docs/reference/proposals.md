@@ -276,9 +276,9 @@ the shared convention.
 | Could not reach the wire | NetworkUnavailable | 6 |
 | `create` only: the server accepted the create and reports the created draft not valid | InvalidCreate | 8 |
 
-The table above covers the six API leaves. `grammar` can produce only `0`, `2`,
-and `1`; codes `3`–`6` and `8` are unproducible for it because it issues no
-request. Code `8` is reachable from `create` alone: it is the one outcome that
+The table above covers the six API leaves. `grammar` can produce only `0`, `1`, and
+`2`; every exchange-derived code — `3`–`8` — is unproducible for it because it
+issues no request. Code `8` is reachable from `create` alone: it is the one outcome that
 follows a write the server *accepted*, so no read and no other write verb has a
 state it could describe.
 
