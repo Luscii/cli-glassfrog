@@ -23,13 +23,21 @@ import (
 // this spec's feature file, so the suite reports its own scenario count and
 // cannot disturb another suite. The 4 @validation scenarios stay @wip (held for
 // the validate skill) and are skipped by the ~@wip filter.
+//
+// ~@deprecated is the second filter, added by Invalid-Create Outcome (078): four
+// scenarios here describe the intermediate state in which an accepted-but-invalid
+// create still exited 0, and 078 makes that a failure with exit 8. Their
+// @deprecate tag was inert until now — nothing in the repo read it — so the tag
+// finally carries the exclusion its documented lifecycle already promised, in the
+// same commit as the behaviour that supersedes them. The superseding scenarios
+// live in invalid-create-outcome.feature.
 func TestPostCreateValidityReadFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: initializePostCreateValidityScenario,
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"../../features/success-reported-for-a-dead-proposal/post-create-validity-read.feature"},
-			Tags:     "~@wip",
+			Tags:     "~@wip && ~@deprecated",
 			TestingT: t,
 		},
 	}
@@ -69,6 +77,8 @@ type postCreateValidityWorld struct {
 
 	wantAlertMessage string // the server alert message a Given stashed
 	wantStatus       string // the server-given status a Given stashed
+	wantValidity     string // the validity token the read-back Given implies ("valid" / "not valid")
+	wantAlertCount   int    // how many alerts that Given attached
 
 	outcome  Outcome
 	exitCode int
@@ -162,6 +172,7 @@ func (w *postCreateValidityWorld) readsBackValidNoAlerts() error {
 
 func (w *postCreateValidityWorld) readsBackNotValidWithAlertNoTransitions(message string) error {
 	w.wantAlertMessage = message
+	w.wantValidity, w.wantAlertCount = "not valid", 1
 	alerts := fmt.Sprintf(`"valid":false,"validation_alerts":[{"severity":"error","path":"name","message":%q}],`, message)
 	w.readStep = proposalSeqStep{status: 200, body: readBackBodyWith("draft", alerts, `[]`)}
 	return nil
@@ -189,6 +200,7 @@ func (w *postCreateValidityWorld) readsBackWithStatusAndValid(status string) err
 
 func (w *postCreateValidityWorld) readsBackValidWithAlertSeverity(severity string) error {
 	w.wantAlertMessage = "advisory only"
+	w.wantValidity, w.wantAlertCount = "valid", 1
 	alerts := fmt.Sprintf(`"valid":true,"validation_alerts":[{"severity":%q,"path":"changes[0]","message":"advisory only"}],`, severity)
 	w.readStep = proposalSeqStep{status: 200, body: readBackBodyWith("draft", alerts, `["propose"]`)}
 	return nil
@@ -592,10 +604,18 @@ func (w *postCreateValidityWorld) compactCarriesIDStatusCount() error {
 	return nil
 }
 
+// compactCarriesValidityAndAlertCount reads the expected token and count from what
+// the read-back Given set up, rather than hard-coding one scenario's verdict: the
+// same step text is used by scenarios whose draft is valid and whose draft is not,
+// so a hard-coded "not valid" would assert the wrong thing for half of them.
 func (w *postCreateValidityWorld) compactCarriesValidityAndAlertCount() error {
+	if w.wantValidity == "" {
+		return fmt.Errorf("no read-back verdict was set up by the Given")
+	}
 	line := strings.TrimRight(w.stdout, "\n")
-	if !strings.Contains(line, "not valid (1 alert)") {
-		return fmt.Errorf("the compact line should carry the validity token and the alert count: %q", line)
+	want := fmt.Sprintf("%s (%d alert", w.wantValidity, w.wantAlertCount)
+	if !strings.Contains(line, want) {
+		return fmt.Errorf("the compact line should carry the validity token and the alert count (%q): %q", want, line)
 	}
 	return nil
 }

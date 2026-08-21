@@ -174,7 +174,15 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 		// today, and the structured advisory below states the verdict was
 		// unobtainable and why. Either way stdout carries ONE verbatim server
 		// document, no composed envelope, no CLI-added keys.
-		_, readBackRaw, reason := readBackProposalVerdict(cfg.reqCtx, exec, id)
+		readBack, readBackRaw, reason := readBackProposalVerdict(cfg.reqCtx, exec, id)
+		// The decoded proposal is bound (not discarded) purely for the verdict
+		// check: the verdict cannot be lifted from the create's own POST document,
+		// which 074 established is not a verified carrier of the verdict fields —
+		// reading created.Data.Valid would find nil and the check would silently
+		// never fire. The raw bytes are still what gets emitted (018).
+		if invalidCreateFired(reason, readBack) {
+			return reportFailure(cfg.stdout, cfg.stderr, rt.format, &invalidCreateError{ProposalID: id, Alerts: readBack.ValidationAlerts})
+		}
 		emit := raw
 		if reason == "" && readBackRaw != nil {
 			emit = readBackRaw
@@ -205,6 +213,9 @@ func runProposalCreate(cfg proposalCreateConfig) (Outcome, error) {
 	//    and status are verdict dimensions read at the same instant as the flag,
 	//    and the detail read is the surface verified to carry the verdict fields.
 	readBack, _, reason := readBackProposalVerdict(cfg.reqCtx, exec, doc.Data.ID)
+	if invalidCreateFired(reason, readBack) {
+		return reportFailure(cfg.stdout, cfg.stderr, rt.format, &invalidCreateError{ProposalID: doc.Data.ID, Alerts: readBack.ValidationAlerts})
+	}
 	verdict := render.NewProposalVerdict(readBack.Valid, readBack.ValidationAlerts, reason, doc.Data.ID)
 	proposal := doc.Data
 	if reason == "" {
@@ -320,6 +331,19 @@ func writeMachineVerdictAdvisory(stderr io.Writer, f output.Format, v verdictSou
 // malformed id one opaque segment.
 //
 // Returns (proposal, raw, reason): reason is empty when the read-back answered.
+// invalidCreateFired reports the one trigger of the invalid-create failure (078):
+// the read-back ANSWERED (no unavailable reason) and the server stated an explicit
+// unfavourable verdict. The *bool's nil-vs-false distinction is load-bearing (074
+// ADR-3) — a nil Valid means the server stated no verdict, which stays a success,
+// as does a read-back that never answered. Nothing else trips it: not the status,
+// not the transition set, not the presence of alerts (a valid draft carrying alerts
+// is the valid state), not the change-set shape. It lives here, called from both
+// render branches, so the two can never drift apart on the condition — and so
+// "what raises this failure" has exactly one place to be read.
+func invalidCreateFired(unavailableReason string, readBack glassfrog.Proposal) bool {
+	return unavailableReason == "" && readBack.Valid != nil && !*readBack.Valid
+}
+
 func readBackProposalVerdict(ctx context.Context, exec executor, id string) (glassfrog.Proposal, json.RawMessage, string) {
 	if id == "" {
 		return glassfrog.Proposal{}, nil, "the created proposal's id could not be determined"

@@ -18,6 +18,13 @@ import (
 // proposalReadBackBody is a representative getProposal 200 body: the same
 // {data: Proposal} shape as the create's 201, but carrying the two undeclared
 // verdict fields (valid, validation_alerts) the read-back exists to obtain.
+//
+// NOTE (078): its verdict is `valid: false`, so as a CREATE read-back it is now
+// the body that FAILS the command with exit 8 — it is no longer a stand-in for a
+// generic successful read-back. Tests that want the success path use
+// proposalReadBackValidBody or proposalReadBackValidWithAlertBody below; this one
+// is reserved for the helper's own tests (where no create runs) and for pinning
+// the failure.
 const proposalReadBackBody = `{"data":{"id":"prp_0123","type":"proposal","status":"draft","tension_id":"ten_0123","circle_id":"role_0123","proposer_id":"per_0123","changes":[{"id":"chg_1","type":"CreateRole","name":"Scribe"}],"response_summary":{"total":0,"no_objection":0,"bring_to_meeting":0},"expected_response_count":0,"received_response_count":0,"valid":false,"validation_alerts":[{"severity":"error","path":"name","message":"Can't update the Cloud Foundations role during this meeting."}],"available_transitions":[],"proposed_at":null,"response_deadline":null,"accepted_at":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
 
 // newReadBackExecutor builds the same retrying executor the create hands the
@@ -350,17 +357,35 @@ func (s *proposalSeqTransport) RoundTrip(req *http.Request) (*http.Response, err
 // the same instant.
 const proposalReadBackValidBody = `{"data":{"id":"prp_0123","type":"proposal","status":"draft","tension_id":"ten_0123","circle_id":"role_0123","proposer_id":"per_0123","changes":[{"id":"chg_1","type":"CreateRole","name":"Scribe"}],"response_summary":{"total":0,"no_objection":0,"bring_to_meeting":0},"expected_response_count":0,"received_response_count":0,"valid":true,"validation_alerts":[],"available_transitions":["propose","withdraw"],"proposed_at":null,"response_deadline":null,"accepted_at":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
 
+// proposalReadBackValidWithAlertBody is a favourable read-back that nonetheless
+// carries an alert. It is the *valid* state, not a state of its own (078 ADR-4's
+// counting note), so it succeeds — which is what makes it the fixture for pinning
+// a success-path rendering that includes an alert count, now that the not-valid
+// body fails the create.
+const proposalReadBackValidWithAlertBody = `{"data":{"id":"prp_0123","type":"proposal","status":"draft","tension_id":"ten_0123","circle_id":"role_0123","proposer_id":"per_0123","changes":[{"id":"chg_1","type":"CreateRole","name":"Scribe"}],"response_summary":{"total":0,"no_objection":0,"bring_to_meeting":0},"expected_response_count":0,"received_response_count":0,"valid":true,"validation_alerts":[{"severity":"warning","path":"name","message":"Advisory only."}],"available_transitions":["propose","withdraw"],"proposed_at":null,"response_deadline":null,"accepted_at":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}`
+
 // TestRunProposalCreate_HumanVerdictStates pins the human full path for all four
-// verdict states: each renders its state, exits 0 (Success — the read-back's
-// content or absence never changes the outcome, ADR-2), and writes the stderr
-// advisory derived from the same value in every state.
+// verdict states. Three are successes: each renders its state, exits 0 (the
+// read-back's content or absence never changes the outcome for them, 074 ADR-2),
+// and writes the stderr advisory derived from the same value. The fourth — an
+// explicit `valid: false` — is the invalid-create FAILURE (078): stdout stays
+// empty, stderr carries the diagnostic, no advisory is written, and it exits 8.
+//
+// The loop body branches on wantFailure rather than asserting one shape for every
+// row: the success assertions (validity line, verdict-source line, id on stdout,
+// advisory on stderr) are all false for the failure, so a shared body could not
+// express both — and simply adding an expected-outcome column to a body that
+// Fatalfs on `outcome != Success` and then asserts success-shaped output would
+// still fail.
 func TestRunProposalCreate_HumanVerdictStates(t *testing.T) {
 	cases := []struct {
 		name         string
 		readBack     proposalSeqStep
+		wantFailure  bool
 		wantValidity string
 		wantSource   string
 		wantAdvisory string
+		wantStderr   []string // the failure's diagnostic fragments
 	}{
 		{
 			name:         "valid",
@@ -370,11 +395,14 @@ func TestRunProposalCreate_HumanVerdictStates(t *testing.T) {
 			wantAdvisory: "the validity verdict was read back from proposal prp_0123 after the create",
 		},
 		{
-			name:         "not valid",
-			readBack:     proposalSeqStep{status: 200, body: proposalReadBackBody},
-			wantValidity: "  Validity:       not valid\n",
-			wantSource:   "  Verdict source: read-back of prp_0123 after create\n",
-			wantAdvisory: "the validity verdict was read back from proposal prp_0123 after the create",
+			name:        "not valid",
+			readBack:    proposalSeqStep{status: 200, body: proposalReadBackBody},
+			wantFailure: true,
+			wantStderr: []string{
+				"the server accepted the create but reports proposal prp_0123 not valid (read back after the create)",
+				"  error name: Can't update the Cloud Foundations role during this meeting.",
+				`review the alerts, check "glassfrog proposal grammar" for documented invalid shapes`,
+			},
 		},
 		{
 			name:         "not reported",
@@ -402,8 +430,29 @@ func TestRunProposalCreate_HumanVerdictStates(t *testing.T) {
 				tensionID:    "ten_0123",
 				changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
 			})
+
+			if tc.wantFailure {
+				if outcome != InvalidCreate || ExitCode(outcome) != 8 {
+					t.Fatalf("outcome = %v (exit %d), want InvalidCreate/8\nstderr: %s", outcome, ExitCode(outcome), stderr)
+				}
+				if stdout != "" {
+					t.Errorf("a human-format failure leaves stdout empty, got:\n%s", stdout)
+				}
+				for _, want := range tc.wantStderr {
+					if !strings.Contains(stderr, want) {
+						t.Errorf("stderr missing %q:\n%s", want, stderr)
+					}
+				}
+				// The success-path advisory is not emitted on the failure (078 ADR-4):
+				// kind + proposal_id subsume it.
+				if strings.Contains(stderr, "the validity verdict was read back from proposal") {
+					t.Errorf("no verdict advisory may accompany the failure:\n%s", stderr)
+				}
+				return
+			}
+
 			if outcome != Success {
-				t.Fatalf("outcome = %v, want Success in every verdict state\nstderr: %s", outcome, stderr)
+				t.Fatalf("outcome = %v, want Success in every success verdict state\nstderr: %s", outcome, stderr)
 			}
 			if !strings.Contains(stdout, tc.wantValidity) {
 				t.Errorf("stdout missing %q:\n%s", tc.wantValidity, stdout)
@@ -421,44 +470,59 @@ func TestRunProposalCreate_HumanVerdictStates(t *testing.T) {
 	}
 }
 
-// TestRunProposalCreate_InvalidDraftFullOutput pins the created-but-invalid
-// rendering end to end: the id, the not-valid verdict, the alert with its
-// severity and path, and that no transitions are available — all from the
-// read-back's document, and still exit-code 0 (the sibling Invalid-Create
-// Outcome capability owns turning this into a failure exit).
+// TestRunProposalCreate_InvalidDraftFullOutput pins the created-but-invalid path
+// end to end in the human full format, INVERTED by 078: what used to render as a
+// success document with a not-valid verdict line is now the failure. stdout stays
+// empty, stderr carries the cause naming the created id, the alert with its
+// severity and path, and the remedy — and the command exits 8.
+//
+// The success-shaped rendering this test used to assert (the Validity line, the
+// Alerts block, the Transitions line) is still pinned for the three states that
+// remain successes by TestRunProposalCreate_HumanVerdictStates and the
+// alert-carrying valid fixture below.
 func TestRunProposalCreate_InvalidDraftFullOutput(t *testing.T) {
 	tr := &proposalSeqTransport{steps: []proposalSeqStep{
 		{status: 201, body: proposalCreatedBody},
 		{status: 200, body: proposalReadBackBody},
 	}}
 	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), transport: tr}}
-	outcome, stdout, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
+	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
 		tensionID:    "ten_0123",
 		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
 	})
-	if outcome != Success {
-		t.Fatalf("outcome = %v, want Success", outcome)
+	if outcome != InvalidCreate || ExitCode(outcome) != 8 {
+		t.Fatalf("outcome = %v (exit %d), want InvalidCreate/8\nstderr: %s", outcome, ExitCode(outcome), stderr)
+	}
+	if stdout != "" {
+		t.Errorf("a human-format failure leaves stdout empty, got:\n%s", stdout)
 	}
 	for _, want := range []string{
-		"prp_0123  [draft]",
-		"  Validity:       not valid\n",
-		"  Alerts (1):\n",
-		"    - [error] name: Can't update the Cloud Foundations role during this meeting.\n",
-		"  Transitions:    (none)\n",
+		"the server accepted the create but reports proposal prp_0123 not valid (read back after the create)",
+		"  error name: Can't update the Cloud Foundations role during this meeting.",
+		"create a corrected proposal from the same tension",
 	} {
-		if !strings.Contains(stdout, want) {
-			t.Errorf("stdout missing %q:\n%s", want, stdout)
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr missing %q:\n%s", want, stderr)
 		}
+	}
+	if strings.Contains(stderr, "the validity verdict was read back from proposal") {
+		t.Errorf("no verdict advisory may accompany the failure:\n%s", stderr)
+	}
+	// Exactly the two exchanges: the failure classification issues no third request.
+	if tr.calls != 2 {
+		t.Errorf("the invalid path is exactly two exchanges (POST + one read), got %d", tr.calls)
 	}
 }
 
 // TestRunProposalCreate_CompactCarriesVerdict pins the compact selection: one
-// line carrying the id, status, change count, the compact validity label, and
-// the alert count.
+// line carrying the id, status, change count, the compact validity label, and the
+// alert count. It is driven by a VALID read-back carrying an alert — the valid
+// state, which still succeeds (078 ADR-4's counting note) — because the not-valid
+// body no longer reaches a success rendering at all. The alert count stays covered.
 func TestRunProposalCreate_CompactCarriesVerdict(t *testing.T) {
 	tr := &proposalSeqTransport{steps: []proposalSeqStep{
 		{status: 201, body: proposalCreatedBody},
-		{status: 200, body: proposalReadBackBody},
+		{status: 200, body: proposalReadBackValidWithAlertBody},
 	}}
 	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: "compact", transport: tr}}
 	outcome, stdout, _ := runProposalCreateOver(t, seam, proposalCreateConfig{
@@ -468,9 +532,33 @@ func TestRunProposalCreate_CompactCarriesVerdict(t *testing.T) {
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
-	want := "prp_0123  [draft]  1 change(s)  0 responses  not valid (1 alert)\n"
+	want := "prp_0123  [draft]  1 change(s)  0 responses  valid (1 alert)\n"
 	if stdout != want {
 		t.Errorf("compact line = %q, want %q", stdout, want)
+	}
+}
+
+// TestRunProposalCreate_CompactFailsTheInvalidDraft pins that the compact format
+// fails the invalid create exactly as full does (interface-cli: both human formats
+// render the failure identically) — the compact projection is not consulted at all.
+func TestRunProposalCreate_CompactFailsTheInvalidDraft(t *testing.T) {
+	tr := &proposalSeqTransport{steps: []proposalSeqStep{
+		{status: 201, body: proposalCreatedBody},
+		{status: 200, body: proposalReadBackBody},
+	}}
+	seam := &fakeProposalSeam{fakeMeSeam: &fakeMeSeam{ctx: validMeContext(), envOutput: "compact", transport: tr}}
+	outcome, stdout, stderr := runProposalCreateOver(t, seam, proposalCreateConfig{
+		tensionID:    "ten_0123",
+		changesValue: `[{"type":"CreateRole","name":"Scribe"}]`,
+	})
+	if outcome != InvalidCreate || ExitCode(outcome) != 8 {
+		t.Fatalf("outcome = %v (exit %d), want InvalidCreate/8\nstderr: %s", outcome, ExitCode(outcome), stderr)
+	}
+	if stdout != "" {
+		t.Errorf("compact stdout must stay empty on the failure, got:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "not valid (read back after the create)") {
+		t.Errorf("stderr should carry the same diagnostic the full format renders:\n%s", stderr)
 	}
 }
 
@@ -587,15 +675,18 @@ func machineCreateOver(t *testing.T, format string, steps []proposalSeqStep) (Ou
 // sent them — and the bytes are the fixture's own, never re-marshalled (the
 // document equals what the shared structured renderer produces from the
 // fixture's exact bytes, key order preserved).
+// It is driven by a valid read-back: the verbatim-emission contract governs the
+// SUCCESS outcomes after 078 (its announced narrowing of 074 ADR-5), and the
+// not-valid body now renders the failure envelope instead of any document.
 func TestRunProposalCreate_MachineEmitsReadBackVerbatim(t *testing.T) {
 	outcome, stdout, stderr := machineCreateOver(t, "json", []proposalSeqStep{
 		{status: 201, body: proposalCreatedBody},
-		{status: 200, body: proposalReadBackBody},
+		{status: 200, body: proposalReadBackValidBody},
 	})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
-	want, err := output.RenderSuccess(output.JSON, json.RawMessage(proposalReadBackBody))
+	want, err := output.RenderSuccess(output.JSON, json.RawMessage(proposalReadBackValidBody))
 	if err != nil {
 		t.Fatalf("fixture render: %v", err)
 	}
@@ -623,9 +714,17 @@ func TestRunProposalCreate_MachineEmitsReadBackVerbatim(t *testing.T) {
 }
 
 // TestRunProposalCreate_MachineFourStateTable pins that the four verdict states
-// are distinguishable from stdout's data.valid plus stderr's
-// verdict_source.read_back ALONE — no prose parsing (interface-cli's
-// four-state reading table).
+// are distinguishable in a machine format without prose. The three SUCCESS states
+// are told apart by stdout's data.valid plus stderr's verdict_source.read_back, as
+// 074 landed them. The fourth — an explicit `valid: false` — is now the
+// invalid-create failure (078): stdout carries the failure envelope instead of a
+// server document, and no advisory is written, so it is told apart by exit 8 and
+// its envelope's kind. That is a stronger distinction than the one it replaced,
+// not a weaker one.
+//
+// The loop body branches on wantFailure because the failure's stdout is not a
+// {data: …} document at all: decoding it as one and looking for data.valid is
+// meaningless, so the shared assertions cannot cover both shapes.
 func TestRunProposalCreate_MachineFourStateTable(t *testing.T) {
 	type parsed struct {
 		validPresent bool
@@ -634,14 +733,15 @@ func TestRunProposalCreate_MachineFourStateTable(t *testing.T) {
 		hasReason    bool
 	}
 	cases := []struct {
-		name     string
-		readBack proposalSeqStep
-		want     parsed
+		name        string
+		readBack    proposalSeqStep
+		wantFailure bool
+		want        parsed
 	}{
 		{name: "valid", readBack: proposalSeqStep{status: 200, body: proposalReadBackValidBody},
 			want: parsed{validPresent: true, validValue: true, readBack: true}},
 		{name: "not valid", readBack: proposalSeqStep{status: 200, body: proposalReadBackBody},
-			want: parsed{validPresent: true, validValue: false, readBack: true}},
+			wantFailure: true},
 		{name: "not reported", readBack: proposalSeqStep{status: 200, body: proposalCreatedBody},
 			want: parsed{readBack: true}},
 		{name: "unavailable", readBack: proposalSeqStep{netErr: errors.New("network unreachable")},
@@ -653,8 +753,37 @@ func TestRunProposalCreate_MachineFourStateTable(t *testing.T) {
 				{status: 201, body: proposalCreatedBody},
 				tc.readBack,
 			})
+
+			if tc.wantFailure {
+				if outcome != InvalidCreate || ExitCode(outcome) != 8 {
+					t.Fatalf("outcome = %v (exit %d), want InvalidCreate/8\nstderr: %s", outcome, ExitCode(outcome), stderr)
+				}
+				var env struct {
+					Error struct {
+						Kind       string            `json:"kind"`
+						ProposalID string            `json:"proposal_id"`
+						Alerts     []json.RawMessage `json:"validation_alerts"`
+					} `json:"error"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &env); err != nil {
+					t.Fatalf("stdout must be the failure envelope: %v\n%s", err, stdout)
+				}
+				if env.Error.Kind != "invalid-create" || env.Error.ProposalID != "prp_0123" || len(env.Error.Alerts) != 1 {
+					t.Errorf("envelope = %+v, want kind invalid-create with the id and one alert", env.Error)
+				}
+				// No server document rides stdout beside the envelope, and no
+				// success-path advisory rides stderr (078 ADR-4).
+				if strings.Contains(stdout, `"data"`) {
+					t.Errorf("no server proposal document may be emitted on the failure:\n%s", stdout)
+				}
+				if strings.Contains(stderr, "verdict_source") {
+					t.Errorf("no verdict advisory may accompany the failure:\n%s", stderr)
+				}
+				return
+			}
+
 			if outcome != Success {
-				t.Fatalf("outcome = %v, want Success in every verdict state", outcome)
+				t.Fatalf("outcome = %v, want Success in every success verdict state", outcome)
 			}
 			var doc struct {
 				Data map[string]json.RawMessage `json:"data"`
@@ -779,16 +908,18 @@ func TestRunProposalCreate_MachineNoIDNoReadBack(t *testing.T) {
 }
 
 // TestRunProposalCreate_MachineYAML pins the yaml selection: the emitted stdout
-// document and the stderr advisory are both rendered in the selected format.
+// document and the stderr advisory are both rendered in the selected format. It
+// is driven by a valid read-back — the advisory is a success-path artifact and is
+// not written on the invalid-create failure (078 ADR-4).
 func TestRunProposalCreate_MachineYAML(t *testing.T) {
 	outcome, stdout, stderr := machineCreateOver(t, "yaml", []proposalSeqStep{
 		{status: 201, body: proposalCreatedBody},
-		{status: 200, body: proposalReadBackBody},
+		{status: 200, body: proposalReadBackValidBody},
 	})
 	if outcome != Success {
 		t.Fatalf("outcome = %v, want Success", outcome)
 	}
-	want, err := output.RenderSuccess(output.YAML, json.RawMessage(proposalReadBackBody))
+	want, err := output.RenderSuccess(output.YAML, json.RawMessage(proposalReadBackValidBody))
 	if err != nil {
 		t.Fatalf("fixture render: %v", err)
 	}
