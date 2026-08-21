@@ -67,6 +67,13 @@ anchor tension's `ten_` id and the intended change:
    **Proposal Circulation Path**. Advancing or withdrawing the proposal is that
    path's job; recording a response is the response side's. Neither is this one's.
 
+A create can also **fail because the server judged the draft invalid** — the write
+was accepted and the draft it produced can never move forward. That is a distinct
+failure, not a rejected create: the failure carries the created draft's `prp_` id
+and the server's validation alerts. Do not re-run the same change set. Read the
+alerts, revise, and create a new proposal from the same anchor tension; the dead
+draft stays behind under the id the failure names.
+
 For the exact flags of any one command, ask the CLI:
 `glassfrog proposal <sub> --help` and `glassfrog tension get --help`.
 

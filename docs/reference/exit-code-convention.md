@@ -32,14 +32,22 @@ The published, frozen category ↔ code registry:
 | `5` | Rate-limited | The API reported the rate limit was exceeded (429). | API Error Extraction (015) onward |
 | `6` | Network-unavailable | The API could not be reached at all (connection, DNS, or timeout). | Identity Read (011) onward |
 | `7` | Stale write | A guarded write was refused because the resource changed since it was read (412). | Stale-Write Surfacing (054) onward |
+| `8` | Invalid create | The server accepted a create and then reported the created object not valid — the write completed and its result is dead. Classified by the server's own stated verdict, never by a status. | Invalid-Create Outcome (078) onward |
 
 All codes are **produced today**: `0`/`1`/`2` by Argument Dispatch and the panic
 safety net; `3` and `6` since Identity Read (011) added the request pipeline;
 `4` and `5` since API Error Extraction (015) split 401/403 and 429 out of the
-generic API error; and `7` since Stale-Write Surfacing (054) branched the 412
-out. Code `7` is the first beyond the originally-published `0`–`6` band, added
+generic API error; `7` since Stale-Write Surfacing (054) branched the 412
+out; and `8` since Invalid-Create Outcome (078) carved the server-stated
+`not valid` verdict out of the create's success. Code `7` is the first beyond
+the originally-published `0`–`6` band, and `8` followed it — both added
 under the stable-extension rule below — a new category takes the next unused
 code, never a renumber, so a consumer's existing branch on `$?` keeps its meaning.
+
+Code `8` is the one category that is **not** an exchange failure: both the create
+and the read-back that produced the verdict succeeded. See [How failures are
+reported](../explanation/how-failures-are-reported.md) for the failure document it
+renders, which carries the created object's id and the server's validation alerts.
 
 ## Reading the result
 
@@ -91,5 +99,6 @@ esac
   codes](../guides/how-to-read-exit-codes.md).
 - Upstream producers today: Argument Dispatch (`Success`/`UsageError`/`RuntimeError`),
   the panic-recover safety net, the request pipeline and API Error Extraction
-  (`APIError`/`PermissionError`/`RateLimited`/`NetworkUnavailable`), and
-  Stale-Write Surfacing (`StaleWrite`).
+  (`APIError`/`PermissionError`/`RateLimited`/`NetworkUnavailable`),
+  Stale-Write Surfacing (`StaleWrite`), and Invalid-Create Outcome
+  (`InvalidCreate`).

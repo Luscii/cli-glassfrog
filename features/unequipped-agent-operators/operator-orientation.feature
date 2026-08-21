@@ -42,7 +42,7 @@ Feature: Operator Orientation
     Scenario: React to a non-zero exit code
       Given a glassfrog command had just exited with a non-zero code
       When the agent consults the orientation for that exit code
-      Then the orientation will state the meaning of each code in the 0–7 convention
+      Then the orientation will state the meaning of each code in the 0–8 convention
       And it will state the appropriate reaction for the code received
 
     # Source: 062-operator-orientation — Scenario: Missing credentials
