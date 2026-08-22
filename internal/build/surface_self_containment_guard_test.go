@@ -55,7 +55,7 @@ var knownSafeTokens = []string{
 	"the role_0789 anchor",
 	"version 0.34.1 of the plugin",
 	"exit code 7 is the stale-write refusal",
-	"exit codes 0–7 cover every outcome",
+	"exit codes 0–8 cover every outcome",
 	"walk with --per-page 500",
 	"the v5 spec carries the enum",
 	"the published specification speaks here",

@@ -28,15 +28,16 @@ releases — so a branch you write today keeps its meaning.
 | `0` | Success — the command did its work, or a help/listing/`--version` was shown | Continue |
 | `1` | Internal error — the command's action failed, or an unexpected crash | Treat as a bug / unexpected failure; check stderr |
 | `2` | Usage error — unknown command, or an unknown/missing flag or argument; nothing ran | Fix the invocation |
-| `3` | API error not covered by a more specific category *(reserved — see note)* | Inspect and report |
-| `4` | Permission / authorization error — the API rejected your auth or membership (incl. premium-gated) *(reserved)* | Escalate / check access |
-| `5` | Rate-limited — the API's rate limit was exceeded *(reserved)* | Back off and retry later |
-| `6` | Network-unavailable — the API couldn't be reached (connection, DNS, or timeout) *(reserved)* | Retry / check connectivity |
+| `3` | API error not covered by a more specific category | Inspect and report |
+| `4` | Permission / authorization error — the API rejected your auth or membership (incl. premium-gated) | Escalate / check access |
+| `5` | Rate-limited — the API's rate limit was exceeded | Back off and retry later |
+| `6` | Network-unavailable — the API couldn't be reached (connection, DNS, or timeout) | Retry / check connectivity |
+| `7` | Stale write — a guarded write was refused because the resource changed since it was read (412) | Re-read the resource, re-confirm the change, then re-submit |
+| `8` | Invalid create — the server accepted the write, then reported the object it created not valid | Don't retry the same input. Read the validation alerts on stderr, revise, and create a new one; the failure names the created id |
 
-> **Reserved codes (`3`–`6`):** these are published now so you can write a
-> complete branch today, but no command produces them yet — the CLI has no API
-> client in this slice. They begin to appear once API-backed commands exist.
-> Codes `0`, `1`, and `2` are produced today.
+> Every code above is **produced today**. Codes `0`, `1`, and `2` come from the
+> CLI itself; `3`–`6` arrived with the API-backed commands; `7` with the guarded
+> writes; and `8` with the create that reads its result back.
 
 A few guarantees worth relying on:
 

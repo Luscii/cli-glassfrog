@@ -64,7 +64,7 @@ each command — confirm support and spelling with `glassfrog <command> --help`.
 ## Exit codes and how to react
 
 Every invocation sets a process exit code you should read from `$?`. The
-convention is a fixed range, 0–7. A non-zero code is the CLI telling you *what
+convention is a fixed range, 0–8. A non-zero code is the CLI telling you *what
 kind* of thing went wrong, which determines the right reaction — react to the
 code, don't re-parse the message:
 
@@ -78,6 +78,7 @@ code, don't re-parse the message:
 | `5` | Rate limited — the API rate limit was exceeded (429). | Back off and retry later. The CLI already retries 429 internally; exit `5` means it gave up — wait longer. |
 | `6` | Network unavailable — the API could not be reached at the wire (connection/DNS/TLS/timeout). | Check connectivity and retry; the request never reached the API. |
 | `7` | Stale write — a guarded write was refused because the resource changed since it was read (412). | Do **not** blind-retry. Re-read the resource, re-confirm the change still makes sense, then re-submit. See [Write-safety](#write-safety). |
+| `8` | Invalid create — the server accepted the write, then reported the object it created not valid. The write happened and its result is dead. | Do **not** blind-retry the same change set. Read the validation alerts the failure carries, revise, and create a new one; the failure also carries the created id so you can find what was left behind. |
 
 ## Credentials
 

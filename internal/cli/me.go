@@ -339,9 +339,10 @@ func newMeCommand(seam meSeam) *cobra.Command {
 // outcomeToDispatchError maps a code-free Outcome onto the error channel dispatch
 // reads (the runLogin pattern, extended): Success → nil; UsageError →
 // *commandUsageError (→ code 2); RuntimeError → the error as-is (dispatch's
-// catch-all → code 1); the operational categories (APIError, NetworkUnavailable)
-// → *outcomeError carrying the category so Exit-Code Convention maps them to 3/6
-// rather than collapsing to 1.
+// catch-all → code 1); and EVERY other category — the operational ones, whichever
+// they are — → *outcomeError carrying the category, so Exit-Code Convention maps it
+// to that category's own code rather than collapsing to 1. The default arm is what
+// makes this total: a newly added Outcome routes correctly with no edit here.
 func outcomeToDispatchError(outcome Outcome, err error) error {
 	switch outcome {
 	case Success:

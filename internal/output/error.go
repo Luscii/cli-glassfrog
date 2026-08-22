@@ -18,11 +18,12 @@ type ErrorEnvelope struct {
 	Error ErrorDetail `json:"error"`
 }
 
-// ErrorDetail carries the failure facts. NextStep, Feature, Status, and Body are
-// omitempty so a failure that lacks any of them shares the exact top-level shape of
+// ErrorDetail carries the failure facts. NextStep, Feature, Status, Body,
+// ProposalID, and ValidationAlerts are omitempty so a failure that lacks any of
+// them shares the exact top-level shape of
 // one that carries them — the fields that do not apply are absent, never null-keyed
 // or renamed. The struct field declaration order is message → next_step → feature →
-// kind → status → body: the JSON render preserves it (encoding/json emits struct fields in
+// kind → status → body → proposal_id → validation_alerts: the JSON render preserves it (encoding/json emits struct fields in
 // declaration order), but the YAML render does NOT guarantee key order — JSONToYAML
 // round-trips through a map, so RenderError emits YAML keys alphabetically. Don't
 // rely on YAML key order; rely on the keys themselves.
@@ -44,13 +45,43 @@ type ErrorDetail struct {
 	// Diagnostic's carried gate, keeping this package classification-free.
 	Feature string `json:"feature,omitempty"`
 	// Kind is the lowercased taxonomy term (always present): usage / runtime /
-	// network / api (plus the 015-widened permission / rate-limit).
+	// network / api (plus the 015-widened permission / rate-limit, the 054-added
+	// stale-write, and the 078-added invalid-create).
 	Kind string `json:"kind"`
 	// Status is the HTTP status, present only for a non-2xx response.
 	Status int `json:"status,omitempty"`
 	// Body is the raw API error body verbatim, present only when the API returned
 	// one. It nests as structured data (object/array), not a quoted JSON string.
 	Body json.RawMessage `json:"body,omitempty"`
+	// ProposalID is the created draft's id on an invalid-create failure (078) —
+	// the failure of a write the server ACCEPTED, so unlike every other failure
+	// there is an object to name. omitempty so every other failure renders no key.
+	// Declared here (018's home) but populated in internal/cli's errorEnvelopeFor
+	// from the Diagnostic's carried id, keeping this package classification-free.
+	ProposalID string `json:"proposal_id,omitempty"`
+	// ValidationAlerts are the alerts the server attached to the invalid draft
+	// (078), carried as their own parseable key rather than enumerated in message.
+	// omitempty so every other failure renders no key — and so an invalid draft the
+	// server attached NO alerts to renders no key either: a zero-length slice is
+	// omitted, never emitted as `[]`, so nothing may promise an empty array.
+	// Declared here (018's home), populated in internal/cli's errorEnvelopeFor.
+	ValidationAlerts []ValidationAlert `json:"validation_alerts,omitempty"`
+}
+
+// ValidationAlert is one entry of an invalid-create failure's validation_alerts
+// (078 ADR-3). It mirrors the server's own three key spellings so an agent that
+// already parses the success document's alerts parses these identically — but it
+// is a NEUTRAL declaration: internal/output must import no model and no transport
+// package (018's invariant), so internal/cli — the one package importing both —
+// copies the model's alerts into these three strings in errorEnvelopeFor.
+//
+// All three fields are omitempty: the success path emits the server's document
+// verbatim, so a key the server omitted must stay omitted here too rather than
+// being reconstructed as "" (CONSTITUTION VIII — invent nothing).
+type ValidationAlert struct {
+	Severity string `json:"severity,omitempty"`
+	Path     string `json:"path,omitempty"`
+	Message  string `json:"message,omitempty"`
 }
 
 // RenderError renders env in f with a complete document or a render error, never

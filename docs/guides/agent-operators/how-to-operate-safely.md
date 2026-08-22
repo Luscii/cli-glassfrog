@@ -59,7 +59,7 @@ further results exist. Drop `--first-page` to fetch everything again; use
 
 ## 4. React to exit codes, not messages
 
-Every invocation sets a process exit code in `$?`, in the fixed `0`–`7`
+Every invocation sets a process exit code in `$?`, in the fixed `0`–`8`
 convention. React to the *code* — it tells you what kind of thing went wrong —
 rather than re-parsing the message:
 
@@ -73,6 +73,7 @@ rather than re-parsing the message:
 | `5` | Rate limited (429) | Back off and retry later — the CLI already retried; exit `5` means it gave up. |
 | `6` | Network unavailable | Check connectivity and retry; the request never reached the API. |
 | `7` | Stale write (412) | Do **not** blind-retry — re-read, re-confirm, then re-submit (step 7). |
+| `8` | Invalid create — the write was accepted, the object it created is not valid | Do **not** blind-retry the same input. Read the validation alerts in the failure, revise, and create a new one; the failure names the created id. |
 
 See the [Exit-Code Convention reference](../../reference/exit-code-convention.md) and [How to read exit codes](../how-to-read-exit-codes.md) for the full mapping.
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/output"
 	"github.com/Luscii/cli-glassfrog/internal/rcfile"
 	"github.com/Luscii/cli-glassfrog/internal/render"
@@ -37,6 +38,54 @@ type Diagnostic struct {
 	// surfaces it as its own parseable element (errorEnvelopeFor). It never
 	// changes the Category or the exit code.
 	Feature string
+	// ProposalID is the created draft's prp_ id on an invalid-create failure
+	// (078), or "" otherwise — the Feature pattern above, applied to the second
+	// family that carries a fact of its own. Never withheld on that failure: it
+	// is the handle the caller needs to find what the dead write left behind.
+	ProposalID string
+	// ValidationAlerts are the alerts the server attached to the invalid draft
+	// (078), in the server's own order, or nil for every other failure. They are
+	// carried as their own element rather than folded into Cause: Cause becomes
+	// the envelope's `message`, and enumerating them there would duplicate the
+	// dedicated `validation_alerts` key. A nil/empty slice is the honest "the
+	// server attached none" — an invalid draft with no alerts still fails.
+	ValidationAlerts []glassfrog.ValidationAlert
+}
+
+// invalidCreateError is the typed failure value `glassfrog proposal create`
+// raises when the server accepted the create and the read-back reported the
+// created draft not valid (078 ADR-2). It is deliberately an error for a
+// COMPLETED exchange — both the POST and the read-back succeeded — so that the
+// failure travels 031's single Diagnose chain and 032's single format-aware
+// render chokepoint instead of growing a second classification site. That
+// oddity is confined to this seam; nothing outside internal/cli sees it.
+//
+// Error() is token-free (it names only the created id, which is response-side),
+// so the fail-safe arm at the bottom of Diagnose would still surface a safe
+// message if this type's own arm were ever removed.
+type invalidCreateError struct {
+	ProposalID string
+	Alerts     []glassfrog.ValidationAlert
+}
+
+func (e *invalidCreateError) Error() string {
+	return fmt.Sprintf("the created proposal %s is not valid", e.ProposalID)
+}
+
+// invalidCreateCause names the verdict and its provenance (078 ADR-5): the
+// server accepted the write, and the not-valid verdict came from reading the
+// created draft back — not from the create's own response. Token-free, and it
+// deliberately does NOT enumerate the alerts; those are their own element.
+func invalidCreateCause(id string) string {
+	return fmt.Sprintf("the server accepted the create but reports proposal %s not valid (read back after the create)", id)
+}
+
+// invalidCreateNextStep is the remedy (078 ADR-5), built around what the CLI can
+// and cannot do: there is no draft-discard command, so it names the web UI for
+// cleanup rather than a command the caller cannot run, and it points at the
+// grammar reference for the accepted-but-invalid shapes that are documented.
+func invalidCreateNextStep() string {
+	return `review the alerts, check "glassfrog proposal grammar" for documented invalid shapes, and create a corrected proposal from the same tension; the invalid draft can be deleted in the GlassFrog web UI`
 }
 
 // Diagnose is the single, total normalizer for an API-client error: one
@@ -61,9 +110,25 @@ type Diagnostic struct {
 // arm precedes the bare *ResponseError arm because a *ProblemError wraps (Unwrap
 // → *ResponseError); both branch on the same status, so the category is
 // identical and only the cause's richness differs.
+//
+// The *invalidCreateError arm (078) sits first because its placement is free: the
+// type wraps nothing and is wrapped by nothing, so no other arm can shadow it and
+// it can shadow no other arm. It reads first because it is the one family that is
+// not an exchange failure at all.
 func Diagnose(err error) Diagnostic {
 	if err == nil {
 		return Diagnostic{Category: Success}
+	}
+
+	var invalidCreateErr *invalidCreateError
+	if errors.As(err, &invalidCreateErr) {
+		return Diagnostic{
+			Category:         InvalidCreate,
+			Cause:            invalidCreateCause(invalidCreateErr.ProposalID),
+			NextStep:         invalidCreateNextStep(),
+			ProposalID:       invalidCreateErr.ProposalID,
+			ValidationAlerts: invalidCreateErr.Alerts,
+		}
 	}
 
 	var authErr *apiclient.AuthError
@@ -327,9 +392,37 @@ func problemCause(problemErr *apiclient.ProblemError) string {
 // so the stderr surface does not drift. (032 will render the structured
 // Diagnostic per --output instead of calling this; renderDiagnostic is the
 // human-format fallback until then.)
+//
+// Invalid-Create Outcome (078) adds the one multi-line shape: when the Diagnostic
+// carries validation alerts, each renders on its own two-space-indented
+// "<severity> <path>: <message>" line between the cause and the next step
+// (interface-cli § "stderr — human formats"), in the server's order. Keeping them
+// out of Cause is what stops them being duplicated into the machine envelope's
+// `message`, which is Cause verbatim. A failure carrying no alerts — which is
+// every other family, and an invalid draft the server attached none to — renders
+// the single-line "cause — next step" form exactly as before: no alert block, no
+// stray blank line.
+//
+// A strings.Builder rather than repeated concatenation: the alert count is
+// server-controlled and unbounded, and `line += …` per alert reallocates, so the
+// copying is quadratic in the number of alerts. It also reads better — one exit
+// instead of three.
 func renderDiagnostic(d Diagnostic) string {
-	if d.NextStep == "" {
-		return d.Cause
+	var b strings.Builder
+	b.WriteString(d.Cause)
+	for _, a := range d.ValidationAlerts {
+		fmt.Fprintf(&b, "\n  %s %s: %s", a.Severity, a.Path, a.Message)
 	}
-	return d.Cause + " — " + d.NextStep
+	if d.NextStep != "" {
+		if len(d.ValidationAlerts) > 0 {
+			// The alert block ends the line it is on, so the next step opens one of
+			// its own. The " — " separator is kept either way, so the cause/next-step
+			// pair stays the same recognizable shape it has in every other failure.
+			b.WriteString("\n — ")
+		} else {
+			b.WriteString(" — ")
+		}
+		b.WriteString(d.NextStep)
+	}
+	return b.String()
 }
