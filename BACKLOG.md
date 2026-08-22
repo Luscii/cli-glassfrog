@@ -1,6 +1,6 @@
 # Backlog
 
-> Generated: 2026-06-12T20:59:00 | Enriched: 2026-08-08 | Framework: MoSCoW | Items: 92
+> Generated: 2026-06-12T20:59:00 | Enriched: 2026-08-22 | Framework: MoSCoW | Items: 92
 
 ### 1. Command Registration
 
@@ -586,7 +586,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: The single deliverable that removes most of the write path's friction; follows the facts at #71 that it renders and precedes the gate at #77 that consults it.
 - **Dependencies**: → requires: Change-Set Grammar Facts
-- **Status**: pending
+- **Status**: specified:077-agent-facing-grammar-reference
 
 ### 76. Invalid-Create Outcome
 
@@ -594,7 +594,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Needs the read-back at #73 before an invalid create can be rendered as a failure, and it introduces a new outcome touching the exit-code registry, so it is specified after the read rather than folded into it.
 - **Dependencies**: → requires: Post-Create Validity Read; → requires: Diagnostic Normalization; → requires: Output-Aware Failure Rendering; → requires: Exit-Code Convention
-- **Status**: pending
+- **Status**: specified:078-invalid-create-outcome
 
 ### 77. Pre-Assembly Grammar Consultation
 
@@ -602,7 +602,7 @@
 - **Framework**: MoSCoW (Must Have)
 - **Rationale**: Last of the Must tier because it consumes both #75 and #72; without it the reference ships unconsulted, which is the failure the tier exists to prevent.
 - **Dependencies**: → requires: Agent-Facing Grammar Reference; → requires: Proposal Drafting Path; → requires: Circle Routing Rule
-- **Status**: pending
+- **Status**: specified:079-pre-assembly-grammar-consultation
 
 ### 78. Identifier Mapping Harvest
 
