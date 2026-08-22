@@ -16,7 +16,6 @@ Feature: Pre-Assembly Routing Application
     # established before an anchor is settled on.
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: The target circle and its eligible anchors are established first
-    @wip
     Scenario: Routing names the target circle and every eligible anchor, choosing none
       Given an intended change and no anchor settled on
       When the drafter runs the recorded routing procedure's reads in their order
@@ -24,7 +23,6 @@ Feature: Pre-Assembly Routing Application
       And it will return action named-anchors, choosing none — the choice is the practitioner's
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: A handed-in anchor routes the change elsewhere
-    @wip
     Scenario: A mismatched handed-in anchor is reported, not drafted on silently
       Given a handed-in anchor whose determination landed the change outside the target circle
       When the drafter evaluates the handed-in anchor
@@ -32,7 +30,6 @@ Feature: Pre-Assembly Routing Application
       And drafting will proceed on the handed-in anchor where the practitioner directs it — the mismatch is reported, not enforced
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: No eligible anchor exists yet
-    @wip
     Scenario: An empty eligible set names capture as the closing step
       Given a target circle where the operator filled a role but no tension was sensed on it
       When the routing determination reports
@@ -40,7 +37,6 @@ Feature: Pre-Assembly Routing Application
       And the capture-gap note will name capture on that specific role in that specific circle as the step that closes the gap, handed onward rather than performed
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: A routing read fails part-way
-    @wip
     Scenario: An incomplete routing walk continues flagged, inventing nothing
       Given a routing determination whose reads failed before the procedure completed
       When the drafter reports its answer
@@ -48,7 +44,6 @@ Feature: Pre-Assembly Routing Application
       And it will continue on what was established, neither inventing the unread part nor abandoning it
 
     # Source: 079-pre-assembly-grammar-consultation — Proposed: spec accord (no containing circle) + interface-spec.md error communication — the record's decline is reported, no target invented
-    @wip
     Scenario: A root circle's missing parent is declined, not resolved
       Given a change to the governance of a circle whose parent_role_id was null
       When the routing determination reports
@@ -56,7 +51,6 @@ Feature: Pre-Assembly Routing Application
       And no target circle will be invented or chosen in its place
 
     # Source: 079-pre-assembly-grammar-consultation — Proposed: interface-spec.md invocation contract — the widened descriptions state the routed entry
-    @wip
     Scenario: Both artifact descriptions state the routed entry
       Given the proposal-drafting skill and the proposal-drafter agent after the gate landed
       When their frontmatter descriptions are read

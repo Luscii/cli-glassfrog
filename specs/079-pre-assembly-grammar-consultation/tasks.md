@@ -40,7 +40,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
   - **Interface references**: interface-spec.md: The workflow contract; The fence contract; Draft-record output shape; Defensive-drafting contract; Invocation
   - **Scenario references**: these artifact edits are what T002's suite asserts — see T002 for the scenario list
 
-- [ ] **T002** [Shared] [P] BDD content-inspection suite binding the two new feature files
+- [x] **T002** [Shared] [P] BDD content-inspection suite binding the two new feature files — 14 scenarios passing (8 + 6), @wip removed; parsing helpers in production source (preassemblygate.go); suite red-probed on a dropped leaf, a reintroduced inert claim, and a renamed step
   - **Scope**: New `internal/build` godog test file(s) (sibling shape to `proposal_drafting_bdd_test.go` / `circle_routing_rule_bdd_test.go`) binding `features/unguided-change-construction/pre-assembly-grammar-consultation.feature` and `features/proposal-circle-not-choosable/pre-assembly-routing-application.feature` with the `~@wip` filter, plus step definitions asserting the T001 artifacts' load-bearing content. Any parsing/normalization helpers go in production source (`internal/build/*.go`), not test files, per the established operator-path discipline; comparisons are whitespace-normalized.
   - **Acceptance criteria**:
     - All 14 runnable scenarios pass once their `@wip` tags are removed by the implement loop; the 5 `@validation` scenarios stay held
