@@ -336,6 +336,20 @@ func (w *preAssemblyGateWorld) assertActionVocabulary() error {
 	if !containsFold(w.agent, "every") || !containsFold(w.agent, "action path") {
 		return fmt.Errorf("the consultation element is not stated as present on every action path")
 	}
+	// An early return (a routing return, or a surfaced duplicate) reaches
+	// neither the consult step nor the match step, so both parts must offer a
+	// not-reached disposition. Without one the record can only either omit a
+	// part the contract requires on every action path, or claim a no-match for
+	// a change set that was never assembled — reporting work that never ran.
+	if !containsFold(w.agent, "not reached") {
+		return fmt.Errorf("the consultation element defines no not-reached state, so an early return cannot populate the grammar and match parts truthfully")
+	}
+	if !containsFold(w.agent, "never report a consult that did not happen") {
+		return fmt.Errorf("the grammar part does not forbid reporting a consult that did not happen")
+	}
+	if !containsFold(w.agent, "never report one for a set that was never built") {
+		return fmt.Errorf("the match part does not forbid reporting a no-match for a set that was never assembled")
+	}
 	return nil
 }
 
@@ -457,8 +471,30 @@ func (w *preAssemblyGateWorld) whenGateFromTheTop() error {
 }
 
 func (w *preAssemblyGateWorld) thenActsNotReAsks() error {
-	return requirePhrases("the agent", w.agent,
-		"acts on it", "do not re-surface the same decision")
+	if err := requirePhrases("the agent", w.agent,
+		"acts on it", "do not re-surface the same decision"); err != nil {
+		return err
+	}
+	// The relay's global rule is not sufficient on its own: every step that can
+	// end a run with a decision must carry the direction-present exception
+	// locally too. An agent executing a step reads that step's instruction, and
+	// an unconditional "is a return awaiting direction" branch re-surfaces the
+	// same decision on every re-delegation — the relay loop that never reaches
+	// the create.
+	w.steps = DraftingWorkflowSteps(w.skillRaw)
+	for _, want := range []struct{ step, phrase string }{
+		{"Route", "unless the input already carries the practitioner's direction settling that anchor"},
+		{"Match", "unless the input already carries a proceed-past instruction naming that fact"},
+	} {
+		i, err := w.stepIndex(want.step)
+		if err != nil {
+			return err
+		}
+		if !containsFold(grammarNorm(w.steps[i].Body), want.phrase) {
+			return fmt.Errorf("the %s step carries no direction-present exception, so a re-delegation carrying direction would re-surface the same decision: %q", want.step, w.steps[i].Body)
+		}
+	}
+	return nil
 }
 
 // --- Scenario: ungated consultation read ------------------------------------------

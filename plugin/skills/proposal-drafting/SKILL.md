@@ -55,7 +55,10 @@ tension's `ten_` id optionally already in hand:
    handed-in anchor whose determination lands the change **in** the target
    circle settles the anchor and the run continues; one that lands it elsewhere,
    or no anchor in hand, is a return awaiting direction (see
-   [The relay](#the-relay)).
+   [The relay](#the-relay)) — **unless the input already carries the
+   practitioner's direction settling that anchor**, in which case the
+   determination is reported and the run continues to step 2 on the directed
+   anchor. Direction already given is never re-surfaced as the same decision.
 2. **Ground** — `tension get <ten-id>` reads the settled anchor tension the
    draft is grounded in (its body and the `role_` id of the circle it belongs
    to), so the draft is anchored to a real, well-formed tension.
@@ -87,7 +90,11 @@ tension's `ten_` id optionally already in hand:
    proposal would be anchored in are known. A recognized match is surfaced
    **before the write** — the fact's handle, its shape, and its symptom, with
    **no verdict** on the change set's validity — and returned awaiting the
-   practitioner's direction. No match means saying so explicitly, **implying
+   practitioner's direction, **unless the input already carries a proceed-past
+   instruction naming that fact**, in which case the match is reported in the
+   consultation element and the run continues to step 8 with the change set
+   **unaltered**. Direction already given is never re-surfaced as the same
+   decision. No match means saying so explicitly, **implying
    nothing about validity** — the server stays the judge of what it accepts.
 8. **Confirm & create** — narrate the anchor tension and the assembled change set
    for confirmation, then create the draft:
