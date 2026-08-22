@@ -8,7 +8,7 @@
 
 ## Dependency Graph
 
-Phase 1: The wired gate (2 tasks, no phase dependencies) [Shared]
+Phase 1: The wired gate (2 tasks, no phase dependencies; within the phase T002 depends on T001) [Shared]
 Phase 2: The truth sweep (1 task, depends on Phase 1) [Shared]
 
 3 tasks total | T002 and T003 parallelizable once T001 lands | Builder: implement (BDD outer loop)

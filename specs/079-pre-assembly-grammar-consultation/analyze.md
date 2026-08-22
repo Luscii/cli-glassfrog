@@ -43,7 +43,7 @@
 - **H1 PASS** (terminology): the load-bearing terms — target circle, eligible anchor, handed-in vs settled anchor, recorded dead shape, consultation element, two-phase return, awaiting direction — are used with one meaning across all six artifacts; "gate" consistently names the whole pre-assembly step set.
 - **H2 PASS** (detail symmetry): spec (~230 lines) ↔ plan (~150) ↔ interface (~160) ↔ tasks (~90) carry proportionate depth; no shared topic is 3x+ lopsided.
 - **H3 PASS** (scope alignment): spec, interface, and tasks describe the same capability set — wiring, two consultations, recognition, reporting, sweep. The sweep appears in all three (spec Assumption → plan ADR-4 → T003); nothing is added or dropped silently.
-- **H4 PASS** (phase coverage): tasks' two phases mirror the plan's structurally — same names, same ordering, same dependency (Phase 2 on Phase 1), same same-PR rider.
+- **H4 PASS** (phase coverage): tasks' two phases mirror the plan's structurally — same names, same ordering, same dependency (Phase 2 on Phase 1), and the same-PR rider carried in both.
 
 ## Checklist Correlation
 
