@@ -53,7 +53,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
 
 ## Phase 2: The truth sweep [Shared]
 
-- [ ] **T003** [Shared] [P] Sweep the statements 079 falsifies, in the same PR
+- [x] **T003** [Shared] [P] Sweep the statements 079 falsifies, in the same PR — ships-unconsulted scenario retired with source comment, 067 Entry accord + assumption carry dated superseding notes, re-validation addenda appended to 067 and 073 validate records; portfolio files untouched
   - **Scope**: Three bookkeeping edits, no plugin or production-code changes: (1) `features/proposal-circle-not-choosable/circle-routing-guard.feature` — delete the `@validation @wip` scenario "No workflow step consults the record or runs its reads to route", leaving a source comment noting the consultation landed with this feature (runner-safe: `~@wip` filter, no Go step binds it); (2) `specs/067-proposal-drafting-path/spec.md` — dated superseding note on the Entry accord group and the "Entry is an existing tension id" assumption, pointing at 079's widened entry (original text stays legible; the note is self-contained); (3) re-validation addenda appended to `specs/067-proposal-drafting-path/validate.md` and `specs/073-circle-routing-rule/validate.md` naming the validate-pinned surfaces this feature edited and the disposition of each (the 073→067 addendum is the precedent shape).
   - **Acceptance criteria**:
     - No repository text still claims the drafting path's workflow is unchanged by the routing reads or that no workflow step consults the records — grep for the retired scenario's phrases returns only historical spec/validate records, never a live artifact

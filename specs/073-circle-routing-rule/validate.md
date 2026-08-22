@@ -132,3 +132,18 @@ Advisory notes (non-blocking):
 ## Next Steps
 
 Implementation conforms to the specification. Suggest PR review and merge (per tasks.md branching guidance: Phase 1 and Phase 2 as separate PRs if practical). The specification loop is closed.
+
+---
+
+## Re-validation addendum — 2026-08-22 (079 T003: the record's consultation wired in)
+
+**Trigger**: 079 (Pre-Assembly Grammar Consultation) landed the consultation this validation recorded as pending: the drafting workflow's first step now consults the circle-routing record and runs its named reads (`me roles`, `tension list`, `roles`) in the record's order, and the registry/fence annotations that said no workflow step consults the record were rewritten as the routing step's named reads — the "later change to this path" those annotations promised.
+
+**Disposition of the pinned surfaces**:
+
+- *The record itself* (`circle-routing-rule.md`) — untouched by 079. Its content contracts stay owned by this spec; 079 consults the record and restates nothing from it (pinned by 079's no-copy validation scenario).
+- *Validation scenario 4, "No workflow step consults the record or runs its reads to route"* — its premise ("this capability landed on its own") dissolved with 079's landing, so the scenario was retired from `circle-routing-guard.feature` with a source comment naming what landed and where the consulted state is asserted. Runner-safe by inspection: the guard suite runs with `~@wip` and no Go step bound the retired scenario. The consulted state is now asserted by 079's `pre-assembly-routing-application.feature` suite.
+- *Validation scenario 3, "The three routing reads appear in both the registry and the agent fence"* — still satisfied: the reads remain in both surfaces, now described as the routing step's reads, and the four-way drift resolution stays green.
+- *Gate posture* (the widening scenario) — re-ran green over the eight-leaf registry: `proposal create` remains the sole gated composed leaf, every read absent from the gated set, zero guard-code edits.
+
+**Outcome**: 073's STATUS row stays `Complete`. The feature's only falsified statement was the ships-unconsulted scenario, retired in the same change that falsified it (079 plan ADR-4). This addendum is the record of the re-validation, performed by 079 T003.

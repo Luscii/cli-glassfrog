@@ -107,12 +107,15 @@ Feature: Circle Routing Rule — guard enforcement
     And no write leaf will have entered the composed surface alongside them
 
   # Source: 073-circle-routing-rule — Scenario: The content ships unconsulted
-  @validation @wip
-  Scenario: No workflow step consults the record or runs its reads to route
-    Given this capability landed on its own
-    When the surfaces around the record are inspected
-    Then no workflow step will consult the routing content or run its named reads to route
-    And the drafting path's workflow will be unchanged
+  # Retired 2026-08-22: the ships-unconsulted scenario held only while its
+  # premise ("this capability landed on its own") was true.
+  # 079-pre-assembly-grammar-consultation wired the consultation into the
+  # drafting workflow — the routing reads are now the routing step's reads —
+  # so the consulted state is the asserted one: pre-assembly-routing-application.feature
+  # pins the applied routing, and 079's held validation scenario "The registry
+  # no longer claims the routing reads are ahead of their use" pins the
+  # annotation flip. (Runner-safe deletion: the guard suite runs with ~@wip and
+  # no Go step bound the retired scenario.)
 
   # Source: 073-circle-routing-rule — Scenario: Nothing prescribed refuses a write
   @validation @wip
