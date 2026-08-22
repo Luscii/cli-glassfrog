@@ -135,3 +135,99 @@ Two advisory observations are recorded above; neither is a conformance gap and n
 ## Next Steps
 
 Implementation conforms to the specification. Suggest PR review and merge — tasks.md branching guidance places Phase 1 and Phase 2 in the same PR as separable commits, which is how the branch is shaped (three commits: T001 wiring, T002 suites, T003 sweep). The specification loop is closed.
+
+---
+---
+
+# Validate: Pre-Assembly Grammar Consultation — Round 2
+
+**Feature**: 079-pre-assembly-grammar-consultation
+**Round**: 2 of 3
+**Date**: 2026-08-22
+**Verdict**: Ready
+**Trigger**: PR #209 review round 1 surfaced four contract inconsistencies that round 1 of this validation did not catch. Fixed in `136cf0f`; this round re-checks the five dimensions and re-traces the held-out scenarios against the corrected artifacts.
+**Artifacts loaded**: unchanged from round 1
+**Implementation files**: unchanged set; `plugin/agents/proposal-drafter.md`, `plugin/skills/proposal-drafting/SKILL.md`, and `internal/build/pre_assembly_grammar_consultation_bdd_test.go` edited since round 1
+
+---
+
+## Conformance Summary
+
+| Dimension | Status | Findings |
+|---|---|---|
+| Driving scenario coverage | ✓ Pass | 0 |
+| Acceptance criteria | ✓ Pass | 0 |
+| Interface contract conformance | ✓ Pass (one recorded divergence) | 0 |
+| Non-behavior absence | ✓ Pass | 0 |
+| @wip lifecycle completion | ✓ Pass | 0 |
+| **Validation scenarios** | ✓ Satisfied (5 of 5) | 0 |
+
+**Total**: 5 dimensions checked, 5 passed, 0 new findings. All four review findings resolved.
+
+---
+
+## Per-Dimension Results (round 2)
+
+**Driving scenario coverage** — Pass, 10 of 10. Unchanged coverage; two scenarios are now traced through corrected prose rather than contradictory prose. *A handed-in anchor routes the change elsewhere* and *The practitioner proceeds past a surfaced dead shape* previously traced to step-local branches that contradicted the relay; both steps now carry an explicit direction-present exception, so the trace no longer depends on a reader preferring the global rule over the step's own instruction. 14 runnable scenarios pass.
+
+**Acceptance criteria** — Pass, 3 of 3 tasks. T001's criterion "the relay loop … direction-present-means-act is documented" is now satisfied at the step level as well as in § The relay; T002's suite gained three assertions pinning the new phrases, each probed red before being trusted.
+
+**Interface contract conformance** — Pass, 7 of 7 surfaces, with one **recorded divergence**: the agent's `consultation` element now defines a third *not reached* state for its `grammar` and `match` parts, which the accord's canonical part definitions do not carry. The developer decided (2026-08-22) to leave `interface-spec.md` unamended in this PR. The divergence is a **superset, not a conflict** — the artifact satisfies every state the accord names and adds one the accord's own principle demands ("the result names which part was incomplete and why, rather than presenting a partial consultation as a whole one", spec § Reporting the consultation). Recorded here so the next editor amends the accord deliberately rather than "correcting" the artifact back to an untruthful two-state contract. No divergence exists for the direction-present exceptions: the accord's Interactions section already states that a re-delegated run "with direction present, acts on it rather than re-asking" — the fix makes that rule locally explicit at the two steps that can return.
+
+**Non-behavior absence** — Pass, 8 of 8. Re-checked the first exclusion (no refusing, blocking, delaying, or withholding) against the new prose: both added clauses are *continuations* — "the run continues to step 2 on the directed anchor", "the run continues to step 8 with the change set unaltered" — so the fix strengthens the exclusion rather than qualifying it. No refusal, filter, or withholding language was introduced.
+
+**@wip lifecycle completion** — Pass. 19 scenarios total across the two files; 14 runnable carry no tag, 5 carry `@validation @wip`, 0 carry a bare `@wip`. Matches the declared hold set exactly.
+
+---
+
+## Validation Scenario Results (round 2)
+
+**Status**: Satisfied (5 of 5). Re-traced against the corrected artifacts.
+
+| @validation scenario | Status | Trace |
+|---|---|---|
+| Consultation is unconditional and ordered | ✓ Satisfied | Unchanged in substance, and now stronger: the two direction-present exceptions continue the run *forward* (to step 2, to step 8) rather than skipping a gate step, so no path reaches assembly unconsulted or matches before routing answered. The re-delegated run still repeats the gate from the top |
+| Nothing withholds a write locally | ✓ Satisfied — **corrected trace** | Round 1 traced this to the relay's global "direction given is always acted on" and pronounced it satisfied. That trace was **incomplete**: steps 1 and 7 branched unconditionally to a return, so a re-delegation carrying direction re-surfaced the same decision indefinitely and the create was never reached — a withholding produced by contradiction rather than by intent. With the step-local exceptions in place the property now holds at every step that can return, not only in the section that summarizes them |
+| No content was copied into the wiring | ✓ Satisfied | Re-grepped the added lines: no change type, placement rule, recorded shape, or routing-rule substance. The new clauses reference the practitioner's direction and step numbers only |
+| The registry no longer claims the routing reads are ahead of their use | ✓ Satisfied | Unaffected by the fix; still pinned by `givenRegistries` |
+| A reader can tell from the record what was consulted and surfaced | ✓ Satisfied — **strengthened** | This is the scenario the first review finding bore on directly. A reader of an early-return record previously could not distinguish "the grammar was read and nothing matched" from "neither step ran", because the parts had no not-reached state. Both parts now name the return that ended the run ahead of them, and each forbids reporting work that never happened |
+
+---
+
+## Changes Since Previous Run
+
+**Round**: 2 (previous: Round 1 — verdict Ready, zero findings)
+
+### Resolved (4 items, all from PR #209 review round 1 — none had been found by round 1 of this validation)
+
+- **Consultation element had no not-reached state** — resolved in `136cf0f`. `grammar` and `match` each gained a third state naming the return that ended the run, plus an explicit ban on reporting work that did not happen; the element intro states that early returns carry it with unreached parts saying so.
+- **Agent identity paragraph stated the narrow entry** — resolved in `136cf0f`. The body's input contract now matches the widened frontmatter description (intended change, anchor `ten_` id optionally in hand, plus explicit direction on a re-delegation).
+- **Step 1 branched unconditionally, looping on re-delegation** — resolved in `136cf0f` with an explicit direction-present exception continuing to step 2 on the directed anchor.
+- **Step 7 branched unconditionally, looping on proceed-past** — resolved in `136cf0f` with an exception continuing to step 8, change set unaltered.
+
+### Remaining (0)
+
+### New (0)
+
+### Correction to round 1's record
+
+Round 1's verdict of "Ready, zero findings" was **wrong on one dimension**, and the error is worth naming precisely because it is a repeatable inspection failure, not bad luck:
+
+- Round 1 verified the **frontmatter description** carried the widened entry and never checked whether the artifact **body** still stated the narrow one. A widened-entry check must sweep every place the entry is stated, not only the discovery surface.
+- Round 1's VS-2 trace credited a **globally stated rule** (§ The relay's direction-present promise) without checking whether the **step-local branches** that rule governs contradicted it. Where an executing agent reads one step at a time, a global rule and a contradicting local branch is a defect, and the local text is what gets followed.
+
+Round 1's per-dimension results and verdict are left in place above as the record of what was checked and concluded at the time.
+
+---
+
+## Verdict: Ready
+
+All 5 conformance dimensions pass with zero new findings. All 5 held-out validation scenarios are satisfied, two of them (never-withhold, result-legibility) now on materially firmer ground than in round 1. The four review findings are resolved in `136cf0f`, each new load-bearing phrase pinned by the content-inspection suite and probed red before being trusted. Full suite green (`go test ./...` exit 0, 12 packages), `gofmt -l .` clean, and all 9 CI checks pass on the fix commit.
+
+One divergence is recorded rather than fixed, by developer decision: the accord's `consultation` part definitions do not carry the not-reached state the artifact now defines. The artifact is a truthful superset; the accord should gain the state whenever it is next revised.
+
+---
+
+## Next Steps
+
+Implementation conforms to the specification. Suggest PR review and merge of #209. If the accord divergence is to be closed in this PR after all, the edit is three lines in `interface-spec.md` (the two part definitions and a note); otherwise it carries forward as recorded above.
