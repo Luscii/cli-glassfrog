@@ -402,19 +402,27 @@ func problemCause(problemErr *apiclient.ProblemError) string {
 // every other family, and an invalid draft the server attached none to — renders
 // the single-line "cause — next step" form exactly as before: no alert block, no
 // stray blank line.
+//
+// A strings.Builder rather than repeated concatenation: the alert count is
+// server-controlled and unbounded, and `line += …` per alert reallocates, so the
+// copying is quadratic in the number of alerts. It also reads better — one exit
+// instead of three.
 func renderDiagnostic(d Diagnostic) string {
-	line := d.Cause
+	var b strings.Builder
+	b.WriteString(d.Cause)
 	for _, a := range d.ValidationAlerts {
-		line += fmt.Sprintf("\n  %s %s: %s", a.Severity, a.Path, a.Message)
+		fmt.Fprintf(&b, "\n  %s %s: %s", a.Severity, a.Path, a.Message)
 	}
-	if d.NextStep == "" {
-		return line
+	if d.NextStep != "" {
+		if len(d.ValidationAlerts) > 0 {
+			// The alert block ends the line it is on, so the next step opens one of
+			// its own. The " — " separator is kept either way, so the cause/next-step
+			// pair stays the same recognizable shape it has in every other failure.
+			b.WriteString("\n — ")
+		} else {
+			b.WriteString(" — ")
+		}
+		b.WriteString(d.NextStep)
 	}
-	if len(d.ValidationAlerts) > 0 {
-		// The alert block ends the line it is on, so the next step opens one of its
-		// own. The " — " separator is kept so the cause/next-step pair stays the
-		// same recognizable shape it has in every other failure.
-		return line + "\n — " + d.NextStep
-	}
-	return line + " — " + d.NextStep
+	return b.String()
 }

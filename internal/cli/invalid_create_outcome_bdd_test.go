@@ -364,12 +364,31 @@ func (w *invalidCreateWorld) noVerdictAdvisoryEmitted() error {
 
 // noFailureEnvelopeEmitted pins the non-trigger states: stdout carries no failure
 // envelope at all, in either the human or the machine rendering.
+//
+// The check is STRUCTURAL, not a substring scan. A success document legitimately
+// contains the word "error" as DATA — an alert's `severity` is the obvious case, and
+// the read-back Given is parameterized on severity — so scanning stdout for `"error"`
+// would fail a scenario that is behaving correctly. An envelope is a SHAPE: a JSON
+// object carrying a top-level "error" key, or a YAML document opening an unindented
+// `error:` block. Checking the shape also subsumes the weaker "invalid-create" token
+// scan this replaced, since that token only ever appears inside such an envelope.
+//
+// The human formats are guarded by the outcome check, not the stdout check: a
+// human-format failure leaves stdout EMPTY, so no stdout scan would have caught one.
 func (w *invalidCreateWorld) noFailureEnvelopeEmitted() error {
-	if strings.Contains(w.stdout, `"error"`) || strings.Contains(w.stdout, "invalid-create") {
-		return fmt.Errorf("a success state must emit no failure envelope:\n%s", w.stdout)
-	}
 	if w.outcome != Success {
 		return fmt.Errorf("outcome = %v, want Success\nstderr: %s", w.outcome, w.stderr)
+	}
+	var doc map[string]json.RawMessage
+	if json.Unmarshal([]byte(w.stdout), &doc) == nil {
+		if _, envelope := doc["error"]; envelope {
+			return fmt.Errorf("a success state must emit no failure envelope:\n%s", w.stdout)
+		}
+	}
+	for _, line := range strings.Split(w.stdout, "\n") {
+		if strings.HasPrefix(line, "error:") {
+			return fmt.Errorf("a success state must emit no yaml failure envelope:\n%s", w.stdout)
+		}
 	}
 	return nil
 }
