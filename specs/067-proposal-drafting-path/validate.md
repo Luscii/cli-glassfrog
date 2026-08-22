@@ -161,3 +161,24 @@ All eight are additionally pinned by passing godog scenarios in `internal/build/
 **Drift found**: none beyond the deliberate widening. The four stale evidence texts above pinned the four-leaf list verbatim; each encoded a property that still holds, so the verdict is unaffected.
 
 **Outcome**: 067's STATUS row stays `Complete`. The row itself is unchanged (no new 067 skill run — this addendum is the record of the re-validation, performed by 073 T006).
+
+---
+
+## Re-validation addendum — 2026-08-22 (079 T003: the pre-assembly gate wired in)
+
+**Trigger**: 079 (Pre-Assembly Grammar Consultation) changed this validation's pinned surfaces per its plan ADR-1 (in-place widening of the drafting path's shipped artifacts): the skill's workflow became the nine-step gate order (route → ground → situate → duplicate check → consult → assemble → match → confirm & create → hand off) with the two-phase relay documented; both frontmatter descriptions widened to the routed entry; the drafter agent's fence grew to eight leaves (`proposal grammar` joined as the consultation read), its output contract gained the `consultation` element (grammar / routing / match parts), its `action` vocabulary grew to seven values (`surfaced-routing-mismatch`, `named-anchors`, `surfaced-dead-shape` joined), and three defensive entries were added; the registry gained the `proposal grammar` line and its routing-block annotation was rewritten as the routing step's named reads. The corresponding superseding note sits on this spec's Entry accord and its entry assumption.
+
+**What was re-run**: the full 067 BDD suite (`proposal_drafting_bdd_test.go`), `TestProposalDraftingDriftGuard`, and 073's gate-posture scenario — all green over the widened surface with **zero guard-code edits** (079 plan ADR-3: `proposal grammar` resolves through the existing `proposal <sub>` arm of the four-way leaf resolution, and the read-side gate-membership check already covers every non-create leaf).
+
+**Disposition of the pinned surfaces** (assertions hold by re-derived property, not by pasted lists):
+
+- *Workflow steps* — the six original step activities (ground, situate, duplicate check, assemble, confirm & create, hand off) remain present with their pinned phrases intact; the three gate steps joined around them. The 067 content assertions are presence-based, so the widening is additive where they reach.
+- *Composed commands* — the property is **the fence permits exactly the leaves the registry lists and no others**; re-derived over eight leaves, drift check (d) confirms the agent names every leaf.
+- *Output contract* — the six pinned elements (draft/anchor/situating/action/handoff/notes) are unchanged; `consultation` joined as a seventh, present on every action path. The four pinned `action` values are unchanged; three awaiting-direction values joined (a report with a decision pending — deliberately neither success nor failure, per 079's interface accord).
+- *Frontmatter descriptions* — the trigger sentence and every boundary sentence retained; the routed entry added (pinned by 079's widened-descriptions scenario).
+
+**Invariants that must not change, confirmed unchanged**: `proposal create` remains the sole gated composed leaf; all seven reads are absent from the gated set (`proposal grammar` is in the gate script's recognized proposal reads, so consultation never prompts); no circulation write and no tension write anywhere in the registry or the fence.
+
+**Superseded evidence**: the 2026-08-08 addendum's third invariant — "the drafter's *workflow* is unchanged: no step consults the routing record or runs the routing reads" — described the pre-079 state and anticipated exactly this change ("capability granted ahead of the consultation"). 079 is that later change; the consulted state is now the pinned one (079's two BDD suites in `internal/build`).
+
+**Outcome**: 067's STATUS row stays `Complete`. This addendum is the record of the re-validation, performed by 079 T003.

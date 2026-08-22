@@ -18,7 +18,6 @@ Feature: Pre-Assembly Grammar Consultation
     # named before the write rather than after it.
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: The gate runs in order before the write
-    @wip
     Scenario: The workflow orders the gate ahead of the gated create
       Given the proposal-drafting skill's workflow was read end to end
       When its steps are compared against the gate's order
@@ -26,7 +25,6 @@ Feature: Pre-Assembly Grammar Consultation
       And every gate step will precede the confirmed create
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: A recognized dead shape is surfaced before the write
-    @wip
     Scenario: A recognized dead shape is named before the write
       Given an assembled change set that matched the recorded dead shape CSG-1's refused wrapper form
       When the drafter reaches the gated create
@@ -35,7 +33,6 @@ Feature: Pre-Assembly Grammar Consultation
       And it will express no verdict on the change set's validity
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: The grammar read fails
-    @wip
     Scenario: A failed grammar read is recorded and drafting continues
       Given a grammar read that failed
       When the drafter continues
@@ -44,7 +41,6 @@ Feature: Pre-Assembly Grammar Consultation
       And assembly will not be presented as consulted
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: An anchor-dependent dead shape is recognized
-    @wip
     Scenario: The self-targeting shape is recognized with the routing answer in hand
       Given a change set whose role operation targeted the circle the proposal would be anchored in
       When the drafter matches the assembled set against the recorded dead shapes
@@ -52,7 +48,6 @@ Feature: Pre-Assembly Grammar Consultation
       And the recognition will rest on both the change's target and the circle the proposal would be anchored in
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: The practitioner proceeds past a surfaced dead shape
-    @wip
     Scenario: Proceeding past a surfaced dead shape runs the create unchanged
       Given a recognized dead shape surfaced with action surfaced-dead-shape
       When the practitioner directs the drafter to proceed past that fact
@@ -60,7 +55,6 @@ Feature: Pre-Assembly Grammar Consultation
       And the change set will not be altered
 
     # Source: 079-pre-assembly-grammar-consultation — Scenario: The change set matches nothing recorded
-    @wip
     Scenario: A change set matching nothing recorded implies nothing about validity
       Given an assembled change set matching no recorded dead shape
       When the drafter reaches the write
@@ -68,14 +62,12 @@ Feature: Pre-Assembly Grammar Consultation
       And nothing about the set's validity will be implied
 
     # Source: 079-pre-assembly-grammar-consultation — Proposed: interface-spec.md defensive contract — direction present means act
-    @wip
     Scenario: A re-delegation carrying direction does not re-surface the same decision
       Given a re-delegation whose input carried the settled anchor and the proceed-past instruction naming the surfaced fact
       When the drafter runs the gate from the top
       Then it will act on the direction rather than returning the same decision again
 
     # Source: 079-pre-assembly-grammar-consultation — Proposed: plan ADR-3 — the consultation read joins the composed surface ungated
-    @wip
     Scenario: The consultation read joins the composed surface as an ungated read
       Given the composed-leaf registry and the write gate's registries
       When the eight composed leaves are checked against the gate's membership

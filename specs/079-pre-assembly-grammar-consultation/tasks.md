@@ -27,7 +27,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
 
 ## Phase 1: The wired gate [Shared]
 
-- [ ] **T001** [Shared] Wire the gate into the drafting path's three plugin artifacts, in one coherent edit
+- [x] **T001** [Shared] Wire the gate into the drafting path's three plugin artifacts, in one coherent edit — nine-step workflow + relay landed, eight-leaf registry with consultation-read line, annotation rewritten; full internal/build suite green with zero guard-code edits
   - **Scope**: `plugin/skills/proposal-drafting/SKILL.md`, `plugin/agents/proposal-drafter.md`, `plugin/agents/proposal-drafting-commands.txt` — and no other file. The skill's workflow section becomes the nine-step gate order (route → ground → situate → duplicate check → consult → assemble → match → confirm & create → hand off) with the two-phase relay documented; both frontmatter descriptions widen to the routed entry while keeping every existing boundary sentence; the agent's fence grows to the eight leaves, its output contract gains the `consultation` element (grammar / routing / match parts), its `action` vocabulary grows to seven values, and three defensive entries are added; the registry gains the `proposal grammar` line with its consultation-read comment and the routing block's inert annotation is rewritten (matching fence note rewritten in the same pass). All per interface-spec.md's Surface tables — the accord's enumerations are canonical.
   - **Acceptance criteria**:
     - The nine steps appear in the workflow in the accord's order, each naming its composed leaves; the relay loop (return → direction → re-delegate, repeat from the top, direction-present-means-act) is documented
@@ -40,7 +40,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
   - **Interface references**: interface-spec.md: The workflow contract; The fence contract; Draft-record output shape; Defensive-drafting contract; Invocation
   - **Scenario references**: these artifact edits are what T002's suite asserts — see T002 for the scenario list
 
-- [ ] **T002** [Shared] [P] BDD content-inspection suite binding the two new feature files
+- [x] **T002** [Shared] [P] BDD content-inspection suite binding the two new feature files — 14 scenarios passing (8 + 6), @wip removed; parsing helpers in production source (preassemblygate.go); suite red-probed on a dropped leaf, a reintroduced inert claim, and a renamed step
   - **Scope**: New `internal/build` godog test file(s) (sibling shape to `proposal_drafting_bdd_test.go` / `circle_routing_rule_bdd_test.go`) binding `features/unguided-change-construction/pre-assembly-grammar-consultation.feature` and `features/proposal-circle-not-choosable/pre-assembly-routing-application.feature` with the `~@wip` filter, plus step definitions asserting the T001 artifacts' load-bearing content. Any parsing/normalization helpers go in production source (`internal/build/*.go`), not test files, per the established operator-path discipline; comparisons are whitespace-normalized.
   - **Acceptance criteria**:
     - All 14 runnable scenarios pass once their `@wip` tags are removed by the implement loop; the 5 `@validation` scenarios stay held
@@ -53,7 +53,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
 
 ## Phase 2: The truth sweep [Shared]
 
-- [ ] **T003** [Shared] [P] Sweep the statements 079 falsifies, in the same PR
+- [x] **T003** [Shared] [P] Sweep the statements 079 falsifies, in the same PR — ships-unconsulted scenario retired with source comment, 067 Entry accord + assumption carry dated superseding notes, re-validation addenda appended to 067 and 073 validate records; portfolio files untouched
   - **Scope**: Three bookkeeping edits, no plugin or production-code changes: (1) `features/proposal-circle-not-choosable/circle-routing-guard.feature` — delete the `@validation @wip` scenario "No workflow step consults the record or runs its reads to route", leaving a source comment noting the consultation landed with this feature (runner-safe: `~@wip` filter, no Go step binds it); (2) `specs/067-proposal-drafting-path/spec.md` — dated superseding note on the Entry accord group and the "Entry is an existing tension id" assumption, pointing at 079's widened entry (original text stays legible; the note is self-contained); (3) re-validation addenda appended to `specs/067-proposal-drafting-path/validate.md` and `specs/073-circle-routing-rule/validate.md` naming the validate-pinned surfaces this feature edited and the disposition of each (the 073→067 addendum is the precedent shape).
   - **Acceptance criteria**:
     - No repository text still claims the drafting path's workflow is unchanged by the routing reads or that no workflow step consults the records — grep for the retired scenario's phrases returns only historical spec/validate records, never a live artifact
