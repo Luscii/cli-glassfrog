@@ -79,5 +79,5 @@
 | 075-legacy-identifier-request | Analyzed | analyze | 2026-08-08T16:05:00 |
 | 076-operating-surface-self-containment | Complete | validate | 2026-08-09T14:45:00 |
 | 077-agent-facing-grammar-reference | Complete | validate | 2026-08-10T12:20:00 |
-| 078-invalid-create-outcome | Analyzed | analyze | 2026-08-20T08:30:54 |
+| 078-invalid-create-outcome | Needs fixes | validate | 2026-08-21T12:29:09 |
 | 079-pre-assembly-grammar-consultation | Analyzed | analyze | 2026-08-22T11:15:03 |

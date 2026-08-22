@@ -90,7 +90,7 @@ func (w *orientationWorld) register(sc *godog.ScenarioContext) {
 	sc.Step(`^it will instruct the agent to pass "([^"]*)" rather than parse human-rendered text$`, w.thenInstructOutputFlag)
 	sc.Step(`^the orientation will explain how to detect that more pages exist$`, w.thenDetectMorePages)
 	sc.Step(`^it will explain how to fetch the subsequent pages$`, w.thenFetchSubsequentPages)
-	sc.Step(`^the orientation will state the meaning of each code in the 0–7 convention$`, w.thenMeaningEachCode)
+	sc.Step(`^the orientation will state the meaning of each code in the 0–8 convention$`, w.thenMeaningEachCode)
 	sc.Step(`^it will state the appropriate reaction for the code received$`, w.thenReactionForCode)
 	sc.Step(`^the orientation will direct the agent to "([^"]*)" for the X-Auth-Token key$`, w.thenDirectToAuthLogin)
 	sc.Step(`^it will introduce no credential mechanism beyond the CLI's own$`, w.thenNoNewCredentialMechanism)
@@ -242,10 +242,24 @@ func (w *orientationWorld) thenFetchSubsequentPages() error {
 	return nil
 }
 
+// thenMeaningEachCode asserts the skill documents every code the CLI publishes.
+// The set is DERIVED from the CLI's own exit-code constants rather than written as
+// a literal loop bound: a hard-coded `code <= N` keeps passing while silently
+// stopping short of the newest code, which is exactly how this guard came to be
+// asserting only 0–6 after code 7 landed and only 0–7 after code 8 landed. A
+// derived set asserts a new code from the moment it exists, and the failure
+// message names no range, so it cannot go false either.
 func (w *orientationWorld) thenMeaningEachCode() error {
-	for code := 0; code <= 7; code++ {
+	facts, err := LiveOrientationFacts()
+	if err != nil {
+		return fmt.Errorf("reading the CLI's published exit codes: %w", err)
+	}
+	if len(facts.ExitCodes) == 0 {
+		return fmt.Errorf("no published exit codes were found to assert the orientation against")
+	}
+	for code := range facts.ExitCodes {
 		if !mentionsExitCode(w.skill, code) {
-			return fmt.Errorf("skill does not document exit code %d in the 0–7 convention", code)
+			return fmt.Errorf("skill does not document exit code %d, which the CLI publishes", code)
 		}
 	}
 	return nil

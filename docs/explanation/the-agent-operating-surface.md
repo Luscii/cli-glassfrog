@@ -53,7 +53,7 @@ detail is the largest drift surface — it goes stale the moment a command or fl
 changes — so orientation points at the CLI's own `glassfrog <command> --help`
 instead, keeping command detail single-sourced in the CLI. What remains in the
 skill is a small, stable set of cross-cutting facts (the four output-format names,
-the `0`–`7` exit-code meanings, the credential command, pagination). Because that
+the `0`–`8` exit-code meanings, the credential command, pagination). Because that
 residual surface is small and enumerable, a best-effort drift guard in
 `internal/build` can pin it: it asserts the format tokens, exit codes, and the
 `auth login` command the skill names still match their CLI source, and fails the

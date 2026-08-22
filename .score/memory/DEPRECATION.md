@@ -38,18 +38,26 @@ Retired decisions, patterns, and features. Each entry records what was supersede
 ### 2026-08-18 - A created-but-invalid proposal becomes a failure exit (was: a success carrying an unfavourable verdict)
 ([078-invalid-create-outcome](../specs/078-invalid-create-outcome/spec.md))
 
-- [ ] features/success-reported-for-a-dead-proposal/post-create-validity-read.feature
-  - [ ] A created-but-invalid draft surfaces the server's refusal (`@deprecate`)
-  - [ ] Structured output carries the verdict alongside the created id (`@deprecate`)
-  - [ ] The compact line carries the validity token (`@deprecate`)
-  - [ ] Every verdict state is distinguishable in every output format (`@deprecate`)
-- [ ] features/success-reported-for-a-dead-proposal/invalid-create-outcome.feature
-  - [ ] An invalid draft fails the create with its own exit code (`@pending-deprecation`)
-  - [ ] A machine-readable failure carries the structured envelope (`@pending-deprecation`)
-  - [ ] Structured output carries the verdict for a valid create (`@pending-deprecation`)
-  - [ ] The compact line carries the validity token for a valid create (`@pending-deprecation`)
-  - [ ] The failure is distinguishable from every success state (`@pending-deprecation`, `@validation` — keeps `@validation @wip`, never becomes "active")
-  - [ ] The compact format fails the create the same way (`@pending-deprecation` — the second half of the compact deprecation's replacement, per note 4)
+- [x] features/success-reported-for-a-dead-proposal/post-create-validity-read.feature
+  - [x] A created-but-invalid draft surfaces the server's refusal (retagged `@deprecated`, excluded)
+  - [x] Structured output carries the verdict alongside the created id (retagged `@deprecated`, excluded)
+  - [x] The compact line carries the validity token (retagged `@deprecated`, excluded)
+  - [x] Every verdict state is distinguishable in every output format (retagged `@deprecated`; was already excluded by `@wip`)
+- [x] features/success-reported-for-a-dead-proposal/invalid-create-outcome.feature
+  - [x] An invalid draft fails the create with its own exit code (active)
+  - [x] A machine-readable failure carries the structured envelope (active)
+  - [x] Structured output carries the verdict for a valid create (active)
+  - [x] The compact line carries the validity token for a valid create (active)
+  - [x] The failure is distinguishable from every success state (kept `@validation @wip`, per note 3 — never becomes "active")
+  - [x] The compact format fails the create the same way (active — the second half of the compact deprecation's replacement, per note 4)
+
+Executed in T003 (078). The exclusion mechanism landed with the retag: `~@deprecated`
+joined the `Tags` filter in `internal/cli/post_create_validity_read_bdd_test.go`, so
+that suite now runs 12 of its 19 scenarios (4 `@validation @wip` + 3 newly-excluded
+`@deprecated`). The Go half of the collision (note 0) was re-pointed or inverted in
+the same commit. The replacements execute through a new runner,
+`internal/cli/invalid_create_outcome_bdd_test.go` (14 of 18 scenarios; the 4
+`@validation` ones stay `@wip`).
 
 Notes on executing this removal (verified against the runners and the Go tests during 078's pre-implementation guard):
 

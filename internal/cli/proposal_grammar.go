@@ -80,9 +80,12 @@ type proposalGrammarConfig struct {
 //     wrapped in `{data: …}`); a human format renders the `grammar` templates, or
 //     the operator's own template, over the same structure.
 //
-// Exit codes 3–7 (API, permission, rate-limit, network, stale-write) are
-// unproducible by construction: nothing here can produce a response, a 403, a 429,
-// a transport error, or an ETag conflict.
+// Every exit code that requires an exchange is unproducible here by construction:
+// this command sends no request and creates nothing, so there is no response, 403,
+// 429, transport error, ETag conflict, or accepted-but-invalid create to classify.
+// That is codes 3–8 today (API, permission, rate-limit, network, stale-write,
+// invalid-create), but the rule is the absent request path, not the list — an
+// exchange-derived code added later is unproducible here for the same reason.
 func runProposalGrammar(cfg proposalGrammarConfig) (Outcome, error) {
 	rt, outcome, oerr, ok := resolveRenderTarget(cfg.seam, cfg.outputFlag, cfg.outputPresent, cfg.stderr)
 	if !ok {

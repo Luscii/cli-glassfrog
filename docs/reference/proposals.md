@@ -260,7 +260,9 @@ filter accepts.
 Failure rendering is format-aware: for `json`/`yaml` the unified error envelope
 is written to stdout; for `full`/`compact` the diagnostic (cause + next step) is
 written to stderr. Every diagnostic names the cause and a next step and never
-includes the token. No proposal command introduces its own exit code.
+includes the token. Only `create` introduces an exit code of its own — the
+invalid-create code `8`, below; every other proposal command draws entirely on
+the shared convention.
 
 | Condition | Outcome | Exit |
 |---|---|---|
@@ -272,9 +274,13 @@ includes the token. No proposal command introduces its own exit code.
 | Async proposals not enabled (`403`), other permission (`401`) | PermissionError | 4 |
 | Rate limited (`429`) — write verbs are not auto-retried | RateLimited | 5 |
 | Could not reach the wire | NetworkUnavailable | 6 |
+| `create` only: the server accepted the create and reports the created draft not valid | InvalidCreate | 8 |
 
-The table above covers the six API leaves. `grammar` can produce only `0`, `2`,
-and `1`; codes `3`–`6` are unproducible for it because it issues no request.
+The table above covers the six API leaves. `grammar` can produce only `0`, `1`, and
+`2`; every exchange-derived code — `3`–`8` — is unproducible for it because it
+issues no request. Code `8` is reachable from `create` alone: it is the one outcome that
+follows a write the server *accepted*, so no read and no other write verb has a
+state it could describe.
 
 The Premium `403` classifies as `PermissionError` (4) with the server's detail
 surfaced. The command adds no plan-aware "not available on your plan"

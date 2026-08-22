@@ -37,6 +37,8 @@ func kind(o Outcome) string {
 		return "rate-limit"
 	case StaleWrite:
 		return "stale-write"
+	case InvalidCreate:
+		return "invalid-create"
 	default:
 		return "runtime"
 	}
@@ -62,6 +64,14 @@ func kind(o Outcome) string {
 //     non-JSON body is omitted so it can never fail the whole structured render
 //     (RenderError nests Body as structured data and errors on non-JSON — ADR-4).
 //     The diagnostic is more valuable than a malformed upstream body.
+//   - ProposalID ← d.ProposalID (078; omitted when empty — only the
+//     invalid-create failure names a created object, because it is the only
+//     failure of a write the server accepted)
+//   - ValidationAlerts ← d.ValidationAlerts, copied field-by-field from the model
+//     type into the neutral output.ValidationAlert (078; omitted when there are
+//     none, so a zero-length slice never renders as `[]`). This copy is why
+//     internal/output needs no model import: this file is the one place that
+//     imports both.
 //
 // err carries the typed-error chain for the status/body extraction. The caller
 // refines err once before computing d (reportFailure does), so the wrapped
@@ -76,10 +86,24 @@ func kind(o Outcome) string {
 // envelope is secret-free by construction.
 func errorEnvelopeFor(d Diagnostic, err error) output.ErrorEnvelope {
 	detail := output.ErrorDetail{
-		Message:  d.Cause,
-		NextStep: d.NextStep,
-		Feature:  d.Feature,
-		Kind:     kind(d.Category),
+		Message:    d.Cause,
+		NextStep:   d.NextStep,
+		Feature:    d.Feature,
+		Kind:       kind(d.Category),
+		ProposalID: d.ProposalID,
+	}
+	// The model→neutral alert copy (078 ADR-3). Built only when the server attached
+	// at least one alert, so the field stays a nil slice otherwise and omitempty
+	// omits the key rather than rendering an empty array.
+	if len(d.ValidationAlerts) > 0 {
+		detail.ValidationAlerts = make([]output.ValidationAlert, 0, len(d.ValidationAlerts))
+		for _, a := range d.ValidationAlerts {
+			detail.ValidationAlerts = append(detail.ValidationAlerts, output.ValidationAlert{
+				Severity: a.Severity,
+				Path:     a.Path,
+				Message:  a.Message,
+			})
+		}
 	}
 	var re *apiclient.ResponseError
 	if errors.As(err, &re) {

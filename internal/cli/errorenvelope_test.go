@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Luscii/cli-glassfrog/internal/apiclient"
+	"github.com/Luscii/cli-glassfrog/internal/glassfrog"
 	"github.com/Luscii/cli-glassfrog/internal/output"
 )
 
@@ -33,6 +34,7 @@ func TestKind_Table(t *testing.T) {
 		{"permission", PermissionError, "permission"},
 		{"rate-limit", RateLimited, "rate-limit"},
 		{"stale-write", StaleWrite, "stale-write"},
+		{"invalid-create", InvalidCreate, "invalid-create"},
 	}
 
 	covered := map[Outcome]bool{}
@@ -50,7 +52,7 @@ func TestKind_Table(t *testing.T) {
 	// maintained, so adding a new Outcome constant to the enum without also adding it
 	// here will NOT fail this test — that new value would fall to kind()'s "runtime"
 	// default. Keep this list current with dispatch.go's Outcome constants.
-	allOutcomes := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite}
+	allOutcomes := []Outcome{Success, UsageError, RuntimeError, NetworkUnavailable, APIError, PermissionError, RateLimited, StaleWrite, InvalidCreate}
 	if len(covered) != len(allOutcomes) {
 		t.Errorf("kind table covers %d distinct outcomes, want %d (a category lost or gained coverage)", len(covered), len(allOutcomes))
 	}
@@ -200,6 +202,112 @@ func TestErrorEnvelopeFor(t *testing.T) {
 				t.Errorf("key %s is out of declaration order:\n%s", key, doc)
 			}
 			last = at
+		}
+	})
+
+	t.Run("proposal_id and validation_alerts present for an invalid create (078)", func(t *testing.T) {
+		env := envFor(&invalidCreateError{
+			ProposalID: "prp_0123",
+			Alerts: []glassfrog.ValidationAlert{
+				{Severity: "error", Path: "name", Message: "Can't update the Cloud Foundations role during this meeting."},
+				{Severity: "warning", Path: "changes/0", Message: "Second."},
+			},
+		})
+		if env.Error.Kind != "invalid-create" {
+			t.Errorf("Kind = %q, want invalid-create", env.Error.Kind)
+		}
+		if env.Error.ProposalID != "prp_0123" {
+			t.Errorf("ProposalID = %q, want prp_0123 (never withheld on this failure)", env.Error.ProposalID)
+		}
+		want := []output.ValidationAlert{
+			{Severity: "error", Path: "name", Message: "Can't update the Cloud Foundations role during this meeting."},
+			{Severity: "warning", Path: "changes/0", Message: "Second."},
+		}
+		if len(env.Error.ValidationAlerts) != len(want) {
+			t.Fatalf("ValidationAlerts carried %d entries, want %d", len(env.Error.ValidationAlerts), len(want))
+		}
+		for i := range want {
+			if env.Error.ValidationAlerts[i] != want[i] {
+				t.Errorf("ValidationAlerts[%d] = %+v, want %+v (server order, field-by-field copy)", i, env.Error.ValidationAlerts[i], want[i])
+			}
+		}
+		// No exchange failed and no plan gate fired, so those keys do not apply.
+		if env.Error.Status != 0 || len(env.Error.Body) != 0 || env.Error.Feature != "" {
+			t.Errorf("status/body/feature must be absent for an invalid create: %+v", env.Error)
+		}
+		doc := jsonOf(t, env)
+		// The server's own key spellings, so an agent parses these exactly as it
+		// parses the success document's alerts.
+		for _, key := range []string{`"proposal_id"`, `"validation_alerts"`, `"severity"`, `"path"`, `"message"`} {
+			if !strings.Contains(doc, key) {
+				t.Errorf("rendered envelope should carry %s:\n%s", key, doc)
+			}
+		}
+		// `message` carries the cause and must not enumerate the alerts — they have
+		// their own key beside it.
+		if strings.Contains(env.Error.Message, "Can't update the Cloud Foundations role") {
+			t.Errorf("message enumerates the alerts:\n%s", env.Error.Message)
+		}
+		// Declaration order for THIS failure's key set. The plan-limit subtest above
+		// pins message → next_step → feature → kind → status → body; the two new keys
+		// follow body, and a plan-limit envelope carries neither, so each failure's
+		// order is asserted over its own key set rather than one shared list.
+		order := []string{`"message"`, `"next_step"`, `"kind"`, `"proposal_id"`, `"validation_alerts"`}
+		last := -1
+		for _, key := range order {
+			at := strings.Index(doc, key)
+			if at < 0 {
+				t.Fatalf("key %s missing from an invalid-create envelope:\n%s", key, doc)
+			}
+			if at < last {
+				t.Errorf("key %s is out of declaration order:\n%s", key, doc)
+			}
+			last = at
+		}
+	})
+
+	t.Run("validation_alerts absent (not an empty array) when the server attached none (078)", func(t *testing.T) {
+		// Both no-alert decode shapes: a nil slice (the key was absent) and a non-nil
+		// empty slice (the server stated an empty list). omitempty omits a zero-length
+		// slice, so no contract may promise `[]` — and the failure still fires.
+		for name, alerts := range map[string][]glassfrog.ValidationAlert{
+			"nil-slice-absent-key": nil,
+			"empty-slice-stated":   {},
+		} {
+			env := envFor(&invalidCreateError{ProposalID: "prp_0123", Alerts: alerts})
+			if len(env.Error.ValidationAlerts) != 0 {
+				t.Errorf("[%s] ValidationAlerts = %+v, want none", name, env.Error.ValidationAlerts)
+			}
+			if env.Error.ProposalID != "prp_0123" || env.Error.Kind != "invalid-create" {
+				t.Errorf("[%s] the failure still carries kind + proposal_id: %+v", name, env.Error)
+			}
+			doc := jsonOf(t, env)
+			if strings.Contains(doc, "validation_alerts") {
+				t.Errorf("[%s] the validation_alerts key must be absent, never an empty array:\n%s", name, doc)
+			}
+		}
+	})
+
+	t.Run("proposal_id and validation_alerts omitted for every other failure (078 omitempty)", func(t *testing.T) {
+		// Every failure family that is not an invalid create: an API rejection (what a
+		// rejected create renders), a plan-limit 403, a transport failure, and the
+		// internal-error fallback. All four envelopes are byte-identical to today.
+		for _, err := range []error{
+			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 422, Body: []byte(`{"detail":"nope"}`)}),
+			apiclient.ExtractProblem(&apiclient.ResponseError{StatusCode: 403, Method: "POST", Path: "/proposals/prp_0123/propose"}),
+			&apiclient.TransportError{},
+			errSomethingUnexpected(),
+		} {
+			env := envFor(err)
+			if env.Error.ProposalID != "" || len(env.Error.ValidationAlerts) != 0 {
+				t.Errorf("%T carries invalid-create fields: %+v", err, env.Error)
+			}
+			doc := jsonOf(t, env)
+			for _, key := range []string{"proposal_id", "validation_alerts"} {
+				if strings.Contains(doc, key) {
+					t.Errorf("the %s key must be absent (omitempty) for %T:\n%s", key, err, doc)
+				}
+			}
 		}
 	})
 

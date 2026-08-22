@@ -19,7 +19,6 @@ Feature: Invalid-Create Outcome
     # I want an accepted-but-invalid create to exit with its own failure code, so I can branch on $? and stop the sequence.
 
     # Source: 078-invalid-create-outcome — Scenario: An invalid draft terminates the create as a failure
-    @pending-deprecation @wip
     Scenario: An invalid draft fails the create with its own exit code
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with the alert "Can't update the Cloud Foundations role during this meeting." and no available transitions
@@ -31,7 +30,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 8
 
     # Source: 078-invalid-create-outcome — Scenario: A machine-readable failure is fully structured
-    @pending-deprecation @wip
     Scenario: A machine-readable failure carries the structured envelope
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -45,7 +43,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 8
 
     # Source: 078-invalid-create-outcome — Proposed: interface-cli.md § "stderr — human formats" (both human formats render the failure identically)
-    @pending-deprecation @wip
     Scenario: The compact format fails the create the same way
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert
@@ -56,7 +53,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 8
 
     # Source: 078-invalid-create-outcome — Proposed: interface-cli.md § stdout field table (an invalid draft with zero alerts still fails; the key is absent, not empty)
-    @wip
     Scenario: An invalid draft with no alerts still fails
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with no validation alerts
@@ -67,7 +63,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 8
 
     # Source: 078-invalid-create-outcome — Scenario: The failure keys on the verdict, not the transitions
-    @wip
     Scenario: The failure keys on the verdict, not the transitions
       Given a complete connection context with a stored token
       And the created proposal reads back as not valid with one validation alert and a non-empty transition set
@@ -76,7 +71,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 8
 
     # Source: 078-invalid-create-outcome — Scenario: A missing verdict leaves the create a success
-    @wip
     Scenario: A missing verdict leaves the create a success
       Given a complete connection context with a stored token
       And the created proposal reads back carrying no validity field
@@ -86,7 +80,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 0
 
     # Source: 078-invalid-create-outcome — Scenario: A failed read-back leaves the create a success
-    @wip
     Scenario: A failed read-back leaves the create a success
       Given a complete connection context with a stored token
       And the create succeeds but the read of the created proposal cannot reach the server
@@ -96,7 +89,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 0
 
     # Source: 078-invalid-create-outcome — Scenario: The new code never renumbers an existing one
-    @wip
     Scenario: The invalid-create code is new and renumbers nothing
       Given the exit-code registry with its existing assigned codes
       When the invalid-create category is added to it
@@ -104,7 +96,6 @@ Feature: Invalid-Create Outcome
       And every existing category will keep the code it had before
 
     # Source: 078-invalid-create-outcome — Scenario: A valid draft still succeeds (re-pin of the structured success path)
-    @pending-deprecation @wip
     Scenario: Structured output carries the verdict for a valid create
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with one alert of severity "warning"
@@ -115,7 +106,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 0
 
     # Source: 078-invalid-create-outcome — Scenario: A valid draft carrying alerts still succeeds (re-pin of the compact token line)
-    @pending-deprecation @wip
     Scenario: The compact line carries the validity token for a valid create
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with one alert of severity "warning"
@@ -125,7 +115,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 0
 
     # Source: 078-invalid-create-outcome — Proposed: plan ADR-3 (the two envelope keys are omitempty; only this failure populates them)
-    @wip
     Scenario: Other failures carry no invalid-create envelope keys
       Given a complete connection context with a stored token
       And the proposals endpoint rejects the create
@@ -151,7 +140,7 @@ Feature: Invalid-Create Outcome
       And no existing category's code will have changed
 
     # Source: 078-invalid-create-outcome — Scenario: The failure is distinguishable from every success state in a machine format
-    @validation @pending-deprecation @wip
+    @validation @wip
     Scenario: The failure is distinguishable from every success state
       Given a machine-readable output format
       When the server reports the draft not valid, reports it valid, reports it valid with alerts, reports no verdict, and the read-back fails, in turn
@@ -165,7 +154,6 @@ Feature: Invalid-Create Outcome
     # I want an invalid create to exit non-zero, so the job fails instead of passing on a dead draft.
 
     # Source: 078-invalid-create-outcome — Scenario: A valid draft still succeeds
-    @wip
     Scenario: A valid draft still succeeds
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with no validation alerts
@@ -175,7 +163,6 @@ Feature: Invalid-Create Outcome
       And the command will exit with code 0
 
     # Source: 078-invalid-create-outcome — Scenario: A valid draft carrying alerts still succeeds
-    @wip
     Scenario: A valid draft carrying alerts still succeeds
       Given a complete connection context with a stored token
       And the created proposal reads back as valid with one alert of severity "warning"
@@ -191,7 +178,6 @@ Feature: Invalid-Create Outcome
     # I want the failure to still show me the created prp_ id and the server's reasons.
 
     # Source: 078-invalid-create-outcome — Proposed: interface-cli.md § "stdout — user template" (failures bypass template rendering)
-    @wip
     Scenario: A user template does not render the failure
       Given a complete connection context with a stored token
       And a user template referencing only proposal fields
