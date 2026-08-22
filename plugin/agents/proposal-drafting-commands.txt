@@ -15,9 +15,10 @@
 # proposal list, proposal get); one is the single governance write the
 # write-safety gate confirms by design (proposal create), run only through the
 # confirmed write flow; three are routing reads (me roles, tension list, roles
-# — see the annotated block below). No other proposal write ever appears here —
-# the path never advances, responds to, or withdraws a proposal (that is the
-# proposal-circulation and proposal-impact-review paths).
+# — see the annotated block below); one is the consultation read (proposal
+# grammar — see its annotated line below). No other proposal write ever appears
+# here — the path never advances, responds to, or withdraws a proposal (that is
+# the proposal-circulation and proposal-impact-review paths).
 #
 # The gate posture this registry promises holds only while `proposal create` is
 # listed in the write-safety gate's registry (plugin/hooks/gated-commands.txt)
@@ -32,11 +33,19 @@ proposal create
 
 # Routing reads. The three reads below are the named reads of the circle-routing
 # rule record's procedure
-# (plugin/skills/proposal-drafting/references/circle-routing-rule.md). The path
-# MAY run them once consultation of that record is wired into the drafting
-# workflow — no workflow step consults the record or runs these reads to route
-# yet. They join the composed surface now so the record never names a read the
-# path is forbidden to run — their presence is NOT an implied routing step.
+# (plugin/skills/proposal-drafting/references/circle-routing-rule.md). They are
+# the routing step's reads: the drafting workflow's first step consults that
+# record and runs these reads in the record's order to determine the target
+# circle and every eligible anchor before an anchor is settled on. The path
+# names the record and runs its reads; it never restates the record's rule.
 me roles
 tension list
 roles
+
+# Consultation read. The read below renders the change-set grammar reference —
+# client-less and credential-free, so it never prompts — and the workflow's
+# consult step reads it once per delegation, before assembly. A failed read is
+# noted in the returned record and never withholds the draft. The rendering is
+# consulted, never restated: no change type or recorded shape is copied into
+# the drafting surface.
+proposal grammar

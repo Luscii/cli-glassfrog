@@ -27,7 +27,7 @@ Held scenarios stay `@wip` for /score:validate; the runners' `~@wip` filter neve
 
 ## Phase 1: The wired gate [Shared]
 
-- [ ] **T001** [Shared] Wire the gate into the drafting path's three plugin artifacts, in one coherent edit
+- [x] **T001** [Shared] Wire the gate into the drafting path's three plugin artifacts, in one coherent edit — nine-step workflow + relay landed, eight-leaf registry with consultation-read line, annotation rewritten; full internal/build suite green with zero guard-code edits
   - **Scope**: `plugin/skills/proposal-drafting/SKILL.md`, `plugin/agents/proposal-drafter.md`, `plugin/agents/proposal-drafting-commands.txt` — and no other file. The skill's workflow section becomes the nine-step gate order (route → ground → situate → duplicate check → consult → assemble → match → confirm & create → hand off) with the two-phase relay documented; both frontmatter descriptions widen to the routed entry while keeping every existing boundary sentence; the agent's fence grows to the eight leaves, its output contract gains the `consultation` element (grammar / routing / match parts), its `action` vocabulary grows to seven values, and three defensive entries are added; the registry gains the `proposal grammar` line with its consultation-read comment and the routing block's inert annotation is rewritten (matching fence note rewritten in the same pass). All per interface-spec.md's Surface tables — the accord's enumerations are canonical.
   - **Acceptance criteria**:
     - The nine steps appear in the workflow in the accord's order, each naming its composed leaves; the relay loop (return → direction → re-delegate, repeat from the top, direction-present-means-act) is documented
