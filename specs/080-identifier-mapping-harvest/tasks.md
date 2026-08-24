@@ -12,7 +12,7 @@ Phase 1: The projection (2 tasks, no phase dependencies; within the phase T002 d
 Phase 2: The command and machine output (1 task, depends on Phase 1) [Shared]
 Phase 3: Human render and reference docs (1 task, depends on Phase 2) [US4]
 
-4 tasks total | phases strictly sequential (T002 → T003 → T004 chain; only T001 unblocked at start) | Builder: implement (BDD outer loop)
+4 tasks total | strictly sequential (T001 → T002 → T003 → T004; only T001 unblocked at start) | Builder: implement (BDD outer loop)
 
 ## Branching Guidance
 
