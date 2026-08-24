@@ -81,3 +81,4 @@
 | 077-agent-facing-grammar-reference | Complete | validate | 2026-08-10T12:20:00 |
 | 078-invalid-create-outcome | Needs fixes | validate | 2026-08-21T12:29:09 |
 | 079-pre-assembly-grammar-consultation | Complete | validate | 2026-08-22T17:05:00 |
+| 080-identifier-mapping-harvest | Analyzed | risk | 2026-08-24T18:00:26 |
